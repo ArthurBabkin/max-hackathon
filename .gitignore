@@ -1,2 +1,10 @@
 .env
 .DS_Store
+
+# Снапшоты источников и постраничная экстракция — воспроизводятся parser/fetch.py
+# и parser/extract_pdf.py, сверяются по sha256 из datasets/data/sources_manifest.json
+datasets/snapshots/
+datasets/extracted/
+
+__pycache__/
+*.pyc

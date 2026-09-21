@@ -1,0 +1,289 @@
+{
+  "_note": "Олимпиады, на которые ссылается датасет B, но которых нет в датасете C. Поля name/profile/level/perechen_number_669 взяты из перечня №669 (редакция 2025/26) — их не надо искать заново, достаточно дособрать official_site, description и etapy.",
+  "_perechen_edition": "2025/26 (приказ №669 от 30.08.2025)",
+  "_generated_at": "2026-09-21",
+  "missing_in_C": [
+    {
+      "olympiad_id": "p669-5-yadernye-tehnologii",
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "ядерные технологии",
+      "level": "II",
+      "profile_slug": "yadernye-tehnologii",
+      "zapisey_v_B": 298,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu",
+        "mipt",
+        "msu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-49-estestvennye-nauki",
+      "perechen_number_669": 49,
+      "name": "Олимпиада школьников «Гранит науки»",
+      "profile": "естественные науки",
+      "level": "III",
+      "profile_slug": "estestvennye-nauki",
+      "zapisey_v_B": 210,
+      "profile_groups_v_B": [
+        "Биомед",
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "itmo",
+        "kfu",
+        "sechenov"
+      ]
+    },
+    {
+      "olympiad_id": "p669-37-astronomiya",
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "астрономия",
+      "level": "II",
+      "profile_slug": "astronomiya",
+      "zapisey_v_B": 184,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Физика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu",
+        "mipt",
+        "nsu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-50-vysokie-tehnologii",
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "высокие технологии",
+      "level": "I",
+      "profile_slug": "vysokie-tehnologii",
+      "zapisey_v_B": 163,
+      "profile_groups_v_B": [
+        "Биомед",
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "kfu",
+        "msu",
+        "sechenov"
+      ]
+    },
+    {
+      "olympiad_id": "p669-36-tehnika-i-tehnologii",
+      "perechen_number_669": 36,
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "техника и технологии",
+      "level": "I",
+      "profile_slug": "tehnika-i-tehnologii",
+      "zapisey_v_B": 157,
+      "profile_groups_v_B": [
+        "Биомед",
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu",
+        "msu",
+        "nsu",
+        "sechenov"
+      ]
+    },
+    {
+      "olympiad_id": "p669-36-estestvennye-nauki",
+      "perechen_number_669": 36,
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "естественные науки",
+      "level": "II",
+      "profile_slug": "estestvennye-nauki",
+      "zapisey_v_B": 142,
+      "profile_groups_v_B": [
+        "Биомед",
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu",
+        "msu",
+        "sechenov"
+      ]
+    },
+    {
+      "olympiad_id": "p669-74-astronomiya",
+      "perechen_number_669": 74,
+      "name": "Санкт-Петербургская астрономическая олимпиада",
+      "profile": "астрономия",
+      "level": "I",
+      "profile_slug": "astronomiya",
+      "zapisey_v_B": 140,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Физика"
+      ],
+      "vuzy": [
+        "hse",
+        "innopolis",
+        "itmo",
+        "kfu",
+        "mipt",
+        "msu",
+        "nsu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-55-kompyuternoe-modelirovanie-i-grafika",
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "компьютерное моделирование и графика",
+      "level": "III",
+      "profile_slug": "kompyuternoe-modelirovanie-i-grafika",
+      "zapisey_v_B": 126,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-48-obschestvoznanie",
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "обществознание",
+      "level": "II",
+      "profile_slug": "obschestvoznanie",
+      "zapisey_v_B": 88,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "itmo",
+        "kfu",
+        "msu",
+        "nsu",
+        "sechenov"
+      ]
+    },
+    {
+      "olympiad_id": "vsosh-astronomiya",
+      "perechen_number_669": null,
+      "name": "Всероссийская олимпиада школьников, астрономия",
+      "profile": "астрономия",
+      "level": "ВсОШ",
+      "profile_slug": "astronomiya",
+      "zapisey_v_B": 50,
+      "profile_groups_v_B": [
+        "ИТ",
+        "Физика",
+        "Экономика"
+      ],
+      "vuzy": [
+        "hse",
+        "kfu",
+        "mipt",
+        "msu",
+        "nsu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-59-medicina",
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "медицина",
+      "level": "II",
+      "profile_slug": "medicina",
+      "zapisey_v_B": 42,
+      "profile_groups_v_B": [
+        "Биомед",
+        "Физика"
+      ],
+      "vuzy": [
+        "kazan-gmu",
+        "kfu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-37-robototehnika",
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "робототехника",
+      "level": "II",
+      "profile_slug": "robototehnika",
+      "zapisey_v_B": 34,
+      "profile_groups_v_B": [
+        "ИТ"
+      ],
+      "vuzy": [
+        "hse",
+        "innopolis",
+        "kfu",
+        "msu",
+        "nsu"
+      ]
+    },
+    {
+      "olympiad_id": "vsosh-ekologiya",
+      "perechen_number_669": null,
+      "name": "Всероссийская олимпиада школьников, экология",
+      "profile": "экология",
+      "level": "ВсОШ",
+      "profile_slug": "ekologiya",
+      "zapisey_v_B": 14,
+      "profile_groups_v_B": [
+        "Биомед",
+        "Физика"
+      ],
+      "vuzy": [
+        "kfu",
+        "msu",
+        "nsu"
+      ]
+    },
+    {
+      "olympiad_id": "p669-37-ekologiya",
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "экология",
+      "level": "II",
+      "profile_slug": "ekologiya",
+      "zapisey_v_B": 7,
+      "profile_groups_v_B": [
+        "Биомед",
+        "Физика"
+      ],
+      "vuzy": [
+        "itmo",
+        "kfu",
+        "msu"
+      ]
+    }
+  ]
+}
