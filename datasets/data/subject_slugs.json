@@ -1,0 +1,502 @@
+{
+  "_dataset": "subject_slugs",
+  "_note": "Таблица 1.3 спеки, достроенная до всех профилей перечня №669. in_spec: true — значение зафиксировано спекой; false — выведено формулой slugify().",
+  "_source_date": "2026-09-21",
+  "slugs": [
+    {
+      "profile": "автоматизация бизнес-процессов",
+      "slug": "avtomatizaciya-biznes-processov",
+      "in_spec": false
+    },
+    {
+      "profile": "автономные транспортные системы",
+      "slug": "avtonomnye-transportnye-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "аграрная генетика",
+      "slug": "agrarnaya-genetika",
+      "in_spec": false
+    },
+    {
+      "profile": "академический рисунок, живопись, композиция, история искусства и культуры",
+      "slug": "akademicheskiy-risunok-zhivopis-kompoziciya-istoriya-iskusstva-i-kultury",
+      "in_spec": false
+    },
+    {
+      "profile": "анализ данных",
+      "slug": "analiz-dannyh",
+      "in_spec": false
+    },
+    {
+      "profile": "архитектура, изобразительные и прикладные виды искусств",
+      "slug": "arhitektura-izobrazitelnye-i-prikladnye-vidy-iskusstv",
+      "in_spec": false
+    },
+    {
+      "profile": "астрономия",
+      "slug": "astronomiya",
+      "in_spec": false
+    },
+    {
+      "profile": "беспилотный транспорт: аэрокосмические системы, беспилотные авиационные системы, водные робототехнические системы, летающая робототехника",
+      "slug": "bespilotnyy-transport-aerokosmicheskie-sistemy-bespilotnye-aviacionnye-sistemy-vodnye-robototehnicheskie-sistemy-letayuschaya-robototehnika",
+      "in_spec": false
+    },
+    {
+      "profile": "биология",
+      "slug": "biologiya",
+      "in_spec": true
+    },
+    {
+      "profile": "большие данные и машинное обучение",
+      "slug": "bolshie-dannye-i-mashinnoe-obuchenie",
+      "in_spec": false
+    },
+    {
+      "profile": "вероятность и статистика",
+      "slug": "veroyatnost-i-statistika",
+      "in_spec": false
+    },
+    {
+      "profile": "виртуальные миры: разработка компьютерных игр, технологии виртуальной реальности, технологии дополненной реальности, цифровые технологии в архитектуре",
+      "slug": "virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture",
+      "in_spec": false
+    },
+    {
+      "profile": "востоковедение",
+      "slug": "vostokovedenie",
+      "in_spec": false
+    },
+    {
+      "profile": "восточные языки",
+      "slug": "vostochnye-yazyki",
+      "in_spec": false
+    },
+    {
+      "profile": "высокие технологии",
+      "slug": "vysokie-tehnologii",
+      "in_spec": false
+    },
+    {
+      "profile": "генетика",
+      "slug": "genetika",
+      "in_spec": false
+    },
+    {
+      "profile": "геномное редактирование",
+      "slug": "genomnoe-redaktirovanie",
+      "in_spec": false
+    },
+    {
+      "profile": "география",
+      "slug": "geografiya",
+      "in_spec": false
+    },
+    {
+      "profile": "геология",
+      "slug": "geologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "графика",
+      "slug": "grafika",
+      "in_spec": false
+    },
+    {
+      "profile": "графический дизайн",
+      "slug": "graficheskiy-dizayn",
+      "in_spec": false
+    },
+    {
+      "profile": "гуманитарные и социальные науки",
+      "slug": "gumanitarnye-i-socialnye-nauki",
+      "in_spec": false
+    },
+    {
+      "profile": "деревянные духовые инструменты",
+      "slug": "derevyannye-duhovye-instrumenty",
+      "in_spec": false
+    },
+    {
+      "profile": "дизайн",
+      "slug": "dizayn",
+      "in_spec": false
+    },
+    {
+      "profile": "естественные науки",
+      "slug": "estestvennye-nauki",
+      "in_spec": false
+    },
+    {
+      "profile": "журналистика",
+      "slug": "zhurnalistika",
+      "in_spec": false
+    },
+    {
+      "profile": "изобразительное искусство",
+      "slug": "izobrazitelnoe-iskusstvo",
+      "in_spec": false
+    },
+    {
+      "profile": "инженерное дело",
+      "slug": "inzhenernoe-delo",
+      "in_spec": false
+    },
+    {
+      "profile": "инженерные биологические системы",
+      "slug": "inzhenernye-biologicheskie-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "инженерные науки",
+      "slug": "inzhenernye-nauki",
+      "in_spec": false
+    },
+    {
+      "profile": "инженерные системы",
+      "slug": "inzhenernye-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "иностранный язык",
+      "slug": "inostrannyy-yazyk",
+      "in_spec": false
+    },
+    {
+      "profile": "инструменты народного оркестра",
+      "slug": "instrumenty-narodnogo-orkestra",
+      "in_spec": false
+    },
+    {
+      "profile": "интеллектуальные робототехнические системы",
+      "slug": "intellektualnye-robototehnicheskie-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "интеллектуальные энергетические системы",
+      "slug": "intellektualnye-energeticheskie-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "информатика",
+      "slug": "informatika",
+      "in_spec": true
+    },
+    {
+      "profile": "информатика и программирование",
+      "slug": "informatika-i-programmirovanie",
+      "in_spec": false
+    },
+    {
+      "profile": "информационная безопасность",
+      "slug": "informacionnaya-bezopasnost",
+      "in_spec": false
+    },
+    {
+      "profile": "информационные и коммуникационные технологии",
+      "slug": "informacionnye-i-kommunikacionnye-tehnologii",
+      "in_spec": false
+    },
+    {
+      "profile": "инфохимия",
+      "slug": "infohimiya",
+      "in_spec": false
+    },
+    {
+      "profile": "искусственный интеллект",
+      "slug": "iskusstvennyy-intellekt",
+      "in_spec": false
+    },
+    {
+      "profile": "искусство",
+      "slug": "iskusstvo",
+      "in_spec": false
+    },
+    {
+      "profile": "история",
+      "slug": "istoriya",
+      "in_spec": false
+    },
+    {
+      "profile": "история искусств",
+      "slug": "istoriya-iskusstv",
+      "in_spec": false
+    },
+    {
+      "profile": "квантовый инжиниринг",
+      "slug": "kvantovyy-inzhiniring",
+      "in_spec": false
+    },
+    {
+      "profile": "композиция",
+      "slug": "kompoziciya",
+      "in_spec": false
+    },
+    {
+      "profile": "компьютерная безопасность",
+      "slug": "kompyuternaya-bezopasnost",
+      "in_spec": false
+    },
+    {
+      "profile": "компьютерное моделирование и графика",
+      "slug": "kompyuternoe-modelirovanie-i-grafika",
+      "in_spec": false
+    },
+    {
+      "profile": "космические системы: анализ космических снимков и геопространственных данных, спутниковые системы",
+      "slug": "kosmicheskie-sistemy-analiz-kosmicheskih-snimkov-i-geoprostranstvennyh-dannyh-sputnikovye-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "космонавтика",
+      "slug": "kosmonavtika",
+      "in_spec": false
+    },
+    {
+      "profile": "культурология",
+      "slug": "kulturologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "лингвистика",
+      "slug": "lingvistika",
+      "in_spec": false
+    },
+    {
+      "profile": "литература",
+      "slug": "literatura",
+      "in_spec": false
+    },
+    {
+      "profile": "математика",
+      "slug": "matematika",
+      "in_spec": true
+    },
+    {
+      "profile": "математическое моделирование и искусственный интеллект",
+      "slug": "matematicheskoe-modelirovanie-i-iskusstvennyy-intellekt",
+      "in_spec": false
+    },
+    {
+      "profile": "медицина",
+      "slug": "medicina",
+      "in_spec": false
+    },
+    {
+      "profile": "международные отношения",
+      "slug": "mezhdunarodnye-otnosheniya",
+      "in_spec": false
+    },
+    {
+      "profile": "международные отношения и глобалистика",
+      "slug": "mezhdunarodnye-otnosheniya-i-globalistika",
+      "in_spec": false
+    },
+    {
+      "profile": "механика и математическое моделирование",
+      "slug": "mehanika-i-matematicheskoe-modelirovanie",
+      "in_spec": false
+    },
+    {
+      "profile": "музыкальная педагогика и исполнительство",
+      "slug": "muzykalnaya-pedagogika-i-ispolnitelstvo",
+      "in_spec": false
+    },
+    {
+      "profile": "наносистемы и химический инжиниринг",
+      "slug": "nanosistemy-i-himicheskiy-inzhiniring",
+      "in_spec": false
+    },
+    {
+      "profile": "научно-технический",
+      "slug": "nauchno-tehnicheskiy",
+      "in_spec": false
+    },
+    {
+      "profile": "нейротехнологии и когнитивные науки",
+      "slug": "neyrotehnologii-i-kognitivnye-nauki",
+      "in_spec": false
+    },
+    {
+      "profile": "обществознание",
+      "slug": "obschestvoznanie",
+      "in_spec": true
+    },
+    {
+      "profile": "основы бизнеса",
+      "slug": "osnovy-biznesa",
+      "in_spec": false
+    },
+    {
+      "profile": "основы православной культуры",
+      "slug": "osnovy-pravoslavnoy-kultury",
+      "in_spec": false
+    },
+    {
+      "profile": "основы российской государственности",
+      "slug": "osnovy-rossiyskoy-gosudarstvennosti",
+      "in_spec": false
+    },
+    {
+      "profile": "политология",
+      "slug": "politologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "право",
+      "slug": "pravo",
+      "in_spec": false
+    },
+    {
+      "profile": "предпрофессиональная",
+      "slug": "predprofessionalnaya",
+      "in_spec": false
+    },
+    {
+      "profile": "программная инженерия в финансовых технологиях",
+      "slug": "programmnaya-inzheneriya-v-finansovyh-tehnologiyah",
+      "in_spec": false
+    },
+    {
+      "profile": "промышленное программирование",
+      "slug": "promyshlennoe-programmirovanie",
+      "in_spec": false
+    },
+    {
+      "profile": "психология",
+      "slug": "psihologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "разработка мобильных приложений",
+      "slug": "razrabotka-mobilnyh-prilozheniy",
+      "in_spec": false
+    },
+    {
+      "profile": "религиоведение",
+      "slug": "religiovedenie",
+      "in_spec": false
+    },
+    {
+      "profile": "рисунок",
+      "slug": "risunok",
+      "in_spec": false
+    },
+    {
+      "profile": "рисунок, живопись, композиция, черчение",
+      "slug": "risunok-zhivopis-kompoziciya-cherchenie",
+      "in_spec": false
+    },
+    {
+      "profile": "рисунок, живопись, скульптура, дизайн",
+      "slug": "risunok-zhivopis-skulptura-dizayn",
+      "in_spec": false
+    },
+    {
+      "profile": "робототехника",
+      "slug": "robototehnika",
+      "in_spec": false
+    },
+    {
+      "profile": "родные языки",
+      "slug": "rodnye-yazyki",
+      "in_spec": false
+    },
+    {
+      "profile": "русский язык",
+      "slug": "russkiy-yazyk",
+      "in_spec": false
+    },
+    {
+      "profile": "социология",
+      "slug": "sociologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "струнные инструменты",
+      "slug": "strunnye-instrumenty",
+      "in_spec": false
+    },
+    {
+      "profile": "теория и история музыки",
+      "slug": "teoriya-i-istoriya-muzyki",
+      "in_spec": false
+    },
+    {
+      "profile": "техника и технологии",
+      "slug": "tehnika-i-tehnologii",
+      "in_spec": false
+    },
+    {
+      "profile": "технический рисунок и декоративная композиция",
+      "slug": "tehnicheskiy-risunok-i-dekorativnaya-kompoziciya",
+      "in_spec": false
+    },
+    {
+      "profile": "технологии беспроводной связи",
+      "slug": "tehnologii-besprovodnoy-svyazi",
+      "in_spec": false
+    },
+    {
+      "profile": "умные системы и технологии: умный город, цифровые сенсорные системы",
+      "slug": "umnye-sistemy-i-tehnologii-umnyy-gorod-cifrovye-sensornye-sistemy",
+      "in_spec": false
+    },
+    {
+      "profile": "физика",
+      "slug": "fizika",
+      "in_spec": true
+    },
+    {
+      "profile": "филология",
+      "slug": "filologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "философия",
+      "slug": "filosofiya",
+      "in_spec": false
+    },
+    {
+      "profile": "финансовая безопасность",
+      "slug": "finansovaya-bezopasnost",
+      "in_spec": false
+    },
+    {
+      "profile": "финансовая грамотность",
+      "slug": "finansovaya-gramotnost",
+      "in_spec": false
+    },
+    {
+      "profile": "фортепиано",
+      "slug": "fortepiano",
+      "in_spec": false
+    },
+    {
+      "profile": "химия",
+      "slug": "himiya",
+      "in_spec": true
+    },
+    {
+      "profile": "хоровое дирижирование",
+      "slug": "horovoe-dirizhirovanie",
+      "in_spec": false
+    },
+    {
+      "profile": "экология",
+      "slug": "ekologiya",
+      "in_spec": false
+    },
+    {
+      "profile": "экономика",
+      "slug": "ekonomika",
+      "in_spec": true
+    },
+    {
+      "profile": "ядерные технологии",
+      "slug": "yadernye-tehnologii",
+      "in_spec": false
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "_dataset": "vuzy_catalog",
+  "_note": "Канонический справочник вузов. vuz_id используется как внешний ключ в vuz_napravlenie_olimpiady.",
+  "vuzy": [
+    { "vuz_id": "msu",        "name": "МГУ им. М.В. Ломоносова",       "city": "Москва",     "website": "https://www.msu.ru",        "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "spbu",       "name": "СПбГУ",                          "city": "Санкт-Петербург", "website": "https://spbu.ru",      "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "hse",        "name": "НИУ ВШЭ",                        "city": "Москва",     "website": "https://www.hse.ru",        "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "mipt",       "name": "МФТИ",                           "city": "Долгопрудный","website": "https://mipt.ru",           "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "itmo",       "name": "ИТМО",                           "city": "Санкт-Петербург", "website": "https://itmo.ru",      "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "nsu",        "name": "НГУ",                            "city": "Новосибирск","website": "https://www.nsu.ru",        "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "kfu",        "name": "КФУ",                            "city": "Казань",     "website": "https://kpfu.ru",           "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "innopolis",  "name": "Университет Иннополис",          "city": "Иннополис",  "website": "https://university.innopolis.ru", "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "sechenov",   "name": "Сеченовский Университет",        "city": "Москва",     "website": "https://www.sechenov.ru",   "admission_rules_url": "", "source_checked_date": "" },
+    { "vuz_id": "kazan-gmu",  "name": "Казанский ГМУ",                  "city": "Казань",     "website": "https://kazangmu.ru",       "admission_rules_url": "", "source_checked_date": "" }
+  ]
+}
