@@ -1,0 +1,129 @@
+# Реестр источников для датасетов A и B. Приёмная кампания 2026.
+# role: rules | olymp_list | vsosh_list | programs | kcp | landing
+# landing — страницу надо перечитывать каждый прогон, ссылки на файлы там меняются.
+# discover: true — URL не фиксирован, берётся со страницы landing того же вуза.
+
+defaults:
+  delay_sec: 2.0
+
+vuzy:
+
+  msu:
+    name: МГУ им. М.В. Ломоносова
+    docs:
+      - {role: rules,      url: "https://cpk.msu.ru/files/2026/rules.pdf", note: "порог 75, п.27"}
+      - {role: rules,      url: "https://cpk.msu.ru/files/2026/rules_peculiarities.pdf"}
+      - {role: olymp_list, url: "https://cpk.msu.ru/files/2026/olymp_benefits.pdf", note: "секции по факультетам"}
+      - {role: vsosh_list, url: "https://cpk.msu.ru/files/2026/olymp_disciplines.pdf", note: "соотнесение профилей ВсОШ"}
+      - {role: kcp,        url: "https://cpk.msu.ru/files/2026/kcp_bak.pdf", note: "он же perечень программ"}
+      - {role: programs,   url: "https://cpk.msu.ru/files/2026/kcp_bak.pdf"}
+      - {role: rules,      url: "https://cpk.msu.ru/files/2026/quota.pdf"}
+
+  spbu:
+    name: СПбГУ
+    delay_sec: 10.0   # объявленный Crawl-delay, держим чтобы не словить блок
+    docs:
+      - {role: landing,    url: "https://abiturient.spbu.ru/programs/bakalavriat/"}
+      - {role: rules,      url: "https://abiturient.spbu.ru/medialibrary/ru/2026/pravila_priema_2026.pdf"}
+      - {role: vsosh_list, url: "https://abiturient.spbu.ru/medialibrary/ru/2026/bac/bac_spec_olymp_1_2026.pdf"}
+      - {role: olymp_list, url: "https://abiturient.spbu.ru/medialibrary/ru/2026/bac/bac_spec_olymp_2_2026.pdf", note: "РСОШ, порог в колонке"}
+      - {role: programs,   url: "https://abiturient.spbu.ru/medialibrary/ru/2026/bac/bak_spec_prog_VI_2026.pdf"}
+      - {role: kcp,        url: "https://abiturient.spbu.ru/medialibrary/ru/2026/bac/quotas_bac_2026.pdf"}
+
+  hse:
+    name: НИУ ВШЭ
+    delay_sec: 3.0
+    docs:
+      - {role: landing,    url: "https://ba.hse.ru/docs"}
+      - {role: rules,      url: "https://ba.hse.ru/mirror/pubs/share/1170720303"}
+      - {role: rules,      url: "https://ba.hse.ru/mirror/pubs/share/1170734037", note: "порядок учёта олимпиад"}
+      - {role: vsosh_list, url: "https://ba.hse.ru/mirror/pubs/share/1133957386"}
+      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170753498", campus: Москва}
+      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170734747", campus: Нижний Новгород}
+      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170736201", campus: Пермь}
+      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1120660311", campus: Санкт-Петербург}
+      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607478", campus: Москва}
+      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607522", campus: Нижний Новгород}
+      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1134464654", campus: Пермь}
+      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607575", campus: Санкт-Петербург}
+      - {role: kcp,        url: "https://www.hse.ru/mirror/pubs/share/1132535527.pdf", note: "все 4 кампуса"}
+
+  mipt:
+    name: МФТИ
+    docs:
+      - {role: rules,      url: "https://pk.mipt.ru/bachelor/2026_rules/", note: "HTML, PDF не существует"}
+      - {role: olymp_list, url: "https://pk.mipt.ru/bachelor/2026_olympiads/", note: "146x16, № перечня в колонке 0"}
+      - {role: vsosh_list, url: "https://pk.mipt.ru/bachelor/2026_olympiads/", note: "приложение 2 на той же странице"}
+      - {role: programs,   url: "https://pk.mipt.ru/bachelor/2026_places/"}
+      - {role: kcp,        url: "https://pk.mipt.ru/bachelor/2026_places/"}
+
+  itmo:
+    name: ИТМО
+    docs:
+      - {role: landing,    url: "https://abit.itmo.ru/bachelor"}
+      - {role: rules,      url: "https://abit.itmo.ru/file_storage/file/pages/80/pravila_bac1.pdf", note: "40 МБ, кешировать"}
+      - {role: olymp_list, url: "https://abit.itmo.ru/file_storage/file/pages/82/rsosh_bvi_2026.pdf", benefit: "БВИ"}
+      - {role: olymp_list, url: "https://abit.itmo.ru/file_storage/file/pages/82/rsosh_100_2026.pdf", benefit: "100_ballov"}
+      - {role: vsosh_list, url: "https://abit.itmo.ru/file_storage/file/pages/82/vsosh_2026.pdf"}
+      - {role: programs,   url: "itmo-next-json", discover: true, note: "buildId протухает, читать из __NEXT_DATA__"}
+      - {role: kcp,        url: "https://abit.itmo.ru/page/71", note: "таблица рендерится JS"}
+
+  nsu:
+    name: НГУ
+    docs:
+      - {role: landing,    url: "https://www.nsu.ru/n/education/apply-info/documents/"}
+      - {role: olymp_list, url: "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/", note: "57 таблиц, по 2 на программу"}
+      - {role: vsosh_list, url: "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/"}
+      - {role: programs,   url: "https://www.nsu.ru/n/education/programs/bachelor/"}
+      - {role: rules,      url: "https://www.nsu.ru/upload/iblock/3c8/j0nycjc8re1qw4lq0fia593gaxgwqt2g/Порядок приема в НГУ на первый курс по программам бакалавриата и специалитета в 2026 году_изм.от14.05.2026 (2).pdf", note: "дата правки зашита в имя — перечитывать с landing"}
+      - {role: kcp,        url: "https://www.nsu.ru/upload/iblock/b11/li4dkrcq3nyqcykfadlkbw7y7k609yve/Информация о количестве бюджетных мест при приеме в бакалавриат_специалитет в 2026 году (1).pdf"}
+      - {role: kcp,        url: "https://www.nsu.ru/upload/iblock/f1c/q5waotfxv2xibsv2e6vj3lsqz9b715y8/Информация о количестве платных мест при приеме в бакалавриат_специалитет в 2026 году.pdf"}
+      - {role: rules,      url: "https://www.nsu.ru/upload/iblock/03f/7kue6jk5db3g04a0pdgre7lf7ed4ele9/Минимальные баллы для поступающих в 2026 году.pdf"}
+      - {role: programs,   url: "https://www.nsu.ru/upload/iblock/b8f/ty5t15i2gfgows4wvp20iu2vkdku6369/Вступительные испытания для поступающих в НГУ в 2026 году.pdf"}
+
+  kfu:
+    name: КФУ
+    docs:
+      - {role: landing,    url: "https://admissions.kpfu.ru/bakalavriat-specialitet/informaciya-o-priyome/pravila-priyoma/"}
+      - {role: rules,      url: "https://admissions.kpfu.ru/wp-content/uploads/2026/01/pravila-priema_kfu_2026-bsm_fin_fin_20.pdf"}
+      - {role: olymp_list, url: "https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf", note: "125 стр."}
+      - {role: programs,   url: "https://admissions.kpfu.ru/wp-content/uploads/2026/06/plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf"}
+      - {role: kcp,        url: "https://admissions.kpfu.ru/wp-content/uploads/2026/06/plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf"}
+      - {role: landing,    url: "https://admissions.kpfu.ru/bakalavriat-specialitet/priem-po-osobym-usloviyam/priem-pobeditelej-i-prizerov-olimpiad/", note: "порог 75; БВИ впервые в 2026"}
+
+  innopolis:
+    name: Университет Иннополис
+    docs:
+      - {role: landing,    url: "https://innopolis.university/sveden/apply/", note: "часть ссылок уже 404"}
+      - {role: rules,      url: "https://innopolis.university/upload/iblock/2e1/y921axc6i1e6ppjmhcwtvuk5x8sl34wl/Правила_приема_ВО_новая_редакция.pdf"}
+      - {role: olymp_list, url: "https://innopolis.university/upload/iblock/af0/5zbznxu6eam9wuz7zi2s6xeegtv512ln/Олимпиады_2026.pdf", note: "63 стр., 13 МБ"}
+      - {role: olymp_list, url: "https://innopolis.university/upload/iblock/854/joqrvun3ohhklngnedj0im7t5o2x4hm1/Информация_об_особых_правах_2026.docx", note: "docx, порог 75, 9-11 класс"}
+      - {role: kcp,        url: "https://innopolis.university/upload/iblock/535/aj2v85qizy7qo9n21w9d3zm3fjykhhpx/КЦП.pdf"}
+      - {role: programs,   url: "https://innopolis.university/upload/iblock/535/aj2v85qizy7qo9n21w9d3zm3fjykhhpx/КЦП.pdf"}
+
+  sechenov:
+    name: Сеченовский Университет
+    docs:
+      - {role: landing,    url: "https://priem.sechenov.ru/undergraduate/pravila-priema/"}
+      - {role: programs,   url: "https://priem.sechenov.ru/undergraduate/", note: "живой HTML, 22 программы"}
+      - {role: rules,      url: "https://www.sechenov.ru/upload/iblock/c3d/b4ubx1qudx09i7fbtmeg6gkg855n10ct/Pravila-priema_2026_2027_BS-s-izmeneniyami-_1_-_2_3.pdf"}
+      - {role: olymp_list, url: "https://priem.sechenov.ru/undergraduate/pravila-priema/Pravila-priema_2026_2027_BS_pril5_Perechen-olimpiad.pdf", note: "БВИ или только 100 баллов — ПРОВЕРИТЬ"}
+      - {role: programs,   url: "https://priem.sechenov.ru/undergraduate/pravila-priema/Pravila-priema_2026_2027_BS_pril1_Perechen-programm.pdf"}
+      - {role: rules,      url: "https://priem.sechenov.ru/undergraduate/pravila-priema/Pravila-priema_2026_2027_BS_pril2_Perechen-VI.pdf"}
+      - {role: kcp,        url: "https://www.sechenov.ru/upload/iblock/399/3nynlws4zt9tofshxjul86667t70oqm9/Kolichestvo-mest-dlya-priema-na-obuchenie-po-razlichnym-usloviyam-postupleniya-_s-ukazaniem-osoboy-kvoty_-otdelnoy-kvoty-i-tselevoy-kvoty_.pdf"}
+
+  kazan-gmu:
+    name: Казанский ГМУ
+    docs:
+      - {role: landing,    url: "https://kazangmu.ru/postupayushchim/postuplenie-v-kgmu/bakalavriat"}
+      - {role: rules,      url: "https://cloud.kazangmu.ru/index.php/s/aSw6oi45mT8oHim/download"}
+      - {role: olymp_list, url: "https://cloud.kazangmu.ru/index.php/s/zWG3zATpt25SKgz/download", note: "8 стр."}
+      - {role: olymp_list, url: "https://kazangmu.ru/images/priemcom/Informaciya%20o%20predostavlenii%20osobyh%20prav%20i%20osobogo%20preimushchestva%20po%20programmam%20bakalavriata%20i%20programmam%20specialiteta2026.pdf"}
+      - {role: programs,   url: "https://cloud.kazangmu.ru/index.php/s/nzPKGNY6ZyFwmPG/download", note: "kcp 2026.pdf — доказательство not_offered"}
+      - {role: kcp,        url: "https://cloud.kazangmu.ru/index.php/s/WZGN6HCGsFMreZt/download"}
+      - {role: rules,      url: "https://cloud.kazangmu.ru/index.php/s/tf5k42eayMbA6Nb/download", note: "ВИ и мин. баллы"}
+
+# Хосты с особенностями транспорта.
+transport:
+  "priem.sechenov.ru": {verify_ssl: false, note: "неполная цепочка сертификата"}
+  "sechenov.ru":       {skip: true, note: "WAF блокирует, использовать www."}
