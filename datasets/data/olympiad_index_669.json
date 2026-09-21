@@ -1,0 +1,3659 @@
+{
+  "_dataset": "olympiad_index_669",
+  "_note": "Перечень олимпиад школьников, приказ Минобрнауки №669 от 30.08.2025. Общий справочник для датасетов B и C: olympiad_id строится формулой раздела 4 спеки, поэтому у обоих исполнителей совпадает.",
+  "_source_url": "https://rsr-olymp.ru/",
+  "_source_date": "2026-09-21",
+  "olympiads": [
+    {
+      "perechen_number_669": 1,
+      "name": "«Финатлон для старшеклассников» - Всероссийская олимпиада по финансовой грамотности, устойчивому развитию и защите прав потребителей финансовых услуг",
+      "profile": "финансовая грамотность",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "finansovaya-gramotnost",
+      "olympiad_id": "p669-1-finansovaya-gramotnost"
+    },
+    {
+      "perechen_number_669": 2,
+      "name": "«Формула Единства»/«Третье тысячелетие»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-2-matematika"
+    },
+    {
+      "perechen_number_669": 3,
+      "name": "XVIII Южно-Российская межрегиональная олимпиада школьников «Архитектура и искусство» по комплексу предметов (рисунок, живопись, композиция, черчение)",
+      "profile": "рисунок, живопись, композиция, черчение",
+      "subjects": [
+        "искусствознание"
+      ],
+      "level": "I",
+      "profile_slug": "risunok-zhivopis-kompoziciya-cherchenie",
+      "olympiad_id": "p669-3-risunok-zhivopis-kompoziciya-cherchenie"
+    },
+    {
+      "perechen_number_669": 4,
+      "name": "Всероссийская академическая олимпиада школьников имени В.И. Вернадского",
+      "profile": "гуманитарные и социальные науки",
+      "subjects": [
+        "история",
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "gumanitarnye-i-socialnye-nauki",
+      "olympiad_id": "p669-4-gumanitarnye-i-socialnye-nauki"
+    },
+    {
+      "perechen_number_669": 4,
+      "name": "Всероссийская академическая олимпиада школьников имени В.И. Вернадского",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "I",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-4-ekonomika"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "геномное редактирование",
+      "subjects": [
+        "биологические науки",
+        "промышленная экология и биотехнологии",
+        "техносферная безопасность и природообустройство",
+        "сельское",
+        "лесное и рыбное хозяйство",
+        "ветеринария и зоотехния"
+      ],
+      "level": "III",
+      "profile_slug": "genomnoe-redaktirovanie",
+      "olympiad_id": "p669-5-genomnoe-redaktirovanie"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "инфохимия",
+      "subjects": [
+        "информатика и вычислительная техника",
+        "химическая технология",
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "infohimiya",
+      "olympiad_id": "p669-5-infohimiya"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "космические системы: анализ космических снимков и геопространственных данных, спутниковые системы",
+      "subjects": [
+        "информатика и вычислительная техника",
+        "электроника",
+        "радиотехника и системы связи",
+        "физико-технические науки и технологии",
+        "управление в технических системах",
+        "науки о земле",
+        "техносферная безопасность и природообустройство",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "машиностроение"
+      ],
+      "level": "II",
+      "profile_slug": "kosmicheskie-sistemy-analiz-kosmicheskih-snimkov-i-geoprostranstvennyh-dannyh-sputnikovye-sistemy",
+      "olympiad_id": "p669-5-kosmicheskie-sistemy-analiz-kosmicheskih-snimkov-i-geoprostranstvennyh-dannyh-sputnikovye-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "беспилотный транспорт: аэрокосмические системы, беспилотные авиационные системы, водные робототехнические системы, летающая робототехника",
+      "subjects": [
+        "информатика и вычислительная техника",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "авиационная и ракетно-космическая техника",
+        "аэронавигация и эксплуатация авиационной и ракетно-космической техники",
+        "управление в технических системах"
+      ],
+      "level": "II",
+      "profile_slug": "bespilotnyy-transport-aerokosmicheskie-sistemy-bespilotnye-aviacionnye-sistemy-vodnye-robototehnicheskie-sistemy-letayuschaya-robototehnika",
+      "olympiad_id": "p669-5-bespilotnyy-transport-aerokosmicheskie-sistemy-bespilotnye-aviacionnye-sistemy-vodnye-robototehnicheskie-sistemy-letayuschaya-robototehnika"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "нейротехнологии и когнитивные науки",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "биологические науки",
+        "информатика и вычислительная техника"
+      ],
+      "level": "III",
+      "profile_slug": "neyrotehnologii-i-kognitivnye-nauki",
+      "olympiad_id": "p669-5-neyrotehnologii-i-kognitivnye-nauki"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "информационная безопасность",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность"
+      ],
+      "level": "III",
+      "profile_slug": "informacionnaya-bezopasnost",
+      "olympiad_id": "p669-5-informacionnaya-bezopasnost"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "виртуальные миры: разработка компьютерных игр, технологии виртуальной реальности, технологии дополненной реальности, цифровые технологии в архитектуре",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "архитектура",
+        "культуроведение и социокультурные проекты",
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "III",
+      "profile_slug": "virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture",
+      "olympiad_id": "p669-5-virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "технологии беспроводной связи",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "управление в технических системах"
+      ],
+      "level": "III",
+      "profile_slug": "tehnologii-besprovodnoy-svyazi",
+      "olympiad_id": "p669-5-tehnologii-besprovodnoy-svyazi"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "умные системы и технологии: умный город, цифровые сенсорные системы",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "управление в технических системах",
+        "математика и механика",
+        "техносферная безопасность и природообустройство",
+        "технологии материалов",
+        "нанотехнологии и наноматериалы",
+        "образование и педагогические науки"
+      ],
+      "level": "III",
+      "profile_slug": "umnye-sistemy-i-tehnologii-umnyy-gorod-cifrovye-sensornye-sistemy",
+      "olympiad_id": "p669-5-umnye-sistemy-i-tehnologii-umnyy-gorod-cifrovye-sensornye-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "интеллектуальные робототехнические системы",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "машиностроение",
+        "авиационная и ракетно-космическая техника",
+        "управление в технических системах"
+      ],
+      "level": "III",
+      "profile_slug": "intellektualnye-robototehnicheskie-sistemy",
+      "olympiad_id": "p669-5-intellektualnye-robototehnicheskie-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "искусственный интеллект",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность"
+      ],
+      "level": "III",
+      "profile_slug": "iskusstvennyy-intellekt",
+      "olympiad_id": "p669-5-iskusstvennyy-intellekt"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "разработка мобильных приложений",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность"
+      ],
+      "level": "III",
+      "profile_slug": "razrabotka-mobilnyh-prilozheniy",
+      "olympiad_id": "p669-5-razrabotka-mobilnyh-prilozheniy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "автоматизация бизнес-процессов",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "управление в технических системах",
+        "экономика и управление",
+        "автоматизация и управление технологическими процессами и производствами"
+      ],
+      "level": "II",
+      "profile_slug": "avtomatizaciya-biznes-processov",
+      "olympiad_id": "p669-5-avtomatizaciya-biznes-processov"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "программная инженерия в финансовых технологиях",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "машиностроение",
+        "авиационная и ракетно-космическая техника"
+      ],
+      "level": "III",
+      "profile_slug": "programmnaya-inzheneriya-v-finansovyh-tehnologiyah",
+      "olympiad_id": "p669-5-programmnaya-inzheneriya-v-finansovyh-tehnologiyah"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "большие данные и машинное обучение",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "машиностроение",
+        "авиационная и ракетно-космическая техника",
+        "управление в технических системах",
+        "языкознание и литературоведение"
+      ],
+      "level": "III",
+      "profile_slug": "bolshie-dannye-i-mashinnoe-obuchenie",
+      "olympiad_id": "p669-5-bolshie-dannye-i-mashinnoe-obuchenie"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "интеллектуальные энергетические системы",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "электро- и теплоэнергетика",
+        "управление в технических системах"
+      ],
+      "level": "III",
+      "profile_slug": "intellektualnye-energeticheskie-sistemy",
+      "olympiad_id": "p669-5-intellektualnye-energeticheskie-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "автономные транспортные системы",
+      "subjects": [
+        "математика и механика",
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "электроника",
+        "радиотехника и системы связи",
+        "машиностроение",
+        "техника и технологии наземного транспорта",
+        "авиационная и ракетно-космическая техника",
+        "аэронавигация и эксплуатация авиационной и ракетно-космической техники",
+        "управление в технических системах"
+      ],
+      "level": "II",
+      "profile_slug": "avtonomnye-transportnye-sistemy",
+      "olympiad_id": "p669-5-avtonomnye-transportnye-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "квантовый инжиниринг",
+      "subjects": [
+        "математика и механика",
+        "физико-технические науки и технологии"
+      ],
+      "level": "III",
+      "profile_slug": "kvantovyy-inzhiniring",
+      "olympiad_id": "p669-5-kvantovyy-inzhiniring"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "инженерные биологические системы",
+      "subjects": [
+        "науки о земле",
+        "биологические науки",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "промышленная экология и биотехнологии",
+        "техносферная безопасность и природообустройство",
+        "сельское",
+        "лесное и рыбное хозяйство"
+      ],
+      "level": "II",
+      "profile_slug": "inzhenernye-biologicheskie-sistemy",
+      "olympiad_id": "p669-5-inzhenernye-biologicheskie-sistemy"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "ядерные технологии",
+      "subjects": [
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "ядерная энергетика и технологии",
+        "машиностроение",
+        "управление в технических системах"
+      ],
+      "level": "II",
+      "profile_slug": "yadernye-tehnologii",
+      "olympiad_id": "p669-5-yadernye-tehnologii"
+    },
+    {
+      "perechen_number_669": 5,
+      "name": "Всероссийская междисциплинарная олимпиада школьников 8-11 классов «Национальная технологическая олимпиада»",
+      "profile": "наносистемы и химический инжиниринг",
+      "subjects": [
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "химические технологии",
+        "промышленная экология и биотехнологии",
+        "техносферная безопасность и природообустройство",
+        "технологии материалов",
+        "нанотехнологии и наноматериалы",
+        "машиностроение",
+        "управление в технических системах",
+        "автоматизация и управление технологическими процессами и производствами"
+      ],
+      "level": "III",
+      "profile_slug": "nanosistemy-i-himicheskiy-inzhiniring",
+      "olympiad_id": "p669-5-nanosistemy-i-himicheskiy-inzhiniring"
+    },
+    {
+      "perechen_number_669": 6,
+      "name": "Всероссийская олимпиада по агрогенетике для школьников старших классов «Иннагрика»",
+      "profile": "аграрная генетика",
+      "subjects": [
+        "биология"
+      ],
+      "level": "I",
+      "profile_slug": "agrarnaya-genetika",
+      "olympiad_id": "p669-6-agrarnaya-genetika"
+    },
+    {
+      "perechen_number_669": 7,
+      "name": "Всероссийская олимпиада по искусственному интеллекту (с возможностью участия иностранных обучающихся)",
+      "profile": "искусственный интеллект",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "iskusstvennyy-intellekt",
+      "olympiad_id": "p669-7-iskusstvennyy-intellekt"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-8-biologiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "востоковедение",
+      "subjects": [
+        "востоковедение и африканистика"
+      ],
+      "level": "II",
+      "profile_slug": "vostokovedenie",
+      "olympiad_id": "p669-8-vostokovedenie"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "II",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-8-geografiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "дизайн",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "dizayn",
+      "olympiad_id": "p669-8-dizayn"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "восточные языки",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "vostochnye-yazyki",
+      "olympiad_id": "p669-8-vostochnye-yazyki"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-8-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-8-informatika"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "инженерные науки",
+      "subjects": [
+        "информационная безопасность",
+        "информатика и вычислительная техника"
+      ],
+      "level": "II",
+      "profile_slug": "inzhenernye-nauki",
+      "olympiad_id": "p669-8-inzhenernye-nauki"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "история искусств",
+      "subjects": [
+        "искусствознание"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya-iskusstv",
+      "olympiad_id": "p669-8-istoriya-iskusstv"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "I",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-8-istoriya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "промышленное программирование",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника"
+      ],
+      "level": "II",
+      "profile_slug": "promyshlennoe-programmirovanie",
+      "olympiad_id": "p669-8-promyshlennoe-programmirovanie"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "анализ данных",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника"
+      ],
+      "level": "III",
+      "profile_slug": "analiz-dannyh",
+      "olympiad_id": "p669-8-analiz-dannyh"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "культурология",
+      "subjects": [
+        "культуроведение и социокультурные проекты"
+      ],
+      "level": "I",
+      "profile_slug": "kulturologiya",
+      "olympiad_id": "p669-8-kulturologiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-8-matematika"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-8-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "международные отношения",
+      "subjects": [
+        "политические науки и регионоведение"
+      ],
+      "level": "II",
+      "profile_slug": "mezhdunarodnye-otnosheniya",
+      "olympiad_id": "p669-8-mezhdunarodnye-otnosheniya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "право",
+      "subjects": [
+        "право"
+      ],
+      "level": "I",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-8-pravo"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "психология",
+      "subjects": [
+        "психологические науки"
+      ],
+      "level": "II",
+      "profile_slug": "psihologiya",
+      "olympiad_id": "p669-8-psihologiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-8-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "социология",
+      "subjects": [
+        "социология и социальная работа"
+      ],
+      "level": "II",
+      "profile_slug": "sociologiya",
+      "olympiad_id": "p669-8-sociologiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "журналистика",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело"
+      ],
+      "level": "I",
+      "profile_slug": "zhurnalistika",
+      "olympiad_id": "p669-8-zhurnalistika"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-8-fizika"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "философия",
+      "subjects": [
+        "философия",
+        "этика и религиоведение"
+      ],
+      "level": "II",
+      "profile_slug": "filosofiya",
+      "olympiad_id": "p669-8-filosofiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-8-himiya"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "финансовая грамотность",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "I",
+      "profile_slug": "finansovaya-gramotnost",
+      "olympiad_id": "p669-8-finansovaya-gramotnost"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "I",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-8-ekonomika"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "основы бизнеса",
+      "subjects": [
+        "экономика и управление"
+      ],
+      "level": "II",
+      "profile_slug": "osnovy-biznesa",
+      "olympiad_id": "p669-8-osnovy-biznesa"
+    },
+    {
+      "perechen_number_669": 8,
+      "name": "Всероссийская олимпиада школьников «Высшая проба»",
+      "profile": "филология",
+      "subjects": [
+        "языкознание и литературоведение",
+        "литература"
+      ],
+      "level": "I",
+      "profile_slug": "filologiya",
+      "olympiad_id": "p669-8-filologiya"
+    },
+    {
+      "perechen_number_669": 9,
+      "name": "Всероссийская олимпиада школьников «Миссия выполнима. Твое призвание - финансист!»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "III",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-9-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 9,
+      "name": "Всероссийская олимпиада школьников «Миссия выполнима. Твое призвание - финансист!»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "III",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-9-istoriya"
+    },
+    {
+      "perechen_number_669": 9,
+      "name": "Всероссийская олимпиада школьников «Миссия выполнима. Твое призвание - финансист!»",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-9-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 9,
+      "name": "Всероссийская олимпиада школьников «Миссия выполнима. Твое призвание - финансист!»",
+      "profile": "финансовая грамотность",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "II",
+      "profile_slug": "finansovaya-gramotnost",
+      "olympiad_id": "p669-9-finansovaya-gramotnost"
+    },
+    {
+      "perechen_number_669": 9,
+      "name": "Всероссийская олимпиада школьников «Миссия выполнима. Твое призвание - финансист!»",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "II",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-9-ekonomika"
+    },
+    {
+      "perechen_number_669": 10,
+      "name": "Всероссийская олимпиада школьников «Юридические высоты!»",
+      "profile": "право",
+      "subjects": [
+        "юриспруденция"
+      ],
+      "level": "II",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-10-pravo"
+    },
+    {
+      "perechen_number_669": 11,
+      "name": "Всероссийская Сеченовская олимпиада школьников",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-11-biologiya"
+    },
+    {
+      "perechen_number_669": 11,
+      "name": "Всероссийская Сеченовская олимпиада школьников",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-11-himiya"
+    },
+    {
+      "perechen_number_669": 12,
+      "name": "Всероссийская Толстовская олимпиада школьников",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "III",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-12-istoriya"
+    },
+    {
+      "perechen_number_669": 12,
+      "name": "Всероссийская Толстовская олимпиада школьников",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "III",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-12-literatura"
+    },
+    {
+      "perechen_number_669": 12,
+      "name": "Всероссийская Толстовская олимпиада школьников",
+      "profile": "право",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-12-pravo"
+    },
+    {
+      "perechen_number_669": 12,
+      "name": "Всероссийская Толстовская олимпиада школьников",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-12-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 13,
+      "name": "Всероссийский конкурс научных работ школьников «Юниор»",
+      "profile": "естественные науки",
+      "subjects": [
+        "науки о земле",
+        "биологические науки",
+        "промышленная экология и биотехнологии"
+      ],
+      "level": "III",
+      "profile_slug": "estestvennye-nauki",
+      "olympiad_id": "p669-13-estestvennye-nauki"
+    },
+    {
+      "perechen_number_669": 13,
+      "name": "Всероссийский конкурс научных работ школьников «Юниор»",
+      "profile": "инженерные науки",
+      "subjects": [
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "ядерная энергетика и технологии",
+        "физико-технические науки и технологии",
+        "технологии материалов",
+        "нанотехнологии и наноматериалы",
+        "машиностроение"
+      ],
+      "level": "II",
+      "profile_slug": "inzhenernye-nauki",
+      "olympiad_id": "p669-13-inzhenernye-nauki"
+    },
+    {
+      "perechen_number_669": 14,
+      "name": "Всесибирская открытая олимпиада школьников",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-14-biologiya"
+    },
+    {
+      "perechen_number_669": 14,
+      "name": "Всесибирская открытая олимпиада школьников",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-14-informatika"
+    },
+    {
+      "perechen_number_669": 14,
+      "name": "Всесибирская открытая олимпиада школьников",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-14-matematika"
+    },
+    {
+      "perechen_number_669": 14,
+      "name": "Всесибирская открытая олимпиада школьников",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-14-fizika"
+    },
+    {
+      "perechen_number_669": 14,
+      "name": "Всесибирская открытая олимпиада школьников",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-14-himiya"
+    },
+    {
+      "perechen_number_669": 15,
+      "name": "Вузовско-академическая олимпиада по информатике",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-15-informatika"
+    },
+    {
+      "perechen_number_669": 16,
+      "name": "Герценовская олимпиада школьников",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "II",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-16-geografiya"
+    },
+    {
+      "perechen_number_669": 16,
+      "name": "Герценовская олимпиада школьников",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-16-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 17,
+      "name": "Городская открытая олимпиада школьников по физике",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-17-fizika"
+    },
+    {
+      "perechen_number_669": 18,
+      "name": "Инженерная олимпиада школьников",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-18-fizika"
+    },
+    {
+      "perechen_number_669": 19,
+      "name": "Интернет-олимпиада школьников по физике",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-19-fizika"
+    },
+    {
+      "perechen_number_669": 20,
+      "name": "Кутафинская олимпиада школьников по праву",
+      "profile": "право",
+      "subjects": [
+        "право"
+      ],
+      "level": "I",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-20-pravo"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "теория и история музыки",
+      "subjects": [
+        "искусствознание"
+      ],
+      "level": "III",
+      "profile_slug": "teoriya-i-istoriya-muzyki",
+      "olympiad_id": "p669-21-teoriya-i-istoriya-muzyki"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "деревянные духовые инструменты",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "III",
+      "profile_slug": "derevyannye-duhovye-instrumenty",
+      "olympiad_id": "p669-21-derevyannye-duhovye-instrumenty"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "инструменты народного оркестра",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "II",
+      "profile_slug": "instrumenty-narodnogo-orkestra",
+      "olympiad_id": "p669-21-instrumenty-narodnogo-orkestra"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "музыкальная педагогика и исполнительство",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "III",
+      "profile_slug": "muzykalnaya-pedagogika-i-ispolnitelstvo",
+      "olympiad_id": "p669-21-muzykalnaya-pedagogika-i-ispolnitelstvo"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "струнные инструменты",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "III",
+      "profile_slug": "strunnye-instrumenty",
+      "olympiad_id": "p669-21-strunnye-instrumenty"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "фортепиано",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "III",
+      "profile_slug": "fortepiano",
+      "olympiad_id": "p669-21-fortepiano"
+    },
+    {
+      "perechen_number_669": 21,
+      "name": "Международная музыкальная олимпиада",
+      "profile": "хоровое дирижирование",
+      "subjects": [
+        "музыкальное искусство"
+      ],
+      "level": "III",
+      "profile_slug": "horovoe-dirizhirovanie",
+      "olympiad_id": "p669-21-horovoe-dirizhirovanie"
+    },
+    {
+      "perechen_number_669": 22,
+      "name": "Международная олимпиада «Innopolis Open»",
+      "profile": "робототехника",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "robototehnika",
+      "olympiad_id": "p669-22-robototehnika"
+    },
+    {
+      "perechen_number_669": 22,
+      "name": "Международная олимпиада «Innopolis Open»",
+      "profile": "искусственный интеллект",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "iskusstvennyy-intellekt",
+      "olympiad_id": "p669-22-iskusstvennyy-intellekt"
+    },
+    {
+      "perechen_number_669": 22,
+      "name": "Международная олимпиада «Innopolis Open»",
+      "profile": "информационная безопасность",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "informacionnaya-bezopasnost",
+      "olympiad_id": "p669-22-informacionnaya-bezopasnost"
+    },
+    {
+      "perechen_number_669": 22,
+      "name": "Международная олимпиада «Innopolis Open»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-22-informatika"
+    },
+    {
+      "perechen_number_669": 22,
+      "name": "Международная олимпиада «Innopolis Open»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-22-matematika"
+    },
+    {
+      "perechen_number_669": 23,
+      "name": "Международная олимпиада по финансовой безопасности",
+      "profile": "финансовая безопасность",
+      "subjects": [
+        "информатика",
+        "обществознание",
+        "экономика",
+        "информационная безопасность"
+      ],
+      "level": "I",
+      "profile_slug": "finansovaya-bezopasnost",
+      "olympiad_id": "p669-23-finansovaya-bezopasnost"
+    },
+    {
+      "perechen_number_669": 24,
+      "name": "Международная олимпиада школьников «Евразийская лингвистическая олимпиада»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-24-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 25,
+      "name": "Международная олимпиада школьников «Искусство графики»",
+      "profile": "рисунок",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "risunok",
+      "olympiad_id": "p669-25-risunok"
+    },
+    {
+      "perechen_number_669": 25,
+      "name": "Международная олимпиада школьников «Искусство графики»",
+      "profile": "графический дизайн",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "graficheskiy-dizayn",
+      "olympiad_id": "p669-25-graficheskiy-dizayn"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-26-informatika"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "III",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-26-istoriya"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "III",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-26-matematika"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-26-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "III",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-26-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-26-fizika"
+    },
+    {
+      "perechen_number_669": 26,
+      "name": "Международная олимпиада школьников Уральского федерального университета «Изумруд»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-26-himiya"
+    },
+    {
+      "perechen_number_669": 27,
+      "name": "Межрегиональная олимпиада по праву «ФЕМИДА»",
+      "profile": "право",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "II",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-27-pravo"
+    },
+    {
+      "perechen_number_669": 28,
+      "name": "Межрегиональная олимпиада школьников «Архитектура и искусство» по комплексу предметов (рисунок, композиция)",
+      "profile": "искусство",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "iskusstvo",
+      "olympiad_id": "p669-28-iskusstvo"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-29-biologiya"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-29-istoriya"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "III",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-29-matematika"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-29-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-29-fizika"
+    },
+    {
+      "perechen_number_669": 29,
+      "name": "Межрегиональная олимпиада школьников «Будущие исследователи - будущее науки»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-29-himiya"
+    },
+    {
+      "perechen_number_669": 30,
+      "name": "Межрегиональная олимпиада школьников имени В.Е. Татлина",
+      "profile": "рисунок",
+      "subjects": [
+        "архитектура",
+        "градостроительство",
+        "дизайн"
+      ],
+      "level": "I",
+      "profile_slug": "risunok",
+      "olympiad_id": "p669-30-risunok"
+    },
+    {
+      "perechen_number_669": 30,
+      "name": "Межрегиональная олимпиада школьников имени В.Е. Татлина",
+      "profile": "композиция",
+      "subjects": [
+        "архитектура",
+        "градостроительство",
+        "дизайн"
+      ],
+      "level": "I",
+      "profile_slug": "kompoziciya",
+      "olympiad_id": "p669-30-kompoziciya"
+    },
+    {
+      "perechen_number_669": 30,
+      "name": "Межрегиональная олимпиада школьников имени В.Е. Татлина",
+      "profile": "графика",
+      "subjects": [
+        "архитектура",
+        "градостроительство",
+        "дизайн"
+      ],
+      "level": "I",
+      "profile_slug": "grafika",
+      "olympiad_id": "p669-30-grafika"
+    },
+    {
+      "perechen_number_669": 31,
+      "name": "Межрегиональная олимпиада школьников имени И.Я. Верченко",
+      "profile": "компьютерная безопасность",
+      "subjects": [
+        "информационная безопасность",
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "kompyuternaya-bezopasnost",
+      "olympiad_id": "p669-31-kompyuternaya-bezopasnost"
+    },
+    {
+      "perechen_number_669": 31,
+      "name": "Межрегиональная олимпиада школьников имени И.Я. Верченко",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-31-matematika"
+    },
+    {
+      "perechen_number_669": 32,
+      "name": "Межрегиональная олимпиада школьников на базе ведомственных образовательных организаций",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-32-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 32,
+      "name": "Межрегиональная олимпиада школьников на базе ведомственных образовательных организаций",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-32-fizika"
+    },
+    {
+      "perechen_number_669": 33,
+      "name": "Межрегиональная химическая олимпиада школьников имени академика П.Д. Саркисова",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-33-himiya"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "дизайн",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "dizayn",
+      "olympiad_id": "p669-34-dizayn"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-34-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-34-informatika"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "III",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-34-istoriya"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "право",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-34-pravo"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-34-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-34-fizika"
+    },
+    {
+      "perechen_number_669": 34,
+      "name": "Межрегиональные предметные олимпиады федерального государственного автономного образовательного учреждения высшего образования «Казанский (Приволжский) федеральный университет»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-34-himiya"
+    },
+    {
+      "perechen_number_669": 35,
+      "name": "Многопредметная олимпиада «Юные таланты»",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "I",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-35-geografiya"
+    },
+    {
+      "perechen_number_669": 35,
+      "name": "Многопредметная олимпиада «Юные таланты»",
+      "profile": "геология",
+      "subjects": [
+        "науки о земле"
+      ],
+      "level": "III",
+      "profile_slug": "geologiya",
+      "olympiad_id": "p669-35-geologiya"
+    },
+    {
+      "perechen_number_669": 35,
+      "name": "Многопредметная олимпиада «Юные таланты»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-35-himiya"
+    },
+    {
+      "perechen_number_669": 36,
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "естественные науки",
+      "subjects": [
+        "архитектура",
+        "техника и технологии строительства",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "ядерная энергетика и технологии",
+        "машиностроение",
+        "оружие и системы вооружения",
+        "химические технологии",
+        "промышленная экология и биотехнологии",
+        "техносферная безопасность и природообустройство",
+        "прикладная геология",
+        "горное дело",
+        "нефтегазовое дело и геодезия",
+        "технологии материалов",
+        "техника и технологии наземного транспорта",
+        "авиационная и ракетно-космическая техника",
+        "аэронавигация и эксплуатация авиационной и ракетно-космической техники",
+        "техника и технологии кораблестроения и водного транспорта",
+        "управление в технических системах",
+        "нанотехнологии и наноматериалы",
+        "технологии легкой промышленности",
+        "сельское",
+        "лесное и рыбное хозяйство"
+      ],
+      "level": "II",
+      "profile_slug": "estestvennye-nauki",
+      "olympiad_id": "p669-36-estestvennye-nauki"
+    },
+    {
+      "perechen_number_669": 36,
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "техника и технологии",
+      "subjects": [
+        "технологии материалов",
+        "машиностроение",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "авиационная и ракетно-космическая техника",
+        "техника и технологии наземного транспорта",
+        "техника и технологии кораблестроения и водного транспорта",
+        "биотехнология",
+        "информационная безопасность",
+        "химические технологии"
+      ],
+      "level": "I",
+      "profile_slug": "tehnika-i-tehnologii",
+      "olympiad_id": "p669-36-tehnika-i-tehnologii"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "астрономия",
+      "subjects": [
+        "астрономия"
+      ],
+      "level": "II",
+      "profile_slug": "astronomiya",
+      "olympiad_id": "p669-37-astronomiya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "генетика",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "genetika",
+      "olympiad_id": "p669-37-genetika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "I",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-37-geografiya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "лингвистика",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "lingvistika",
+      "olympiad_id": "p669-37-lingvistika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-37-informatika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "предпрофессиональная",
+      "subjects": [
+        "информационная безопасность",
+        "информатика и вычислительная техника",
+        "машиностроение",
+        "промышленная экология и биотехнологии",
+        "техносферная безопасность и природообустройство",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электроника",
+        "радиотехника и системы связи",
+        "ядерная энергетика и технологии"
+      ],
+      "level": "III",
+      "profile_slug": "predprofessionalnaya",
+      "olympiad_id": "p669-37-predprofessionalnaya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "изобразительное искусство",
+      "subjects": [
+        "искусство"
+      ],
+      "level": "II",
+      "profile_slug": "izobrazitelnoe-iskusstvo",
+      "olympiad_id": "p669-37-izobrazitelnoe-iskusstvo"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "история искусств",
+      "subjects": [
+        "искусство"
+      ],
+      "level": "I",
+      "profile_slug": "istoriya-iskusstv",
+      "olympiad_id": "p669-37-istoriya-iskusstv"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-37-istoriya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-37-matematika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "вероятность и статистика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "veroyatnost-i-statistika",
+      "olympiad_id": "p669-37-veroyatnost-i-statistika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "робототехника",
+      "subjects": [
+        "машиностроение",
+        "информатика и вычислительная техника"
+      ],
+      "level": "II",
+      "profile_slug": "robototehnika",
+      "olympiad_id": "p669-37-robototehnika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "экология",
+      "subjects": [
+        "науки о земле"
+      ],
+      "level": "II",
+      "profile_slug": "ekologiya",
+      "olympiad_id": "p669-37-ekologiya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "II",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-37-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "право",
+      "subjects": [
+        "право"
+      ],
+      "level": "III",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-37-pravo"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-37-fizika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-37-himiya"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "II",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-37-ekonomika"
+    },
+    {
+      "perechen_number_669": 37,
+      "name": "Московская олимпиада школьников",
+      "profile": "финансовая грамотность",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "III",
+      "profile_slug": "finansovaya-gramotnost",
+      "olympiad_id": "p669-37-finansovaya-gramotnost"
+    },
+    {
+      "perechen_number_669": 38,
+      "name": "Московская открытая олимпиада школьников по геологии",
+      "profile": "геология",
+      "subjects": [
+        "науки о земле"
+      ],
+      "level": "I",
+      "profile_slug": "geologiya",
+      "olympiad_id": "p669-38-geologiya"
+    },
+    {
+      "perechen_number_669": 39,
+      "name": "Оборонно-техническая олимпиада",
+      "profile": "техника и технологии",
+      "subjects": [
+        "информатика и вычислительная техника",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "машиностроение",
+        "оружие и системы вооружения",
+        "техносферная безопасность и природообустройство",
+        "авиационная и ракетно-космическая техника",
+        "управление в технических системах"
+      ],
+      "level": "III",
+      "profile_slug": "tehnika-i-tehnologii",
+      "olympiad_id": "p669-39-tehnika-i-tehnologii"
+    },
+    {
+      "perechen_number_669": 40,
+      "name": "Общероссийская олимпиада школьников «Основы православной культуры»",
+      "profile": "основы православной культуры",
+      "subjects": [
+        "история",
+        "теология"
+      ],
+      "level": "III",
+      "profile_slug": "osnovy-pravoslavnoy-kultury",
+      "olympiad_id": "p669-40-osnovy-pravoslavnoy-kultury"
+    },
+    {
+      "perechen_number_669": 41,
+      "name": "Объединенная межвузовская олимпиада школьников",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-41-matematika"
+    },
+    {
+      "perechen_number_669": 41,
+      "name": "Объединенная межвузовская олимпиада школьников",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-41-fizika"
+    },
+    {
+      "perechen_number_669": 42,
+      "name": "Океан знаний",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-42-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 42,
+      "name": "Океан знаний",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "III",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-42-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 43,
+      "name": "Олимпиада Курчатов",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-43-matematika"
+    },
+    {
+      "perechen_number_669": 43,
+      "name": "Олимпиада Курчатов",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-43-fizika"
+    },
+    {
+      "perechen_number_669": 44,
+      "name": "Олимпиада МГИМО МИД России для школьников",
+      "profile": "гуманитарные и социальные науки",
+      "subjects": [
+        "история",
+        "обществознание"
+      ],
+      "level": "II",
+      "profile_slug": "gumanitarnye-i-socialnye-nauki",
+      "olympiad_id": "p669-44-gumanitarnye-i-socialnye-nauki"
+    },
+    {
+      "perechen_number_669": 45,
+      "name": "Олимпиада по комплексу предметов «Культура и искусство»",
+      "profile": "технический рисунок и декоративная композиция",
+      "subjects": [
+        "декоративно-прикладное искусство и народные промыслы",
+        "технология художественной обработки материалов",
+        "искусство костюма и текстиля",
+        "конструирование изделий легкой промышленности",
+        "технологии и проектирование текстильных изделий",
+        "технология изделий легкой промышленности",
+        "информационные системы и технологии",
+        "технология полиграфического и упаковочного производства",
+        "прикладная информатика",
+        "профессиональное обучение (по отраслям)"
+      ],
+      "level": "I",
+      "profile_slug": "tehnicheskiy-risunok-i-dekorativnaya-kompoziciya",
+      "olympiad_id": "p669-45-tehnicheskiy-risunok-i-dekorativnaya-kompoziciya"
+    },
+    {
+      "perechen_number_669": 45,
+      "name": "Олимпиада по комплексу предметов «Культура и искусство»",
+      "profile": "академический рисунок, живопись, композиция, история искусства и культуры",
+      "subjects": [
+        "дизайн",
+        "декоративно-прикладное искусство и народные промыслы",
+        "технология художественной обработки материалов",
+        "искусство костюма и текстиля",
+        "конструирование изделий легкой промышленности",
+        "технологии и проектирование текстильных изделий",
+        "технология изделий легкой промышленности",
+        "информационные системы и технологии",
+        "технология полиграфического и упаковочного производства",
+        "прикладная информатика",
+        "профессиональное обучение (по отраслям)"
+      ],
+      "level": "I",
+      "profile_slug": "akademicheskiy-risunok-zhivopis-kompoziciya-istoriya-iskusstva-i-kultury",
+      "olympiad_id": "p669-45-akademicheskiy-risunok-zhivopis-kompoziciya-istoriya-iskusstva-i-kultury"
+    },
+    {
+      "perechen_number_669": 46,
+      "name": "Олимпиада по химии и химической технологии «Потомки Менделеева»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-46-himiya"
+    },
+    {
+      "perechen_number_669": 47,
+      "name": "Олимпиада по экономике в рамках международного экономического фестиваля школьников «Сибириада. Шаг в мечту»",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "II",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-47-ekonomika"
+    },
+    {
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-48-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-48-istoriya"
+    },
+    {
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "I",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-48-literatura"
+    },
+    {
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "II",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-48-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 48,
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-48-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 49,
+      "name": "Олимпиада школьников «Гранит науки»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-49-informatika"
+    },
+    {
+      "perechen_number_669": 49,
+      "name": "Олимпиада школьников «Гранит науки»",
+      "profile": "естественные науки",
+      "subjects": [
+        "науки о земле",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "машиностроение",
+        "техносферная безопасность и природообустройство",
+        "прикладная геология",
+        "горное дело",
+        "нефтегазовое дело и геодезия",
+        "техника и технологии наземного транспорта"
+      ],
+      "level": "III",
+      "profile_slug": "estestvennye-nauki",
+      "olympiad_id": "p669-49-estestvennye-nauki"
+    },
+    {
+      "perechen_number_669": 49,
+      "name": "Олимпиада школьников «Гранит науки»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-49-himiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "генетика",
+      "subjects": [
+        "биологические науки"
+      ],
+      "level": "II",
+      "profile_slug": "genetika",
+      "olympiad_id": "p669-50-genetika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "экология",
+      "subjects": [
+        "биологические науки",
+        "науки о земле"
+      ],
+      "level": "II",
+      "profile_slug": "ekologiya",
+      "olympiad_id": "p669-50-ekologiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "I",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-50-biologiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "I",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-50-geografiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-50-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-50-informatika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "международные отношения и глобалистика",
+      "subjects": [
+        "история"
+      ],
+      "level": "I",
+      "profile_slug": "mezhdunarodnye-otnosheniya-i-globalistika",
+      "olympiad_id": "p669-50-mezhdunarodnye-otnosheniya-i-globalistika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "политология",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "politologiya",
+      "olympiad_id": "p669-50-politologiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "I",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-50-istoriya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "основы российской государственности",
+      "subjects": [
+        "история",
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "osnovy-rossiyskoy-gosudarstvennosti",
+      "olympiad_id": "p669-50-osnovy-rossiyskoy-gosudarstvennosti"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "I",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-50-literatura"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-50-matematika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "механика и математическое моделирование",
+      "subjects": [
+        "математика и механика"
+      ],
+      "level": "II",
+      "profile_slug": "mehanika-i-matematicheskoe-modelirovanie",
+      "olympiad_id": "p669-50-mehanika-i-matematicheskoe-modelirovanie"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "космонавтика",
+      "subjects": [
+        "математика и механика"
+      ],
+      "level": "II",
+      "profile_slug": "kosmonavtika",
+      "olympiad_id": "p669-50-kosmonavtika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "высокие технологии",
+      "subjects": [
+        "нанотехнологии и наноматериалы"
+      ],
+      "level": "I",
+      "profile_slug": "vysokie-tehnologii",
+      "olympiad_id": "p669-50-vysokie-tehnologii"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "геология",
+      "subjects": [
+        "науки о земле"
+      ],
+      "level": "I",
+      "profile_slug": "geologiya",
+      "olympiad_id": "p669-50-geologiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-50-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "психология",
+      "subjects": [
+        "психологические науки"
+      ],
+      "level": "I",
+      "profile_slug": "psihologiya",
+      "olympiad_id": "p669-50-psihologiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "I",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-50-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "журналистика",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело"
+      ],
+      "level": "I",
+      "profile_slug": "zhurnalistika",
+      "olympiad_id": "p669-50-zhurnalistika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-50-fizika"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "религиоведение",
+      "subjects": [
+        "философия",
+        "этика и религиоведение"
+      ],
+      "level": "II",
+      "profile_slug": "religiovedenie",
+      "olympiad_id": "p669-50-religiovedenie"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "философия",
+      "subjects": [
+        "философия",
+        "этика и религиоведение"
+      ],
+      "level": "I",
+      "profile_slug": "filosofiya",
+      "olympiad_id": "p669-50-filosofiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-50-himiya"
+    },
+    {
+      "perechen_number_669": 50,
+      "name": "Олимпиада школьников «Ломоносов»",
+      "profile": "право",
+      "subjects": [
+        "юриспруденция"
+      ],
+      "level": "I",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-50-pravo"
+    },
+    {
+      "perechen_number_669": 51,
+      "name": "Олимпиада школьников «Надежда энергетики»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-51-fizika"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "II",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-52-geografiya"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-52-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "I",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-52-istoriya"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "I",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-52-literatura"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-52-matematika"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-52-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "журналистика",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело"
+      ],
+      "level": "I",
+      "profile_slug": "zhurnalistika",
+      "olympiad_id": "p669-52-zhurnalistika"
+    },
+    {
+      "perechen_number_669": 52,
+      "name": "Олимпиада школьников «Покори Воробьевы горы!»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-52-fizika"
+    },
+    {
+      "perechen_number_669": 53,
+      "name": "Олимпиада школьников «Робофест»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-53-fizika"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-54-biologiya"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "информатика и программирование",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "informatika-i-programmirovanie",
+      "olympiad_id": "p669-54-informatika-i-programmirovanie"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-54-matematika"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "научно-технический",
+      "subjects": [
+        "математика",
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "nauchno-tehnicheskiy",
+      "olympiad_id": "p669-54-nauchno-tehnicheskiy"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-54-fizika"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "инженерное дело",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "inzhenernoe-delo",
+      "olympiad_id": "p669-54-inzhenernoe-delo"
+    },
+    {
+      "perechen_number_669": 54,
+      "name": "Олимпиада школьников «Физтех»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-54-himiya"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика и вычислительная техника"
+      ],
+      "level": "III",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-55-informatika"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "инженерное дело",
+      "subjects": [
+        "компьютерные и информационные науки",
+        "информатика и вычислительная техника",
+        "информационная безопасность",
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "ядерная энергетика и технологии",
+        "машиностроение",
+        "оружие и системы вооружения",
+        "техносферная безопасность и природообустройство",
+        "технологии материалов",
+        "техника и технологии наземного транспорта",
+        "авиационная и ракетно-космическая техника",
+        "управление в технических системах",
+        "нанотехнологии и наноматериалы"
+      ],
+      "level": "II",
+      "profile_slug": "inzhenernoe-delo",
+      "olympiad_id": "p669-55-inzhenernoe-delo"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "III",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-55-matematika"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-55-fizika"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-55-himiya"
+    },
+    {
+      "perechen_number_669": 55,
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "компьютерное моделирование и графика",
+      "subjects": [
+        "электроника",
+        "радиотехника и системы связи",
+        "фотоника",
+        "приборостроение",
+        "оптические и биотехнические системы и технологии",
+        "электро- и теплоэнергетика",
+        "ядерная энергетика и технологии",
+        "машиностроение",
+        "физико-технические науки и технологии",
+        "оружие и системы вооружения",
+        "техносферная безопасность и природообустройство",
+        "технологии материалов",
+        "техника и технологии наземного транспорта",
+        "авиационная и ракетно-космическая техника",
+        "управление в технических системах",
+        "нанотехнологии и наноматериалы"
+      ],
+      "level": "III",
+      "profile_slug": "kompyuternoe-modelirovanie-i-grafika",
+      "olympiad_id": "p669-55-kompyuternoe-modelirovanie-i-grafika"
+    },
+    {
+      "perechen_number_669": 56,
+      "name": "Олимпиада школьников по информатике и программированию",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-56-informatika"
+    },
+    {
+      "perechen_number_669": 57,
+      "name": "Олимпиада школьников по программированию «ТехноКубок»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-57-informatika"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "III",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-58-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-58-istoriya"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "II",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-58-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "политология",
+      "subjects": [
+        "политология"
+      ],
+      "level": "III",
+      "profile_slug": "politologiya",
+      "olympiad_id": "p669-58-politologiya"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "журналистика",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело"
+      ],
+      "level": "II",
+      "profile_slug": "zhurnalistika",
+      "olympiad_id": "p669-58-zhurnalistika"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "финансовая грамотность",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "III",
+      "profile_slug": "finansovaya-gramotnost",
+      "olympiad_id": "p669-58-finansovaya-gramotnost"
+    },
+    {
+      "perechen_number_669": 58,
+      "name": "Олимпиада школьников Российской академии народного хозяйства и государственной службы при Президенте Российской Федерации",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "III",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-58-ekonomika"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "I",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-59-biologiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "I",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-59-geografiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "I",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-59-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "филология",
+      "subjects": [
+        "иностранный язык",
+        "литература",
+        "русский язык"
+      ],
+      "level": "I",
+      "profile_slug": "filologiya",
+      "olympiad_id": "p669-59-filologiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-59-informatika"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "I",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-59-istoriya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "медицина",
+      "subjects": [
+        "клиническая медицина",
+        "фармация",
+        "сестринское дело"
+      ],
+      "level": "II",
+      "profile_slug": "medicina",
+      "olympiad_id": "p669-59-medicina"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-59-matematika"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "математическое моделирование и искусственный интеллект",
+      "subjects": [
+        "математика и механика",
+        "информатика и вычислительная техника"
+      ],
+      "level": "III",
+      "profile_slug": "matematicheskoe-modelirovanie-i-iskusstvennyy-intellekt",
+      "olympiad_id": "p669-59-matematicheskoe-modelirovanie-i-iskusstvennyy-intellekt"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "инженерные системы",
+      "subjects": [
+        "математика",
+        "астрономия",
+        "химия",
+        "управление в технических системах"
+      ],
+      "level": "III",
+      "profile_slug": "inzhenernye-sistemy",
+      "olympiad_id": "p669-59-inzhenernye-sistemy"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "I",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-59-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "гуманитарные и социальные науки",
+      "subjects": [
+        "обществознание",
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "gumanitarnye-i-socialnye-nauki",
+      "olympiad_id": "p669-59-gumanitarnye-i-socialnye-nauki"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "международные отношения",
+      "subjects": [
+        "политические науки и регионоведение"
+      ],
+      "level": "II",
+      "profile_slug": "mezhdunarodnye-otnosheniya",
+      "olympiad_id": "p669-59-mezhdunarodnye-otnosheniya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "политология",
+      "subjects": [
+        "политические науки и регионоведение"
+      ],
+      "level": "II",
+      "profile_slug": "politologiya",
+      "olympiad_id": "p669-59-politologiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "право",
+      "subjects": [
+        "право"
+      ],
+      "level": "I",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-59-pravo"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "психология",
+      "subjects": [
+        "психологические науки"
+      ],
+      "level": "III",
+      "profile_slug": "psihologiya",
+      "olympiad_id": "p669-59-psihologiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "журналистика",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело"
+      ],
+      "level": "I",
+      "profile_slug": "zhurnalistika",
+      "olympiad_id": "p669-59-zhurnalistika"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-59-fizika"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "философия",
+      "subjects": [
+        "философия",
+        "этика и религиоведение",
+        "теология",
+        "психологические науки"
+      ],
+      "level": "II",
+      "profile_slug": "filosofiya",
+      "olympiad_id": "p669-59-filosofiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-59-himiya"
+    },
+    {
+      "perechen_number_669": 59,
+      "name": "Олимпиада школьников Санкт-Петербургского государственного университета",
+      "profile": "экономика",
+      "subjects": [
+        "экономика"
+      ],
+      "level": "II",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-59-ekonomika"
+    },
+    {
+      "perechen_number_669": 60,
+      "name": "Олимпиада школьников федерального государственного бюджетного образовательного учреждения высшего образования «Всероссийский государственный университет юстиции (РПА Минюста России)» «В мир права»",
+      "profile": "право",
+      "subjects": [
+        "юриспруденция"
+      ],
+      "level": "II",
+      "profile_slug": "pravo",
+      "olympiad_id": "p669-60-pravo"
+    },
+    {
+      "perechen_number_669": 61,
+      "name": "Олимпиада Юношеской математической школы",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-61-matematika"
+    },
+    {
+      "perechen_number_669": 62,
+      "name": "Открытая межвузовская олимпиада школьников Сибирского федерального округа «Будущее Сибири»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-62-fizika"
+    },
+    {
+      "perechen_number_669": 62,
+      "name": "Открытая межвузовская олимпиада школьников Сибирского федерального округа «Будущее Сибири»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-62-himiya"
+    },
+    {
+      "perechen_number_669": 63,
+      "name": "Открытая олимпиада Северо-Кавказского федерального университета среди учащихся образовательных организаций «45 параллель»",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "II",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-63-geografiya"
+    },
+    {
+      "perechen_number_669": 64,
+      "name": "Открытая олимпиада школьников",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-64-informatika"
+    },
+    {
+      "perechen_number_669": 64,
+      "name": "Открытая олимпиада школьников",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "III",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-64-matematika"
+    },
+    {
+      "perechen_number_669": 64,
+      "name": "Открытая олимпиада школьников",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-64-fizika"
+    },
+    {
+      "perechen_number_669": 65,
+      "name": "Открытая олимпиада школьников по программированию",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "I",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-65-informatika"
+    },
+    {
+      "perechen_number_669": 66,
+      "name": "Открытая олимпиада школьников по программированию «Когнитивные технологии»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-66-informatika"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "география",
+      "subjects": [
+        "география"
+      ],
+      "level": "III",
+      "profile_slug": "geografiya",
+      "olympiad_id": "p669-67-geografiya"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "III",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-67-istoriya"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "II",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-67-literatura"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-67-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-67-fizika"
+    },
+    {
+      "perechen_number_669": 67,
+      "name": "Открытая региональная межвузовская олимпиада школьников (ОРМО) с международным участием",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-67-himiya"
+    },
+    {
+      "perechen_number_669": 68,
+      "name": "Открытая химическая олимпиада",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-68-himiya"
+    },
+    {
+      "perechen_number_669": 69,
+      "name": "Отраслевая олимпиада школьников «Газпром»",
+      "profile": "информационные и коммуникационные технологии",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "III",
+      "profile_slug": "informacionnye-i-kommunikacionnye-tehnologii",
+      "olympiad_id": "p669-69-informacionnye-i-kommunikacionnye-tehnologii"
+    },
+    {
+      "perechen_number_669": 69,
+      "name": "Отраслевая олимпиада школьников «Газпром»",
+      "profile": "инженерное дело",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "inzhenernoe-delo",
+      "olympiad_id": "p669-69-inzhenernoe-delo"
+    },
+    {
+      "perechen_number_669": 70,
+      "name": "Отраслевая физико-математическая олимпиада школьников «Росатом»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-70-informatika"
+    },
+    {
+      "perechen_number_669": 70,
+      "name": "Отраслевая физико-математическая олимпиада школьников «Росатом»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-70-matematika"
+    },
+    {
+      "perechen_number_669": 70,
+      "name": "Отраслевая физико-математическая олимпиада школьников «Росатом»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-70-fizika"
+    },
+    {
+      "perechen_number_669": 71,
+      "name": "Пироговская олимпиада для школьников по химии и биологии",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "III",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-71-biologiya"
+    },
+    {
+      "perechen_number_669": 71,
+      "name": "Пироговская олимпиада для школьников по химии и биологии",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "III",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-71-himiya"
+    },
+    {
+      "perechen_number_669": 72,
+      "name": "Плехановская олимпиада школьников",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "II",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-72-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 72,
+      "name": "Плехановская олимпиада школьников",
+      "profile": "экономика",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "ekonomika",
+      "olympiad_id": "p669-72-ekonomika"
+    },
+    {
+      "perechen_number_669": 72,
+      "name": "Плехановская олимпиада школьников",
+      "profile": "русский язык",
+      "subjects": [
+        "русский язык"
+      ],
+      "level": "II",
+      "profile_slug": "russkiy-yazyk",
+      "olympiad_id": "p669-72-russkiy-yazyk"
+    },
+    {
+      "perechen_number_669": 73,
+      "name": "Региональный конкурс школьников Челябинского университетского образовательного округа",
+      "profile": "иностранный язык",
+      "subjects": [
+        "иностранный язык"
+      ],
+      "level": "III",
+      "profile_slug": "inostrannyy-yazyk",
+      "olympiad_id": "p669-73-inostrannyy-yazyk"
+    },
+    {
+      "perechen_number_669": 73,
+      "name": "Региональный конкурс школьников Челябинского университетского образовательного округа",
+      "profile": "обществознание",
+      "subjects": [
+        "обществознание"
+      ],
+      "level": "III",
+      "profile_slug": "obschestvoznanie",
+      "olympiad_id": "p669-73-obschestvoznanie"
+    },
+    {
+      "perechen_number_669": 74,
+      "name": "Санкт-Петербургская астрономическая олимпиада",
+      "profile": "астрономия",
+      "subjects": [
+        "астрономия",
+        "физика"
+      ],
+      "level": "I",
+      "profile_slug": "astronomiya",
+      "olympiad_id": "p669-74-astronomiya"
+    },
+    {
+      "perechen_number_669": 75,
+      "name": "Санкт-Петербургская олимпиада школьников",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-75-matematika"
+    },
+    {
+      "perechen_number_669": 75,
+      "name": "Санкт-Петербургская олимпиада школьников",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "I",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-75-himiya"
+    },
+    {
+      "perechen_number_669": 76,
+      "name": "Северо-Восточная олимпиада школьников",
+      "profile": "родные языки",
+      "subjects": [
+        "образование и педагогические науки"
+      ],
+      "level": "III",
+      "profile_slug": "rodnye-yazyki",
+      "olympiad_id": "p669-76-rodnye-yazyki"
+    },
+    {
+      "perechen_number_669": 76,
+      "name": "Северо-Восточная олимпиада школьников",
+      "profile": "филология",
+      "subjects": [
+        "русский язык",
+        "литература"
+      ],
+      "level": "III",
+      "profile_slug": "filologiya",
+      "olympiad_id": "p669-76-filologiya"
+    },
+    {
+      "perechen_number_669": 77,
+      "name": "Сибирская межрегиональная олимпиада школьников «Архитектурно-дизайнерское творчество»",
+      "profile": "архитектура, изобразительные и прикладные виды искусств",
+      "subjects": [
+        "архитектура",
+        "дизайн",
+        "дизайн архитектурной среды",
+        "градостроительство"
+      ],
+      "level": "III",
+      "profile_slug": "arhitektura-izobrazitelnye-i-prikladnye-vidy-iskusstv",
+      "olympiad_id": "p669-77-arhitektura-izobrazitelnye-i-prikladnye-vidy-iskusstv"
+    },
+    {
+      "perechen_number_669": 78,
+      "name": "Строгановская олимпиада",
+      "profile": "рисунок, живопись, скульптура, дизайн",
+      "subjects": [
+        "изобразительное и прикладные виды искусств"
+      ],
+      "level": "I",
+      "profile_slug": "risunok-zhivopis-skulptura-dizayn",
+      "olympiad_id": "p669-78-risunok-zhivopis-skulptura-dizayn"
+    },
+    {
+      "perechen_number_669": 79,
+      "name": "Твой путь в настоящую науку",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-79-fizika"
+    },
+    {
+      "perechen_number_669": 80,
+      "name": "Телевизионная гуманитарная олимпиада школьников «Умницы и умники»",
+      "profile": "гуманитарные и социальные науки",
+      "subjects": [
+        "средства массовой информации и информационно-библиотечное дело",
+        "политические науки и регионоведение"
+      ],
+      "level": "I",
+      "profile_slug": "gumanitarnye-i-socialnye-nauki",
+      "olympiad_id": "p669-80-gumanitarnye-i-socialnye-nauki"
+    },
+    {
+      "perechen_number_669": 81,
+      "name": "Турнир городов",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "I",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-81-matematika"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "биология",
+      "subjects": [
+        "биология"
+      ],
+      "level": "II",
+      "profile_slug": "biologiya",
+      "olympiad_id": "p669-82-biologiya"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "история",
+      "subjects": [
+        "история"
+      ],
+      "level": "II",
+      "profile_slug": "istoriya",
+      "olympiad_id": "p669-82-istoriya"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "литература",
+      "subjects": [
+        "литература"
+      ],
+      "level": "II",
+      "profile_slug": "literatura",
+      "olympiad_id": "p669-82-literatura"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-82-matematika"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "лингвистика",
+      "subjects": [
+        "русский язык",
+        "иностранный язык",
+        "математика"
+      ],
+      "level": "II",
+      "profile_slug": "lingvistika",
+      "olympiad_id": "p669-82-lingvistika"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "II",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-82-fizika"
+    },
+    {
+      "perechen_number_669": 82,
+      "name": "Турнир имени М.В. Ломоносова",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-82-himiya"
+    },
+    {
+      "perechen_number_669": 83,
+      "name": "Университетская олимпиада школьников «Бельчонок»",
+      "profile": "информатика",
+      "subjects": [
+        "информатика"
+      ],
+      "level": "II",
+      "profile_slug": "informatika",
+      "olympiad_id": "p669-83-informatika"
+    },
+    {
+      "perechen_number_669": 83,
+      "name": "Университетская олимпиада школьников «Бельчонок»",
+      "profile": "математика",
+      "subjects": [
+        "математика"
+      ],
+      "level": "III",
+      "profile_slug": "matematika",
+      "olympiad_id": "p669-83-matematika"
+    },
+    {
+      "perechen_number_669": 83,
+      "name": "Университетская олимпиада школьников «Бельчонок»",
+      "profile": "физика",
+      "subjects": [
+        "физика"
+      ],
+      "level": "III",
+      "profile_slug": "fizika",
+      "olympiad_id": "p669-83-fizika"
+    },
+    {
+      "perechen_number_669": 83,
+      "name": "Университетская олимпиада школьников «Бельчонок»",
+      "profile": "химия",
+      "subjects": [
+        "химия"
+      ],
+      "level": "II",
+      "profile_slug": "himiya",
+      "olympiad_id": "p669-83-himiya"
+    }
+  ]
+}

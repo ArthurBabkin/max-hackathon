@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Проверка датасетов A и B по чек-листу раздела 5 спецификации.
+
+Выходной код 1, если нарушено хоть одно жёсткое требование.
+"""
+import json, re, sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from common import DATA, ROOT
+
+VUZY = {"msu", "spbu", "hse", "mipt", "itmo", "nsu", "kfu", "innopolis", "sechenov", "kazan-gmu"}
+GROUPS = {"ИТ", "Физика", "Биомед", "Экономика"}
+BENEFITS = {"БВИ", "100_ballov", "dop_bally"}
+STATUSES = {"pobeditel", "prizyor"}
+LEVELS = {"I", "II", "III", "ВсОШ", None}
+OID_RE = re.compile(r"^(p669-\d+|vsosh)-[a-z0-9-]+$")
+
+errors, warnings = [], []
+
+
+def err(msg):
+    errors.append(msg)
+
+
+def warn(msg):
+    warnings.append(msg)
+
+
+def main() -> int:
+    a = json.loads((DATA / "vuz_napravleniya.json").read_text(encoding="utf-8"))["vuz_napravleniya"]
+    b = json.loads((DATA / "vuz_napravlenie_olimpiady.json").read_text(encoding="utf-8"))["vuz_napravlenie_olimpiady"]
+    index = json.loads((DATA / "olympiad_index_669.json").read_text(encoding="utf-8"))["olympiads"]
+    known_ids = {r["olympiad_id"] for r in index}
+    vsosh_ok = {f"vsosh-{s['slug']}" for s in
+                json.loads((DATA / "subject_slugs.json").read_text(encoding="utf-8"))["slugs"]}
+
+    # --- Датасет A
+    offered = [x for x in a if x["status"] == "offered"]
+    for x in a:
+        if x["vuz_id"] not in VUZY:
+            err(f"A: неизвестный vuz_id {x['vuz_id']}")
+        if x["profile_group"] not in GROUPS:
+            err(f"A: неизвестный profile_group {x['profile_group']}")
+        if x["admission_year"] != 2026:
+            err(f"A: admission_year != 2026 у {x.get('program_id')}")
+        if "diploma_valid_years" in x:
+            err("A: поле diploma_valid_years не должно существовать")
+        if not x.get("source_url"):
+            err(f"A: нет source_url у {x['vuz_id']}/{x['profile_group']}")
+        if x["status"] == "offered":
+            if not x.get("program_id"):
+                err(f"A: пустой program_id при offered ({x['vuz_id']})")
+            if not x.get("faculty"):
+                err(f"A: пустой faculty при offered ({x.get('program_id')})")
+            if x.get("match_type") not in ("exact", "adjacent"):
+                err(f"A: не проставлен match_type у {x.get('program_id')}")
+            if x.get("match_type") == "adjacent" and not x.get("matched_reason"):
+                err(f"A: adjacent без matched_reason у {x.get('program_id')}")
+            if str(x["source_url"]).lower().endswith(".pdf") and x.get("source_page") is None:
+                warn(f"A: PDF-источник без source_page у {x.get('program_id')}")
+
+    # program_id идентифицирует программу: одна и та же программа может входить
+    # в две профильные группы, но внутри группы дублей быть не должно.
+    dup = [k for k, v in Counter((x["program_id"], x["profile_group"])
+                                 for x in offered).items() if v > 1]
+    if dup:
+        err(f"A: дублей (program_id, profile_group): {len(dup)}, например {dup[:3]}")
+
+    ids_per_program = defaultdict(set)
+    for x in offered:
+        ids_per_program[x["program_id"]].add((x["program_name"], x["faculty"], x["napravlenie_code"]))
+    clash = {k: v for k, v in ids_per_program.items() if len(v) > 1}
+    if clash:
+        err(f"A: один program_id у разных программ: {len(clash)}, например {list(clash)[:3]}")
+
+    covered = {(x["vuz_id"], x["profile_group"]) for x in a}
+    missing = {(v, g) for v in VUZY for g in GROUPS} - covered
+    if missing:
+        err(f"A: нет записи по парам вуз+группа: {sorted(missing)}")
+
+    # --- Датасет B
+    a_pids = {x["program_id"] for x in offered}
+    b_pids = {x["program_id"] for x in b if x["program_id"]}
+    if b_pids - a_pids:
+        err(f"B: program_id, которых нет в A: {sorted(b_pids - a_pids)[:5]}")
+    if a_pids - b_pids:
+        err(f"B: программы из A пропущены в B: {len(a_pids - b_pids)}")
+
+    b_cells = {(x["vuz_id"], x["profile_group"]) for x in b}
+    if covered - b_cells:
+        err(f"B: пары вуз+группа из A отсутствуют в B: {sorted(covered - b_cells)[:5]}")
+
+    total_benefits = 0
+    for x in b:
+        if x["admission_year"] != 2026:
+            err(f"B: admission_year != 2026 у {x.get('program_id')}")
+        if x["status"] != "offered" and x["prinimaemye_olimpiady"]:
+            err(f"B: непустой список олимпиад при статусе {x['status']} ({x.get('program_id')})")
+        for ben in x["prinimaemye_olimpiady"]:
+            total_benefits += 1
+            oid = ben["olympiad_id"]
+            if not OID_RE.match(oid):
+                err(f"B: olympiad_id не по формуле раздела 4: {oid}")
+            elif oid.startswith("p669") and oid not in known_ids:
+                err(f"B: olympiad_id {oid} отсутствует в перечне №669")
+            elif oid.startswith("vsosh") and oid not in vsosh_ok:
+                err(f"B: неизвестный слаг предмета ВсОШ: {oid}")
+            if ben["diploma_status"] not in STATUSES:
+                err(f"B: недопустимый diploma_status {ben['diploma_status']}")
+            if ben["benefit_type"] not in BENEFITS:
+                err(f"B: недопустимый benefit_type {ben['benefit_type']}")
+            if ben["min_level_required"] not in LEVELS:
+                err(f"B: недопустимый min_level_required {ben['min_level_required']}")
+            if "eligible_grades" not in ben:
+                err(f"B: пропущено поле eligible_grades ({oid})")
+            if "diploma_valid_years" in ben:
+                err("B: поле diploma_valid_years не должно существовать")
+            if not ben.get("source_url"):
+                err(f"B: льгота без source_url ({oid})")
+            if not ben.get("is_demo") and ben.get("ege_confirm_min_score") is None:
+                err(f"B: балл подтверждения не заполнен и не помечен is_demo ({oid})")
+            if str(ben["source_url"]).lower().endswith(".pdf") and ben.get("source_page") is None:
+                warn(f"B: PDF-источник без source_page ({oid})")
+
+    # --- Сводка
+    print(f"Датасет A: {len(a)} объектов ({len(offered)} offered, "
+          f"{len(a) - len(offered)} not_offered/to_check), уникальных программ: {len(a_pids)}")
+    print(f"Датасет B: {len(b)} программ, записей о льготах: {total_benefits}")
+    by_vuz = Counter(x["vuz_id"] for x in offered)
+    print("программ по вузам: " + ", ".join(f"{k}={v}" for k, v in sorted(by_vuz.items())))
+
+    if warnings:
+        print(f"\nПредупреждений: {len(warnings)}")
+        for w in list(dict.fromkeys(warnings))[:8]:
+            print(f"  ! {w}")
+    if errors:
+        print(f"\nОШИБОК: {len(errors)}")
+        for e in list(dict.fromkeys(errors))[:20]:
+            print(f"  x {e}")
+        return 1
+    print("\nВсе жёсткие проверки чек-листа пройдены.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
