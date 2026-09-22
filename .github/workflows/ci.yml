@@ -1,16 +1,24 @@
-# Проверки на каждый пуш и PR. Всё то же самое запускается локально через make.
-name: ci
+# Проверки на каждый PR и на master. Ничего не выкладывают — только валидируют.
+# Всё то же самое запускается локально через make.
+name: CI
 
 on:
+  pull_request:
   push:
     branches: [master]
-  pull_request:
 
 permissions:
   contents: read
 
+# Новый пуш в ту же ветку отменяет предыдущий прогон: на хакатоне пуши частые,
+# а очередь из устаревших проверок только тратит минуты.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  go:
+  backend:
+    name: Go
     runs-on: ubuntu-24.04
     services:
       # Интеграционные тесты store и сценариев идут против настоящего Postgres
@@ -31,24 +39,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          # Ровно рантайм Yandex Cloud Functions (golang123).
+          # Версия должна совпадать с рантаймом Cloud Functions (golang123).
+          # Если собирать более новым Go, код может использовать то, чего нет
+          # в 1.23, и упасть уже в облаке.
           go-version: "1.23.12"
           cache: true
-      - name: gofmt
+      - name: Форматирование
         run: make fmt-check
-      - name: vet
+      - name: go vet
         run: go vet ./...
-      - name: build
+      - name: Сборка
         run: make build GO=go
-      - name: test
+      - name: Тесты
         run: go test -count=1 ./...
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: генератор сида
+      - name: Генератор сида
         run: python -m unittest discover -s datasets/parser -p 'test_*.py'
 
   web:
+    name: Мини-приложение
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -60,14 +71,18 @@ jobs:
           node-version: "22.12.0"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+      # ci, а не install: ставит ровно то, что в lock-файле, и падает при
+      # расхождении с package.json вместо тихого обновления зависимостей.
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm test
       - run: npm run check:contrast
+      - run: npm run build
 
   # Живой API против контракта: те же миграции и демо-траектория, что в
   # docker-compose, без токенов — уведомления и модель помощника выключены.
   contract:
+    name: Контракт API
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -93,7 +108,7 @@ jobs:
           node-version: "22.12.0"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - name: миграции и демо-данные
+      - name: Миграции и демо-данные
         run: |
           go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
           goose -dir packages/db/migrations postgres "$DATABASE_URL" up
@@ -115,3 +130,38 @@ jobs:
         working-directory: apps/web
       - if: failure()
         run: cat /tmp/api.log
+
+  infra:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+
+      # Провайдер Yandex весит около 100 МБ и без кеша качается каждый прогон.
+      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог,
+      # который мы и кешируем между запусками.
+      - name: Кеш провайдеров
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
+          restore-keys: tofu-providers-
+
+      - name: Форматирование
+        run: tofu fmt -check -recursive
+
+      # init без backend: состояние в CI не нужно, проверяем только синтаксис
+      # и схему провайдера. Плана и применения здесь нет намеренно —
+      # инфраструктуру применяет человек, см. infra/terraform/README.md.
+      - name: Валидация
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          tofu init -backend=false
+          tofu validate

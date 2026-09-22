@@ -121,6 +121,14 @@ resource "yandex_function" "fn" {
     }
   }
 
+  # Код функции выкладывает GitHub Actions при слиянии в master, а не Terraform.
+  # Без этого каждый `tofu apply` откатывал бы функцию на ту версию, что собрана
+  # из рабочей копии человека, затирая выложенное пайплайном.
+  # Terraform владеет существованием функции и её настройками, CI — кодом.
+  lifecycle {
+    ignore_changes = [user_hash, content]
+  }
+
   depends_on = [yandex_resourcemanager_folder_iam_member.functions_lockbox]
 }
 

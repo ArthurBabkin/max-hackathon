@@ -25,10 +25,17 @@ yc init                       # если CLI ещё не настроен
 ```bash
 cd infra/terraform
 export YC_TOKEN=$(yc iam create-token)   # токен живёт 12 часов
+export AWS_ACCESS_KEY_ID=...             # статические ключи traektoria-storage
+export AWS_SECRET_ACCESS_KEY=...
 tofu init
 tofu plan -out=tfplan
 tofu apply tfplan
 ```
+
+**Ключи `AWS_*` обязательны для любой команды `tofu`**, включая `output` и `state list`:
+состояние лежит в бакете, и бэкенд S3 ходит туда именно ими. Без них команда падает
+с `No valid credential sources found` — и это легко не заметить, если пайпить вывод
+в другую команду: `tofu` пишет ошибку в stderr, а в пайп уходит пусто.
 
 **Всегда через `plan -out` и `apply <файл>`, а не `apply -auto-approve`.** Смысл в том,
 что применяется ровно то, что вы прочитали: между отдельными `plan` и `apply` состояние
@@ -48,6 +55,7 @@ tofu apply tfplan
 | `apigateway.tf` | API Gateway перед `api`: прямой вызов функции не передаёт путь запроса (флаг `enable_workers`) |
 | `secrets.tf` | Lockbox с токенами и строкой подключения, сервисный аккаунт функций |
 | `postgres.tf` | Managed PostgreSQL 16 (флаг `enable_database`) |
+| `cicd.tf` | сервисные аккаунты GitHub Actions: `traektoria-cicd` выкладывает код, `traektoria-infra` применяет Terraform |
 | `triggers.tf` | таймеры: напоминания раз в 15 минут, изменения контента раз в сутки (флаг `enable_workers`) |
 | `storage.tf` | сервисный аккаунт для S3, оба бакета, хостинг сайта |
 | `dns.tf` | зона `traektoriaedu.ru`, запись апекса, запись проверки владения |
@@ -57,17 +65,19 @@ tofu apply tfplan
 Значения по умолчанию (облако, каталог, домен) лежат в `variables.tf` — это не секреты,
 репозиторий приватный. Токен в конфигурацию не попадает и берётся только из `YC_TOKEN`.
 
-### Код функции выкладывается тем же `apply`
+### Код функций выкладывает пайплайн
 
-`functions.tf` упаковывает исходники Go-модуля в zip через `archive_file` и подставляет хеш в `user_hash`.
-Поэтому отдельного шага деплоя нет: поменяли Go-код — `tofu apply` создаст новую версию функции.
-Если хеш не изменился, новая версия не создаётся.
+Terraform создаёт функции и держит их настройки: окружение, секреты Lockbox,
+сервисный аккаунт, память, таймаут. Код при создании функции берётся из zip
+рабочей копии (`archive_file`), дальше его выкладывает **Deploy functions** при
+слиянии в `master`: `ignore_changes` на `user_hash` и `content` не даёт `apply`
+откатить выложенное. Подробно — [../../.github/workflows/README.md](../../.github/workflows/README.md).
 
 ### Содержимое сайта — не через Terraform
 
 Статика в бакетах намеренно не описана: это артефакт сборки, а не инфраструктура.
-Выкладывается собранный `apps/web/dist/`, не исходники — команды в конце раздела
-«Выкатка бэкенда»: сборке нужен адрес API Gateway.
+Выкладывает её **Deploy web**: собранный `apps/web/dist/` с адресом API Gateway,
+не исходники.
 
 Адрес при этом не меняется, поэтому перезаливать можно сколько угодно, в том числе
 после того, как организаторы пропишут URL боту.
@@ -76,37 +86,42 @@ tofu apply tfplan
 
 ## Состояние
 
-Состояние лежит локально в `terraform.tfstate` и **в git не попадает**: в нём в открытом виде
-лежит секретный ключ сервисного аккаунта.
+Состояние лежит в бакете `traektoria-tfstate` (приватный, версионирование включено),
+а не на чьём-то ноутбуке: применять должен уметь любой в команде.
 
-Отсюда следствие, которое надо понимать: применять умеет только тот, у кого есть файл состояния.
-Для хакатона это приемлемо — инфраструктура создаётся один раз и с 30.09 замораживается.
-Если состояние потеряется, оно восстанавливается импортом, ничего не пересоздавая:
-
-```bash
-tofu import 'yandex_function.fn["bot"]' d4e4a4gqsiq7avbr2f0s
-tofu import 'yandex_dns_zone.domain' dns0cbh4jf7o48b27v3v
-tofu import 'yandex_cm_certificate.domain' fpqr801q2j527240mpkt
-tofu import 'yandex_dns_recordset.apex' 'dns0cbh4jf7o48b27v3v/traektoriaedu.ru./ANAME'
-tofu import 'yandex_dns_recordset.acme' 'dns0cbh4jf7o48b27v3v/_acme-challenge.traektoriaedu.ru./CNAME'
-```
-
-Бакеты импортируются последними и требуют ключей S3 в окружении, потому что при импорте
-конфигурация не вычисляется и ссылку на ключ взять неоткуда:
+Бакет Terraform'ом не управляется намеренно — иначе он попытался бы удалить
+хранилище собственного состояния. Создаётся один раз:
 
 ```bash
-export YC_STORAGE_ACCESS_KEY=... YC_STORAGE_SECRET_KEY=...
-tofu import 'yandex_storage_bucket.fallback' traektoria
-tofu import 'yandex_storage_bucket.domain' traektoriaedu.ru
+yc storage bucket create --name traektoria-tfstate
+yc storage bucket update --name traektoria-tfstate --versioning versioning-enabled
 ```
 
-Ключ можно посмотреть в консоли в сервисном аккаунте `traektoria-storage` или выпустить новый.
-При обычных `plan` и `apply` эти переменные не нужны: там ключ подставляется из ссылки на ресурс.
+Версионирование — страховка: если состояние побьётся, предыдущая версия объекта
+остаётся в бакете и откатывается средствами Object Storage.
 
-`yandex_function_iam_binding` импорту не поддаётся — он просто переутверждается при `apply`,
-это идемпотентно.
+Доступ к бакету идёт по статическим ключам сервисного аккаунта:
 
----
+```bash
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+```
+
+**Блокировка работает** — проверено 22.09. `use_lockfile` кладёт рядом с состоянием
+объект `terraform.tfstate.tflock`; при попытке взять занятую блокировку Object
+Storage отвечает `412 Precondition Failed`, и вторая операция останавливается.
+DynamoDB, на которую рассчитан классический вариант блокировки, в Yandex Cloud нет.
+
+Если прогон упал и оставил блокировку висеть, снять её можно только осознанно:
+
+```bash
+tofu force-unlock <ID из сообщения об ошибке>
+```
+
+Делать это, лишь убедившись, что никакая операция реально не идёт, — иначе
+два одновременных `apply` побьют состояние.
+
+В состоянии открытым текстом лежат ключи сервисных аккаунтов, поэтому бакет
+приватный, а локальные копии состояния в git не попадают.
 
 ## Включение HTTPS на своём домене
 
@@ -137,6 +152,9 @@ tofu apply -var enable_domain_https=true
 а не в переменные окружения версии функции. Функции читают их от имени сервисного
 аккаунта `traektoria-functions` с ролью `lockbox.payloadViewer`.
 
+Из пайплайна — **Actions → Infra apply**: секреты берутся из секретов
+репозитория, флаги — из переменных `ENABLE_*`. Руками то же самое:
+
 ```bash
 set -a; . ../../.env; set +a                        # MAX_BOT_TOKEN, POLZA_AI_API_KEY, WEBHOOK_SECRET
 export TF_VAR_max_bot_token="$MAX_BOT_TOKEN"
@@ -161,7 +179,8 @@ tofu apply tfplan
 без `WEBHOOK_SECRET`: её адрес публичный, и без секрета обновление от имени
 любого пользователя мог бы прислать кто угодно.
 
-После первого `apply` с базой — схема и контент (из корня репозитория):
+Схему и контент катит **Deploy functions** перед выкладкой кода (секрет
+`DATABASE_URL`). Руками, из корня репозитория:
 
 ```bash
 DATABASE_URL="$(cd infra/terraform && tofu output -raw database_url)"
@@ -183,6 +202,8 @@ go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw w
 Cloud Functions при прямом вызове не передаёт путь запроса («Cloud Functions не
 поддерживает пути в запросах. Для корректной работы http.ServeMux функцию нужно
 вызывать через API-шлюз», документация Go-рантайма).
+
+Пайплайн берёт его из переменной `YC_API_URL`. Руками:
 
 ```bash
 VITE_API_BASE="$(cd infra/terraform && tofu output -raw api_url)" npm --prefix apps/web run build
