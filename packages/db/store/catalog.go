@@ -9,11 +9,11 @@ import (
 
 // Source — источник факта. VerifiedAt пуст — показывать без метки «Факт».
 type Source struct {
-	ID         string
-	Kind       string
-	Title      string
-	URL        string
-	VerifiedAt *time.Time
+	ID         string     `json:"id"`
+	Kind       string     `json:"kind"`
+	Title      string     `json:"title"`
+	URL        string     `json:"url"`
+	VerifiedAt *time.Time `json:"verified_at,omitempty"`
 }
 
 // Profile — профиль олимпиады со всем, что нужно карточке.
