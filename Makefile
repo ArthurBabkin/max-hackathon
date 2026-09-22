@@ -56,5 +56,7 @@ down: ## остановить стенд (данные остаются; сне�
 web-dev: ## мини-приложение на живом API (не на моках)
 	VITE_USE_MOCKS=off VITE_DEV_FAKE_WEBAPP=true npm --prefix apps/web run dev
 
-bot-poll: ## бот в живом MAX через long polling (только для разработки)
-	set -a; . ./.env; set +a; BOT_MODE=poll $(GO) run ./apps/bot/cmd/local
+bot-poll: db-up ## бот в живом MAX через long polling (только для разработки)
+	set -a; . ./.env; set +a; \
+	DATABASE_URL="$${DATABASE_URL:-postgres://traektoria:traektoria@localhost:5432/traektoria?sslmode=disable}" \
+	BOT_MODE=poll $(GO) run ./apps/bot/cmd/local
