@@ -47,10 +47,31 @@ type Config struct {
 	JWTTTL              time.Duration // JWT_TTL, по умолчанию 1h
 	MaxBotToken         string        // MAX_BOT_TOKEN — им же проверяется подпись initData
 	MaxBotName          string        // MAX_BOT_NAME — для ссылок https://max.ru/<bot>?start=...
+	ReminderHour        int           // REMINDER_HOUR — час напоминаний по зоне ученика, по умолчанию 10
 }
 
 // DefaultBotName — бот команды; имя публичное, как адрес сайта.
 const DefaultBotName = "t356_hakaton_max_bot"
+
+// DefaultReminderHour — ТЗ §6.3: напоминания в 10:00 по времени ученика.
+const DefaultReminderHour = 10
+
+// ReminderHour читает REMINDER_HOUR (0–23). Нужен и API (план напоминаний
+// пересчитывается после каждого изменения трекера), и воркеру, которому
+// остальной конфиг входа ни к чему.
+func ReminderHour() (int, error) { return reminderHour(os.Getenv) }
+
+func reminderHour(getenv func(string) string) (int, error) {
+	v := getenv("REMINDER_HOUR")
+	if v == "" {
+		return DefaultReminderHour, nil
+	}
+	h, err := strconv.Atoi(v)
+	if err != nil || h < 0 || h > 23 {
+		return 0, fmt.Errorf("REMINDER_HOUR=%q: ожидали час от 0 до 23", v)
+	}
+	return h, nil
+}
 
 // IsProduction — true и для пустого APP_ENV: Load подставляет production,
 // если переменная забыта.
@@ -58,8 +79,8 @@ func (c Config) IsProduction() bool { return c.AppEnv == EnvProduction }
 
 // String не печатает секреты: конфиг можно логировать целиком.
 func (c Config) String() string {
-	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s MaxBotName:%s}",
-		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken), c.MaxBotName)
+	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s MaxBotName:%s ReminderHour:%d}",
+		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken), c.MaxBotName, c.ReminderHour)
 }
 
 func mask(s string) string {
@@ -85,6 +106,11 @@ func load(getenv func(string) string) (Config, error) {
 	if cfg.MaxBotName == "" {
 		cfg.MaxBotName = DefaultBotName
 	}
+	hour, err := reminderHour(getenv)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.ReminderHour = hour
 	switch cfg.AppEnv {
 	case "":
 		// Забытая переменная — это прод: безопасные значения по умолчанию.

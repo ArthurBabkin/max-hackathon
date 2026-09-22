@@ -59,6 +59,23 @@ func TestSchema_BotDialogTablesExist(t *testing.T) {
 	}
 }
 
+// «Напомнить завтра» адресно: у разового напоминания (offset 0) есть тот,
+// кто его попросил, у плановых — нет, они уходят всем по их порогам.
+func TestSchema_OneOffReminderHasRequester(t *testing.T) {
+	pool := dbtest.Open(t)
+	var n int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM pg_constraint
+		WHERE conname = 'reminders_requester_only_once'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("нет CHECK reminders_requester_only_once (n=%d, err=%v)", n, err)
+	}
+	var col int
+	_ = pool.QueryRow(context.Background(), `SELECT count(*) FROM information_schema.columns
+		WHERE table_name = 'reminders' AND column_name = 'requested_by_member_id'`).Scan(&col)
+	if col != 1 {
+		t.Fatal("нет reminders.requested_by_member_id")
+	}
+}
+
 func mustExec[T any](t *testing.T, exec func(context.Context, string, ...any) (T, error), sql string) {
 	t.Helper()
 	if _, err := exec(context.Background(), sql); err != nil {

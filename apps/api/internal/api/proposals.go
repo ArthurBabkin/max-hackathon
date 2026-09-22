@@ -98,6 +98,7 @@ func (s *Server) resolveProposal(accept bool) handlerFunc {
 			writeJSON(w, http.StatusOK, p)
 			return nil
 		}
+		s.replan(r, m.TrajectoryID)
 		item, err := s.trackerItem(ctx, m.TrajectoryID, itemID)
 		if err != nil {
 			return err
