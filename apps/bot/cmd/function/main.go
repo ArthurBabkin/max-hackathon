@@ -17,16 +17,22 @@ import (
 var handler http.Handler
 
 // init выполняется один раз за холодный старт. Инстанс без токена или с
-// битым конфигом не должен обслужить ни одного обновления.
+// битым конфигом не должен обслужить ни одного обновления. Секрет вебхука
+// обязателен: адрес функции публичный, и без секрета любой мог бы прислать
+// обновление от имени чужого user_id — например, /delete.
 func init() {
 	if os.Getenv("MAX_BOT_TOKEN") == "" {
 		log.Fatal("бот: MAX_BOT_TOKEN не задан")
+	}
+	secret := os.Getenv("WEBHOOK_SECRET")
+	if secret == "" {
+		log.Fatal("бот: WEBHOOK_SECRET не задан")
 	}
 	b, _, err := bot.FromEnv(context.Background())
 	if err != nil {
 		log.Fatalf("бот: %v", err)
 	}
-	handler = bot.NewHandler(os.Getenv("WEBHOOK_SECRET"), b)
+	handler = bot.NewHandler(secret, b)
 }
 
 // Handler — обработчик, который вызывает рантайм.

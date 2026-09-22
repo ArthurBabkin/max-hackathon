@@ -159,7 +159,9 @@ tofu apply tfplan
 | `reminders`, `notifier` | то же, что у `bot` | `MAX_BOT_TOKEN`, `DATABASE_URL` |
 
 `APP_ENV=production` выключает дев-обход подписи initData: api с
-`DEV_UNSIGNED_INITDATA=true` в проде не стартует.
+`DEV_UNSIGNED_INITDATA=true` в проде не стартует. Функция бота не стартует
+без `WEBHOOK_SECRET`: её адрес публичный, и без секрета обновление от имени
+любого пользователя мог бы прислать кто угодно.
 
 После первого `apply` с базой — схема и контент (из корня репозитория):
 
