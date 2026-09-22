@@ -96,3 +96,25 @@ func Genitive(name string) string { return decline(name, genitiveCase) }
 
 // Dative — кому? чему? «Предложить Артёму».
 func Dative(name string) string { return decline(name, dativeCase) }
+
+// Accusative — кого? «Пригласить Артёма», «Пригласить Машу». У имён на
+// согласную и -й/-ь совпадает с родительным, у имён на -а/-я — своё
+// окончание; Любовь не меняется.
+func Accusative(name string) string {
+	trimmed := strings.TrimSpace(name)
+	runes := []rune(trimmed)
+	if len(runes) < 2 || !strings.ContainsFunc(trimmed, isCyrillic) {
+		return trimmed
+	}
+	if strings.ToLower(trimmed) == "любовь" {
+		return trimmed
+	}
+	stem := string(runes[:len(runes)-1])
+	switch strings.ToLower(string(runes[len(runes)-1])) {
+	case "а":
+		return stem + "у"
+	case "я":
+		return stem + "ю"
+	}
+	return Genitive(trimmed)
+}

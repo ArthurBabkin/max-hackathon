@@ -28,6 +28,7 @@ var KnownPlaceholders = []string{
 	"student",     // имя ученика, именительный падеж
 	"student_gen", // родительный: «Цель Артёма», «В вузах Ольги»
 	"student_dat", // дательный: «Предложить Артёму»
+	"student_acc", // винительный: «Пригласить Артёма», «Пригласить Машу»
 	"me",          // имя того, кто смотрит
 	"name",        // имя третьего лица: кто отметил, кто предложил, кого удалили
 	"creator",     // имя создателя траектории
@@ -42,6 +43,8 @@ var KnownPlaceholders = []string{
 	"note",
 	"stage",
 	"title",
+	"link", // ссылка-приглашение в сообщении бота
+	"days", // «4 дня» — число со склонённым словом, собирает Go
 }
 
 var placeholder = regexp.MustCompile(`\{(\w+)\}`)
@@ -85,6 +88,7 @@ func New(role Role, student, me string) Voice {
 		"student":     student,
 		"student_gen": Genitive(student),
 		"student_dat": Dative(student),
+		"student_acc": Accusative(student),
 		"me":          me,
 	}}
 }

@@ -82,3 +82,14 @@ func TestDative(t *testing.T) {
 		}
 	}
 }
+
+func TestAccusative(t *testing.T) {
+	for name, want := range map[string]string{
+		"Артём": "Артёма", "Маша": "Машу", "Мария": "Марию", "Игорь": "Игоря", "Никита": "Никиту",
+		"Павел": "Павла", "Любовь": "Любовь", "Отто": "Отто", "John": "John",
+	} {
+		if got := Accusative(name); got != want {
+			t.Errorf("Accusative(%q) = %q, ждали %q", name, got, want)
+		}
+	}
+}
