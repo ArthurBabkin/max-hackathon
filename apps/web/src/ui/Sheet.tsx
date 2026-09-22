@@ -56,7 +56,7 @@ export function Sheet({ label, canGoBack, onBack, onClose, header, children, tal
             <Icon name="close" size={15} title="Закрыть" />
           </IconButton>
         </div>
-        <div className="sheet-body">{children}</div>
+        {tall ? children : <div className="sheet-body">{children}</div>}
       </div>
     </>
   )
