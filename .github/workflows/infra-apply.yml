@@ -30,7 +30,6 @@ jobs:
       run:
         working-directory: infra/terraform
     env:
-      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
       # Провайдер логинится ключом сервисного аккаунта, а не IAM-токеном:
       # токен живёт 12 часов и как секрет репозитория бесполезен.
       YC_SERVICE_ACCOUNT_KEY_FILE: ${{ github.workspace }}/infra-key.json
@@ -71,6 +70,13 @@ jobs:
 
       - uses: opentofu/setup-opentofu@v1
 
+      # Путь считаем здесь, а не в env уровня job: tofu не разворачивает `~`,
+      # он уходит к нему литералом, и кеш провайдеров молча не работает.
+      - name: Каталог кеша провайдеров
+        run: |
+          echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.terraform.d/plugin-cache"
+
       - name: Кеш провайдеров
         uses: actions/cache@v4
         with:
@@ -80,7 +86,6 @@ jobs:
 
       - name: Инициализация
         run: |
-          mkdir -p ~/.terraform.d/plugin-cache
           tofu init -input=false
 
       # Применяется ровно тот план, который собран и показан в логе.

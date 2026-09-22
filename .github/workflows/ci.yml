@@ -138,7 +138,6 @@ jobs:
       run:
         working-directory: infra/terraform
     env:
-      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
     steps:
       - uses: actions/checkout@v4
 
@@ -147,6 +146,13 @@ jobs:
       # Провайдер Yandex весит около 100 МБ и без кеша качается каждый прогон.
       # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог,
       # который мы и кешируем между запусками.
+      # Путь считаем здесь, а не в env уровня job: tofu не разворачивает `~`,
+      # он уходит к нему литералом, и кеш провайдеров молча не работает.
+      - name: Каталог кеша провайдеров
+        run: |
+          echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.terraform.d/plugin-cache"
+
       - name: Кеш провайдеров
         uses: actions/cache@v4
         with:
@@ -162,6 +168,5 @@ jobs:
       # инфраструктуру применяет человек, см. infra/terraform/README.md.
       - name: Валидация
         run: |
-          mkdir -p ~/.terraform.d/plugin-cache
           tofu init -backend=false
           tofu validate
