@@ -11,12 +11,14 @@
 | Папка | Что внутри |
 | --- | --- |
 | `apps/bot` | Go: вебхук MAX. `cmd/function` — точка входа Cloud Functions |
-| `apps/web` | мини-приложение и лендинг |
+| `apps/web` | мини-приложение: React + Vite + MAX UI |
 | `docs` | ТЗ, прототип, экраны, продуктовые материалы, исходники хакатона |
 | `datasets` | датасеты олимпиад и вузов, парсеры, спецификация формата |
 | `infra` | развёртывание: Terraform и чек-лист по Yandex Cloud |
 
-Планируются по ТЗ, но ещё не созданы: `apps/api`, `apps/reminders`, `packages/shared`, `packages/db`.
+| `packages/api-contract` | OpenAPI-контракт мини-приложения и сгенерированные TS-типы |
+| `packages/shared` | общие Go-пакеты и словарь текстов kid/parent |
+| `packages/db` | SQL-миграции |
 
 ## С чего начать
 
@@ -36,8 +38,12 @@ tofu plan -out=tfplan && tofu apply tfplan
 Тот же `apply` выкладывает и код бота. Статика сайта заливается отдельно:
 
 ```bash
-yc storage s3 cp apps/web/ s3://traektoria/ --recursive
+npm --prefix apps/web ci && npm --prefix apps/web run build
+yc storage s3 cp apps/web/dist/ s3://traektoria/ --recursive
 ```
+
+Заливается именно `dist/`: в `apps/web/` лежат исходники, и выкладывать
+их в публичный бакет незачем.
 
 ## Окружение
 

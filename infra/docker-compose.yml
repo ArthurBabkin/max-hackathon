@@ -182,9 +182,16 @@ services:
   web:
     build:
       # Контекст тоже корень: один `context: ..` на все сервисы означает один
-      # общий .dockerignore и один слой контекста на всю сборку.
+      # общий .dockerignore и один слой контекста на всю сборку. Фронту корень
+      # нужен и по существу: он импортирует packages/api-contract и
+      # packages/shared/texts.
       context: ..
       dockerfile: apps/web/Dockerfile
+      args:
+        # Относительный путь: браузер ходит на тот же origin, что и статика,
+        # а nginx внутри контейнера проксирует /api/ в сервис api. Так запрос
+        # остаётся same-origin и preflight с Authorization не возникает.
+        VITE_API_BASE: ${VITE_API_BASE:-/api/v1}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8083}:8083"
