@@ -1,11 +1,11 @@
 package api
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
-	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 )
 
 type recommendationsResponse struct {
@@ -31,48 +31,20 @@ func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	codes, err := s.subjectCodes(ctx, m.TrajectoryID)
+	res, err := pick.Recommend(ctx, s.store, t, s.now(), filter)
 	if err != nil {
 		return err
 	}
-	profiles, err := s.store.Profiles(ctx, store.ProfileQuery{SubjectCodes: codes, Grade: t.Grade})
-	if err != nil {
-		return err
-	}
-	cs, err := s.cardSet(ctx, m, t, codes, profiles)
-	if err != nil {
-		return err
-	}
-	byID := make(map[string]store.Profile, len(profiles))
-	cands := make([]match.Candidate, len(profiles))
-	for i, p := range profiles {
-		byID[p.ID] = p
-		cands[i] = cs.candidate(p)
-	}
-	items, outside := match.Recommend(cands, cs.student(), match.DefaultWeights, cs.now, filter)
+	cs := cardSet{Set: res.Set, voice: voice.New(voice.Role(m.Role), t.StudentName, m.FirstName)}
 	toCards := func(rs []match.Result) []olympiadCard {
 		out := make([]olympiadCard, len(rs))
-		for i, res := range rs {
-			out[i] = cs.card(byID[res.ProfileID], res)
+		for i, r := range rs {
+			out[i] = cs.card(res.Profiles[r.ProfileID], r)
 		}
 		return out
 	}
 	writeJSON(w, http.StatusOK, recommendationsResponse{
-		Items: toCards(items), Outside: toCards(outside), Note: cs.voice.T("match.note", nil),
+		Items: toCards(res.Items), Outside: toCards(res.Outside), Note: cs.voice.T("match.note", nil),
 	})
 	return nil
-}
-
-// subjectCodes — коды предметов ученика; пустой срез, а не nil: nil в
-// ProfileQuery означает «без фильтра».
-func (s *Server) subjectCodes(ctx context.Context, trajectoryID string) ([]string, error) {
-	subjects, err := s.store.TrajectorySubjects(ctx, trajectoryID)
-	if err != nil {
-		return nil, err
-	}
-	codes := make([]string, len(subjects))
-	for i, sub := range subjects {
-		codes[i] = sub.Code
-	}
-	return codes, nil
 }
