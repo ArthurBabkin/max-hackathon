@@ -206,7 +206,7 @@ func (n *Notifier) ProposalMessage(ctx context.Context, p store.ProposalRow, r s
 	}
 	return maxapi.WithKeyboard(text, maxapi.Keyboard{
 		maxapi.Row(maxapi.CallbackButton(v.T("bot.prop.accept", nil), "prop:acc:"+p.ID)),
-		maxapi.Row(n.App(v.T("bot.prop.card", nil), "o_"+p.OlympiadID)),
+		maxapi.Row(n.App(v.T("bot.prop.card", nil), "o_"+p.ProfileID)),
 		maxapi.Row(maxapi.CallbackButton(v.T("bot.prop.decline", nil), "prop:dec:"+p.ID)),
 	})
 }
