@@ -138,7 +138,14 @@ function stages(o: DemoOlympiad, registered: boolean): Stage[] {
 }
 
 const deadlineOf = (o: DemoOlympiad) => inDays(o.deadlineIn)
-const nextStageTitle = (o: DemoOlympiad) => o.stages[0]?.title ?? null
+
+/**
+ * Какой этап впереди. После отметки о регистрации регистрация считается
+ * пройденной, и дальше идёт отборочный — иначе карточка так и писала бы
+ * «Дальше: Регистрация» уже после того, как на неё зарегистрировались.
+ */
+const nextStageTitle = (o: DemoOlympiad, registered = false) =>
+  (registered ? o.stages[1]?.title : o.stages[0]?.title) ?? null
 
 // --- Олимпиады ---------------------------------------------------------------
 
@@ -295,7 +302,7 @@ export function trackerItem(item: DemoTrackerItem): TrackerItem | null {
     kind: o.kind,
     level: profile.level,
     deadline_at: deadlineOf(o),
-    next_stage_title: nextStageTitle(o),
+    next_stage_title: nextStageTitle(o, Boolean(item.registered_at)),
     registered_at: item.registered_at,
     registered_by: brief(item.registered_by),
     added_by: brief(item.added_by),
