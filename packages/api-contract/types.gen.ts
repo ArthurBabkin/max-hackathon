@@ -1143,9 +1143,9 @@ export interface components {
          */
         Badge: {
             /** @example ВП */
-            short_name?: string | null;
+            short_name: string | null;
             /** @example #6B2BFF */
-            color?: string | null;
+            color: string | null;
         };
         /** @description Вычисляются сервером по матрице ТЗ §3.1 для текущего участника. */
         Permissions: {
@@ -1186,7 +1186,7 @@ export interface components {
             trajectory: components["schemas"]["TrajectorySummary"];
             permissions: components["schemas"]["Permissions"];
             /** @description Разобранный payload диплинка, если мини-приложение открыто по ссылке. */
-            start_param?: string | null;
+            start_param: string | null;
         };
         TrajectorySummary: {
             /** Format: uuid */
@@ -1199,9 +1199,9 @@ export interface components {
             region_code: string;
             /** @example Республика Татарстан */
             region_name: string;
-            direction_id?: string | null;
+            direction_id: string | null;
             /** @example Программная инженерия */
-            direction_name?: string | null;
+            direction_name: string | null;
             /** @enum {string} */
             goal_status: "known" | "suggested";
             /**
@@ -1221,7 +1221,7 @@ export interface components {
             stage_title: string;
             stage_kind: components["schemas"]["StageKind"];
             /** Format: date-time */
-            deadline_at?: string | null;
+            deadline_at: string | null;
         };
         Home: {
             trajectory: components["schemas"]["TrajectorySummary"];
@@ -1229,7 +1229,7 @@ export interface components {
             registered_count: number;
             universities_count: number;
             /** @description Предложения, ждущие ответа ученика. Учитывается в бейдже вкладки «Трекер». */
-            pending_proposals_count?: number;
+            pending_proposals_count: number;
             /** @description `null`, когда всё отмечено — экран показывает «Всё по плану». */
             next_step: components["schemas"]["NextStep"] | null;
             /** @description Три ближайших срока из трекера. */
@@ -1253,26 +1253,26 @@ export interface components {
             subject_code: string;
             subject_name: string;
             /** @example Онлайн-отбор */
-            format?: string | null;
+            format: string | null;
             is_online: boolean;
-            final_city?: string | null;
+            final_city: string | null;
             /** Format: date-time */
-            deadline_at?: string | null;
+            deadline_at: string | null;
             /**
              * @example Регистрация
              * @example Школьный этап
              */
-            next_stage_title?: string | null;
+            next_stage_title: string | null;
             /**
              * @description Строка о льготе в вузах ученика — «Иннополис, ВШЭ: БВИ» или «В твоих вузах льгот нет».
              * @example Иннополис, ВШЭ: БВИ
              */
-            benefits_summary?: string;
+            benefits_summary: string;
             /**
              * @description Причина рекомендации, 1–2 самых сильных фактора (ТЗ §6.1 п. 6).
              * @example Профиль совпадает с целью
              */
-            reason?: string;
+            reason: string;
             in_tracker: boolean;
             /**
              * @description `pending` — родитель уже предложил, ученик ещё не ответил.
@@ -1316,12 +1316,12 @@ export interface components {
             color?: string | null;
             benefit: components["schemas"]["BenefitKind"] | null;
             /** @description Готовая подпись — «БВИ», «100 баллов», «БВИ победителям», «доп. баллы». */
-            benefit_label?: string | null;
+            benefit_label: string | null;
             extra_points?: number | null;
-            ege_min?: number | null;
+            ege_min: number | null;
             diploma_grades?: number[] | null;
             note?: string | null;
-            source?: components["schemas"]["Source"] | null;
+            source: components["schemas"]["Source"] | null;
         };
         Stage: {
             id: string;
@@ -1333,13 +1333,13 @@ export interface components {
              */
             title: string;
             /** @description Человеческая подпись под этапом — «до 25 сентября», «октябрь — ноябрь, онлайн». */
-            subtitle?: string | null;
+            subtitle: string | null;
             /** Format: date-time */
             starts_at?: string | null;
             /** Format: date-time */
             ends_at?: string | null;
             /** Format: date-time */
-            deadline_at?: string | null;
+            deadline_at: string | null;
             is_online: boolean;
             /**
              * @description Для таймлайна: пройденные серым, ближайший выделен (F21).
@@ -1349,18 +1349,18 @@ export interface components {
         };
         OlympiadDetail: components["schemas"]["OlympiadCard"] & {
             /** Format: uri */
-            official_url?: string | null;
+            official_url: string | null;
             /** @description Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17). */
             profiles: components["schemas"]["ProfileLevel"][];
-            profiles_source?: components["schemas"]["Source"] | null;
+            profiles_source: components["schemas"]["Source"] | null;
             /** @description По строке на каждый вуз ученика, включая «не учитывает» (F18). */
             benefits: components["schemas"]["BenefitRow"][];
-            benefits_source?: components["schemas"]["Source"] | null;
+            benefits_source: components["schemas"]["Source"] | null;
             /** @description Условия подтверждения льготы — порог ЕГЭ, классы, «БВИ в один вуз» (F19). */
             conditions: string[];
             stages: components["schemas"]["Stage"][];
             /** @description Ставит метку «Демо-даты» вместо «Факт», пока даты не выверены (ТЗ §0.5). */
-            stages_are_demo?: boolean;
+            stages_are_demo: boolean;
             /** @description Блок «Почему подходит», метка «Рекомендация» (F20). */
             why: string;
             /** @description Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23). */
@@ -1370,7 +1370,7 @@ export interface components {
             id: string;
             short_name: string;
             name: string;
-            city?: string | null;
+            city: string | null;
             color?: string | null;
             /** @description Сколько олимпиад дают в этом вузе БВИ или 100 баллов. */
             benefit_olympiads_count: number;
@@ -1380,11 +1380,11 @@ export interface components {
         UniversityDetail: components["schemas"]["UniversityListItem"] & {
             directions: string[];
             /** @example от 75 баллов по профильному предмету */
-            ege_note?: string | null;
+            ege_note: string | null;
             /** Format: uri */
-            rules_url?: string | null;
+            rules_url: string | null;
             /** Format: date */
-            rules_verified_at?: string | null;
+            rules_verified_at: string | null;
             /** @description Олимпиады, дающие льготу в этом вузе, с переходом в карточку (F26). */
             olympiads: (components["schemas"]["Badge"] & {
                 olympiad_profile_id: string;
@@ -1402,21 +1402,21 @@ export interface components {
             olympiad_profile_id: string;
             olympiad_id: string;
             olympiad_name: string;
-            subject_name?: string;
+            subject_name: string;
             kind: components["schemas"]["OlympiadKind"];
-            level?: components["schemas"]["Level"];
+            level: components["schemas"]["Level"];
             /** Format: date-time */
-            deadline_at?: string | null;
+            deadline_at: string | null;
             /**
              * @example Регистрация
              * @example Школьный этап
              * @example Отборочный этап
              */
-            next_stage_title?: string | null;
+            next_stage_title: string | null;
             /** Format: date-time */
             registered_at: string | null;
             /** @description Кто поставил отметку — строка «Отметила Ольга» (F31). */
-            registered_by?: components["schemas"]["MemberBrief"] | null;
+            registered_by: components["schemas"]["MemberBrief"] | null;
             /** @description Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2). */
             added_by: components["schemas"]["MemberBrief"] | null;
         };
@@ -1424,17 +1424,17 @@ export interface components {
             /** Format: uuid */
             id: string;
             olympiad_profile_id: string;
-            olympiad_id?: string;
+            olympiad_id: string;
             olympiad_name: string;
             /** Format: date-time */
-            deadline_at?: string | null;
+            deadline_at: string | null;
             /** @enum {string} */
             status: "pending" | "accepted" | "declined";
             proposed_by: components["schemas"]["MemberBrief"];
             /** Format: date-time */
-            created_at?: string;
+            created_at: string;
             /** Format: date-time */
-            resolved_at?: string | null;
+            resolved_at: string | null;
         };
         Tracker: {
             items: components["schemas"]["TrackerItem"][];
@@ -1465,7 +1465,7 @@ export interface components {
             can_remove: boolean;
             color?: string | null;
             /** Format: date-time */
-            joined_at?: string;
+            joined_at: string;
         };
         Invite: {
             /** Format: uuid */
@@ -1496,13 +1496,13 @@ export interface components {
                 code: string;
                 name: string;
             }[];
-            direction_id?: string | null;
-            direction_name?: string | null;
+            direction_id: string | null;
+            direction_name: string | null;
             /** @enum {string} */
             goal_status: "known" | "suggested";
             universities: components["schemas"]["UniversityListItem"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
-            other_member_names?: string[];
+            other_member_names: string[];
         };
         ProfilePatch: {
             student_name?: string;
@@ -1529,7 +1529,7 @@ export interface components {
             text: string;
             card_refs: components["schemas"]["AiCardRef"][];
             /** @description Ссылки на первоисточники под ответом. */
-            sources?: components["schemas"]["Source"][];
+            sources: components["schemas"]["Source"][];
             /** @description `true` — честное «данных нет» (F36). Клиент рисует жёлтым. */
             refused: boolean;
             /** Format: date-time */
