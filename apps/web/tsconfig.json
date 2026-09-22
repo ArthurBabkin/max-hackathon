@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"],
+
+    "baseUrl": ".",
+    "paths": {
+      "@contract": ["../../packages/api-contract/index.ts"],
+      "@contract/*": ["../../packages/api-contract/*"],
+      "@texts": ["../../packages/shared/texts/texts.json"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../../packages/api-contract",
+    "../../packages/shared/texts/texts.json"
+  ]
+}
