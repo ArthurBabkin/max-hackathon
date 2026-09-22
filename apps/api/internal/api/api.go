@@ -98,6 +98,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /tracker/{id}", s.authed(s.removeFromTracker))
 	s.mux.HandleFunc("PUT /tracker/{id}/registered", s.authed(s.setRegistered(true)))
 	s.mux.HandleFunc("DELETE /tracker/{id}/registered", s.authed(s.setRegistered(false)))
+	s.mux.HandleFunc("GET /calendar", s.authed(s.calendar))
 
 	// Ручки контракта, которые ещё не написаны, честно отвечают 501 в
 	// формате ошибки — фронт отличает «не готово» от «сломалось».
