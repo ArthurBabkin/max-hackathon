@@ -137,7 +137,6 @@ jobs:
     defaults:
       run:
         working-directory: infra/terraform
-    env:
     steps:
       - uses: actions/checkout@v4
 
