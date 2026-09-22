@@ -5,22 +5,37 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ArthurBabkin/max-hackathon/apps/api/internal/api"
+	"github.com/ArthurBabkin/max-hackathon/packages/db"
+	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
 )
 
-var router = api.New()
+var router http.Handler
 
 // init проверяет конфиг при загрузке плагина: инстанс с опасной комбинацией
 // (дев-обход подписи в production, слабый JWT_SECRET) не должен обслужить ни
-// одного запроса.
+// одного запроса. Пул создаётся здесь же и переживает вызовы в тёплом
+// инстансе, но в базу не ходит, пока не придёт первый запрос.
 func init() {
-	if _, err := config.Load(); err != nil {
+	cfg, err := config.Load()
+	if err != nil {
 		log.Fatalf("конфиг: %v", err)
 	}
+	pool, err := db.Pool(context.Background())
+	if err != nil {
+		log.Fatalf("база: %v", err)
+	}
+	router = api.New(api.Deps{
+		Store:       store.New(pool),
+		Config:      cfg,
+		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
+	})
 }
 
 func Handler(rw http.ResponseWriter, req *http.Request) {

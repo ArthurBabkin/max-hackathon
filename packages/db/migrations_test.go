@@ -134,3 +134,28 @@ func TestSeed_StagesAreHonest(t *testing.T) {
 		t.Errorf("%d профилей ВсОШ без ровно четырёх этапов", wrong)
 	}
 }
+
+// Демо-траектория ссылается на профили из сида по id: если генератор сида
+// переименует профиль, seed-demo упадёт у проверяющего. Ловим это здесь.
+func TestDemoSeed_AppliesOnTopOfContent(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "..", "migrations-demo", "0001_demo_trajectory.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+	if _, err := conn.Conn().PgConn().Exec(ctx, dbtest.UpSection(string(raw))).ReadAll(); err != nil {
+		t.Fatalf("демо-траектория не легла: %v", err)
+	}
+	var items, pending int
+	_ = pool.QueryRow(ctx, "SELECT count(*) FROM tracker_items").Scan(&items)
+	_ = pool.QueryRow(ctx, "SELECT count(*) FROM proposals WHERE status = 'pending'").Scan(&pending)
+	if items != 2 || pending != 1 {
+		t.Fatalf("трекер %d, ожидающих предложений %d", items, pending)
+	}
+}
