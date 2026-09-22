@@ -8,3 +8,13 @@ datasets/extracted/
 
 __pycache__/
 *.pyc
+
+# Terraform / OpenTofu
+.terraform/
+.terraform.lock.hcl.bak
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+bootstrap.tfplan
+infra/terraform/.build/
