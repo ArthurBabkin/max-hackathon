@@ -1,7 +1,8 @@
-// Локальный аналог: ручной запуск по HTTP.
+// Локальный аналог: ручной запуск по HTTP, чтобы не ждать суточный таймер.
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	worker := notifier.New()
+	worker, err := notifier.FromEnv(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(rw http.ResponseWriter, _ *http.Request) {

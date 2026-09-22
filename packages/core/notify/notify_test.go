@@ -151,3 +151,34 @@ func TestShort(t *testing.T) {
 		}
 	}
 }
+
+func TestChanges_ListAndButtons(t *testing.T) {
+	n := &Notifier{BotName: "test_bot", BotID: 42}
+	ptr := func(s string) *string { return &s }
+	var items []store.ChangeItem
+	items = append(items,
+		store.ChangeItem{ProfileID: "vsosh-informatika", ProfileName: ptr("информатика"),
+			OlympiadName: "ВсОШ по информатике", OfficialURL: ptr("http://insecure.example"), Kind: "stages"},
+		store.ChangeItem{ProfileID: "p669-8-informatika", ProfileName: ptr("информатика"),
+			OlympiadName: "Всероссийская олимпиада школьников «Высшая проба»", Kind: "benefits",
+			UniversityID: ptr("innopolis"), UniversityShort: ptr("УИ"), RulesURL: ptr("https://innopolis.university/rules.pdf")})
+	for i := range 9 {
+		id := string(rune('a' + i))
+		items = append(items, store.ChangeItem{ProfileID: id, OlympiadName: "Олимпиада " + id, Kind: "stages"})
+	}
+	m := n.Changes(items, store.Recipient{Role: "kid", Name: "Артём"}, store.Trajectory{StudentName: "Артём"})
+
+	if !strings.Contains(m.Text, "• «ВсОШ по информатике» — сроки этапов\n") {
+		t.Fatalf("профиль не повторяет название: %q", m.Text)
+	}
+	if !strings.Contains(m.Text, "• «Высшая проба», информатика — льготы (Иннополис)") {
+		t.Fatalf("вуз узнаваемо: %q", m.Text)
+	}
+	if !strings.Contains(m.Text, "…и ещё 3\n") || strings.Contains(m.Text, "Олимпиада g") {
+		t.Fatalf("список обрезан после восьми: %q", m.Text)
+	}
+	want := "Карточка «ВсОШ по информатике» | Карточка «Высшая проба» | Правила приёма Иннополис | Карточка «Олимпиада a»"
+	if got := maxtest.Buttons(m); got != want {
+		t.Fatalf("кнопки — три карточки, только https-ссылки:\n got %s\nwant %s", got, want)
+	}
+}
