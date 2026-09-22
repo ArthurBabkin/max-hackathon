@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
@@ -192,17 +193,7 @@ func (b *Bot) regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 }
 
 // uniLabel — как вуз подписан на кнопке: коротко, но узнаваемо.
-func uniLabel(u store.University) string {
-	switch u.ID {
-	case "innopolis":
-		return "Иннополис"
-	case "sechenov":
-		return "Сеченовский"
-	case "kazan-gmu":
-		return "Казанский ГМУ"
-	}
-	return u.ShortName
-}
+func uniLabel(u store.University) string { return notify.UniversityLabel(u.ID, u.ShortName) }
 
 func (b *Bot) directionName(t *turn, id string) (string, error) {
 	dirs, err := b.store.Directions(t.ctx)
