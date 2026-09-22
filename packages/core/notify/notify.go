@@ -300,3 +300,128 @@ func (n *Notifier) Deleted(ctx context.Context, t store.Trajectory, rs []store.R
 		n.Send(ctx, r.MaxUserID, maxapi.Text(Voice(r, t).T("notify.deleted", nil)))
 	}
 }
+
+// UniversityLabel — вуз коротко, но узнаваемо: «УИ» из справочника ничего
+// не скажет в чате, «Иннополис» — скажет.
+func UniversityLabel(id, short string) string {
+	switch id {
+	case "innopolis":
+		return "Иннополис"
+	case "sechenov":
+		return "Сеченовский"
+	case "kazan-gmu":
+		return "Казанский ГМУ"
+	}
+	return short
+}
+
+const (
+	// changesLines — сколько олимпиад перечислить в тексте, остальные — «…и ещё N».
+	changesLines = 8
+	// changesCards — сколько олимпиад получают свои кнопки.
+	changesCards = 3
+)
+
+// changed — что изменилось по одному профилю олимпиады.
+type changed struct {
+	item     store.ChangeItem
+	stages   bool
+	unis     []string
+	rulesURL string
+	rulesFor string
+}
+
+// Changes — сводка изменений контента по траектории для одного
+// получателя (F33, ТЗ §6.5): одна строка на олимпиаду, под ней кнопки
+// «Открыть карточку» и первоисточник — сайт олимпиады, если сдвинулись
+// сроки, иначе правила приёма вуза.
+func (n *Notifier) Changes(items []store.ChangeItem, r store.Recipient, t store.Trajectory) maxapi.NewMessage {
+	v := Voice(r, t)
+	var profiles []*changed
+	byID := map[string]*changed{}
+	for _, it := range items {
+		c, ok := byID[it.ProfileID]
+		if !ok {
+			c = &changed{item: it}
+			byID[it.ProfileID] = c
+			profiles = append(profiles, c)
+		}
+		switch it.Kind {
+		case "stages":
+			c.stages = true
+		case "benefits":
+			if it.UniversityID == nil || it.UniversityShort == nil {
+				continue
+			}
+			c.unis = append(c.unis, UniversityLabel(*it.UniversityID, *it.UniversityShort))
+			if c.rulesURL == "" && it.RulesURL != nil && strings.HasPrefix(*it.RulesURL, "https://") {
+				c.rulesURL, c.rulesFor = *it.RulesURL, UniversityLabel(*it.UniversityID, *it.UniversityShort)
+			}
+		}
+	}
+
+	lines := make([]string, 0, changesLines+1)
+	for i, c := range profiles {
+		if i == changesLines {
+			lines = append(lines, v.T("notify.changes.more", voice.Vars{"count": len(profiles) - changesLines}))
+			break
+		}
+		lines = append(lines, "• "+c.title()+" — "+c.what(v))
+	}
+	text := v.T("notify.changes", voice.Vars{"names": strings.Join(lines, "\n")})
+
+	var kb maxapi.Keyboard
+	for i, c := range profiles {
+		if i == changesCards {
+			break
+		}
+		label := v.T("notify.changes.card", voice.Vars{"title": Short(c.item.OlympiadName)})
+		if len(profiles) == 1 {
+			label = v.T("bot.prop.card", nil)
+		}
+		row := maxapi.Row(n.App(label, "o_"+c.item.ProfileID))
+		site := c.item.OfficialURL != nil && strings.HasPrefix(*c.item.OfficialURL, "https://")
+		switch {
+		case site && (c.stages || c.rulesURL == ""):
+			row = append(row, maxapi.LinkButton(v.T("bot.remind.openSite", nil), *c.item.OfficialURL))
+		case c.rulesURL != "":
+			row = append(row, maxapi.LinkButton(v.T("notify.changes.rules", voice.Vars{"name": c.rulesFor}), c.rulesURL))
+		}
+		kb = append(kb, row)
+	}
+	return maxapi.WithKeyboard(text, kb)
+}
+
+// title — «Высшая проба», информатика. Профиль опускается, когда он уже
+// в названии: «ВсОШ по информатике».
+func (c *changed) title() string {
+	short := Short(c.item.OlympiadName)
+	s := "«" + short + "»"
+	if p := c.item.ProfileName; p != nil && *p != "" &&
+		!strings.Contains(strings.ToLower(short), stem(strings.ToLower(*p))) {
+		s += ", " + *p
+	}
+	return s
+}
+
+// stem — основа для сравнения падежей: «информатика» ищется в
+// «по информатике».
+func stem(w string) string {
+	r := []rune(w)
+	if len(r) > 4 {
+		return string(r[:len(r)-1])
+	}
+	return w
+}
+
+// what — «сроки этапов, льготы (ВШЭ, Иннополис)».
+func (c *changed) what(v voice.Voice) string {
+	var parts []string
+	if c.stages {
+		parts = append(parts, v.T("notify.changes.stages", nil))
+	}
+	if len(c.unis) > 0 {
+		parts = append(parts, v.T("notify.changes.benefits", voice.Vars{"names": strings.Join(c.unis, ", ")}))
+	}
+	return strings.Join(parts, ", ")
+}
