@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
@@ -52,7 +53,7 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 	}
 	subject, city := r.URL.Query().Get("subject"), r.URL.Query().Get("city")
 	ctx, m := r.Context(), me(r)
-	codes, err := s.subjectCodes(ctx, m.TrajectoryID)
+	codes, err := pick.SubjectCodes(ctx, s.store, m.TrajectoryID)
 	if err != nil {
 		return err
 	}
@@ -175,7 +176,7 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	codes, err := s.subjectCodes(ctx, m.TrajectoryID)
+	codes, err := pick.SubjectCodes(ctx, s.store, m.TrajectoryID)
 	if err != nil {
 		return err
 	}

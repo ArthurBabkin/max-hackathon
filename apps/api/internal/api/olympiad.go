@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
@@ -118,7 +119,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	codes, err := s.subjectCodes(ctx, m.TrajectoryID)
+	codes, err := pick.SubjectCodes(ctx, s.store, m.TrajectoryID)
 	if err != nil {
 		return err
 	}
@@ -135,19 +136,19 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	sort.SliceStable(all, func(i, j int) bool {
-		if a, b := benefitRank[all[i].Benefit], benefitRank[all[j].Benefit]; a != b {
+		if a, b := pick.BenefitRank[all[i].Benefit], pick.BenefitRank[all[j].Benefit]; a != b {
 			return a < b
 		}
 		return all[i].UniversityName < all[j].UniversityName
 	})
 
-	res := match.Score(cs.candidate(p), cs.student(), match.DefaultWeights, cs.now)
-	mine := cs.benefits[p.ID]
-	st := cs.stages[p.ID]
+	res := match.Score(cs.Candidate(p), cs.Student(), match.DefaultWeights, cs.Now)
+	mine := cs.Benefits[p.ID]
+	st := cs.Stages[p.ID]
 	out := olympiadDetail{
 		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
-		Stages: stagesOf(st, cs.tracker.Registered[p.ID], cs.now), StagesAreDemo: len(st) == 0,
+		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
 		Why: cs.why(p, res, mine, all), BenefitUniversities: make([]benefitRow, len(all)),
 	}
 	for _, x := range st {
@@ -176,7 +177,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, b := range mine {
 		byUni[b.UniversityID] = b
 	}
-	for _, u := range cs.unis {
+	for _, u := range cs.Universities {
 		if b, ok := byUni[u.ID]; ok {
 			out.Benefits = append(out.Benefits, benefitRowOf(b))
 			continue
@@ -321,7 +322,7 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	for _, n := range notes {
 		out = append(out, v.T("cond.note", voice.Vars{"names": n.nicks, "note": lowerFirst(n.text)}))
 	}
-	if b := bestBenefit(rows); b == "bvi" || b == "bvi_winners" {
+	if b := pick.BestBenefit(rows); b == "bvi" || b == "bvi_winners" {
 		out = append(out, v.T("cond.bviOnce", nil))
 	}
 	return out
@@ -365,7 +366,7 @@ func (cs cardSet) why(p store.Profile, r match.Result, mine, all []store.Benefit
 	if p.Kind == "other" {
 		parts = append(parts, v.T("why.outside", nil))
 		if len(all) > 0 {
-			parts = append(parts, v.T("why.extraPoints", voice.Vars{"names": nicksWith(all, bestBenefit(all))}))
+			parts = append(parts, v.T("why.extraPoints", voice.Vars{"names": nicksWith(all, pick.BestBenefit(all))}))
 		}
 		return strings.Join(parts, " ")
 	}
@@ -373,12 +374,12 @@ func (cs cardSet) why(p store.Profile, r match.Result, mine, all []store.Benefit
 		parts = append(parts, v.T("why.vsosh", nil))
 	}
 	switch {
-	case r.Factors[match.Direction] > 0 && cs.t.DirectionName != nil:
-		parts = append(parts, v.T("why.direction", voice.Vars{"subject": subject, "direction": *cs.t.DirectionName}))
-	case cs.subjects[p.SubjectCode]:
+	case r.Factors[match.Direction] > 0 && cs.Trajectory.DirectionName != nil:
+		parts = append(parts, v.T("why.direction", voice.Vars{"subject": subject, "direction": *cs.Trajectory.DirectionName}))
+	case cs.Subjects[p.SubjectCode]:
 		parts = append(parts, v.T("why.subject", voice.Vars{"subject": subject}))
 	}
-	switch best := bestBenefit(mine); {
+	switch best := pick.BestBenefit(mine); {
 	case best != "":
 		parts = append(parts, v.T("why.benefit", voice.Vars{
 			"title": upperFirst(benefitLabels[best]), "names": nicksWith(mine, best)}))
