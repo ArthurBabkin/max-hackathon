@@ -26,6 +26,11 @@ COPY apps/web/ apps/web/
 # локально не возникает вовсе.
 ARG VITE_API_BASE=/api/v1
 ENV VITE_API_BASE=$VITE_API_BASE
+# Заглушка MAX Bridge в сборке: внутри MAX настоящий мост всё равно главнее,
+# а в обычном браузере без неё приложение не откроется. Для прод-статики не
+# включается: её собирают отдельно, см. infra/terraform/README.md.
+ARG VITE_DEV_FAKE_WEBAPP=false
+ENV VITE_DEV_FAKE_WEBAPP=$VITE_DEV_FAKE_WEBAPP
 
 RUN cd apps/web && npm run build
 
