@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	worker := reminders.New()
+	worker, err := reminders.FromEnv(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(rw http.ResponseWriter, _ *http.Request) {

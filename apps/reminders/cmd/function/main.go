@@ -5,11 +5,21 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/ArthurBabkin/max-hackathon/apps/reminders/internal/reminders"
 )
 
-var worker = reminders.New()
+var worker *reminders.Worker
+
+// init — один раз за холодный старт; пул живёт между вызовами таймера.
+func init() {
+	w, err := reminders.FromEnv(context.Background())
+	if err != nil {
+		log.Fatalf("воркер напоминаний: %v", err)
+	}
+	worker = w
+}
 
 // Handler здесь без http: таймер вызывает функцию напрямую, HTTP-обвязка не нужна.
 func Handler(ctx context.Context) (reminders.Result, error) {
