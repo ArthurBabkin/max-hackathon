@@ -1,0 +1,105 @@
+# План инфраструктуры на каждый PR, затрагивающий Terraform.
+#
+# Ничего не применяет. Задача — показать ревьюеру, что именно изменится,
+# ДО слияния. Главное, на что смотреть в выводе: строка `destroy`.
+# Удаление бакета уронит мини-приложение у организаторов, пересоздание
+# функции сменит URL вебхука и потребует перерегистрации подписки в MAX.
+name: Infra plan
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/infra-plan.yml'
+
+permissions:
+  contents: read
+  # Нужно, чтобы запостить план комментарием в PR.
+  pull-requests: write
+
+concurrency:
+  group: infra-plan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+      # Провайдер логинится ключом сервисного аккаунта, а не IAM-токеном:
+      # токен живёт 12 часов и как секрет репозитория бесполезен.
+      YC_SERVICE_ACCOUNT_KEY_FILE: ${{ github.workspace }}/infra-key.json
+      # Доступ к бакету с состоянием: бэкенд S3 ходит туда этими ключами.
+      AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ключ сервисного аккаунта
+        env:
+          SA_KEY: ${{ secrets.YC_INFRA_KEY }}
+        run: printf '%s' "$SA_KEY" > "${{ github.workspace }}/infra-key.json"
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Кеш провайдеров
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
+          restore-keys: tofu-providers-
+
+      - name: Инициализация
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          tofu init -input=false
+
+      # План берёт блокировку состояния. Ждём, а не падаем сразу: рядом может
+      # идти другой прогон, и 5 минут ожидания дешевле красного PR.
+      - name: План
+        id: plan
+        run: |
+          set +e
+          tofu plan -input=false -no-color -lock-timeout=5m > plan.txt 2>&1
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          # Секретов в выводе быть не должно, но вывод публичный —
+          # оставляем только хвост со сводкой и списком изменений.
+          tail -c 60000 plan.txt > plan-short.txt
+
+      - name: Комментарий в PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/terraform/plan-short.txt', 'utf8');
+            const failed = '${{ steps.plan.outputs.exitcode }}' !== '0';
+            const body = [
+              failed ? '### План не собрался' : '### План инфраструктуры',
+              '',
+              'Проверьте строку `Plan:` — любое `destroy` требует объяснения.',
+              '',
+              '<details><summary>Вывод tofu plan</summary>',
+              '',
+              '```terraform',
+              plan,
+              '```',
+              '',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Свалиться, если план не собрался
+        if: steps.plan.outputs.exitcode != '0'
+        run: exit 1
+
+      - name: Удалить ключ
+        if: always()
+        run: rm -f "${{ github.workspace }}/infra-key.json"
