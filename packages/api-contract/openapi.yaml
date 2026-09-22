@@ -1,0 +1,1328 @@
+openapi: 3.1.0
+
+info:
+  title: Траектория — API мини-приложения
+  version: 1.0.0
+  description: |
+    REST-контракт между мини-приложением (apps/web) и `fn: api` (apps/api).
+    Источник истины: раздел 10 ТЗ (docs/TZ.md) и схема БД
+    (packages/db/migrations/0001_init.sql). Номера функций из ТЗ §4 проставлены
+    в `x-tz` у каждой операции.
+
+    Соглашения:
+      * все поля на проводе — snake_case, как колонки БД и как уже устроен
+        packages/shared/maxapi/types.go; трансформера камелизации нет;
+      * даты и时间 — RFC 3339 в UTC (`2026-09-25T20:59:00Z`), «только дата» — `2026-09-25`;
+      * ошибка всегда `{"error": {"code", "message"}}` — ТЗ §10;
+      * `message` написан по-русски и пригоден для показа пользователю как есть;
+      * права проверяет сервер (ТЗ §3.1); клиент получает готовые флаги в `/session`
+        и рисует по ним кнопки, но не полагается на них как на защиту.
+
+    Идентификаторы: всё, что связано с олимпиадой, адресуется по
+    `olympiad_profile_id` — льгота в ТЗ §6.2 это связка «профиль + вуз + год»,
+    и трекер в схеме БД ссылается именно на профиль. Каталог при этом показывает
+    по одной строке на олимпиаду и отдаёт в `primary_profile` тот профиль,
+    который нужно открыть.
+
+servers:
+  - url: /api/v1
+    description: Локально — через nginx-прокси мини-приложения (same-origin)
+  - url: https://{function}.apigw.yandexcloud.net/api/v1
+    description: Прод — Cloud Function
+    variables:
+      function:
+        default: example
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: session
+  - name: home
+  - name: olympiads
+  - name: universities
+  - name: tracker
+  - name: proposals
+  - name: family
+  - name: profile
+  - name: ai
+
+paths:
+
+  /session:
+    post:
+      tags: [session]
+      summary: initData → JWT, текущая траектория, роль, права
+      x-tz: "F12"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [init_data]
+              properties:
+                init_data:
+                  type: string
+                  description: Подписанная строка запуска MAX Bridge. Проверяется по ТЗ §11.3.
+                start_param:
+                  type: [string, "null"]
+                  maxLength: 512
+                  description: Payload диплинка `startapp=`, если мини-приложение открыто по ссылке.
+      responses:
+        "200":
+          description: Сессия выдана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Подпись верна, но у пользователя нет траектории — нужно пройти онбординг у бота
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /home:
+    get:
+      tags: [home]
+      summary: Цель, счётчики, следующий шаг, ближайшие сроки
+      x-tz: "F34, F47"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Home" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /recommendations:
+    get:
+      tags: [olympiads]
+      summary: Подбор олимпиад под цель плюс блок «вне перечня»
+      description: |
+        Скоринг и сортировка — на сервере (ТЗ §6.1). Клиент показывает `items`
+        в том порядке, в котором они пришли, и не пересчитывает ничего сам.
+      x-tz: "F13, F14, F15, F16"
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, level1, soon, online]
+            default: all
+          description: |
+            Чипы экрана C3. `level1` — только I уровень, `soon` — дедлайн не дальше
+            16 дней, `online` — есть онлайн-отбор.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Recommendations" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /olympiads:
+    get:
+      tags: [olympiads]
+      summary: Каталог олимпиад
+      x-tz: "F24, F27"
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+          description: Поиск по названию и организатору, без учёта регистра.
+        - name: subject
+          in: query
+          schema: { type: string }
+          description: Код предмета, `subjects.code`.
+        - name: city
+          in: query
+          schema: { type: string }
+          description: Город финала, `olympiads.final_city`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/OlympiadListItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /olympiads/{id}:
+    get:
+      tags: [olympiads]
+      summary: Карточка олимпиады
+      description: |
+        `id` — это `olympiad_profile_id`. Ответ содержит все профили той же
+        олимпиады (`profiles`) для блока «Уровень по профилям», льготу в вузах
+        ученика, условия, этапы и примеры вузов.
+      x-tz: "F17, F18, F19, F20, F21, F22, F23"
+      parameters:
+        - $ref: "#/components/parameters/ProfileId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OlympiadDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /universities:
+    get:
+      tags: [universities]
+      summary: Каталог вузов
+      x-tz: "F25, F27"
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: city
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/UniversityListItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /universities/{id}:
+    get:
+      tags: [universities]
+      summary: Карточка вуза
+      x-tz: "F25, F26"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: "`universities.id`"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UniversityDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tracker:
+    get:
+      tags: [tracker]
+      summary: Пункты трекера и предложения
+      x-tz: "F31, F45"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tracker" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [tracker]
+      summary: Добавить олимпиаду в трекер
+      description: |
+        Повторное добавление того же профиля не создаёт дубль и отвечает 200
+        с уже существующим пунктом. Если в траектории есть ученик, родителю
+        здесь отвечают 403 — ему доступен только `POST /proposals` (ТЗ §3.1).
+      x-tz: "F28"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [olympiad_profile_id]
+              properties:
+                olympiad_profile_id: { type: string }
+      responses:
+        "201":
+          description: Пункт создан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "200":
+          description: Пункт уже был в трекере
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tracker/{id}:
+    delete:
+      tags: [tracker]
+      summary: Убрать олимпиаду из трекера
+      x-tz: "F28"
+      parameters:
+        - $ref: "#/components/parameters/TrackerItemId"
+      responses:
+        "204": { description: Удалено }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /tracker/{id}/registered:
+    put:
+      tags: [tracker]
+      summary: Отметить «зарегистрирован»
+      description: |
+        Отметку ставит любой участник. Остальные получают уведомление от бота,
+        напоминания о регистрации по этой олимпиаде отменяются у всех (ТЗ §6.3).
+      x-tz: "F46"
+      parameters:
+        - $ref: "#/components/parameters/TrackerItemId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [tracker]
+      summary: Снять отметку «зарегистрирован»
+      x-tz: "F46"
+      parameters:
+        - $ref: "#/components/parameters/TrackerItemId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /calendar:
+    get:
+      tags: [tracker]
+      summary: Сроки месяца
+      x-tz: "F32"
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          example: "2026-10"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarMonth" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /proposals:
+    post:
+      tags: [proposals]
+      summary: Предложить олимпиаду ученику
+      description: Доступно родителю, когда ученик есть в траектории (ТЗ §3.1).
+      x-tz: "F45"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [olympiad_profile_id]
+              properties:
+                olympiad_profile_id: { type: string }
+      responses:
+        "201":
+          description: Предложение создано
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+        "200":
+          description: Предложение по этому профилю уже ждёт ответа
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /proposals/{id}/accept:
+    post:
+      tags: [proposals]
+      summary: Ученик принимает предложение — олимпиада попадает в трекер
+      x-tz: "F45"
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [proposal, tracker_item]
+                properties:
+                  proposal: { $ref: "#/components/schemas/Proposal" }
+                  tracker_item: { $ref: "#/components/schemas/TrackerItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Предложение уже закрыто
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /proposals/{id}/decline:
+    post:
+      tags: [proposals]
+      summary: Ученик отклоняет предложение
+      x-tz: "F45"
+      parameters:
+        - $ref: "#/components/parameters/ProposalId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Предложение уже закрыто
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /family:
+    get:
+      tags: [family]
+      summary: Участники, создатель, активные ссылки
+      x-tz: "F38, F43"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Family" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /family/invites:
+    post:
+      tags: [family]
+      summary: Новая одноразовая ссылка-приглашение
+      description: |
+        Роль приглашённого выбирает тот, кто создаёт ссылку. Если ученик в
+        траектории уже есть, доступна только роль `parent` (ТЗ §4.9, F42).
+      x-tz: "F39, F40"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: "#/components/schemas/Role" }
+      responses:
+        "201":
+          description: Ссылка создана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invite" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: Ученик в траектории уже есть, вторую роль `kid` выдать нельзя
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /family/members/{id}:
+    delete:
+      tags: [family]
+      summary: Удалить участника
+      description: Только создатель и только не себя (ТЗ §3.1, F41).
+      x-tz: "F41"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Участник удалён }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /family/leave:
+    post:
+      tags: [family]
+      summary: Выйти из траектории
+      description: Создатель выйти не может — только удалить траекторию через /delete у бота (ТЗ §3.2).
+      x-tz: "F48"
+      responses:
+        "204": { description: Вышли }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /profile:
+    get:
+      tags: [profile]
+      summary: Профиль ученика
+      x-tz: "F49"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [profile]
+      summary: Правка профиля ученика
+      description: |
+        Изменения видят все участники. Передаются только меняемые поля.
+        `subject_codes` и `university_ids` — не меньше одного элемента.
+      x-tz: "F49"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfilePatch" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /profile/universities:
+    put:
+      tags: [profile]
+      summary: Заменить список вузов ученика
+      description: |
+        Отдельная ручка, потому что список вузов меняется не только из профиля,
+        а ещё кнопкой «Добавить в мои вузы» в карточке вуза (ТЗ §10, F9/F25/F49).
+      x-tz: "F9, F25, F49"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [university_ids]
+              properties:
+                university_ids:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /ai/messages:
+    get:
+      tags: [ai]
+      summary: История личного чата с помощником
+      description: История своя у каждого участника и другим не видна (ТЗ F37).
+      x-tz: "F37"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AiMessage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [ai]
+      summary: Вопрос помощнику
+      description: |
+        RAG только по нашей базе. Если ответа в базе нет, приходит
+        `refused: true` и шаблон отказа со ссылкой на первоисточник (ТЗ F36).
+      x-tz: "F35, F36"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+      responses:
+        "200":
+          description: Ответ помощника
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [question, answer]
+                properties:
+                  question: { $ref: "#/components/schemas/AiMessage" }
+                  answer: { $ref: "#/components/schemas/AiMessage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429":
+          description: Слишком часто
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT из `POST /session`, HS256, живёт час (ТЗ §8.2).
+
+  parameters:
+    ProfileId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+      description: "`olympiad_profiles.id`"
+    TrackerItemId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: "`tracker_items.id`"
+    ProposalId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: "`proposals.id`"
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Нет или истёк JWT — клиент повторяет POST /session
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Действие запрещено матрицей прав ТЗ §3.1
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Объект не найден
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - RATE_LIMITED
+                - NOT_IMPLEMENTED
+                - INTERNAL
+            message:
+              type: string
+              description: Текст по-русски, показывается пользователю как есть.
+
+    Role:
+      type: string
+      enum: [kid, parent]
+
+    OlympiadKind:
+      type: string
+      enum: [perechen, vsosh, other]
+      description: "`olympiads.kind`"
+
+    Level:
+      type: [string, "null"]
+      enum: ["I", "II", "III", null]
+      description: Уровень профиля по перечню. `null` у ВсОШ и у олимпиад вне перечня.
+
+    BenefitKind:
+      type: string
+      enum: [bvi, score100, bvi_winners, extra_points]
+      description: "`benefits.benefit`"
+
+    StageKind:
+      type: string
+      enum: [registration, qualifying, final, school, municipal, regional]
+
+    Source:
+      type: object
+      description: |
+        Источник факта. Без него запись нельзя показывать с меткой «Факт» (ТЗ §6.2),
+        клиент в этом случае рисует «данные уточняются».
+      required: [id, kind, title, url]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [order, rules, site]
+        title: { type: string, examples: ["Перечень олимпиад, приказ № 669"] }
+        url: { type: string, format: uri }
+        verified_at:
+          type: [string, "null"]
+          format: date
+          description: Дата проверки. `null` — показывать без метки «Факт».
+
+    Badge:
+      type: object
+      description: |
+        Оформление плитки. Оба поля могут быть `null`: клиент тогда строит
+        аббревиатуру из названия и цвет из хеша идентификатора (src/lib/badge.ts),
+        поэтому заполнять их на сервере необязательно.
+      properties:
+        short_name:
+          type: [string, "null"]
+          maxLength: 4
+          examples: ["ВП"]
+        color:
+          type: [string, "null"]
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          examples: ["#6B2BFF"]
+
+    Permissions:
+      type: object
+      description: Вычисляются сервером по матрице ТЗ §3.1 для текущего участника.
+      required:
+        [
+          add_to_tracker,
+          remove_from_tracker,
+          propose,
+          resolve_proposals,
+          toggle_registered,
+          edit_profile,
+          invite,
+          remove_members,
+          leave,
+          delete_trajectory,
+        ]
+      properties:
+        add_to_tracker: { type: boolean }
+        remove_from_tracker: { type: boolean }
+        propose: { type: boolean }
+        resolve_proposals: { type: boolean }
+        toggle_registered: { type: boolean }
+        edit_profile: { type: boolean }
+        invite: { type: boolean }
+        remove_members: { type: boolean }
+        leave: { type: boolean }
+        delete_trajectory: { type: boolean }
+
+    SessionResponse:
+      type: object
+      required: [token, expires_at, session]
+      properties:
+        token: { type: string, description: JWT HS256 }
+        expires_at: { type: string, format: date-time }
+        session: { $ref: "#/components/schemas/Session" }
+
+    Session:
+      type: object
+      required: [user, member, trajectory, permissions]
+      properties:
+        user:
+          type: object
+          required: [id, max_user_id, first_name]
+          properties:
+            id: { type: string, format: uuid }
+            max_user_id: { type: integer, format: int64 }
+            first_name:
+              type: string
+              description: Имя смотрящего. В текстах подставляется как `{me}`.
+        member:
+          type: object
+          required: [id, role, is_creator, reminder_offsets]
+          properties:
+            id: { type: string, format: uuid }
+            role: { $ref: "#/components/schemas/Role" }
+            is_creator: { type: boolean }
+            reminder_offsets:
+              type: array
+              items: { type: integer, enum: [30, 7, 3, 1] }
+        trajectory: { $ref: "#/components/schemas/TrajectorySummary" }
+        permissions: { $ref: "#/components/schemas/Permissions" }
+        start_param:
+          type: [string, "null"]
+          description: Разобранный payload диплинка, если мини-приложение открыто по ссылке.
+
+    TrajectorySummary:
+      type: object
+      required:
+        [id, student_name, grade, region_code, region_name, goal_status, has_kid, members_count]
+      properties:
+        id: { type: string, format: uuid }
+        student_name:
+          type: string
+          description: Имя ученика. В текстах подставляется как `{student}`.
+        grade: { type: integer, enum: [8, 9, 10, 11] }
+        region_code: { type: string, examples: ["16"] }
+        region_name: { type: string, examples: ["Республика Татарстан"] }
+        direction_id: { type: [string, "null"] }
+        direction_name:
+          type: [string, "null"]
+          examples: ["Программная инженерия"]
+        goal_status:
+          type: string
+          enum: [known, suggested]
+        has_kid:
+          type: boolean
+          description: |
+            Есть ли в траектории активный участник с ролью `kid`. От этого
+            зависит, добавляет родитель олимпиаду сам или предлагает (ТЗ §3.2).
+        members_count: { type: integer }
+
+    NextStep:
+      type: object
+      description: Ближайший незарегистрированный пункт трекера (ТЗ §6.6).
+      required: [tracker_item_id, olympiad_profile_id, olympiad_name, stage_title, stage_kind]
+      properties:
+        tracker_item_id: { type: string, format: uuid }
+        olympiad_profile_id: { type: string }
+        olympiad_name: { type: string }
+        stage_title:
+          type: string
+          description: "«Регистрация» или название этапа ВсОШ — «Школьный этап»."
+        stage_kind: { $ref: "#/components/schemas/StageKind" }
+        deadline_at: { type: [string, "null"], format: date-time }
+
+    Home:
+      type: object
+      required:
+        [
+          trajectory,
+          tracker_count,
+          registered_count,
+          universities_count,
+          next_step,
+          upcoming,
+        ]
+      properties:
+        trajectory: { $ref: "#/components/schemas/TrajectorySummary" }
+        tracker_count: { type: integer }
+        registered_count: { type: integer }
+        universities_count: { type: integer }
+        pending_proposals_count:
+          type: integer
+          description: Предложения, ждущие ответа ученика. Учитывается в бейдже вкладки «Трекер».
+        next_step:
+          oneOf:
+            - $ref: "#/components/schemas/NextStep"
+            - type: "null"
+          description: "`null`, когда всё отмечено — экран показывает «Всё по плану»."
+        upcoming:
+          type: array
+          description: Три ближайших срока из трекера.
+          items: { $ref: "#/components/schemas/TrackerItem" }
+
+    Recommendations:
+      type: object
+      required: [items, outside, note]
+      properties:
+        items:
+          type: array
+          description: Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+          items: { $ref: "#/components/schemas/OlympiadCard" }
+        outside:
+          type: array
+          description: Олимпиады вне перечня — отдельный блок, с основным списком не смешиваются (F16).
+          items: { $ref: "#/components/schemas/OlympiadCard" }
+        note:
+          type: string
+          examples: ["Сначала ближайшие сроки и точное совпадение профиля"]
+
+    OlympiadCard:
+      allOf:
+        - $ref: "#/components/schemas/Badge"
+        - type: object
+          required:
+            [
+              olympiad_profile_id,
+              olympiad_id,
+              name,
+              organizer,
+              kind,
+              level,
+              subject_code,
+              subject_name,
+              is_online,
+              in_tracker,
+              proposal_status,
+            ]
+          properties:
+            olympiad_profile_id: { type: string }
+            olympiad_id: { type: string }
+            name: { type: string }
+            organizer: { type: [string, "null"] }
+            kind: { $ref: "#/components/schemas/OlympiadKind" }
+            level: { $ref: "#/components/schemas/Level" }
+            subject_code: { type: string }
+            subject_name: { type: string }
+            format:
+              type: [string, "null"]
+              examples: ["Онлайн-отбор"]
+            is_online: { type: boolean }
+            final_city: { type: [string, "null"] }
+            deadline_at: { type: [string, "null"], format: date-time }
+            next_stage_title:
+              type: [string, "null"]
+              examples: ["Регистрация", "Школьный этап"]
+            benefits_summary:
+              type: string
+              description: "Строка о льготе в вузах ученика — «Иннополис, ВШЭ: БВИ» или «В твоих вузах льгот нет»."
+              examples: ["Иннополис, ВШЭ: БВИ"]
+            reason:
+              type: string
+              description: Причина рекомендации, 1–2 самых сильных фактора (ТЗ §6.1 п. 6).
+              examples: ["Профиль совпадает с целью"]
+            in_tracker: { type: boolean }
+            proposal_status:
+              type: [string, "null"]
+              enum: [pending, null]
+              description: "`pending` — родитель уже предложил, ученик ещё не ответил."
+
+    OlympiadListItem:
+      allOf:
+        - $ref: "#/components/schemas/Badge"
+        - type: object
+          description: Строка каталога — одна на олимпиаду, а не на профиль.
+          required: [olympiad_id, name, kind, primary_profile]
+          properties:
+            olympiad_id: { type: string }
+            name: { type: string }
+            organizer: { type: [string, "null"] }
+            kind: { $ref: "#/components/schemas/OlympiadKind" }
+            final_city: { type: [string, "null"] }
+            primary_profile:
+              type: object
+              description: Профиль, который откроется по тапу — совпадающий с предметами ученика либо первый.
+              required: [olympiad_profile_id, subject_code, subject_name, level]
+              properties:
+                olympiad_profile_id: { type: string }
+                subject_code: { type: string }
+                subject_name: { type: string }
+                level: { $ref: "#/components/schemas/Level" }
+            profiles_count: { type: integer }
+
+    ProfileLevel:
+      type: object
+      description: Строка блока «Уровень по профилям».
+      required: [olympiad_profile_id, subject_code, subject_name, level, is_mine]
+      properties:
+        olympiad_profile_id: { type: string }
+        subject_code: { type: string }
+        subject_name: { type: string }
+        level: { $ref: "#/components/schemas/Level" }
+        is_mine:
+          type: boolean
+          description: Профиль ученика — выделяется в интерфейсе.
+
+    BenefitRow:
+      type: object
+      description: |
+        Льгота в конкретном вузе. `benefit: null` означает «не учитывает».
+        Если `source` пуст, клиент не ставит метку «Факт» и пишет «данные уточняются» (F18).
+      required: [university_id, university_name, university_short_name, city, benefit]
+      properties:
+        university_id: { type: string }
+        university_name: { type: string }
+        university_short_name: { type: string }
+        city: { type: [string, "null"] }
+        color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
+        benefit:
+          oneOf:
+            - $ref: "#/components/schemas/BenefitKind"
+            - type: "null"
+        benefit_label:
+          type: [string, "null"]
+          description: Готовая подпись — «БВИ», «100 баллов», «БВИ победителям», «доп. баллы».
+        extra_points: { type: [integer, "null"] }
+        ege_min: { type: [integer, "null"] }
+        diploma_grades:
+          type: [array, "null"]
+          items: { type: integer }
+        note: { type: [string, "null"] }
+        source:
+          oneOf:
+            - $ref: "#/components/schemas/Source"
+            - type: "null"
+
+    Stage:
+      type: object
+      required: [id, kind, title, is_online, state]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/StageKind" }
+        title:
+          type: string
+          examples: ["Регистрация", "Отборочный этап", "Заключительный этап"]
+        subtitle:
+          type: [string, "null"]
+          description: Человеческая подпись под этапом — «до 25 сентября», «октябрь — ноябрь, онлайн».
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        deadline_at: { type: [string, "null"], format: date-time }
+        is_online: { type: boolean }
+        state:
+          type: string
+          enum: [past, current, future]
+          description: "Для таймлайна: пройденные серым, ближайший выделен (F21)."
+
+    OlympiadDetail:
+      allOf:
+        - $ref: "#/components/schemas/OlympiadCard"
+        - type: object
+          required: [profiles, benefits, conditions, stages, why, benefit_universities]
+          properties:
+            official_url: { type: [string, "null"], format: uri }
+            profiles:
+              type: array
+              description: Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17).
+              items: { $ref: "#/components/schemas/ProfileLevel" }
+            profiles_source:
+              oneOf:
+                - $ref: "#/components/schemas/Source"
+                - type: "null"
+            benefits:
+              type: array
+              description: По строке на каждый вуз ученика, включая «не учитывает» (F18).
+              items: { $ref: "#/components/schemas/BenefitRow" }
+            benefits_source:
+              oneOf:
+                - $ref: "#/components/schemas/Source"
+                - type: "null"
+            conditions:
+              type: array
+              description: Условия подтверждения льготы — порог ЕГЭ, классы, «БВИ в один вуз» (F19).
+              items: { type: string }
+            stages:
+              type: array
+              items: { $ref: "#/components/schemas/Stage" }
+            stages_are_demo:
+              type: boolean
+              description: Ставит метку «Демо-даты» вместо «Факт», пока даты не выверены (ТЗ §0.5).
+            why:
+              type: string
+              description: Блок «Почему подходит», метка «Рекомендация» (F20).
+            benefit_universities:
+              type: array
+              description: Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23).
+              items: { $ref: "#/components/schemas/BenefitRow" }
+
+    UniversityListItem:
+      type: object
+      required: [id, short_name, name, benefit_olympiads_count, is_mine]
+      properties:
+        id: { type: string }
+        short_name: { type: string }
+        name: { type: string }
+        city: { type: [string, "null"] }
+        color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
+        benefit_olympiads_count:
+          type: integer
+          description: Сколько олимпиад дают в этом вузе БВИ или 100 баллов.
+        is_mine:
+          type: boolean
+          description: Вуз входит в список ученика.
+
+    UniversityDetail:
+      allOf:
+        - $ref: "#/components/schemas/UniversityListItem"
+        - type: object
+          required: [directions, olympiads]
+          properties:
+            directions:
+              type: array
+              items: { type: string }
+            ege_note:
+              type: [string, "null"]
+              examples: ["от 75 баллов по профильному предмету"]
+            rules_url: { type: [string, "null"], format: uri }
+            rules_verified_at: { type: [string, "null"], format: date }
+            olympiads:
+              type: array
+              description: Олимпиады, дающие льготу в этом вузе, с переходом в карточку (F26).
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/Badge"
+                  - type: object
+                    required: [olympiad_profile_id, name, level, benefit]
+                    properties:
+                      olympiad_profile_id: { type: string }
+                      olympiad_id: { type: string }
+                      name: { type: string }
+                      subject_name: { type: string }
+                      level: { $ref: "#/components/schemas/Level" }
+                      benefit: { $ref: "#/components/schemas/BenefitKind" }
+                      benefit_label: { type: string }
+
+    TrackerItem:
+      allOf:
+        - $ref: "#/components/schemas/Badge"
+        - type: object
+          required:
+            [
+              id,
+              olympiad_profile_id,
+              olympiad_id,
+              olympiad_name,
+              kind,
+              registered_at,
+              added_by,
+            ]
+          properties:
+            id: { type: string, format: uuid }
+            olympiad_profile_id: { type: string }
+            olympiad_id: { type: string }
+            olympiad_name: { type: string }
+            subject_name: { type: string }
+            kind: { $ref: "#/components/schemas/OlympiadKind" }
+            level: { $ref: "#/components/schemas/Level" }
+            deadline_at: { type: [string, "null"], format: date-time }
+            next_stage_title:
+              type: [string, "null"]
+              examples: ["Регистрация", "Школьный этап", "Отборочный этап"]
+            registered_at: { type: [string, "null"], format: date-time }
+            registered_by:
+              oneOf:
+                - $ref: "#/components/schemas/MemberBrief"
+                - type: "null"
+              description: Кто поставил отметку — строка «Отметила Ольга» (F31).
+            added_by:
+              oneOf:
+                - $ref: "#/components/schemas/MemberBrief"
+                - type: "null"
+              description: Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2).
+
+    Proposal:
+      allOf:
+        - $ref: "#/components/schemas/Badge"
+        - type: object
+          required: [id, olympiad_profile_id, olympiad_name, status, proposed_by]
+          properties:
+            id: { type: string, format: uuid }
+            olympiad_profile_id: { type: string }
+            olympiad_id: { type: string }
+            olympiad_name: { type: string }
+            deadline_at: { type: [string, "null"], format: date-time }
+            status:
+              type: string
+              enum: [pending, accepted, declined]
+            proposed_by: { $ref: "#/components/schemas/MemberBrief" }
+            created_at: { type: string, format: date-time }
+            resolved_at: { type: [string, "null"], format: date-time }
+
+    Tracker:
+      type: object
+      required: [items, proposals]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/TrackerItem" }
+        proposals:
+          type: array
+          description: |
+            Ученику — предложения, ждущие его ответа. Родителю — его же
+            предложения со статусом «ждёт подтверждения» (ТЗ E1/E3).
+          items: { $ref: "#/components/schemas/Proposal" }
+
+    CalendarMonth:
+      type: object
+      required: [month, days]
+      properties:
+        month: { type: string, pattern: '^\d{4}-\d{2}$' }
+        days:
+          type: array
+          items:
+            type: object
+            required: [date, items]
+            properties:
+              date: { type: string, format: date }
+              items:
+                type: array
+                items: { $ref: "#/components/schemas/TrackerItem" }
+
+    MemberBrief:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+
+    Member:
+      allOf:
+        - $ref: "#/components/schemas/MemberBrief"
+        - type: object
+          required: [is_creator, is_me, can_remove]
+          properties:
+            is_creator: { type: boolean }
+            is_me: { type: boolean }
+            can_remove:
+              type: boolean
+              description: Сервер уже учёл матрицу прав — создателя и себя удалить нельзя.
+            color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
+            joined_at: { type: string, format: date-time }
+
+    Invite:
+      type: object
+      required: [id, token, url, role, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        token: { type: string, minLength: 12, pattern: '^[A-Za-z0-9_-]+$' }
+        url:
+          type: string
+          format: uri
+          description: Готовая ссылка `https://max.ru/<bot>?start=inv_<token>` (F39).
+        role: { $ref: "#/components/schemas/Role" }
+        created_at: { type: string, format: date-time }
+
+    Family:
+      type: object
+      required: [trajectory, members, invites]
+      properties:
+        trajectory: { $ref: "#/components/schemas/TrajectorySummary" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/Member" }
+        invites:
+          type: array
+          description: Активные, ещё не использованные ссылки.
+          items: { $ref: "#/components/schemas/Invite" }
+
+    Profile:
+      type: object
+      required:
+        [student_name, grade, region_code, region_name, subjects, universities, goal_status]
+      properties:
+        student_name: { type: string, minLength: 1, maxLength: 40 }
+        grade: { type: integer, enum: [8, 9, 10, 11] }
+        region_code: { type: string }
+        region_name: { type: string }
+        subjects:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [code, name]
+            properties:
+              code: { type: string }
+              name: { type: string }
+        direction_id: { type: [string, "null"] }
+        direction_name: { type: [string, "null"] }
+        goal_status: { type: string, enum: [known, suggested] }
+        universities:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/UniversityListItem" }
+        other_member_names:
+          type: array
+          description: "Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь»."
+          items: { type: string }
+
+    ProfilePatch:
+      type: object
+      minProperties: 1
+      properties:
+        student_name: { type: string, minLength: 1, maxLength: 40 }
+        grade: { type: integer, enum: [8, 9, 10, 11] }
+        region_code: { type: string }
+        subject_codes:
+          type: array
+          minItems: 1
+          items: { type: string }
+        direction_id: { type: string }
+        university_ids:
+          type: array
+          minItems: 1
+          items: { type: string }
+
+    AiCardRef:
+      type: object
+      description: Ссылка на карточку нашей базы — кнопка «Карточка «…»» под ответом (F35).
+      required: [type, id, title]
+      properties:
+        type:
+          type: string
+          enum: [olympiad, university]
+        id:
+          type: string
+          description: "`olympiad_profile_id` или `universities.id` — по чему открывать карточку."
+        title: { type: string }
+
+    AiMessage:
+      type: object
+      required: [id, role, text, card_refs, refused, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        role:
+          type: string
+          enum: [user, assistant]
+        text: { type: string }
+        card_refs:
+          type: array
+          items: { $ref: "#/components/schemas/AiCardRef" }
+        sources:
+          type: array
+          description: Ссылки на первоисточники под ответом.
+          items: { $ref: "#/components/schemas/Source" }
+        refused:
+          type: boolean
+          description: "`true` — честное «данных нет» (F36). Клиент рисует жёлтым."
+        created_at: { type: string, format: date-time }
