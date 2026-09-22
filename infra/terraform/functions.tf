@@ -6,7 +6,13 @@ data "archive_file" "backend" {
   source_dir  = "${path.module}/../.."
   output_path = "${path.module}/.build/backend.zip"
 
+  # Архив собирается из корня репозитория, поэтому локальные секреты и
+  # служебные каталоги исключаются явно: .env с токеном бота не должен
+  # попасть в облако внутри исходников.
   excludes = [
+    ".env",
+    ".claude",
+    ".DS_Store",
     ".git",
     ".github",
     "docs",
