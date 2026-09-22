@@ -267,3 +267,34 @@ func (s *Store) EnableAllReminders(ctx context.Context, memberID string) error {
 func (s *Store) SetDirection(ctx context.Context, trajectoryID, memberID, directionID string) error {
 	return s.UpdateTrajectory(ctx, trajectoryID, memberID, TrajectoryPatch{DirectionID: &directionID})
 }
+
+// Кнопки в сообщениях бота несут id пункта трекера, предложения или
+// напоминания. Действовать нужно от имени участия пользователя именно в
+// той траектории, к которой относится объект: родитель двоих детей
+// состоит в двух.
+var trajectoryOf = map[string]string{
+	"tracker_item": `SELECT trajectory_id FROM tracker_items WHERE id = $2`,
+	"proposal":     `SELECT trajectory_id FROM proposals WHERE id = $2`,
+	"reminder": `SELECT ti.trajectory_id FROM reminders r JOIN tracker_items ti ON ti.id = r.tracker_item_id
+	             WHERE r.id = $2`,
+}
+
+// MemberFor — активное участие пользователя MAX в траектории объекта.
+// ErrNotFound — объекта нет или пользователь в той траектории не состоит.
+func (s *Store) MemberFor(ctx context.Context, maxUserID int64, entity, id string) (Member, error) {
+	sub, ok := trajectoryOf[entity]
+	if !ok {
+		return Member{}, ErrNotFound
+	}
+	return scanMember(s.db.QueryRow(ctx, `
+		SELECT `+memberColumns+`
+		FROM users u
+		JOIN members m ON m.user_id = u.id
+		JOIN trajectories t ON t.id = m.trajectory_id
+		WHERE u.max_user_id = $1 AND t.id = (`+sub+`) AND `+activeMember, maxUserID, id))
+}
+
+// Reminder — напоминание по id с данными для текста: для «напомнить завтра».
+func (s *Store) Reminder(ctx context.Context, id string) (DueReminder, error) {
+	return scanDue(s.db.QueryRow(ctx, dueSelect+` WHERE r.id = $1`, id))
+}

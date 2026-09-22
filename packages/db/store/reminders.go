@@ -171,29 +171,34 @@ type DueReminder struct {
 	RequestedBy   *string
 }
 
+const dueSelect = `
+	SELECT r.id::text, ti.id::text, t.id::text, st.id, st.kind, COALESCE(st.title, ''), st.deadline_at,
+	       r.offset_days, p.id, o.name, o.official_url, t.student_name, t.tz, ti.registered_at IS NOT NULL,
+	       r.requested_by_member_id::text
+	FROM reminders r
+	JOIN tracker_items ti ON ti.id = r.tracker_item_id
+	JOIN trajectories t ON t.id = ti.trajectory_id AND t.deleted_at IS NULL
+	JOIN stages st ON st.id = r.stage_id
+	JOIN olympiad_profiles p ON p.id = ti.olympiad_profile_id
+	JOIN olympiads o ON o.id = p.olympiad_id`
+
+func scanDue(r rowScanner) (DueReminder, error) {
+	var d DueReminder
+	err := r.Scan(&d.ID, &d.TrackerItemID, &d.TrajectoryID, &d.StageID, &d.StageKind, &d.StageTitle,
+		&d.Deadline, &d.Offset, &d.ProfileID, &d.OlympiadName, &d.OfficialURL, &d.StudentName, &d.TZ,
+		&d.Registered, &d.RequestedBy)
+	return d, wrap(err)
+}
+
 func (s *Store) DueReminders(ctx context.Context, now time.Time, limit int) ([]DueReminder, error) {
-	rows, err := s.db.Query(ctx, `
-		SELECT r.id::text, ti.id::text, t.id::text, st.id, st.kind, COALESCE(st.title, ''), st.deadline_at,
-		       r.offset_days, p.id, o.name, o.official_url, t.student_name, t.tz, ti.registered_at IS NOT NULL,
-		       r.requested_by_member_id::text
-		FROM reminders r
-		JOIN tracker_items ti ON ti.id = r.tracker_item_id
-		JOIN trajectories t ON t.id = ti.trajectory_id AND t.deleted_at IS NULL
-		JOIN stages st ON st.id = r.stage_id
-		JOIN olympiad_profiles p ON p.id = ti.olympiad_profile_id
-		JOIN olympiads o ON o.id = p.olympiad_id
+	rows, err := s.db.Query(ctx, dueSelect+`
 		WHERE r.status = 'planned' AND r.fire_at <= $1 AND st.deadline_at > $1
 		ORDER BY r.fire_at
 		LIMIT $2`, now, limit)
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return collect(rows, func(r rowScanner) (DueReminder, error) {
-		var d DueReminder
-		return d, r.Scan(&d.ID, &d.TrackerItemID, &d.TrajectoryID, &d.StageID, &d.StageKind, &d.StageTitle,
-			&d.Deadline, &d.Offset, &d.ProfileID, &d.OlympiadName, &d.OfficialURL, &d.StudentName, &d.TZ,
-			&d.Registered, &d.RequestedBy)
-	})
+	return collect(rows, scanDue)
 }
 
 // Recipient — кому отправить: участник и его чат с ботом.

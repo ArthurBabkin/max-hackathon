@@ -169,6 +169,9 @@ services:
     environment:
       <<: *app-env
       PORT: "8080"
+      # webhook — http.Server на 8080, как функция в облаке; poll — long
+      # polling из настоящего MAX без HTTPS-адреса (пока нет подписки).
+      BOT_MODE: ${BOT_MODE:-webhook}
     ports:
       - "${BOT_PORT:-8080}:8080"
 
