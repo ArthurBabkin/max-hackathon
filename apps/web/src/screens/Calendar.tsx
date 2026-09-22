@@ -112,8 +112,9 @@ export function CalendarView({ month, data, onMonthChange, onOpen }: CalendarVie
       <p className="week-title">{t('tracker.calendarMonthTitle', { month: formatMonthTitle(month, 'in') })}</p>
       {monthItems.length > 0 ? (
         <div className="list">
+          {/* У одного пункта в месяце может быть несколько сроков — ключ из пункта и срока. */}
           {monthItems.map((item) => (
-            <TrackerRow key={item.id} item={item} onOpen={onOpen} />
+            <TrackerRow key={`${item.id}-${item.deadline_at}`} item={item} onOpen={onOpen} />
           ))}
         </div>
       ) : (
