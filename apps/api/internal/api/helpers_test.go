@@ -19,6 +19,7 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi/maxtest"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,17 +34,20 @@ type env struct {
 	srv  *Server
 	h    http.Handler
 	now  time.Time
+	// fake — чат бота: уведомления семье, которые шлёт API.
+	fake *maxtest.Fake
 }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	pool := dbtest.Open(t)
-	e := &env{t: t, pool: pool, st: store.New(pool), now: testNow}
+	e := &env{t: t, pool: pool, st: store.New(pool), now: testNow, fake: &maxtest.Fake{}}
 	e.srv = newServer(Deps{
 		Store: e.st,
+		Max:   e.fake,
 		Config: config.Config{AppEnv: "test", DevUnsignedInitData: true,
 			JWTSecret: "test-jwt-secret-0123456789abcdef!", JWTTTL: time.Hour, MaxBotToken: testBotToken,
-			MaxBotName: "test_bot", ReminderHour: 10},
+			MaxBotName: "test_bot", MaxBotID: 42, ReminderHour: 10},
 		Now: func() time.Time { return e.now },
 	})
 	// Служебная ручка только для тестов: кто я по мнению authed.

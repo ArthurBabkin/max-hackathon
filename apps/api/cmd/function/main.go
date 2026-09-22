@@ -35,6 +35,7 @@ func init() {
 		Store:       store.New(pool),
 		Config:      cfg,
 		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
+		Max:         api.Sender(cfg),
 	})
 }
 

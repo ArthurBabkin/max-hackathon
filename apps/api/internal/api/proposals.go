@@ -59,6 +59,7 @@ func (s *Server) propose(w http.ResponseWriter, r *http.Request) error {
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
+		s.tell(r, func(ctx context.Context) { s.notify.ProposalCreated(ctx, m.TrajectoryID, id, m, s.now()) })
 	}
 	writeJSON(w, status, p)
 	return nil
@@ -90,6 +91,7 @@ func (s *Server) resolveProposal(accept bool) handlerFunc {
 		case err != nil:
 			return err
 		}
+		s.tell(r, func(ctx context.Context) { s.notify.ProposalResolved(ctx, m.TrajectoryID, id, accept) })
 		p, err := s.proposal(ctx, m.TrajectoryID, id)
 		if err != nil {
 			return err

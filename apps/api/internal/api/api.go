@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/auth"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
 // BasePath — базовый путь контракта (servers[0].url в openapi.yaml).
@@ -21,6 +23,9 @@ type Deps struct {
 	// CORSOrigins — источники, которым разрешён кросс-доменный доступ
 	// (адрес мини-приложения в Object Storage). Локально пусто: прокси.
 	CORSOrigins []string
+	// Max — отправка уведомлений семье в чат бота (F41, F45, F46, F48).
+	// nil — уведомления выключены (локально без токена).
+	Max maxapi.Sender
 	// Now подменяется в тестах; по умолчанию time.Now.
 	Now func() time.Time
 }
@@ -31,6 +36,16 @@ type Server struct {
 	policy auth.Policy
 	now    func() time.Time
 	mux    *http.ServeMux
+	notify *notify.Notifier
+}
+
+// Sender — клиент MAX для уведомлений семье; без токена бота — nil,
+// и уведомления молча выключены.
+func Sender(cfg config.Config) maxapi.Sender {
+	if cfg.MaxBotToken == "" {
+		return nil
+	}
+	return maxapi.New(config.Get("MAX_API_BASE", maxapi.DefaultBaseURL), cfg.MaxBotToken)
 }
 
 // New собирает обработчик со всеми middleware.
@@ -50,6 +65,8 @@ func newServer(d Deps) *Server {
 		},
 		now: d.Now,
 		mux: http.NewServeMux(),
+		notify: &notify.Notifier{Store: d.Store, Max: d.Max, BotName: d.Config.MaxBotName,
+			BotID: d.Config.MaxBotID, ReminderHour: d.Config.ReminderHour},
 	}
 	if s.now == nil {
 		s.now = time.Now
