@@ -1368,3 +1368,452 @@
   flex: 1;
   min-width: 0;
 }
+
+/* ---------- каталог ---------- */
+
+.segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  margin-bottom: var(--gap-md);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.segment button {
+  min-height: 38px;
+  border-radius: var(--r-sm);
+  color: var(--mu);
+  font-size: var(--t-small);
+  font-weight: 700;
+  text-align: center;
+}
+
+.segment .segment-on {
+  background: var(--surface);
+  color: var(--tx);
+  box-shadow: var(--shadow-card);
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--gap-md);
+}
+
+.filter-label {
+  flex: 0 0 auto;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--mu);
+}
+
+.filter-row .chips {
+  margin: 0 calc(-1 * var(--gap-lg)) 0 0;
+  padding: 2px var(--gap-lg) 2px 0;
+}
+
+.filter-row .chip {
+  min-height: 32px;
+  padding: 5px 11px;
+  font-size: var(--t-micro);
+}
+
+.mine-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--ps);
+  color: var(--p);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.list .row + .row {
+  border-top: 0;
+}
+
+/* ---------- трекер ---------- */
+
+.week-title {
+  margin: var(--gap-lg) 2px var(--gap-sm);
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.tracker-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 12px var(--gap-md);
+  margin-bottom: var(--gap-sm);
+}
+
+.tracker-card-top {
+  display: flex;
+  gap: var(--gap-md);
+  align-items: center;
+  width: 100%;
+  text-align: left;
+}
+
+.tracker-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.tracker-check:disabled {
+  opacity: 0.6;
+}
+
+.tracker-check-author {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--mu);
+  font-weight: 500;
+  font-style: normal;
+  font-size: var(--t-micro);
+}
+
+.checkbox {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--ln-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: #fff;
+}
+
+.checkbox-on {
+  background: var(--gr);
+  border-color: var(--gr);
+}
+
+.tracker-add {
+  margin-top: var(--gap-md);
+}
+
+/* Предложение от родителя — E1 */
+.proposal {
+  border: 1.5px solid var(--p);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  padding: 12px var(--gap-md);
+  margin-bottom: var(--gap-md);
+}
+
+.proposal-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--p);
+}
+
+.proposal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-sm);
+  margin-top: var(--gap-md);
+}
+
+/* ---------- календарь ---------- */
+
+.calendar {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: var(--gap-md);
+}
+
+.calendar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gap-sm);
+  font-size: var(--t-base);
+  font-weight: 800;
+}
+
+.calendar-head span {
+  display: flex;
+  gap: 4px;
+}
+
+.calendar-head button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  color: var(--mu);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.calendar-weekday {
+  padding-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.calendar-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.calendar-day-past {
+  color: var(--mu);
+  opacity: 0.6;
+}
+
+.calendar-day-today {
+  background: var(--tx);
+  color: var(--bg);
+}
+
+.calendar-day-event {
+  background: color-mix(in srgb, var(--day-hue) 16%, var(--surface));
+  color: var(--day-hue);
+  font-weight: 800;
+}
+
+.calendar-day-event i {
+  position: absolute;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--day-hue);
+}
+
+/* ---------- семья ---------- */
+
+.family-title {
+  margin: 2px 2px 4px;
+  font-size: var(--t-title);
+  font-weight: 800;
+}
+
+.family-subtitle {
+  margin: 0 2px var(--gap-md);
+  font-size: var(--t-small);
+  color: var(--mu);
+}
+
+.members {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 4px var(--gap-md);
+  margin-bottom: var(--gap-md);
+}
+
+.members-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 11px 0 4px;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ln);
+}
+
+.member:last-child {
+  border-bottom: 0;
+}
+
+.member-avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+}
+
+.member-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: var(--t-base);
+  font-weight: 700;
+}
+
+.member-role {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.crown {
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--ams);
+  color: var(--am-ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.member-remove {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 10px;
+  color: var(--pk-ink);
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.invite-box {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: var(--gap-lg);
+  margin-bottom: var(--gap-md);
+  text-align: center;
+}
+
+.invite-title {
+  margin: 0;
+  font-size: var(--t-strong);
+  font-weight: 800;
+}
+
+.invite-text {
+  margin: 4px 0 var(--gap-md);
+  font-size: var(--t-small);
+  color: var(--mu);
+}
+
+.invite-url {
+  margin: 0 0 var(--gap-md);
+  padding: 10px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--p2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.invite-actions {
+  display: grid;
+  gap: var(--gap-sm);
+}
+
+.leave-button {
+  margin-top: var(--gap-md);
+}
+
+.fine-center {
+  text-align: center;
+}
+
+/* ---------- профиль ---------- */
+
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 var(--gap-sm) -4px;
+}
+
+.field {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 12px var(--gap-md);
+  margin-bottom: var(--gap-sm);
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.field-value {
+  margin: 0;
+  font-size: var(--t-base);
+  font-weight: 700;
+}
+
+.field-warning {
+  margin: 0 2px var(--gap-md);
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--pk-ink);
+}
+
+.grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.grade {
+  display: grid;
+  place-items: center;
+  min-height: var(--tap);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  font-weight: 800;
+}
+
+.grade-on {
+  background: var(--tx);
+  color: var(--bg);
+}
+
+.wrap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
