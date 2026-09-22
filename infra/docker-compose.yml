@@ -225,6 +225,10 @@ services:
         # а nginx внутри контейнера проксирует /api/ в сервис api. Так запрос
         # остаётся same-origin и preflight с Authorization не возникает.
         VITE_API_BASE: ${VITE_API_BASE:-/api/v1}
+        # Стенд проверяют в обычном браузере: заглушка моста представляется
+        # Артёмом из демо-траектории, ?dev_user=parent — Ольгой. Живой API
+        # принимает её только вне production и только для дев-диапазона id.
+        VITE_DEV_FAKE_WEBAPP: "true"
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8083}:8083"
