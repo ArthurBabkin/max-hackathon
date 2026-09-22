@@ -53,7 +53,9 @@ locals {
       entrypoint  = "apps/api/cmd/function/main.Handler"
       memory      = 256
       timeout     = 30
-      public      = true
+      # Снаружи api доступен только через шлюз (apigateway.tf): он вызывает
+      # функцию от имени traektoria-invoker, прямой вызов без путей бесполезен.
+      public = false
     }
     reminders = {
       name        = "traektoria-reminders"
@@ -122,8 +124,8 @@ resource "yandex_function" "fn" {
   depends_on = [yandex_resourcemanager_folder_iam_member.functions_lockbox]
 }
 
-# Снаружи и без IAM-авторизации ходят только бот (вебхук MAX) и api (браузер).
-# Воркеров дёргает таймер, публичный доступ им не нужен.
+# Снаружи и без IAM-авторизации ходит только бот (вебхук MAX). api вызывает
+# API Gateway, воркеров — таймер; публичный доступ им не нужен.
 # Требует роли admin: с одним editor падает с PermissionDenied.
 resource "yandex_function_iam_binding" "public" {
   for_each = { for k, v in local.functions : k => v if v.public }

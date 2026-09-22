@@ -44,14 +44,15 @@ tofu apply tfplan
 
 | Файл | Ресурсы |
 | --- | --- |
-| `functions.tf` | функции `bot`, `api`, `reminders`, `content-notifier` из одного zip; публичный вызов у `bot` и `api` |
+| `functions.tf` | функции `bot`, `api`, `reminders`, `content-notifier` из одного zip; публичный вызов только у `bot` |
+| `apigateway.tf` | API Gateway перед `api`: прямой вызов функции не передаёт путь запроса (флаг `enable_workers`) |
 | `secrets.tf` | Lockbox с токенами и строкой подключения, сервисный аккаунт функций |
 | `postgres.tf` | Managed PostgreSQL 16 (флаг `enable_database`) |
-| `triggers.tf` | таймеры воркеров раз в 15 минут (флаг `enable_workers`) |
+| `triggers.tf` | таймеры: напоминания раз в 15 минут, изменения контента раз в сутки (флаг `enable_workers`) |
 | `storage.tf` | сервисный аккаунт для S3, оба бакета, хостинг сайта |
 | `dns.tf` | зона `traektoriaedu.ru`, запись апекса, запись проверки владения |
 | `certificate.tf` | сертификат Let's Encrypt |
-| `outputs.tf` | адреса вебхука, мини-аппа и лендинга |
+| `outputs.tf` | адреса вебхука, api, мини-аппа и лендинга |
 
 Значения по умолчанию (облако, каталог, домен) лежат в `variables.tf` — это не секреты,
 репозиторий приватный. Токен в конфигурацию не попадает и берётся только из `YC_TOKEN`.
@@ -65,11 +66,8 @@ tofu apply tfplan
 ### Содержимое сайта — не через Terraform
 
 Статика в бакетах намеренно не описана: это артефакт сборки, а не инфраструктура.
-Выкладка:
-
-```bash
-yc storage s3 cp apps/web/ s3://traektoria/ --recursive
-```
+Выкладывается собранный `apps/web/dist/`, не исходники — команды в конце раздела
+«Выкатка бэкенда»: сборке нужен адрес API Gateway.
 
 Адрес при этом не меняется, поэтому перезаливать можно сколько угодно, в том числе
 после того, как организаторы пропишут URL боту.
@@ -181,4 +179,12 @@ go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw w
 Пока подписка есть, long polling (`BOT_MODE=poll`) ничего не получает: для локальной
 отладки её снимают флагом `-unsubscribe <адрес>`.
 
-Мини-приложению нужен адрес api на сборке: `VITE_API_BASE=$(tofu output -raw api_url)`.
+Мини-приложению нужен адрес api на сборке — это адрес API Gateway, а не функции:
+Cloud Functions при прямом вызове не передаёт путь запроса («Cloud Functions не
+поддерживает пути в запросах. Для корректной работы http.ServeMux функцию нужно
+вызывать через API-шлюз», документация Go-рантайма).
+
+```bash
+VITE_API_BASE="$(cd infra/terraform && tofu output -raw api_url)" npm --prefix apps/web run build
+yc storage s3 cp apps/web/dist/ s3://traektoria/ --recursive
+```

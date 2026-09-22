@@ -4,8 +4,8 @@ output "webhook_url" {
 }
 
 output "api_url" {
-  description = "Базовый адрес REST для мини-приложения (при enable_workers)"
-  value       = try("https://functions.yandexcloud.net/${yandex_function.fn["api"].id}", null)
+  description = "Базовый адрес REST для мини-приложения, VITE_API_BASE (при enable_workers)"
+  value       = try("https://${yandex_api_gateway.api[0].domain}/api/v1", null)
 }
 
 output "webapp_url" {
