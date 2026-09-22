@@ -42,6 +42,8 @@ yc config list   # проверить, что folder-id проставлен
 | Ресурс | Значение |
 | --- | --- |
 | `traektoria-bot` | `d4e4a4gqsiq7avbr2f0s` |
+| Бакет `traektoria` | `e3et35iq0oc613nj66nm`, публичное чтение, хостинг сайта |
+| `WEBAPP_URL` | `https://traektoria.website.yandexcloud.net/` — HTTPS проверен |
 | URL вебхука | `https://functions.yandexcloud.net/d4e4a4gqsiq7avbr2f0s` |
 | Версия | `golang123`, entrypoint `cmd/function/main.Handler`, 128 МБ, таймаут 10 с |
 | Код | `apps/bot/cmd/function/main.go` — заглушка: любой апдейт → 200 с пустым телом |
@@ -84,22 +86,40 @@ yc resource-manager folder add-access-binding $FOLDER \
 
 ## 2. Бакет со статикой мини-приложения
 
+Выполнено 22.09, команды рабочие:
+
 ```bash
-yc storage bucket create --name traektoria --acl public-read
+yc storage bucket create --name traektoria
+yc storage bucket update --name traektoria --public-read \
+  --website-settings '{"index":"index.html","error":"index.html"}'
 
-cat > /tmp/website.json <<'EOF'
-{ "index": "index.html", "error": "index.html" }
-EOF
-
-yc storage bucket update --name traektoria --website-settings-from-file /tmp/website.json
-yc storage bucket get --name traektoria --full
+# выкладка содержимого
+yc storage s3 cp apps/web/index.html s3://traektoria/index.html \
+  --content-type "text/html; charset=utf-8" --cache-control "no-cache"
 ```
 
-Адрес сайта: `https://traektoria.website.yandexcloud.net/` — это `WEBAPP_URL`.
+Публичное чтение задаётся флагом `--public-read` у `bucket update`, а не `--acl public-read` при
+создании. Настройки сайта принимаются инлайном через `--website-settings`, временный файл не нужен.
+Загрузка — через `yc storage s3 cp` (группы `object upload` в CLI нет), `--content-type` указываем
+явно, иначе есть риск получить неверный MIME.
+
+Адрес сайта: **`https://traektoria.website.yandexcloud.net/`** — это `WEBAPP_URL`.
 Его же передаём организаторам через форму привязки мини-приложения.
+
+**HTTPS проверен 22.09:** `200`, `ssl_verify=0`, сертификат GlobalSign, действителен до 16.11.2026 —
+окно проверки 30.09-14.10 покрывает. Браузер открывает без предупреждений. Домен и Let's Encrypt
+не нужны: работает wildcard-сертификат Yandex Cloud.
+
+Условие для HTTPS — **в имени бакета не должно быть точек**: wildcard покрывает только один уровень
+поддомена. Поэтому собственный домен здесь не «привязывается через DNS»: имя бакета должно полностью
+совпадать с доменом (`traektoria.ru`), а такой бакет уже требует своего сертификата из Certificate
+Manager. Переезд на домен = новый бакет + повторная отправка формы организаторам.
 
 `error` указан как `index.html` намеренно: у мини-аппа клиентский роутинг, все пути отдаём в SPA.
 Ключ индексного документа не может содержать `/`.
+
+Нюанс: на несуществующий путь отдаётся тело `index.html`, но со статусом **404**, а не 200.
+Для клиентского роутинга это безразлично — браузер отрисует страницу и роутер разберётся сам.
 
 ---
 
