@@ -75,37 +75,42 @@ yc storage s3 cp apps/web/ s3://traektoria/ --recursive
 
 ## Состояние
 
-Состояние лежит локально в `terraform.tfstate` и **в git не попадает**: в нём в открытом виде
-лежит секретный ключ сервисного аккаунта.
+Состояние лежит в бакете `traektoria-tfstate` (приватный, версионирование включено),
+а не на чьём-то ноутбуке: применять должен уметь любой в команде.
 
-Отсюда следствие, которое надо понимать: применять умеет только тот, у кого есть файл состояния.
-Для хакатона это приемлемо — инфраструктура создаётся один раз и с 30.09 замораживается.
-Если состояние потеряется, оно восстанавливается импортом, ничего не пересоздавая:
-
-```bash
-tofu import 'yandex_function.bot' d4e4a4gqsiq7avbr2f0s
-tofu import 'yandex_dns_zone.domain' dns0cbh4jf7o48b27v3v
-tofu import 'yandex_cm_certificate.domain' fpqr801q2j527240mpkt
-tofu import 'yandex_dns_recordset.apex' 'dns0cbh4jf7o48b27v3v/traektoriaedu.ru./ANAME'
-tofu import 'yandex_dns_recordset.acme' 'dns0cbh4jf7o48b27v3v/_acme-challenge.traektoriaedu.ru./CNAME'
-```
-
-Бакеты импортируются последними и требуют ключей S3 в окружении, потому что при импорте
-конфигурация не вычисляется и ссылку на ключ взять неоткуда:
+Бакет Terraform'ом не управляется намеренно — иначе он попытался бы удалить
+хранилище собственного состояния. Создаётся один раз:
 
 ```bash
-export YC_STORAGE_ACCESS_KEY=... YC_STORAGE_SECRET_KEY=...
-tofu import 'yandex_storage_bucket.fallback' traektoria
-tofu import 'yandex_storage_bucket.domain' traektoriaedu.ru
+yc storage bucket create --name traektoria-tfstate
+yc storage bucket update --name traektoria-tfstate --versioning versioning-enabled
 ```
 
-Ключ можно посмотреть в консоли в сервисном аккаунте `traektoria-storage` или выпустить новый.
-При обычных `plan` и `apply` эти переменные не нужны: там ключ подставляется из ссылки на ресурс.
+Версионирование — страховка: если состояние побьётся, предыдущая версия объекта
+остаётся в бакете и откатывается средствами Object Storage.
 
-`yandex_function_iam_binding` импорту не поддаётся — он просто переутверждается при `apply`,
-это идемпотентно.
+Доступ к бакету идёт по статическим ключам сервисного аккаунта:
 
----
+```bash
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+```
+
+**Блокировка работает** — проверено 22.09. `use_lockfile` кладёт рядом с состоянием
+объект `terraform.tfstate.tflock`; при попытке взять занятую блокировку Object
+Storage отвечает `412 Precondition Failed`, и вторая операция останавливается.
+DynamoDB, на которую рассчитан классический вариант блокировки, в Yandex Cloud нет.
+
+Если прогон упал и оставил блокировку висеть, снять её можно только осознанно:
+
+```bash
+tofu force-unlock <ID из сообщения об ошибке>
+```
+
+Делать это, лишь убедившись, что никакая операция реально не идёт, — иначе
+два одновременных `apply` побьют состояние.
+
+В состоянии открытым текстом лежат ключи сервисных аккаунтов, поэтому бакет
+приватный, а локальные копии состояния в git не попадают.
 
 ## Включение HTTPS на своём домене
 
