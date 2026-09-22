@@ -124,12 +124,10 @@ function stages(o: DemoOlympiad, registered: boolean): Stage[] {
       id: `${o.id}-${s.kind}-${i}`,
       kind: s.kind,
       title: s.title,
-      subtitle:
-        s.offset === null
-          ? s.subtitle
-          : s.subtitle === 'до'
-            ? `до ${formatDay(at)}`
-            : `${formatDay(at)}, ${s.subtitle}`,
+      // «до» — единственная подпись, которой нужна конкретная дата.
+      // Остальные описательные («октябрь — ноябрь, онлайн»), и приписывать
+      // к ним ещё и число значило бы сказать одно и то же дважды.
+      subtitle: s.subtitle === 'до' && at ? `до ${formatDay(at)}` : s.subtitle,
       starts_at: isRegistration ? null : at,
       ends_at: null,
       deadline_at: isRegistration ? at : null,

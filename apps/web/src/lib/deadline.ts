@@ -115,3 +115,17 @@ export function formatToday(now: Date = new Date()): string {
   const s = todayFormatter.format(now)
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
+
+const shortDateFormatter = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+})
+
+/** «15.09.2026» — дата проверки источника рядом с меткой «Факт». */
+export function formatShortDate(date: string | null | undefined): string | null {
+  if (!date) return null
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return null
+  return shortDateFormatter.format(parsed)
+}

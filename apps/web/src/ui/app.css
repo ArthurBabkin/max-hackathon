@@ -975,3 +975,396 @@
     opacity: 1;
   }
 }
+
+/* ---------- содержимое листов ---------- */
+
+.sheet-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-title h2 {
+  margin: 0;
+  font-size: var(--t-title);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.sheet-title-sm {
+  font-size: var(--t-strong) !important;
+}
+
+.sheet-title p {
+  margin: 2px 0 0;
+  font-size: var(--t-small);
+  color: var(--mu);
+}
+
+.sheet-title-city {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sheet-tags {
+  margin: 0 0 var(--gap-sm);
+}
+
+.sheet-actions {
+  display: grid;
+  gap: var(--gap-sm);
+  margin-top: var(--gap-lg);
+}
+
+.lock {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: var(--gap-md) 0 0;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.lock-center {
+  justify-content: center;
+}
+
+/* Уровни по профилям — F17 */
+.levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.level-item {
+  padding: 6px 11px;
+  border: 1px solid var(--ln-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.level-item-mine {
+  background: var(--tx);
+  border-color: var(--tx);
+  color: var(--bg);
+}
+
+/* Строка льготы */
+.benefit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gap-sm);
+  width: 100%;
+  min-height: var(--tap);
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--ln-strong);
+  text-align: left;
+}
+
+.benefit:last-of-type {
+  border-bottom: 0;
+}
+
+.benefit-main {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.benefit-main .tile {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.benefit-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.benefit-text b {
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.benefit-text span {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.benefit-value {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.benefit-bvi {
+  background: var(--grs);
+  color: var(--gr-ink);
+}
+
+.benefit-score {
+  background: var(--ps);
+  color: var(--p);
+}
+
+.benefit-extra {
+  background: var(--ams);
+  color: var(--am-ink);
+}
+
+.benefit-none {
+  background: var(--surface-2);
+  color: var(--mu);
+}
+
+/* Условия — F19 */
+.conditions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.conditions li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--t-small);
+  color: var(--tx-2);
+}
+
+.conditions svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  color: var(--gr-ink);
+}
+
+/* Таймлайн этапов — F21 */
+.timeline {
+  position: relative;
+  margin: 0;
+  padding: 0 0 0 20px;
+  list-style: none;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--ln-strong);
+}
+
+.stage {
+  position: relative;
+  padding: 4px 0 6px;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 7px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--ln-strong);
+  background: var(--surface);
+}
+
+.stage-current::before {
+  border-color: var(--pk);
+  background: var(--pk);
+  box-shadow: 0 0 0 3px var(--pks);
+}
+
+.stage-past::before {
+  border-color: var(--gr);
+  background: var(--gr);
+}
+
+.stage-past b,
+.stage-past span {
+  color: var(--mu);
+}
+
+.stage b {
+  display: block;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.stage span {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+/* Карточка вуза */
+.directions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.direction {
+  padding: 5px 10px;
+  border: 1px solid var(--ln-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
+
+.rules-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: var(--gap-sm);
+  padding: 11px var(--gap-md);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.rules-row > span:first-child {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rules-date {
+  color: var(--mu);
+  font-weight: 500;
+  font-size: var(--t-micro);
+}
+
+/* ---------- помощник ---------- */
+
+.ai-log {
+  /* Лист помощника высокий и не прокручивается целиком: прокручивается
+     только переписка, а подсказки и поле ввода остаются на месте. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: var(--gap-md);
+}
+
+.ai-log::-webkit-scrollbar {
+  display: none;
+}
+
+.ai-message {
+  max-width: 90%;
+  padding: 10px 13px;
+  border-radius: var(--r-lg);
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+
+.ai-message p {
+  margin: 0;
+}
+
+.ai-message-bot {
+  align-self: flex-start;
+  background: var(--bg);
+  border-bottom-left-radius: 6px;
+}
+
+.ai-message-user {
+  align-self: flex-end;
+  background: var(--p);
+  color: #fff;
+  border-bottom-right-radius: 6px;
+}
+
+/* Честное «данных нет» отличается цветом: это не обычный ответ — ТЗ F36. */
+.ai-message-warn {
+  background: var(--ams);
+  color: var(--tx);
+}
+
+.ai-message .tag {
+  margin-bottom: 6px;
+}
+
+.ai-message .source-line {
+  color: var(--p2);
+}
+
+.ai-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 14px;
+}
+
+.ai-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mu);
+  animation: ai-blink 1s infinite;
+}
+
+.ai-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ai-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ai-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.ai-suggestions {
+  flex: 0 0 auto;
+  margin: 0 calc(-1 * var(--gap-lg)) var(--gap-sm);
+}
+
+.chip-suggest {
+  border-color: var(--p);
+  color: var(--p);
+  max-width: 78vw;
+  text-align: left;
+  white-space: normal;
+}
+
+.ai-input {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--gap-sm);
+  align-items: center;
+  padding-bottom: calc(var(--gap-sm) + env(safe-area-inset-bottom));
+}
+
+.ai-input > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
