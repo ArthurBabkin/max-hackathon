@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
@@ -30,19 +31,15 @@ func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	subjects, err := s.store.TrajectorySubjects(ctx, m.TrajectoryID)
+	codes, err := s.subjectCodes(ctx, m.TrajectoryID)
 	if err != nil {
 		return err
-	}
-	codes := make([]string, len(subjects))
-	for i, sub := range subjects {
-		codes[i] = sub.Code
 	}
 	profiles, err := s.store.Profiles(ctx, store.ProfileQuery{SubjectCodes: codes, Grade: t.Grade})
 	if err != nil {
 		return err
 	}
-	cs, err := s.cardSet(ctx, m, t, profiles)
+	cs, err := s.cardSet(ctx, m, t, codes, profiles)
 	if err != nil {
 		return err
 	}
@@ -64,4 +61,18 @@ func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 		Items: toCards(items), Outside: toCards(outside), Note: cs.voice.T("match.note", nil),
 	})
 	return nil
+}
+
+// subjectCodes — коды предметов ученика; пустой срез, а не nil: nil в
+// ProfileQuery означает «без фильтра».
+func (s *Server) subjectCodes(ctx context.Context, trajectoryID string) ([]string, error) {
+	subjects, err := s.store.TrajectorySubjects(ctx, trajectoryID)
+	if err != nil {
+		return nil, err
+	}
+	codes := make([]string, len(subjects))
+	for i, sub := range subjects {
+		codes[i] = sub.Code
+	}
+	return codes, nil
 }
