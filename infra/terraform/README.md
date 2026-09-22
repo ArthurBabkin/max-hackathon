@@ -25,10 +25,17 @@ yc init                       # если CLI ещё не настроен
 ```bash
 cd infra/terraform
 export YC_TOKEN=$(yc iam create-token)   # токен живёт 12 часов
+export AWS_ACCESS_KEY_ID=...             # статические ключи traektoria-storage
+export AWS_SECRET_ACCESS_KEY=...
 tofu init
 tofu plan -out=tfplan
 tofu apply tfplan
 ```
+
+**Ключи `AWS_*` обязательны для любой команды `tofu`**, включая `output` и `state list`:
+состояние лежит в бакете, и бэкенд S3 ходит туда именно ими. Без них команда падает
+с `No valid credential sources found` — и это легко не заметить, если пайпить вывод
+в другую команду: `tofu` пишет ошибку в stderr, а в пайп уходит пусто.
 
 **Всегда через `plan -out` и `apply <файл>`, а не `apply -auto-approve`.** Смысл в том,
 что применяется ровно то, что вы прочитали: между отдельными `plan` и `apply` состояние
