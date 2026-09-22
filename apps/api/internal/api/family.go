@@ -1,13 +1,11 @@
 package api
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
@@ -34,22 +32,9 @@ type familyResponse struct {
 	Invites    []inviteDTO       `json:"invites"`
 }
 
-// inviteURL — ссылка-приглашение из F39: https://max.ru/<bot>?start=inv_<token>.
-func (s *Server) inviteURL(token string) string {
-	return fmt.Sprintf("https://max.ru/%s?start=inv_%s", s.cfg.MaxBotName, token)
-}
-
 func (s *Server) inviteOf(i store.Invite) inviteDTO {
-	return inviteDTO{ID: i.ID, Token: i.Token, URL: s.inviteURL(i.Token), Role: i.Role, CreatedAt: i.CreatedAt.UTC()}
-}
-
-// newInviteToken — 16 случайных байт в base64url: 22 символа [A-Za-z0-9_-].
-func newInviteToken() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	return inviteDTO{ID: i.ID, Token: i.Token, URL: notify.InviteURL(s.cfg.MaxBotName, i.Token), Role: i.Role,
+		CreatedAt: i.CreatedAt.UTC()}
 }
 
 // family — GET /family (F38, F43).
@@ -100,7 +85,7 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) error {
 	if body.Role != "kid" && body.Role != "parent" {
 		return badRequest("Роль приглашённого — kid или parent.")
 	}
-	token, err := newInviteToken()
+	token, err := store.NewInviteToken()
 	if err != nil {
 		return err
 	}

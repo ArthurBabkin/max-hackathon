@@ -141,3 +141,19 @@ func TestReminderHour(t *testing.T) {
 		}
 	}
 }
+
+func TestBotIdentity(t *testing.T) {
+	b, err := botIdentity(env(nil))
+	if err != nil || b.Name != DefaultBotName || b.ID != DefaultBotID {
+		t.Fatalf("по умолчанию — бот команды: %+v %v", b, err)
+	}
+	b, err = botIdentity(env(map[string]string{"MAX_BOT_NAME": "other_bot", "MAX_BOT_ID": "7"}))
+	if err != nil || b.Name != "other_bot" || b.ID != 7 {
+		t.Fatalf("из окружения: %+v %v", b, err)
+	}
+	for _, bad := range []string{"0", "-3", "бот"} {
+		if _, err := load(env(map[string]string{"APP_ENV": "development", "JWT_SECRET": "x", "MAX_BOT_ID": bad})); err == nil {
+			t.Fatalf("MAX_BOT_ID=%s должен отклоняться", bad)
+		}
+	}
+}

@@ -27,6 +27,11 @@ type Notifier struct {
 	ReminderHour int
 }
 
+// InviteURL — ссылка-приглашение F39: https://max.ru/<bot>?start=inv_<token>.
+func InviteURL(botName, token string) string {
+	return "https://max.ru/" + botName + "?start=inv_" + token
+}
+
 // App — кнопка мини-приложения с разделом в start_param.
 func (n *Notifier) App(text, payload string) maxapi.Button {
 	return maxapi.OpenAppButton(text, n.BotName, n.BotID, payload)

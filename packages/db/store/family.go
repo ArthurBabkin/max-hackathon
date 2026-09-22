@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 )
@@ -120,4 +122,14 @@ func (s *Store) endMembership(ctx context.Context, trajectoryID, targetID, byMem
 		return tx.Audit(ctx, byMemberID, action, "member", targetID)
 	})
 	return m, err
+}
+
+// NewInviteToken — 16 случайных байт в base64url: 22 символа [A-Za-z0-9_-]
+// (F39 требует 12+).
+func NewInviteToken() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
