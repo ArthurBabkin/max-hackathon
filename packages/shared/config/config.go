@@ -47,11 +47,40 @@ type Config struct {
 	JWTTTL              time.Duration // JWT_TTL, по умолчанию 1h
 	MaxBotToken         string        // MAX_BOT_TOKEN — им же проверяется подпись initData
 	MaxBotName          string        // MAX_BOT_NAME — для ссылок https://max.ru/<bot>?start=...
+	MaxBotID            int64         // MAX_BOT_ID — contact_id кнопки open_app
 	ReminderHour        int           // REMINDER_HOUR — час напоминаний по зоне ученика, по умолчанию 10
 }
 
 // DefaultBotName — бот команды; имя публичное, как адрес сайта.
 const DefaultBotName = "t356_hakaton_max_bot"
+
+// DefaultBotID — user_id бота команды (GET /me): кнопка open_app открывает
+// мини-приложение бота по этому contact_id.
+const DefaultBotID int64 = 426643746
+
+// Bot — имя и id бота для ссылок и кнопок; нужны боту, API и воркеру.
+type Bot struct {
+	Name string
+	ID   int64
+}
+
+// BotIdentity читает MAX_BOT_NAME и MAX_BOT_ID.
+func BotIdentity() (Bot, error) { return botIdentity(os.Getenv) }
+
+func botIdentity(getenv func(string) string) (Bot, error) {
+	b := Bot{Name: getenv("MAX_BOT_NAME"), ID: DefaultBotID}
+	if b.Name == "" {
+		b.Name = DefaultBotName
+	}
+	if v := getenv("MAX_BOT_ID"); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			return Bot{}, fmt.Errorf("MAX_BOT_ID=%q: ожидали положительное число", v)
+		}
+		b.ID = id
+	}
+	return b, nil
+}
 
 // DefaultReminderHour — ТЗ §6.3: напоминания в 10:00 по времени ученика.
 const DefaultReminderHour = 10
@@ -79,8 +108,8 @@ func (c Config) IsProduction() bool { return c.AppEnv == EnvProduction }
 
 // String не печатает секреты: конфиг можно логировать целиком.
 func (c Config) String() string {
-	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s MaxBotName:%s ReminderHour:%d}",
-		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken), c.MaxBotName, c.ReminderHour)
+	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s MaxBotName:%s MaxBotID:%d ReminderHour:%d}",
+		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken), c.MaxBotName, c.MaxBotID, c.ReminderHour)
 }
 
 func mask(s string) string {
@@ -100,12 +129,13 @@ func load(getenv func(string) string) (Config, error) {
 		AppEnv:      getenv("APP_ENV"),
 		JWTSecret:   getenv("JWT_SECRET"),
 		MaxBotToken: getenv("MAX_BOT_TOKEN"),
-		MaxBotName:  getenv("MAX_BOT_NAME"),
 		JWTTTL:      time.Hour,
 	}
-	if cfg.MaxBotName == "" {
-		cfg.MaxBotName = DefaultBotName
+	bot, err := botIdentity(getenv)
+	if err != nil {
+		return Config{}, err
 	}
+	cfg.MaxBotName, cfg.MaxBotID = bot.Name, bot.ID
 	hour, err := reminderHour(getenv)
 	if err != nil {
 		return Config{}, err
