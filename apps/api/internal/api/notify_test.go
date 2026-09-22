@@ -54,7 +54,8 @@ func TestNotify_ProposalRoundTrip(t *testing.T) {
 	if len(got) != 1 || !strings.HasPrefix(got[0].Msg.Text, "📩 Ольга предлагает добавить в трекер «Высшая проба».") {
 		t.Fatalf("ученику одно предложение: %v", got)
 	}
-	if b := maxtest.Payloads(got[0].Msg); len(b) != 3 || b[0] != "prop:acc:"+id || b[2] != "prop:dec:"+id {
+	// Карточка открывается по профилю: GET /olympiads/{id} ждёт olympiad_profile_id.
+	if b := maxtest.Payloads(got[0].Msg); len(b) != 3 || b[0] != "prop:acc:"+id || b[1] != "o_p669-8-informatika" || b[2] != "prop:dec:"+id {
 		t.Fatalf("кнопки ответа: %v", b)
 	}
 
