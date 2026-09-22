@@ -99,3 +99,20 @@ func wrap(err error) error {
 	}
 	return err
 }
+
+type rowScanner interface{ Scan(...any) error }
+
+// collect читает все строки и закрывает курсор. Пустой результат — пустой
+// срез, а не nil: в JSON он станет [], как требует контракт.
+func collect[T any](rows pgx.Rows, scan func(rowScanner) (T, error)) ([]T, error) {
+	defer rows.Close()
+	out := []T{}
+	for rows.Next() {
+		v, err := scan(rows)
+		if err != nil {
+			return nil, wrap(err)
+		}
+		out = append(out, v)
+	}
+	return out, wrap(rows.Err())
+}

@@ -166,3 +166,24 @@ func (e *env) login(maxUserID int64, name string) string {
 	}
 	return r.body["token"].(string)
 }
+
+// track кладёт пункт в трекер напрямую (ручки трекера проверяются отдельно).
+func (e *env) track(f family, profileID string, registered bool) string {
+	e.t.Helper()
+	var id string
+	var regBy any
+	if registered {
+		regBy = f.kid.MemberID
+		if f.parent.MemberID != "" {
+			regBy = f.parent.MemberID
+		}
+	}
+	err := e.pool.QueryRow(context.Background(), `
+		INSERT INTO tracker_items (trajectory_id, olympiad_profile_id, added_by_member_id, registered_at, registered_by_member_id)
+		VALUES ($1, $2, $3, CASE WHEN $4 THEN now() END, $5) RETURNING id::text`,
+		f.trajectoryID, profileID, f.kid.MemberID, registered, regBy).Scan(&id)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return id
+}
