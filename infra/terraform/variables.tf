@@ -81,9 +81,9 @@ variable "pg_password" {
 
 variable "enable_workers" {
   description = <<-EOT
-    Поднимать ли api, reminders, content-notifier и таймеры к ним.
-    Выключено, пока в них нет логики: лишние ресурсы только мешают читать план.
-    Сами функции в простое бесплатны, но таймеры дёргают их вхолостую каждые 15 минут.
+    Поднимать ли api с API Gateway, reminders, content-notifier и таймеры к ним.
+    Без базы (enable_database) им не с чем работать, поэтому включаются вместе:
+    -var enable_database=true -var enable_workers=true.
   EOT
   type        = bool
   default     = false
