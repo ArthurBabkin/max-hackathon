@@ -84,6 +84,10 @@ func (s *Server) routes() {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	s.mux.HandleFunc("POST /session", s.handle(s.createSession))
+	s.mux.HandleFunc("GET /home", s.authed(s.home))
+	s.mux.HandleFunc("GET /profile", s.authed(s.getProfile))
+	s.mux.HandleFunc("PATCH /profile", s.authed(s.patchProfile))
+	s.mux.HandleFunc("PUT /profile/universities", s.authed(s.putUniversities))
 
 	// Ручки контракта, которые ещё не написаны, честно отвечают 501 в
 	// формате ошибки — фронт отличает «не готово» от «сломалось».
