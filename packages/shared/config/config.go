@@ -46,7 +46,11 @@ type Config struct {
 	JWTSecret           string        // JWT_SECRET
 	JWTTTL              time.Duration // JWT_TTL, по умолчанию 1h
 	MaxBotToken         string        // MAX_BOT_TOKEN — им же проверяется подпись initData
+	MaxBotName          string        // MAX_BOT_NAME — для ссылок https://max.ru/<bot>?start=...
 }
+
+// DefaultBotName — бот команды; имя публичное, как адрес сайта.
+const DefaultBotName = "t356_hakaton_max_bot"
 
 // IsProduction — true и для пустого APP_ENV: Load подставляет production,
 // если переменная забыта.
@@ -54,8 +58,8 @@ func (c Config) IsProduction() bool { return c.AppEnv == EnvProduction }
 
 // String не печатает секреты: конфиг можно логировать целиком.
 func (c Config) String() string {
-	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s}",
-		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken))
+	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s MaxBotName:%s}",
+		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken), c.MaxBotName)
 }
 
 func mask(s string) string {
@@ -75,7 +79,11 @@ func load(getenv func(string) string) (Config, error) {
 		AppEnv:      getenv("APP_ENV"),
 		JWTSecret:   getenv("JWT_SECRET"),
 		MaxBotToken: getenv("MAX_BOT_TOKEN"),
+		MaxBotName:  getenv("MAX_BOT_NAME"),
 		JWTTTL:      time.Hour,
+	}
+	if cfg.MaxBotName == "" {
+		cfg.MaxBotName = DefaultBotName
 	}
 	switch cfg.AppEnv {
 	case "":
