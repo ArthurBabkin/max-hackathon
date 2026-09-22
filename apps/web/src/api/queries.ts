@@ -34,7 +34,7 @@ import type {
   UniversityDetail,
   UniversityListItem,
 } from '@contract'
-import { api, setToken } from './client'
+import { api, request, setReauth, setToken } from './client'
 import { getWebApp } from '@/bridge'
 
 export const keys = {
@@ -74,18 +74,28 @@ function invalidateProfile(qc: QueryClient): void {
 
 // --- Сессия ------------------------------------------------------------------
 
+async function openSession(): Promise<Session> {
+  const webApp = getWebApp()
+  const response = await request<SessionResponse>('POST', '/session', {
+    anonymous: true,
+    body: {
+      init_data: webApp.initData,
+      start_param: webApp.initDataUnsafe.start_param ?? null,
+    },
+  })
+  setToken(response.token)
+  return response.session
+}
+
+// Истёкший или отозванный токен клиент меняет сам и повторяет запрос.
+setReauth(async () => {
+  await openSession()
+})
+
 export function useSession(): UseQueryResult<Session> {
   return useQuery({
     queryKey: keys.session,
-    queryFn: async () => {
-      const webApp = getWebApp()
-      const response = await api.post<SessionResponse>('/session', {
-        init_data: webApp.initData,
-        start_param: webApp.initDataUnsafe.start_param ?? null,
-      })
-      setToken(response.token)
-      return response.session
-    },
+    queryFn: openSession,
     // JWT живёт час, дёргать /session на каждом монтировании незачем.
     staleTime: 50 * 60 * 1000,
     retry: 1,
