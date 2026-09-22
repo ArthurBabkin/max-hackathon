@@ -13,8 +13,8 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common import (ADMISSION_YEAR, CODE_RE, DATA, SNAP, TODAY, clean, html_rows,
-                    load_html, load_pages, meta, to_int, write_json)
+from common import (ADMISSION_YEAR, CODE_RE, DATA, SNAP, TODAY, clean, fetched_date,
+                    html_rows, load_html, load_pages, meta, to_int, write_json)
 from olymp_match import (level_in_perechen, match_number, match_number_for_profile,
                          olympiad_id, profile_slug, vsosh_id, _index)
 
@@ -878,7 +878,7 @@ def main() -> int:
                         "ege_confirm_min_score": row.get("ege_score"),
                         "source_url": row["url"],
                         "source_page": row.get("page"),
-                        "source_date": TODAY,
+                        "source_date": fetched_date(row["url"]),
                         "is_demo": bool(row.get("score_is_demo") or row.get("benefit_is_demo")
                                         or row.get("ege_score") is None),
                     })
@@ -896,7 +896,7 @@ def main() -> int:
                 "faculty": None, "napravlenie_code": None, "profile_group": x["profile_group"],
                 "status": x["status"], "admission_year": ADMISSION_YEAR,
                 "checked_url": x["source_url"], "checked_page": x["source_page"],
-                "checked_date": TODAY, "budget_places_2026": None, "prinimaemye_olimpiady": [],
+                "checked_date": fetched_date(x["source_url"]), "budget_places_2026": None, "prinimaemye_olimpiady": [],
             })
             continue
         if x["program_id"] in emitted:
@@ -917,7 +917,7 @@ def main() -> int:
             "status": "offered" if benefits else "to_check",
             "admission_year": ADMISSION_YEAR,
             "checked_url": x["source_url"], "checked_page": x["source_page"],
-            "checked_date": TODAY, "budget_places_2026": x["budget_places_2026"],
+            "checked_date": fetched_date(x["source_url"]), "budget_places_2026": x["budget_places_2026"],
             "prinimaemye_olimpiady": benefits,
         })
 
