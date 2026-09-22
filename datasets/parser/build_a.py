@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from classify import GROUPS, classify
-from common import (ADMISSION_YEAR, CODE_RE, DATA, ROOT, TODAY, clean, html_rows,
-                    load_html, load_pages, meta, slugify, to_int, write_json)
+from common import (ADMISSION_YEAR, CODE_RE, DATA, ROOT, TODAY, clean, fetched_date,
+                    html_rows, load_html, load_pages, meta, slugify, to_int, write_json)
 
 LEVEL_BY_CODE = lambda code: "specialitet" if code[3:5] == "05" else "bakalavriat"
 
@@ -353,7 +353,7 @@ def main() -> int:
                     "admission_year": ADMISSION_YEAR,
                     "match_type": hit["match_type"], "matched_reason": hit["matched_reason"],
                     "source_url": p["source_url"], "source_page": p["source_page"],
-                    "source_date": TODAY,
+                    "source_date": fetched_date(p["source_url"]),
                     "is_demo": bool(p.get("budget_is_demo") or p["budget_places_2026"] is None),
                 })
         for group in GROUPS:
@@ -366,7 +366,7 @@ def main() -> int:
                     "napravlenie_code": None, "napravlenie_name": None, "education_level": None,
                     "budget_places_2026": None, "admission_year": ADMISSION_YEAR,
                     "match_type": None, "matched_reason": None,
-                    "source_url": url, "source_page": page, "source_date": TODAY, "is_demo": False,
+                    "source_url": url, "source_page": page, "source_date": fetched_date(p["source_url"]), "is_demo": False,
                 })
         stats[vuz_id] = found
         print(f"  {vuz_id:11s} программ найдено: {len(programs):4d} | " +
