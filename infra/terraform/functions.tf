@@ -115,7 +115,7 @@ resource "yandex_function" "fn" {
     for_each = [for k in local.function_secrets[each.key] : k if contains(keys(local.secret_values), k)]
     content {
       id                   = yandex_lockbox_secret.app.id
-      version_id           = yandex_lockbox_secret_version.app.id
+      version_id           = yandex_lockbox_secret_version.app[0].id
       key                  = secrets.value
       environment_variable = secrets.value
     }
