@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/assistant"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/auth"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/llm"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
@@ -26,17 +28,22 @@ type Deps struct {
 	// Max — отправка уведомлений семье в чат бота (F41, F45, F46, F48).
 	// nil — уведомления выключены (локально без токена).
 	Max maxapi.Sender
+	// LLM — модель помощника. nil — помощник отвечает только шаблоном
+	// «данных нет» (нет POLZA_AI_API_KEY).
+	LLM llm.Completer
 	// Now подменяется в тестах; по умолчанию time.Now.
 	Now func() time.Time
 }
 
 type Server struct {
-	store  *store.Store
-	cfg    config.Config
-	policy auth.Policy
-	now    func() time.Time
-	mux    *http.ServeMux
-	notify *notify.Notifier
+	store     *store.Store
+	cfg       config.Config
+	policy    auth.Policy
+	now       func() time.Time
+	mux       *http.ServeMux
+	notify    *notify.Notifier
+	assistant *assistant.Assistant
+	aiLimit   *limiter
 }
 
 // Sender — клиент MAX для уведомлений семье; без токена бота — nil,
@@ -46,6 +53,17 @@ func Sender(cfg config.Config) maxapi.Sender {
 		return nil
 	}
 	return maxapi.New(config.Get("MAX_API_BASE", maxapi.DefaultBaseURL), cfg.MaxBotToken)
+}
+
+// Model — модель помощника из окружения (POLZA_AI_API_KEY, LLM_BASE_URL,
+// LLM_MODEL); без ключа — nil.
+func Model() llm.Completer {
+	key := config.Get("POLZA_AI_API_KEY", "")
+	if key == "" {
+		return nil
+	}
+	return llm.New(config.Get("LLM_BASE_URL", "https://polza.ai/api/v1"), key,
+		config.Get("LLM_MODEL", "GigaChat/GigaChat-3-Pro"))
 }
 
 // New собирает обработчик со всеми middleware.
@@ -67,6 +85,9 @@ func newServer(d Deps) *Server {
 		mux: http.NewServeMux(),
 		notify: &notify.Notifier{Store: d.Store, Max: d.Max, BotName: d.Config.MaxBotName,
 			BotID: d.Config.MaxBotID, ReminderHour: d.Config.ReminderHour},
+		assistant: &assistant.Assistant{Store: d.Store, LLM: d.LLM},
+		// Пять вопросов подряд, дальше один в 12 секунд — не больше пяти в минуту.
+		aiLimit: newLimiter(5, 12*time.Second),
 	}
 	if s.now == nil {
 		s.now = time.Now
@@ -123,6 +144,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /family/invites", s.authed(s.createInvite))
 	s.mux.HandleFunc("DELETE /family/members/{id}", s.authed(s.removeMember))
 	s.mux.HandleFunc("POST /family/leave", s.authed(s.leave))
+	s.mux.HandleFunc("GET /ai/messages", s.authed(s.aiHistory))
+	s.mux.HandleFunc("POST /ai/messages", s.authed(s.askAI))
 
 	// Ручки контракта, которые ещё не написаны, честно отвечают 501 в
 	// формате ошибки — фронт отличает «не готово» от «сломалось».
