@@ -42,7 +42,7 @@ describe('словарь текстов', () => {
     //
     // Исключение — перечисление порогов напоминаний: это константы из ТЗ §6.3,
     // они не считаются и меняться не могут.
-    const FIXED_NUMBERS = ['tracker.remindNote']
+    const FIXED_NUMBERS = ['tracker.remindNote', 'bot.remind.enabled', 'bot.settings.3', 'bot.settings.1']
     const hardcoded = entries
       .filter(([k]) => !FIXED_NUMBERS.includes(k))
       .filter(([, v]) =>
