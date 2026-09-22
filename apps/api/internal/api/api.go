@@ -93,6 +93,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /olympiads/{id}", s.authed(s.olympiad))
 	s.mux.HandleFunc("GET /universities", s.authed(s.universities))
 	s.mux.HandleFunc("GET /universities/{id}", s.authed(s.university))
+	s.mux.HandleFunc("GET /tracker", s.authed(s.getTracker))
+	s.mux.HandleFunc("POST /tracker", s.authed(s.addToTracker))
+	s.mux.HandleFunc("DELETE /tracker/{id}", s.authed(s.removeFromTracker))
+	s.mux.HandleFunc("PUT /tracker/{id}/registered", s.authed(s.setRegistered(true)))
+	s.mux.HandleFunc("DELETE /tracker/{id}/registered", s.authed(s.setRegistered(false)))
 
 	// Ручки контракта, которые ещё не написаны, честно отвечают 501 в
 	// формате ошибки — фронт отличает «не готово» от «сломалось».
