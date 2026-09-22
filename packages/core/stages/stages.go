@@ -115,7 +115,8 @@ func AllPassed(st []Stage, now time.Time) bool {
 var monthsGen = [...]string{"января", "февраля", "марта", "апреля", "мая", "июня",
 	"июля", "августа", "сентября", "октября", "ноября", "декабря"}
 
-func day(t time.Time) string { return fmt.Sprintf("%d %s", t.Day(), monthsGen[t.Month()-1]) }
+// Day — «22 октября».
+func Day(t time.Time) string { return fmt.Sprintf("%d %s", t.Day(), monthsGen[t.Month()-1]) }
 
 // Subtitle — подпись под этапом: «до 22 октября, онлайн» для окна с
 // последним днём, «20–22 февраля» для очного этапа. Даты — в зоне loc.
@@ -123,7 +124,7 @@ func Subtitle(s Stage, loc *time.Location) string {
 	var text string
 	switch {
 	case (s.Kind == "registration" || s.Kind == "qualifying" || s.Kind == "school") && s.DeadlineAt != nil:
-		text = "до " + day(s.DeadlineAt.In(loc))
+		text = "до " + Day(s.DeadlineAt.In(loc))
 	case s.StartsAt != nil:
 		start := s.StartsAt.In(loc)
 		end := start
@@ -132,11 +133,11 @@ func Subtitle(s Stage, loc *time.Location) string {
 		}
 		switch {
 		case start.Year() == end.Year() && start.YearDay() == end.YearDay():
-			text = day(start)
+			text = Day(start)
 		case start.Month() == end.Month() && start.Year() == end.Year():
 			text = fmt.Sprintf("%d–%d %s", start.Day(), end.Day(), monthsGen[start.Month()-1])
 		default:
-			text = day(start) + " — " + day(end)
+			text = Day(start) + " — " + Day(end)
 		}
 	default:
 		return ""
