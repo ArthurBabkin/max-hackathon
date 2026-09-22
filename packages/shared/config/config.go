@@ -3,8 +3,12 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 // Get возвращает значение переменной или запасной вариант.
@@ -23,4 +27,90 @@ func MustGet(key string) string {
 		log.Fatalf("переменная окружения %s не задана", key)
 	}
 	return v
+}
+
+const (
+	EnvProduction  = "production"
+	EnvDevelopment = "development"
+	EnvTest        = "test"
+
+	// minProdJWTSecret — HS256 с ключом короче 256 бит подбирается перебором.
+	minProdJWTSecret = 32
+)
+
+// Config — настройки входа в мини-приложение, которые опасно перепутать:
+// их проверяет Load, и сервис с неверной комбинацией не стартует.
+type Config struct {
+	AppEnv              string        // APP_ENV: production | development | test
+	DevUnsignedInitData bool          // DEV_UNSIGNED_INITDATA
+	JWTSecret           string        // JWT_SECRET
+	JWTTTL              time.Duration // JWT_TTL, по умолчанию 1h
+	MaxBotToken         string        // MAX_BOT_TOKEN — им же проверяется подпись initData
+}
+
+// IsProduction — true и для пустого APP_ENV: Load подставляет production,
+// если переменная забыта.
+func (c Config) IsProduction() bool { return c.AppEnv == EnvProduction }
+
+// String не печатает секреты: конфиг можно логировать целиком.
+func (c Config) String() string {
+	return fmt.Sprintf("Config{AppEnv:%s DevUnsignedInitData:%t JWTSecret:%s JWTTTL:%s MaxBotToken:%s}",
+		c.AppEnv, c.DevUnsignedInitData, mask(c.JWTSecret), c.JWTTTL, mask(c.MaxBotToken))
+}
+
+func mask(s string) string {
+	if s == "" {
+		return "<пусто>"
+	}
+	return "<задан>"
+}
+
+// Load читает конфиг из окружения и отказывает в опасных комбинациях.
+// Вызывающий обязан остановить процесс при ошибке — на старте, а не на
+// первом запросе.
+func Load() (Config, error) { return load(os.Getenv) }
+
+func load(getenv func(string) string) (Config, error) {
+	cfg := Config{
+		AppEnv:      getenv("APP_ENV"),
+		JWTSecret:   getenv("JWT_SECRET"),
+		MaxBotToken: getenv("MAX_BOT_TOKEN"),
+		JWTTTL:      time.Hour,
+	}
+	switch cfg.AppEnv {
+	case "":
+		// Забытая переменная — это прод: безопасные значения по умолчанию.
+		cfg.AppEnv = EnvProduction
+	case EnvProduction, EnvDevelopment, EnvTest:
+	default:
+		return Config{}, fmt.Errorf("APP_ENV=%q: ожидали production, development или test", cfg.AppEnv)
+	}
+
+	if v := getenv("DEV_UNSIGNED_INITDATA"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("DEV_UNSIGNED_INITDATA=%q: ожидали true или false", v)
+		}
+		cfg.DevUnsignedInitData = b
+	}
+	if v := getenv("JWT_TTL"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return Config{}, fmt.Errorf("JWT_TTL=%q: ожидали положительную длительность, например 1h", v)
+		}
+		cfg.JWTTTL = d
+	}
+
+	if cfg.IsProduction() && cfg.DevUnsignedInitData {
+		return Config{}, errors.New("DEV_UNSIGNED_INITDATA=true запрещён при APP_ENV=production: " +
+			"обход подписи initData допустим только локально")
+	}
+	if cfg.JWTSecret == "" {
+		return Config{}, errors.New("JWT_SECRET не задан: сессии мини-приложения нечем подписывать")
+	}
+	if cfg.IsProduction() && len(cfg.JWTSecret) < minProdJWTSecret {
+		return Config{}, fmt.Errorf("JWT_SECRET короче %d байт: в production нужен случайный ключ "+
+			"(например, openssl rand -hex 32)", minProdJWTSecret)
+	}
+	return cfg, nil
 }
