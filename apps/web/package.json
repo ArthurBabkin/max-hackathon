@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "contract": "openapi-typescript ../../packages/api-contract/openapi.yaml -o ../../packages/api-contract/types.gen.ts",
-    "contract:check": "node scripts/contract-check.mjs"
+    "contract:check": "node scripts/contract-check.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@maxhub/max-ui": "0.5.0",

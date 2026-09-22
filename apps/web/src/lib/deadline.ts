@@ -103,3 +103,15 @@ export function formatMonthTitle(month: string, grammaticalCase: 'title' | 'in' 
   if (grammaticalCase === 'in') return MONTHS_IN[index] as string
   return `${MONTHS_NOMINATIVE[index] as string} ${year}`
 }
+
+const todayFormatter = new Intl.DateTimeFormat('ru-RU', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+})
+
+/** «Понедельник, 21 сентября» — подзаголовок приветствия на главной. */
+export function formatToday(now: Date = new Date()): string {
+  const s = todayFormatter.format(now)
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
