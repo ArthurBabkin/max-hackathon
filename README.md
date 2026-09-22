@@ -336,29 +336,22 @@ cd apps/web && npm ci && npm run typecheck && npm test
 
 ## Развёртывание
 
-Инфраструктура — Terraform (OpenTofu), инструкция и порядок выкатки —
-[infra/terraform/README.md](infra/terraform/README.md). Коротко:
+Инфраструктуру применяет человек, код выкладывает пайплайн. Подробно —
+[.github/workflows/README.md](.github/workflows/README.md) и
+[infra/terraform/README.md](infra/terraform/README.md).
+
+| Что | Как |
+| --- | --- |
+| База, функции, шлюз, Lockbox, таймеры | **Actions → Infra apply** (подтверждает второй человек) или `tofu apply` руками |
+| Миграции и код четырёх функций | автоматически при слиянии в `master` (**Deploy functions**): сначала `goose up`, потом новая версия каждой функции с настройками, заданными Terraform, проверка живости и откат `$latest` при провале |
+| Мини-приложение | автоматически при слиянии в `master` (**Deploy web**) со сборкой под адрес API Gateway |
+| Вебхук MAX | один раз руками, когда бот с новым кодом выложен |
 
 ```bash
-cd infra/terraform
-export YC_TOKEN=$(yc iam create-token)
-# секреты — переменными TF_VAR_*: max_bot_token, webhook_secret, jwt_secret, polza_ai_api_key, pg_password
-tofu plan -out=tfplan -var enable_database=true -var enable_workers=true && tofu apply tfplan
-
-# схема и контент (из корня репозитория)
-go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir packages/db/migrations \
-  postgres "$(cd infra/terraform && tofu output -raw database_url)" up
-
 # вебхук и подсказки команд — один раз; нужны MAX_BOT_TOKEN и WEBHOOK_SECRET из .env
 set -a; . ./.env; set +a
 go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw webhook_url)"
-
-# статика мини-приложения с адресом API Gateway
-VITE_API_BASE="$(cd infra/terraform && tofu output -raw api_url)" npm --prefix apps/web run build
-yc storage s3 cp apps/web/dist/ s3://traektoria/ --recursive
 ```
-
-`apply` сам упаковывает Go-модуль и выкатывает новые версии функций.
 
 ## Отступления от ТЗ
 
