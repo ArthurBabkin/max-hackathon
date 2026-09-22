@@ -34,3 +34,34 @@ output "database_url" {
     yandex_mdb_postgresql_database.main[0].name,
   ) : null
 }
+
+# ---------------------------------------------------------------------------
+# Значения для секретов GitHub Actions. Читать по одному:
+#   tofu output -raw github_secret_yc_sa_key
+# В терминал целиком не выводить: `tofu output` без -raw покажет все сразу.
+# ---------------------------------------------------------------------------
+
+output "github_secret_yc_sa_key" {
+  description = "Секрет YC_SA_KEY — авторизованный ключ сервисного аккаунта CI"
+  sensitive   = true
+  value = jsonencode({
+    id                 = yandex_iam_service_account_key.cicd.id
+    service_account_id = yandex_iam_service_account.cicd.id
+    created_at         = yandex_iam_service_account_key.cicd.created_at
+    key_algorithm      = "RSA_2048"
+    public_key         = yandex_iam_service_account_key.cicd.public_key
+    private_key        = yandex_iam_service_account_key.cicd.private_key
+  })
+}
+
+output "github_secret_yc_storage_access_key" {
+  description = "Секрет YC_STORAGE_ACCESS_KEY"
+  sensitive   = true
+  value       = yandex_iam_service_account_static_access_key.cicd.access_key
+}
+
+output "github_secret_yc_storage_secret_key" {
+  description = "Секрет YC_STORAGE_SECRET_KEY"
+  sensitive   = true
+  value       = yandex_iam_service_account_static_access_key.cicd.secret_key
+}

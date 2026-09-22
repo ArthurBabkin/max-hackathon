@@ -1,0 +1,95 @@
+# Проверки на каждый PR и на master. Ничего не выкладывают — только валидируют.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# Новый пуш в ту же ветку отменяет предыдущий прогон: на хакатоне пуши частые,
+# а очередь из устаревших проверок только тратит минуты.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Версия должна совпадать с рантаймом Cloud Functions (golang123).
+          # Если собирать локально более новым Go, код может использовать то,
+          # чего нет в 1.23, и упасть уже в облаке.
+          go-version: '1.23'
+          cache-dependency-path: go.sum
+
+      - name: Форматирование
+        run: |
+          unformatted=$(gofmt -l apps packages)
+          if [ -n "$unformatted" ]; then
+            echo "Не отформатировано:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Сборка
+        run: go build ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Тесты
+        run: go test ./...
+
+  web:
+    name: Мини-приложение
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # ci, а не install: ставит ровно то, что в lock-файле, и падает при
+      # расхождении с package.json вместо тихого обновления зависимостей.
+      - name: Зависимости
+        run: npm ci
+
+      - name: Типы
+        run: npm run typecheck
+
+      - name: Тесты
+        run: npm test
+
+      - name: Сборка
+        run: npm run build
+
+  infra:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Форматирование
+        run: tofu fmt -check -recursive
+
+      # init без backend: состояние в CI не нужно, проверяем только синтаксис
+      # и схему провайдера.Плана и применения здесь нет намеренно —
+      # инфраструктуру применяет человек, см. infra/terraform/README.md.
+      - name: Валидация
+        run: |
+          tofu init -backend=false
+          tofu validate
