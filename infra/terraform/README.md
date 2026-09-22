@@ -44,7 +44,10 @@ tofu apply tfplan
 
 | Файл | Ресурсы |
 | --- | --- |
-| `functions.tf` | функция `traektoria-bot`, публичный вызов без IAM |
+| `functions.tf` | функции `bot`, `api`, `reminders`, `content-notifier` из одного zip; публичный вызов у `bot` и `api` |
+| `secrets.tf` | Lockbox с токенами и строкой подключения, сервисный аккаунт функций |
+| `postgres.tf` | Managed PostgreSQL 16 (флаг `enable_database`) |
+| `triggers.tf` | таймеры воркеров раз в 15 минут (флаг `enable_workers`) |
 | `storage.tf` | сервисный аккаунт для S3, оба бакета, хостинг сайта |
 | `dns.tf` | зона `traektoriaedu.ru`, запись апекса, запись проверки владения |
 | `certificate.tf` | сертификат Let's Encrypt |
@@ -55,7 +58,7 @@ tofu apply tfplan
 
 ### Код функции выкладывается тем же `apply`
 
-`functions.tf` упаковывает `apps/bot` в zip через `archive_file` и подставляет хеш в `user_hash`.
+`functions.tf` упаковывает исходники Go-модуля в zip через `archive_file` и подставляет хеш в `user_hash`.
 Поэтому отдельного шага деплоя нет: поменяли Go-код — `tofu apply` создаст новую версию функции.
 Если хеш не изменился, новая версия не создаётся.
 
@@ -83,7 +86,7 @@ yc storage s3 cp apps/web/ s3://traektoria/ --recursive
 Если состояние потеряется, оно восстанавливается импортом, ничего не пересоздавая:
 
 ```bash
-tofu import 'yandex_function.bot' d4e4a4gqsiq7avbr2f0s
+tofu import 'yandex_function.fn["bot"]' d4e4a4gqsiq7avbr2f0s
 tofu import 'yandex_dns_zone.domain' dns0cbh4jf7o48b27v3v
 tofu import 'yandex_cm_certificate.domain' fpqr801q2j527240mpkt
 tofu import 'yandex_dns_recordset.apex' 'dns0cbh4jf7o48b27v3v/traektoriaedu.ru./ANAME'
@@ -130,9 +133,50 @@ tofu apply -var enable_domain_https=true
 
 ---
 
-## Чего здесь пока нет
+## Выкатка бэкенда
 
-Managed PostgreSQL, Lockbox, Timer-триггеры и функции `api`, `reminders`, `content-notifier`
-не описаны, потому что ещё не созданы. Порядок и команды — в [../README.md](../README.md);
-при создании их надо заводить сразу здесь, а не через `yc`, иначе состояние разойдётся
-с реальностью и следующий `plan` покажет расхождения.
+Секреты передаются только переменными `TF_VAR_*` и уходят в Lockbox (`secrets.tf`),
+а не в переменные окружения версии функции. Функции читают их от имени сервисного
+аккаунта `traektoria-functions` с ролью `lockbox.payloadViewer`.
+
+```bash
+set -a; . ../../.env; set +a                        # MAX_BOT_TOKEN, POLZA_AI_API_KEY, WEBHOOK_SECRET
+export TF_VAR_max_bot_token="$MAX_BOT_TOKEN"
+export TF_VAR_polza_ai_api_key="$POLZA_AI_API_KEY"
+export TF_VAR_webhook_secret="$WEBHOOK_SECRET"
+export TF_VAR_jwt_secret="$(openssl rand -hex 32)"  # один раз; сохранить — смена разлогинит всех
+export TF_VAR_pg_password='…'                      # пароль пользователя БД
+tofu plan -out=tfplan -var enable_database=true -var enable_workers=true
+tofu apply tfplan
+```
+
+Что получает каждая функция:
+
+| Функция | Окружение | Секреты из Lockbox |
+| --- | --- | --- |
+| `bot` | `APP_ENV=production`, ник и id бота, `REMINDER_HOUR` | `MAX_BOT_TOKEN`, `WEBHOOK_SECRET`, `DATABASE_URL` |
+| `api` | то же + `CORS_ALLOWED_ORIGINS`, `LLM_BASE_URL`, `LLM_MODEL` | `MAX_BOT_TOKEN`, `JWT_SECRET`, `POLZA_AI_API_KEY`, `DATABASE_URL` |
+| `reminders`, `notifier` | то же, что у `bot` | `MAX_BOT_TOKEN`, `DATABASE_URL` |
+
+`APP_ENV=production` выключает дев-обход подписи initData: api с
+`DEV_UNSIGNED_INITDATA=true` в проде не стартует.
+
+После первого `apply` с базой — схема и контент (из корня репозитория):
+
+```bash
+DATABASE_URL="$(cd infra/terraform && tofu output -raw database_url)"
+go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir packages/db/migrations postgres "$DATABASE_URL" up
+```
+
+Демо-миграции (`packages/db/migrations-demo`) в прод не катятся.
+
+Вебхук и подсказки команд — один раз, когда функция бота с новым кодом выкачена:
+
+```bash
+go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw webhook_url)"
+```
+
+Пока подписка есть, long polling (`BOT_MODE=poll`) ничего не получает: для локальной
+отладки её снимают флагом `-unsubscribe <адрес>`.
+
+Мини-приложению нужен адрес api на сборке: `VITE_API_BASE=$(tofu output -raw api_url)`.

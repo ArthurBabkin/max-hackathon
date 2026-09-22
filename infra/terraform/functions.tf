@@ -43,8 +43,9 @@ locals {
       description = "MAX webhook (Траектория)"
       entrypoint  = "apps/bot/cmd/function/main.Handler"
       memory      = 128
-      timeout     = 10
-      public      = true
+      # MAX ждёт ответа вебхука до 30 секунд; обработчик сам укладывается в 25.
+      timeout = 30
+      public  = true
     }
     api = {
       name        = "traektoria-api"
@@ -90,9 +91,35 @@ resource "yandex_function" "fn" {
     zip_filename = data.archive_file.backend.output_path
   }
 
-  environment = {
-    MAX_API_BASE = var.max_api_base
+  # Прод: дев-обход подписи initData выключен и не включится — api с
+  # APP_ENV=production и DEV_UNSIGNED_INITDATA=true не стартует.
+  environment = merge({
+    APP_ENV       = "production"
+    MAX_API_BASE  = var.max_api_base
+    MAX_BOT_NAME  = var.max_bot_name
+    MAX_BOT_ID    = var.max_bot_id
+    REMINDER_HOUR = var.reminder_hour
+    DB_MAX_CONNS  = "2"
+    TZ            = "Europe/Moscow"
+    }, each.key == "api" ? {
+    CORS_ALLOWED_ORIGINS = var.cors_allowed_origins
+    LLM_BASE_URL         = "https://polza.ai/api/v1"
+    LLM_MODEL            = var.llm_model
+  } : {})
+
+  service_account_id = yandex_iam_service_account.functions.id
+
+  dynamic "secrets" {
+    for_each = [for k in local.function_secrets[each.key] : k if contains(keys(local.secret_values), k)]
+    content {
+      id                   = yandex_lockbox_secret.app.id
+      version_id           = yandex_lockbox_secret_version.app.id
+      key                  = secrets.value
+      environment_variable = secrets.value
+    }
   }
+
+  depends_on = [yandex_resourcemanager_folder_iam_member.functions_lockbox]
 }
 
 # Снаружи и без IAM-авторизации ходят только бот (вебхук MAX) и api (браузер).
