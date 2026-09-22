@@ -39,6 +39,14 @@ resource "yandex_lockbox_secret" "app" {
 }
 
 resource "yandex_lockbox_secret_version" "app" {
+  # Пока не задан ни один секрет, версию не создаём. Lockbox требует минимум
+  # одну запись, а local.secret_values отфильтровывает пустые значения — и
+  # когда пусты все, блок entries не создаётся ни разу:
+  #   Error: Insufficient entries blocks
+  # Без этого условия план падает у всех, кто не передал TF_VAR_*, включая
+  # PR, который правит только DNS и к секретам отношения не имеет.
+  count = length(local.secret_values) > 0 ? 1 : 0
+
   secret_id = yandex_lockbox_secret.app.id
 
   dynamic "entries" {
