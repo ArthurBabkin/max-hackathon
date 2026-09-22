@@ -1,0 +1,74 @@
+# Выкладка мини-приложения в Object Storage при слиянии в master.
+#
+# Адрес бакета не меняется никогда, поэтому перезаливка безопасна: организаторы
+# один раз прописали URL боту, дальше содержимое обновляем сколько угодно.
+name: Deploy web
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/web/**'
+      - 'packages/api-contract/**'
+      - '.github/workflows/deploy-web.yml'
+  # Ручной запуск — чтобы выложить фронт, не делая пустой коммит.
+  workflow_dispatch:
+
+# Две одновременные выкладки в один бакет дали бы смесь старых и новых файлов.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Сборка
+        working-directory: apps/web
+        run: |
+          npm ci
+          npm run build
+
+      # Object Storage совместим с S3, поэтому берём обычный aws cli —
+      # он уже есть на раннере, ставить yc ради заливки файлов незачем.
+      - name: Выкладка ассетов
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+        run: |
+          # Сначала всё, кроме index.html. У ассетов Vite в имени хеш,
+          # поэтому их можно кешировать надолго: при пересборке имя меняется.
+          aws s3 sync apps/web/dist "s3://${{ vars.YC_WEB_BUCKET }}" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --delete \
+            --exclude index.html \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Выкладка index.html
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+        run: |
+          # index.html — последним и без кеша: он ссылается на свежие ассеты,
+          # и закешированный индекс тянул бы уже удалённые файлы.
+          aws s3 cp apps/web/dist/index.html "s3://${{ vars.YC_WEB_BUCKET }}/index.html" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache"
+
+      - name: Проверка
+        run: |
+          url="https://${{ vars.YC_WEB_BUCKET }}.website.yandexcloud.net/"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$url")
+          echo "$url -> $code"
+          [ "$code" = "200" ] || exit 1
