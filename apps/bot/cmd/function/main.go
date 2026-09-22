@@ -1,55 +1,35 @@
-// Заглушка вебхука MAX: принимает любое обновление и отвечает 200 с пустым телом.
-// Нужна, чтобы зарегистрировать подписку (POST /subscriptions) до того, как появится логика:
-// URL функции присваивается при создании и больше не меняется.
+// Точка входа Cloud Functions для вебхука MAX.
+// Entrypoint: apps/bot/cmd/function/main.Handler
+//
+// Пакет обязан быть main: рантайм собирает точку входа как Go-плагин
+// (-buildmode=plugin), а плагин строится только из main-пакета.
 package main
 
 import (
-	"crypto/subtle"
-	"encoding/json"
-	"io"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
+
+	"github.com/ArthurBabkin/max-hackathon/apps/bot/internal/bot"
 )
 
-type update struct {
-	UpdateType string `json:"update_type"`
-}
+// Инициализация на уровне пакета выполняется один раз за холодный старт,
+// а не на каждый вызов.
+var handler = bot.New(
+	os.Getenv("WEBHOOK_SECRET"),
+	maxapi.New(
+		config.Get("MAX_API_BASE", "https://platform-api2.max.ru"),
+		os.Getenv("MAX_BOT_TOKEN"),
+	),
+)
 
-// Handler — точка входа Cloud Functions.
+// Handler — обработчик, который вызывает рантайм.
 func Handler(rw http.ResponseWriter, req *http.Request) {
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("read body: %v", err)
-		rw.WriteHeader(http.StatusOK) // MAX не должен ретраить из-за нашей ошибки чтения
-		return
-	}
-
-	// Секрет проверяем, только если он задан в окружении: на этапе регистрации
-	// подписки его ещё может не быть, и отбивка 401 помешала бы MAX принять вебхук.
-	if want := os.Getenv("WEBHOOK_SECRET"); want != "" {
-		got := req.Header.Get("X-Max-Bot-Api-Secret")
-		if subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
-			log.Printf("secret mismatch")
-			rw.WriteHeader(http.StatusForbidden)
-			return
-		}
-	}
-
-	var u update
-	if err := json.Unmarshal(body, &u); err != nil {
-		log.Printf("unmarshal: %v, raw=%s", err, truncate(body))
-	} else {
-		log.Printf("update_type=%s raw=%s", u.UpdateType, truncate(body))
-	}
-
-	rw.WriteHeader(http.StatusOK)
+	handler.ServeHTTP(rw, req)
 }
 
-func truncate(b []byte) string {
-	const max = 1000
-	if len(b) > max {
-		return string(b[:max]) + "..."
-	}
-	return string(b)
-}
+// main существует только чтобы пакет собирался локально обычным go build.
+// В Cloud Functions он не вызывается: рантайм дёргает Handler напрямую.
+func main() {}

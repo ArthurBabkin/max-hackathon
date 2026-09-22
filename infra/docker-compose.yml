@@ -1,0 +1,203 @@
+# Локальный стенд «Траектории»: Postgres + три Go-сервиса + статика мини-приложения.
+#
+# Запуск из корня репозитория:
+#   docker compose -f infra/docker-compose.yml up --build
+#
+# Токены заводить НЕ надо: у каждой переменной есть дефолт через ${VAR:-...},
+# поэтому стенд поднимается на чистой машине без единого секрета. Всё, что
+# требует боевых ключей (отправка сообщений в MAX, GigaChat), просто молчит.
+#
+# Если боевые значения всё-таки нужны, есть три способа их передать:
+#   1. переменными окружения оболочки;
+#   2. файлом infra/.env — compose читает .env рядом с compose-файлом;
+#   3. корневым .env — docker compose --env-file .env -f infra/docker-compose.yml up
+# Список переменных и их смысл — в .env.example в корне репозитория.
+#
+# Прод живёт в Cloud Functions (infra/terraform) и собирается из
+# apps/<app>/cmd/function. Здесь те же сервисы поднимаются как обычные
+# http.Server из apps/<app>/cmd/local — иначе локально их не потрогать.
+#
+# Порты: bot 8080, api 8081, reminders 8082, web 8083, notifier 8084, postgres 5432.
+# Каждый переопределяется переменной на случай, если порт уже занят.
+
+name: traektoria
+
+# ---------------------------------------------------------------------------
+# Общие куски. Вынесены в якоря, чтобы три Go-сервиса не разъезжались
+# по настройкам при правках.
+# ---------------------------------------------------------------------------
+
+# Переменные приложения. Одинаковы для всех трёх сервисов: какой из них что
+# реально читает — решает код, а не compose.
+x-app-env: &app-env
+  # Локальная база внутри compose-сети: ходим по имени сервиса postgres,
+  # DNS даёт его автоматически. sslmode=disable — у локального контейнера
+  # нет TLS; в Managed PostgreSQL на проде обязателен sslmode=require.
+  # Если меняете POSTGRES_USER/POSTGRES_PASSWORD, значения подставятся сюда же.
+  DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-traektoria}:${POSTGRES_PASSWORD:-traektoria}@postgres:5432/${POSTGRES_DB:-traektoria}?sslmode=disable}
+  # Пустой токен = бот не сможет отправлять сообщения, но поднимется и ответит
+  # на вебхук. Для проверки сборки этого достаточно.
+  MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-}
+  MAX_API_BASE: ${MAX_API_BASE:-https://platform-api2.max.ru}
+  # Пустой секрет означает приём вебхука без проверки подписи (см. .env.example) —
+  # ровно то, что нужно, чтобы слать запросы курлом с локальной машины.
+  WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+  # Дефолт заведомо небоевой и это видно по значению: мини-приложение локально
+  # логинится без настройки, но подписать таким прод никто не догадается.
+  JWT_SECRET: ${JWT_SECRET:-local-dev-not-a-secret}
+  GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:-}
+  # Дедлайны олимпиад завязаны на московское время, а не на часовой пояс хоста.
+  TZ: ${TZ:-Europe/Moscow}
+
+# Проба живости Go-сервисов: GET /health есть у бота, api и reminders
+# (см. apps/<app>/cmd/local/main.go). Дёргаем именно ручку, а не просто порт, —
+# открытый сокет ещё не значит, что роутер собрался и отвечает.
+# wget есть в busybox, отдельный curl ради healthcheck в образ не тащим.
+# $$PORT экранирован удвоенным долларом: подставить его должен shell внутри
+# контейнера, а не compose на хосте.
+x-go-healthcheck: &go-healthcheck
+  test: ["CMD-SHELL", "wget -q -O /dev/null -T 3 http://127.0.0.1:$$PORT/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  # Go-бинарь стартует мгновенно, но первая миграция/прогрев кеша может занять
+  # секунды — не считаем это падением.
+  start_period: 20s
+
+# Общий каркас Go-сервиса.
+x-go-service: &go-service
+  restart: unless-stopped
+  depends_on:
+    # Не просто «контейнер запущен», а «база отвечает»: postgres при первом
+    # старте делает initdb и несколько секунд рвёт соединения. Без этого
+    # условия сервисы падают на первом же подключении.
+    postgres:
+      condition: service_healthy
+    # И не просто живая база, а с накатанной схемой: иначе первый же запрос
+    # уйдёт в несуществующую таблицу.
+    migrate:
+      condition: service_completed_successfully
+  healthcheck: *go-healthcheck
+
+services:
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-traektoria}
+      POSTGRES_USER: ${POSTGRES_USER:-traektoria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-traektoria}
+      # scram-sha-256 включаем явно, чтобы способ аутентификации совпадал
+      # с Managed PostgreSQL и локально не всплывали чужие сюрпризы с md5.
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      TZ: ${TZ:-Europe/Moscow}
+    ports:
+      # У проверяющего на 5432 вполне может уже стоять свой Postgres,
+      # поэтому внешний порт переопределяется переменной.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Именованный том, а не каталог с хоста: данные переживают `down`,
+      # не зависят от прав и от файловой системы конкретной машины
+      # (bind mount на macOS/Windows ломает initdb по правам).
+      # Снести базу начисто — docker compose -f infra/docker-compose.yml down -v
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready проверяет готовность принимать запросы, а не факт запуска
+      # процесса. Двойной доллар — переменные разворачивает shell в контейнере.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # Одноразовый сервис: накатывает схему goose и завершается.
+  # Требование ТЗ 13.2 — `docker compose up` поднимает всё и применяет миграции.
+  migrate:
+    build:
+      context: ..
+      dockerfile: packages/db/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-traektoria}:${POSTGRES_PASSWORD:-traektoria}@postgres:5432/${POSTGRES_DB:-traektoria}?sslmode=disable}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Не перезапускаем: задача разовая, успешный выход — это не падение.
+    restart: "no"
+
+  # -------------------------------------------------------------------------
+  bot:
+    <<: *go-service
+    build:
+      # Контекст — корень репозитория, а не apps/bot. Модуль в проекте один
+      # (github.com/ArthurBabkin/max-hackathon), бинарь импортирует
+      # packages/shared, поэтому go.mod и общие пакеты обязаны быть в контексте.
+      # Что именно не уезжает в демон — см. .dockerignore в корне.
+      context: ..
+      dockerfile: apps/bot/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "8080"
+    ports:
+      - "${BOT_PORT:-8080}:8080"
+
+  # -------------------------------------------------------------------------
+  api:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "8081"
+    ports:
+      - "${API_PORT:-8081}:8081"
+
+  # -------------------------------------------------------------------------
+  reminders:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: apps/reminders/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "8082"
+    ports:
+      - "${REMINDERS_PORT:-8082}:8082"
+
+  # -------------------------------------------------------------------------
+  notifier:
+    <<: *go-service
+    build:
+      context: ..
+      dockerfile: apps/notifier/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "8084"
+    ports:
+      - "${NOTIFIER_PORT:-8084}:8084"
+
+  # -------------------------------------------------------------------------
+  web:
+    build:
+      # Контекст тоже корень: один `context: ..` на все сервисы означает один
+      # общий .dockerignore и один слой контекста на всю сборку.
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8083}:8083"
+    # depends_on на api сознательно нет: мини-приложение ходит в API из браузера
+    # пользователя, а не из контейнера, поэтому ждать api незачем — статика
+    # должна открываться даже когда бэкенд лежит.
+    healthcheck:
+      # nginx отдаёт index.html — если 200, значит и конфиг, и файлы на месте.
+      test: ["CMD-SHELL", "wget -q -O /dev/null -T 3 http://127.0.0.1:8083/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  postgres-data:
