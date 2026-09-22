@@ -113,10 +113,15 @@ variable "max_bot_token" {
 }
 
 variable "webhook_secret" {
-  description = "Секрет вебхука MAX, [a-zA-Z0-9_-]{5,256} (TF_VAR_webhook_secret)"
+  description = "Секрет вебхука MAX, [a-zA-Z0-9_-]{5,256} (TF_VAR_webhook_secret). Без него функция бота не стартует"
   type        = string
   sensitive   = true
   default     = ""
+
+  validation {
+    condition     = var.webhook_secret == "" || can(regex("^[a-zA-Z0-9_-]{5,256}$", var.webhook_secret))
+    error_message = "Секрет вебхука: 5–256 символов из [a-zA-Z0-9_-] — маска платформы MAX."
+  }
 }
 
 variable "jwt_secret" {
