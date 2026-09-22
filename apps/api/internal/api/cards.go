@@ -57,15 +57,21 @@ func nick(universityID, shortName string) string {
 type cardSet struct {
 	t        store.Trajectory
 	voice    voice.Voice
+	subjects map[string]bool // предметы ученика
+	unis     []store.University
 	stages   map[string][]stages.Stage
 	benefits map[string][]store.BenefitRow // только вузы ученика, в порядке списка вузов
 	tracker  store.TrackerState
 	now      time.Time
 }
 
-func (s *Server) cardSet(ctx context.Context, m store.Member, t store.Trajectory, profiles []store.Profile) (cardSet, error) {
+func (s *Server) cardSet(ctx context.Context, m store.Member, t store.Trajectory, subjects []string,
+	profiles []store.Profile) (cardSet, error) {
 	cs := cardSet{t: t, voice: voice.New(voice.Role(m.Role), t.StudentName, m.FirstName), now: s.now(),
-		benefits: map[string][]store.BenefitRow{}}
+		subjects: map[string]bool{}, benefits: map[string][]store.BenefitRow{}}
+	for _, c := range subjects {
+		cs.subjects[c] = true
+	}
 	ids := make([]string, len(profiles))
 	for i, p := range profiles {
 		ids[i] = p.ID
@@ -77,12 +83,11 @@ func (s *Server) cardSet(ctx context.Context, m store.Member, t store.Trajectory
 	if cs.tracker, err = s.store.TrackerState(ctx, t.ID); err != nil {
 		return cs, err
 	}
-	unis, err := s.store.TrajectoryUniversities(ctx, t.ID)
-	if err != nil {
+	if cs.unis, err = s.store.TrajectoryUniversities(ctx, t.ID); err != nil {
 		return cs, err
 	}
-	uniIDs := make([]string, len(unis))
-	for i, u := range unis {
+	uniIDs := make([]string, len(cs.unis))
+	for i, u := range cs.unis {
 		uniIDs[i] = u.ID
 	}
 	rows, err := s.store.Benefits(ctx, ids, uniIDs)
@@ -108,16 +113,33 @@ func (cs cardSet) student() match.Student {
 }
 
 func (cs cardSet) candidate(p store.Profile) match.Candidate {
-	c := match.Candidate{
+	return match.Candidate{
 		ProfileID: p.ID, OlympiadID: p.OlympiadID, Kind: p.Kind, SubjectCode: p.SubjectCode, Level: p.Level,
-		Stages: cs.stages[p.ID], Registered: cs.tracker.Registered[p.ID], FinalRegionCode: p.FinalRegionCode,
+		BestBenefit: bestBenefit(cs.benefits[p.ID]), Stages: cs.stages[p.ID], Registered: cs.tracker.Registered[p.ID],
+		FinalRegionCode: p.FinalRegionCode,
 	}
-	for _, b := range cs.benefits[p.ID] {
-		if c.BestBenefit == "" || benefitRank[b.Benefit] < benefitRank[c.BestBenefit] {
-			c.BestBenefit = b.Benefit
+}
+
+// bestBenefit — самая сильная льгота среди строк, "" если строк нет.
+func bestBenefit(rows []store.BenefitRow) string {
+	best := ""
+	for _, b := range rows {
+		if best == "" || benefitRank[b.Benefit] < benefitRank[best] {
+			best = b.Benefit
 		}
 	}
-	return c
+	return best
+}
+
+// nicksWith — вузы с этой льготой, через запятую, в порядке строк.
+func nicksWith(rows []store.BenefitRow, benefit string) string {
+	var nicks []string
+	for _, b := range rows {
+		if b.Benefit == benefit {
+			nicks = append(nicks, nick(b.UniversityID, b.UniversityShort))
+		}
+	}
+	return strings.Join(nicks, ", ")
 }
 
 func (cs cardSet) card(p store.Profile, r match.Result) olympiadCard {
@@ -145,19 +167,8 @@ func (cs cardSet) benefitsSummary(profileID string) string {
 	if len(rows) == 0 {
 		return cs.voice.T("match.noBenefits", nil)
 	}
-	best := rows[0].Benefit
-	for _, b := range rows {
-		if benefitRank[b.Benefit] < benefitRank[best] {
-			best = b.Benefit
-		}
-	}
-	var nicks []string
-	for _, b := range rows {
-		if b.Benefit == best {
-			nicks = append(nicks, nick(b.UniversityID, b.UniversityShort))
-		}
-	}
-	return strings.Join(nicks, ", ") + ": " + benefitLabels[best]
+	best := bestBenefit(rows)
+	return nicksWith(rows, best) + ": " + benefitLabels[best]
 }
 
 // reason — причина рекомендации из двух самых сильных факторов (ТЗ §6.1
@@ -207,7 +218,16 @@ func (cs cardSet) factorText(f match.Factor, r match.Result) string {
 	return ""
 }
 
+// lowerFirst опускает первую букву, если это не аббревиатура: «БВИ» остаётся.
 func lowerFirst(s string) string {
 	r, size := utf8.DecodeRuneInString(s)
+	if next, _ := utf8.DecodeRuneInString(s[size:]); unicode.IsUpper(next) {
+		return s
+	}
 	return string(unicode.ToLower(r)) + s[size:]
+}
+
+func upperFirst(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	return string(unicode.ToUpper(r)) + s[size:]
 }
