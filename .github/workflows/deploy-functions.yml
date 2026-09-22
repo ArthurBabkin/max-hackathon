@@ -1,0 +1,150 @@
+# Выкладка кода функций в Cloud Functions при слиянии в master:
+# миграции базы, затем новая версия каждой функции.
+#
+# Выкладывается ВЕРСИЯ функции, сама функция не пересоздаётся: URL бота
+# зарегистрирован в MAX как вебхук и меняться не должен. Настройки версии
+# (окружение, секреты Lockbox, сервисный аккаунт) задаёт Terraform — скрипт
+# переносит их с текущей версии. Предыдущая версия остаётся: при провале
+# проверки тег $latest возвращается на неё автоматически.
+name: Deploy functions
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/bot/**'
+      - 'apps/api/**'
+      - 'apps/reminders/**'
+      - 'apps/notifier/**'
+      - 'packages/**'
+      - '!packages/api-contract/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/deploy-functions.yml'
+      - '.github/scripts/deploy_function.py'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  # Схема раньше кода: новая версия может ждать новых таблиц. goose катит
+  # только ненакатанное, повторный прогон — no-op. Демо-миграции в прод не идут.
+  migrate:
+    name: Миграции
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.12'
+          cache-dependency-path: go.sum
+
+      - name: Схема и контент
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Нет секрета DATABASE_URL (tofu output -raw database_url), см. .github/workflows/README.md"
+            exit 1
+          fi
+          go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
+          goose -dir packages/db/migrations postgres "$DATABASE_URL" up
+
+  deploy:
+    name: ${{ matrix.function }}
+    needs: migrate
+    runs-on: ubuntu-latest
+    strategy:
+      # Функции независимы: упавшая проверка api не должна останавливать бота.
+      fail-fast: false
+      matrix:
+        include:
+          # require — переменные, без которых код функции не стартует.
+          - function: traektoria-bot
+            require: MAX_BOT_TOKEN,WEBHOOK_SECRET,DATABASE_URL
+            probe: bot
+            optional: ''
+          - function: traektoria-api
+            require: MAX_BOT_TOKEN,JWT_SECRET,DATABASE_URL
+            probe: api
+            optional: --optional
+          - function: traektoria-reminders
+            require: MAX_BOT_TOKEN,DATABASE_URL
+            probe: none
+            optional: --optional
+          - function: traektoria-content-notifier
+            require: MAX_BOT_TOKEN,DATABASE_URL
+            probe: none
+            optional: --optional
+    steps:
+      - uses: actions/checkout@v4
+
+      # Сборка идёт на стороне Yandex Cloud: в архив уезжают только исходники.
+      # Собираем здесь же, чтобы не узнать о синтаксической ошибке из логов
+      # сборщика в облаке — там диагностика заметно хуже.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.12'
+          cache-dependency-path: go.sum
+
+      - name: Проверить, что собирается
+        run: go build ./...
+
+      # Тот же состав, что у archive_file в infra/terraform/functions.tf.
+      # Лишнее вырезаем: без этого в архив уехали бы датасеты, макеты и .git.
+      - name: Собрать архив исходников
+        run: |
+          mkdir -p build
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='.claude' \
+            --exclude='docs' --exclude='datasets' --exclude='dataset_c_src' \
+            --exclude='infra' --exclude='apps/web' --exclude='build' \
+            --exclude='olimpiady_spravochnik.json' --exclude='DATASET_C_NOTES.md' \
+            ./ build/
+          du -sh build
+
+      # Дистрибутив yc весит около 177 МБ. Без кеша он качался бы на каждый
+      # деплой — это дольше, чем всё остальное в workflow вместе взятое.
+      - name: Кеш yc CLI
+        id: yc-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/yc
+          key: yc-cli-${{ runner.os }}-1.36.0
+
+      - name: Установить yc CLI
+        if: steps.yc-cache.outputs.cache-hit != 'true'
+        run: curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
+
+      - name: Добавить yc в PATH
+        run: echo "$HOME/yc/bin" >> "$GITHUB_PATH"
+
+      - name: Авторизация
+        env:
+          # Авторизованный ключ сервисного аккаунта в формате JSON.
+          # Через переменную окружения, а не подстановкой в команду:
+          # иначе содержимое ключа попало бы в разбор строки шеллом.
+          SA_KEY: ${{ secrets.YC_SA_KEY }}
+        run: |
+          printf '%s' "$SA_KEY" > "$HOME/sa-key.json"
+          yc config profile create ci
+          yc config set service-account-key "$HOME/sa-key.json"
+          yc config set folder-id "${{ vars.YC_FOLDER_ID }}"
+
+      - name: Выложить версию и проверить
+        run: |
+          python3 .github/scripts/deploy_function.py \
+            --name '${{ matrix.function }}' \
+            --require '${{ matrix.require }}' \
+            --probe '${{ matrix.probe }}' \
+            --api-url '${{ vars.YC_API_URL }}' \
+            ${{ matrix.optional }}
+
+      - name: Удалить ключ
+        # Раннер и так одноразовый, но если шаг выкладки упадёт, ключ не должен
+        # остаться лежать на диске дольше необходимого.
+        if: always()
+        run: rm -f "$HOME/sa-key.json"
