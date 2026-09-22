@@ -47,8 +47,17 @@ COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 # и ломается обещание compose, что статика открывается даже когда бэкенд лежит.
 # С переменной имя резолвится лениво, и в худшем случае приходит 502.
 #
+# Проксируется именно /api/v1/, и путь уходит в Go-сервис без изменений: базовый
+# путь /api/v1 объявлен в servers контракта (packages/api-contract/openapi.yaml),
+# значит ручки там и живут. Healthcheck сервиса лежит вне контракта, в корне,
+# и сюда не попадает — его видно напрямую на http://localhost:8081/health.
+#
 # try_files ... /index.html — мини-приложение использует hash-роутинг, но
 # перезагрузка по прямому адресу всё равно не должна отдавать 404.
+#
+# Имена файлов в /assets/ содержат хеш содержимого, поэтому их можно кешировать
+# навсегда: изменится содержимое — изменится и имя. Directive expires здесь
+# не используется, иначе Cache-Control уходит двумя заголовками сразу.
 RUN printf '%s\n' \
     'server {' \
     '    listen 8083;' \
@@ -59,15 +68,14 @@ RUN printf '%s\n' \
     '    resolver 127.0.0.11 valid=10s;' \
     '    set $api http://api:8081;' \
     '' \
-    '    location /api/ {' \
+    '    location /api/v1/ {' \
     '        proxy_pass $api;' \
     '        proxy_set_header Host $host;' \
     '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
     '    }' \
     '' \
     '    location /assets/ {' \
-    '        expires 1y;' \
-    '        add_header Cache-Control "public, immutable";' \
+    '        add_header Cache-Control "public, max-age=31536000, immutable";' \
     '    }' \
     '' \
     '    location / {' \
