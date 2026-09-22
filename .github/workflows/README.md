@@ -70,6 +70,14 @@ export YC_TOKEN=$(yc iam create-token)
 tofu plan -out=tfplan && tofu apply tfplan
 ```
 
+Дальше — значения секретов. Перед чтением обязательно выставить ключи доступа
+к бакету с состоянием, иначе `tofu output` упадёт, а в пайп уйдёт пустая строка
+и секрет молча запишется пустым:
+
+```bash
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+```
+
 Затем прочитать значения **по одному** и вставить в GitHub:
 
 ```bash
