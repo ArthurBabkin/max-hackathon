@@ -83,17 +83,19 @@ type Trajectory struct {
 	TZ            string
 	DirectionID   *string
 	DirectionName *string
-	GoalStatus    string
-	HasKid        bool
-	MembersCount  int
-	CreatedAt     time.Time
+	// DirectionSubjects — ключевые предметы направления для подбора.
+	DirectionSubjects []string
+	GoalStatus        string
+	HasKid            bool
+	MembersCount      int
+	CreatedAt         time.Time
 }
 
 func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 	var t Trajectory
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id::text, t.student_name, t.grade, t.region_code, t.tz, t.direction_id, d.name,
-		       t.goal_status,
+		       COALESCE(d.subject_codes, '{}'), t.goal_status,
 		       EXISTS (SELECT 1 FROM members k WHERE k.trajectory_id = t.id AND k.role = 'kid'
 		               AND k.left_at IS NULL AND k.removed_at IS NULL),
 		       (SELECT count(*) FROM members k WHERE k.trajectory_id = t.id
@@ -103,6 +105,6 @@ func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 		LEFT JOIN directions d ON d.id = t.direction_id
 		WHERE t.id = $1 AND t.deleted_at IS NULL`, id).Scan(
 		&t.ID, &t.StudentName, &t.Grade, &t.RegionCode, &t.TZ, &t.DirectionID, &t.DirectionName,
-		&t.GoalStatus, &t.HasKid, &t.MembersCount, &t.CreatedAt)
+		&t.DirectionSubjects, &t.GoalStatus, &t.HasKid, &t.MembersCount, &t.CreatedAt)
 	return t, wrap(err)
 }
