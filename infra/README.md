@@ -51,7 +51,7 @@ yc config list   # проверить, что folder-id проставлен
 | `WEBAPP_URL` | `https://traektoria.website.yandexcloud.net/` — HTTPS проверен |
 | URL вебхука | `https://functions.yandexcloud.net/d4e4a4gqsiq7avbr2f0s` |
 | Версия | `golang123`, entrypoint `cmd/function/main.Handler`, 128 МБ, таймаут 10 с |
-| Код | `apps/bot/cmd/function/main.go` — заглушка: любой апдейт → 200 с пустым телом |
+| Код | на 22.09 — заглушка: любой апдейт → 200 с пустым телом. Сейчас код выкладывает `tofu apply` |
 
 Проверено вызовом с IAM-токеном: `200`, тело пустое, ~0,34 с.
 
@@ -231,7 +231,7 @@ yc lockbox secret create --name traektoria \
               {"key":"JWT_SECRET","text_value":"..."},
               {"key":"WEBHOOK_SECRET","text_value":"..."},
               {"key":"DATABASE_URL","text_value":"..."},
-              {"key":"GIGACHAT_AUTH_KEY","text_value":"..."}]'
+              {"key":"POLZA_AI_API_KEY","text_value":"..."}]'
 ```
 
 Функции читают секреты под `traektoria-fn` (роль выдана в пункте 1).
@@ -243,7 +243,7 @@ yc lockbox secret create --name traektoria \
 
 - **Регистрация вебхука в MAX** — `POST /subscriptions` с `WEBHOOK_URL` из пункта 3 и `WEBHOOK_SECRET`.
 - **URL мини-приложения организаторам** — через форму привязки, адрес из пункта 2.
-- **Ключ GigaChat API** — регистрируется отдельно в личном кабинете Сбера, бывает ожидание.
-  Без него не поедет ИИ-помощник (F35-F37).
+- **Ключ LLM** — GigaChat через шлюз polza.ai, `POLZA_AI_API_KEY`.
+  Без него ИИ-помощник (F35-F37) отвечает только шаблоном «данных нет».
 - **Заявка на квоту** — по умолчанию 10 одновременных вызовов функций на зону доступности.
   Для демо хватает; если планируется нагрузочная проверка, подавать заранее.
