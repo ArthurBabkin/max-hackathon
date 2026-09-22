@@ -65,3 +65,16 @@ output "github_secret_yc_storage_secret_key" {
   sensitive   = true
   value       = yandex_iam_service_account_static_access_key.cicd.secret_key
 }
+
+output "github_secret_yc_infra_key" {
+  description = "Секрет YC_INFRA_KEY — ключ сервисного аккаунта для применения инфраструктуры"
+  sensitive   = true
+  value = jsonencode({
+    id                 = yandex_iam_service_account_key.infra.id
+    service_account_id = yandex_iam_service_account.infra.id
+    created_at         = yandex_iam_service_account_key.infra.created_at
+    key_algorithm      = "RSA_2048"
+    public_key         = yandex_iam_service_account_key.infra.public_key
+    private_key        = yandex_iam_service_account_key.infra.private_key
+  })
+}

@@ -1,0 +1,94 @@
+# Применение инфраструктуры. Только вручную и только с подтверждением.
+#
+# Автоматического запуска при слиянии нет намеренно. Выкладка кода обратима —
+# откатился на предыдущую версию функции и живёшь. Выкладка инфраструктуры нет:
+# удалённый бакет уронит мини-приложение у организаторов, пересозданная функция
+# сменит URL вебхука. Аппрув человека — дешёвая страховка от дорогой ошибки.
+#
+# В окне проверки 30.09-14.10 этот workflow не запускается вообще, кроме аварии.
+name: Infra apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_workers:
+        description: 'Поднять api, reminders, notifier и таймеры'
+        type: boolean
+        default: false
+      enable_database:
+        description: 'Поднять кластер PostgreSQL (тарифицируется круглосуточно)'
+        type: boolean
+        default: false
+      enable_domain_https:
+        description: 'Привязать сертификат к бакету домена (только когда он ISSUED)'
+        type: boolean
+        default: false
+
+# Два одновременных apply заблокируются на состоянии, но лучше не доводить.
+concurrency:
+  group: infra-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    # Окружение с обязательным ревьюером: запуск повиснет, пока второй человек
+    # не подтвердит. Настраивается в Settings → Environments → production-infra.
+    environment: production-infra
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+      # Провайдер логинится ключом сервисного аккаунта, а не IAM-токеном:
+      # токен живёт 12 часов и как секрет репозитория бесполезен.
+      YC_SERVICE_ACCOUNT_KEY_FILE: ${{ github.workspace }}/infra-key.json
+      AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+      TF_VAR_pg_password: ${{ secrets.PG_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ключ сервисного аккаунта
+        env:
+          SA_KEY: ${{ secrets.YC_INFRA_KEY }}
+        run: printf '%s' "$SA_KEY" > "${{ github.workspace }}/infra-key.json"
+
+      - uses: opentofu/setup-opentofu@v1
+
+      - name: Кеш провайдеров
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
+          restore-keys: tofu-providers-
+
+      - name: Инициализация
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          tofu init -input=false
+
+      # Применяется ровно тот план, который собран и показан в логе.
+      # Раздельные plan и apply позволили бы состоянию измениться между ними,
+      # и apply сделал бы не то, что было видно.
+      - name: План
+        run: |
+          tofu plan -input=false -no-color -lock-timeout=5m -out=tfplan \
+            -var enable_workers=${{ inputs.enable_workers }} \
+            -var enable_database=${{ inputs.enable_database }} \
+            -var enable_domain_https=${{ inputs.enable_domain_https }}
+
+      - name: Применение
+        run: tofu apply -input=false -no-color -lock-timeout=5m tfplan
+
+      - name: Что живо после применения
+        run: |
+          tofu output -json | python3 -c "
+          import json,sys
+          for k, v in json.load(sys.stdin).items():
+              print(f'{k}: {\"(скрыто)\" if v.get(\"sensitive\") else v.get(\"value\")}')
+          "
+
+      - name: Удалить ключ
+        if: always()
+        run: rm -f "${{ github.workspace }}/infra-key.json"
