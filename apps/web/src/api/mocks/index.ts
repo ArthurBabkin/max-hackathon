@@ -409,7 +409,9 @@ function composeAnswer(question: string) {
     if (university && !university.benefits[mentioned.id]) {
       return {
         role: 'assistant' as const,
-        text: `Данных нет. В нашей базе нет правил ${university.name} по олимпиаде «${mentioned.name}», поэтому гадать не буду. ${role() === 'kid' ? 'Проверь' : 'Проверьте'} правила приёма на сайте вуза.`,
+        // «правил вуза «ИТМО»» — приложение в именительном, чтобы не склонять
+        // названия вузов: склонять их пришлось бы по-разному и в каждом падеже.
+        text: `Данных нет. В нашей базе нет правил приёма вуза «${university.nick}» по олимпиаде «${mentioned.name}», поэтому гадать не буду. ${role() === 'kid' ? 'Проверь' : 'Проверьте'} правила приёма на сайте вуза.`,
         card_refs: [],
         sources: [SOURCES.rules],
         refused: true,
