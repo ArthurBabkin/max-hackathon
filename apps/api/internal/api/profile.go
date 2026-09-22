@@ -142,6 +142,10 @@ func (s *Server) applyPatch(w http.ResponseWriter, r *http.Request, patch store.
 	if err != nil {
 		return err
 	}
+	if patch.TZ != nil {
+		// Сменился регион — 10:00 теперь по другому часовому поясу.
+		s.replan(r, m.TrajectoryID)
+	}
 	p, err := s.profileOf(ctx, m)
 	if err != nil {
 		return err
