@@ -222,3 +222,47 @@ func (s *Store) PendingProposalsCount(ctx context.Context, trajectoryID string) 
 		trajectoryID).Scan(&n)
 	return n, wrap(err)
 }
+
+// AllSubjects — школьные предметы для онбординга (F7).
+func (s *Store) AllSubjects(ctx context.Context) ([]Subject, error) {
+	rows, err := s.db.Query(ctx, `SELECT code, name FROM subjects ORDER BY name`)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, func(r rowScanner) (Subject, error) {
+		var x Subject
+		return x, r.Scan(&x.Code, &x.Name)
+	})
+}
+
+type Direction struct {
+	ID           string
+	Name         string
+	SubjectCodes []string
+}
+
+// Directions — направления подготовки для выбора цели (F8).
+func (s *Store) Directions(ctx context.Context) ([]Direction, error) {
+	rows, err := s.db.Query(ctx, `SELECT id, name, subject_codes FROM directions ORDER BY name`)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, func(r rowScanner) (Direction, error) {
+		var x Direction
+		return x, r.Scan(&x.ID, &x.Name, &x.SubjectCodes)
+	})
+}
+
+// FindUniversities — вузы по подстроке названия, для онбординга (F9):
+// там траектории ещё нет, поэтому без признака «мой вуз».
+func (s *Store) FindUniversities(ctx context.Context, search string) ([]University, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`, false
+		FROM universities u
+		WHERE $1 = '' OR u.name ILIKE $2 OR u.short_name ILIKE $2
+		ORDER BY u.name`, search, "%"+escapeLike(search)+"%")
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanUniversity)
+}
