@@ -27,7 +27,11 @@
 
 ## Развёртывание
 
-Инфраструктура описана в Terraform: [infra/terraform/README.md](infra/terraform/README.md).
+Код и фронт выкладываются автоматически при слиянии в `master` —
+[.github/workflows/README.md](.github/workflows/README.md).
+
+Инфраструктура применяется вручную, в пайплайне её нет:
+[infra/terraform/README.md](infra/terraform/README.md).
 
 ```bash
 cd infra/terraform
@@ -35,7 +39,9 @@ export YC_TOKEN=$(yc iam create-token)
 tofu plan -out=tfplan && tofu apply tfplan
 ```
 
-Тот же `apply` выкладывает и код бота. Статика сайта заливается отдельно:
+Код бота этот `apply` больше не выкладывает — им владеет пайплайн. Выложить
+руками, не дожидаясь слияния в `master`, можно через **Actions → Deploy bot →
+Run workflow**. Статика сайта заливается так:
 
 ```bash
 npm --prefix apps/web ci && npm --prefix apps/web run build

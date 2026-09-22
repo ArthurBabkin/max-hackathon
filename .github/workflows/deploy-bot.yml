@@ -1,0 +1,96 @@
+# Выкладка кода бота в Cloud Functions при слиянии в master.
+#
+# Выкладывается ВЕРСИЯ функции, сама функция не пересоздаётся: её URL
+# зарегистрирован в MAX как вебхук и меняться не должен. Предыдущая версия
+# остаётся — это и есть откат, переключением тега без правки кода.
+name: Deploy bot
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/bot/**'
+      - 'packages/shared/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/deploy-bot.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-bot
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Сборка идёт на стороне Yandex Cloud: в архив уезжают только исходники.
+      # Собираем здесь же, чтобы не узнать о синтаксической ошибке из логов
+      # сборщика в облаке — там диагностика заметно хуже.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: go.sum
+
+      - name: Проверить, что собирается
+        run: go build ./...
+
+      # Тот же состав, что у archive_file в infra/terraform/functions.tf.
+      # Лишнее вырезаем: без этого в архив уехали бы датасеты, макеты и .git.
+      - name: Собрать архив исходников
+        run: |
+          mkdir -p build
+          rsync -a \
+            --exclude='.git' --exclude='.github' \
+            --exclude='docs' --exclude='datasets' --exclude='dataset_c_src' \
+            --exclude='infra' --exclude='apps/web' --exclude='build' \
+            --exclude='olimpiady_spravochnik.json' --exclude='DATASET_C_NOTES.md' \
+            ./ build/
+          du -sh build
+
+      - name: Установить yc CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
+          echo "$HOME/yc/bin" >> "$GITHUB_PATH"
+
+      - name: Авторизация
+        env:
+          # Авторизованный ключ сервисного аккаунта в формате JSON.
+          # Через переменную окружения, а не подстановкой в команду:
+          # иначе содержимое ключа попало бы в разбор строки шеллом.
+          SA_KEY: ${{ secrets.YC_SA_KEY }}
+        run: |
+          printf '%s' "$SA_KEY" > "$HOME/sa-key.json"
+          yc config profile create ci
+          yc config set service-account-key "$HOME/sa-key.json"
+          yc config set folder-id "${{ vars.YC_FOLDER_ID }}"
+
+      - name: Выложить версию
+        run: |
+          cd build
+          yc serverless function version create \
+            --function-name traektoria-bot \
+            --runtime golang123 \
+            --entrypoint apps/bot/cmd/function/main.Handler \
+            --memory 128m \
+            --execution-timeout 10s \
+            --source-path . \
+            --environment MAX_API_BASE=https://platform-api2.max.ru
+
+      - name: Удалить ключ
+        # Раннер и так одноразовый, но если шаг выкладки упадёт, ключ не должен
+        # остаться лежать на диске дольше необходимого.
+        if: always()
+        run: rm -f "$HOME/sa-key.json"
+
+      - name: Проверка вебхука
+        run: |
+          url="https://functions.yandexcloud.net/${{ vars.YC_BOT_FUNCTION_ID }}"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$url" \
+            -H 'Content-Type: application/json' -d '{"update_type":"bot_started"}')
+          echo "$url -> $code"
+          # MAX считает ошибкой доставки любой код кроме 200 и отписывает бота
+          # после 8 часов неудач — поэтому проверяем сразу после выкладки.
+          [ "$code" = "200" ] || exit 1
