@@ -45,7 +45,20 @@ x-app-env: &app-env
   # Дефолт заведомо небоевой и это видно по значению: мини-приложение локально
   # логинится без настройки, но подписать таким прод никто не догадается.
   JWT_SECRET: ${JWT_SECRET:-local-dev-not-a-secret}
-  GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:-}
+  JWT_TTL: ${JWT_TTL:-1h}
+  # Локальный стенд — не прод: разрешён дев-обход подписи initData, чтобы
+  # мини-приложение открывалось в обычном браузере с заглушкой MAX Bridge.
+  # Обход принимает только id 900000000–900000999 и выключается сам при
+  # APP_ENV=production (см. .env.example).
+  APP_ENV: ${APP_ENV:-development}
+  DEV_UNSIGNED_INITDATA: ${DEV_UNSIGNED_INITDATA:-true}
+  MAX_BOT_NAME: ${MAX_BOT_NAME:-t356_hakaton_max_bot}
+  MAX_BOT_ID: ${MAX_BOT_ID:-426643746}
+  REMINDER_HOUR: ${REMINDER_HOUR:-10}
+  # Пустой ключ = помощник отвечает только шаблоном «данных нет».
+  POLZA_AI_API_KEY: ${POLZA_AI_API_KEY:-}
+  LLM_BASE_URL: ${LLM_BASE_URL:-https://polza.ai/api/v1}
+  LLM_MODEL: ${LLM_MODEL:-GigaChat/GigaChat-3-Pro}
   # Дедлайны олимпиад завязаны на московское время, а не на часовой пояс хоста.
   TZ: ${TZ:-Europe/Moscow}
 
