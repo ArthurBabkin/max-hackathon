@@ -44,7 +44,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          include: ['src/{lib,voice,api}/**/*.test.ts'],
+          include: ['src/{lib,voice,api,ui}/**/*.test.ts'],
           environment: 'node',
         },
       },
