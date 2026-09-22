@@ -727,6 +727,7 @@ components:
         Оформление плитки. Оба поля могут быть `null`: клиент тогда строит
         аббревиатуру из названия и цвет из хеша идентификатора (src/lib/badge.ts),
         поэтому заполнять их на сервере необязательно.
+      required: [short_name, color]
       properties:
         short_name:
           type: [string, "null"]
@@ -775,7 +776,7 @@ components:
 
     Session:
       type: object
-      required: [user, member, trajectory, permissions]
+      required: [user, member, trajectory, permissions, start_param]
       properties:
         user:
           type: object
@@ -805,7 +806,18 @@ components:
     TrajectorySummary:
       type: object
       required:
-        [id, student_name, grade, region_code, region_name, goal_status, has_kid, members_count]
+        [
+          id,
+          student_name,
+          grade,
+          region_code,
+          region_name,
+          direction_id,
+          direction_name,
+          goal_status,
+          has_kid,
+          members_count,
+        ]
       properties:
         id: { type: string, format: uuid }
         student_name:
@@ -831,7 +843,8 @@ components:
     NextStep:
       type: object
       description: Ближайший незарегистрированный пункт трекера (ТЗ §6.6).
-      required: [tracker_item_id, olympiad_profile_id, olympiad_name, stage_title, stage_kind]
+      required:
+        [tracker_item_id, olympiad_profile_id, olympiad_name, stage_title, stage_kind, deadline_at]
       properties:
         tracker_item_id: { type: string, format: uuid }
         olympiad_profile_id: { type: string }
@@ -850,6 +863,7 @@ components:
           tracker_count,
           registered_count,
           universities_count,
+          pending_proposals_count,
           next_step,
           upcoming,
         ]
@@ -901,7 +915,13 @@ components:
               level,
               subject_code,
               subject_name,
+              format,
               is_online,
+              final_city,
+              deadline_at,
+              next_stage_title,
+              benefits_summary,
+              reason,
               in_tracker,
               proposal_status,
             ]
@@ -978,7 +998,17 @@ components:
       description: |
         Льгота в конкретном вузе. `benefit: null` означает «не учитывает».
         Если `source` пуст, клиент не ставит метку «Факт» и пишет «данные уточняются» (F18).
-      required: [university_id, university_name, university_short_name, city, benefit]
+      required:
+        [
+          university_id,
+          university_name,
+          university_short_name,
+          city,
+          benefit,
+          benefit_label,
+          ege_min,
+          source,
+        ]
       properties:
         university_id: { type: string }
         university_name: { type: string }
@@ -1005,7 +1035,7 @@ components:
 
     Stage:
       type: object
-      required: [id, kind, title, is_online, state]
+      required: [id, kind, title, subtitle, deadline_at, is_online, state]
       properties:
         id: { type: string }
         kind: { $ref: "#/components/schemas/StageKind" }
@@ -1028,7 +1058,19 @@ components:
       allOf:
         - $ref: "#/components/schemas/OlympiadCard"
         - type: object
-          required: [profiles, benefits, conditions, stages, why, benefit_universities]
+          required:
+            [
+              official_url,
+              profiles,
+              profiles_source,
+              benefits,
+              benefits_source,
+              conditions,
+              stages,
+              stages_are_demo,
+              why,
+              benefit_universities,
+            ]
           properties:
             official_url: { type: [string, "null"], format: uri }
             profiles:
@@ -1067,7 +1109,7 @@ components:
 
     UniversityListItem:
       type: object
-      required: [id, short_name, name, benefit_olympiads_count, is_mine]
+      required: [id, short_name, name, city, benefit_olympiads_count, is_mine]
       properties:
         id: { type: string }
         short_name: { type: string }
@@ -1085,7 +1127,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/UniversityListItem"
         - type: object
-          required: [directions, olympiads]
+          required: [directions, ege_note, rules_url, rules_verified_at, olympiads]
           properties:
             directions:
               type: array
@@ -1122,8 +1164,13 @@ components:
               olympiad_profile_id,
               olympiad_id,
               olympiad_name,
+              subject_name,
               kind,
+              level,
+              deadline_at,
+              next_stage_title,
               registered_at,
+              registered_by,
               added_by,
             ]
           properties:
@@ -1154,7 +1201,18 @@ components:
       allOf:
         - $ref: "#/components/schemas/Badge"
         - type: object
-          required: [id, olympiad_profile_id, olympiad_name, status, proposed_by]
+          required:
+            [
+              id,
+              olympiad_profile_id,
+              olympiad_id,
+              olympiad_name,
+              deadline_at,
+              status,
+              proposed_by,
+              created_at,
+              resolved_at,
+            ]
           properties:
             id: { type: string, format: uuid }
             olympiad_profile_id: { type: string }
@@ -1210,7 +1268,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/MemberBrief"
         - type: object
-          required: [is_creator, is_me, can_remove]
+          required: [is_creator, is_me, can_remove, joined_at]
           properties:
             is_creator: { type: boolean }
             is_me: { type: boolean }
@@ -1249,7 +1307,18 @@ components:
     Profile:
       type: object
       required:
-        [student_name, grade, region_code, region_name, subjects, universities, goal_status]
+        [
+          student_name,
+          grade,
+          region_code,
+          region_name,
+          subjects,
+          direction_id,
+          direction_name,
+          goal_status,
+          universities,
+          other_member_names,
+        ]
       properties:
         student_name: { type: string, minLength: 1, maxLength: 40 }
         grade: { type: integer, enum: [8, 9, 10, 11] }
@@ -1308,7 +1377,7 @@ components:
 
     AiMessage:
       type: object
-      required: [id, role, text, card_refs, refused, created_at]
+      required: [id, role, text, card_refs, sources, refused, created_at]
       properties:
         id: { type: string, format: uuid }
         role:
