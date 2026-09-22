@@ -175,6 +175,27 @@ class BuildTest(unittest.TestCase):
             if b["extra_points"] is not None:
                 self.assertLessEqual(b["extra_points"], 10)
 
+    def test_final_city_is_derived_only_from_single_university_organizers(self):
+        o = self.seed.olympiads
+        self.assertEqual((o["p669-8"]["final_city"], o["p669-8"]["final_region_code"]), ("Москва", "77"))
+        self.assertEqual((o["p669-34"]["final_city"], o["p669-34"]["final_region_code"]), ("Казань", "16"))
+        self.assertEqual(o["p669-22"]["final_city"], "Иннополис")
+        # Оргкомитеты, министерство и консорциумы города не получают.
+        for oid in ("vsosh-informatika", "p669-5", "p669-57", "p669-36"):
+            self.assertIsNone(o[oid]["final_city"], oid)
+        self.assertEqual(o["other-tyk"]["final_city"], "Казань")
+
+    def test_organizer_cities_are_used_and_regions_exist(self):
+        import json
+        regions = {r["code"] for r in json.loads(
+            (bs.REPO / "packages/core/refdata/regions.json").read_text(encoding="utf-8"))["regions"]}
+        organizers = {o["organizer"] for o in self.seed.olympiads.values()}
+        for org, (city, region) in bs.ORGANIZER_CITY.items():
+            self.assertIn(org, organizers, "лишняя запись в ORGANIZER_CITY")
+            self.assertIn(region, regions, org)
+        for o in self.seed.olympiads.values():
+            self.assertEqual(o["final_city"] is None, o["final_region_code"] is None, o["id"])
+
     def test_urls_are_ascii(self):
         urls = [s["url"] for s in self.seed.sources.values()]
         urls += [u["rules_url"] for u in self.seed.universities if u["rules_url"]]
