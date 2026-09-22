@@ -6,24 +6,34 @@
 package main
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"os"
-
-	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
-	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 
 	"github.com/ArthurBabkin/max-hackathon/apps/bot/internal/bot"
 )
 
-// Инициализация на уровне пакета выполняется один раз за холодный старт,
-// а не на каждый вызов.
-var handler = bot.New(
-	os.Getenv("WEBHOOK_SECRET"),
-	maxapi.New(
-		config.Get("MAX_API_BASE", "https://platform-api2.max.ru"),
-		os.Getenv("MAX_BOT_TOKEN"),
-	),
-)
+var handler http.Handler
+
+// init выполняется один раз за холодный старт. Инстанс без токена или с
+// битым конфигом не должен обслужить ни одного обновления. Секрет вебхука
+// обязателен: адрес функции публичный, и без секрета любой мог бы прислать
+// обновление от имени чужого user_id — например, /delete.
+func init() {
+	if os.Getenv("MAX_BOT_TOKEN") == "" {
+		log.Fatal("бот: MAX_BOT_TOKEN не задан")
+	}
+	secret := os.Getenv("WEBHOOK_SECRET")
+	if secret == "" {
+		log.Fatal("бот: WEBHOOK_SECRET не задан")
+	}
+	b, _, err := bot.FromEnv(context.Background())
+	if err != nil {
+		log.Fatalf("бот: %v", err)
+	}
+	handler = bot.NewHandler(secret, b)
+}
 
 // Handler — обработчик, который вызывает рантайм.
 func Handler(rw http.ResponseWriter, req *http.Request) {

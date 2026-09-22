@@ -9,20 +9,11 @@
 name: Infra apply
 
 on:
+  # Флагов enable_* во входах нет намеренно: снятая по забывчивости галочка
+  # enable_workers удалила бы api, воркеры и шлюз. Флаги лежат в переменных
+  # репозитория ENABLE_WORKERS, ENABLE_DATABASE, ENABLE_DOMAIN_HTTPS и
+  # описывают, какой прод должен быть, — теми же значениями считает infra-plan.
   workflow_dispatch:
-    inputs:
-      enable_workers:
-        description: 'Поднять api, reminders, notifier и таймеры'
-        type: boolean
-        default: false
-      enable_database:
-        description: 'Поднять кластер PostgreSQL (тарифицируется круглосуточно)'
-        type: boolean
-        default: false
-      enable_domain_https:
-        description: 'Привязать сертификат к бакету домена (только когда он ISSUED)'
-        type: boolean
-        default: false
 
 # Два одновременных apply заблокируются на состоянии, но лучше не доводить.
 concurrency:
@@ -45,9 +36,33 @@ jobs:
       YC_SERVICE_ACCOUNT_KEY_FILE: ${{ github.workspace }}/infra-key.json
       AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+      # Секреты приложения уходят в Lockbox (secrets.tf). Пустое значение
+      # Terraform из Lockbox убирает — поэтому ниже apply без них не запускается.
       TF_VAR_pg_password: ${{ secrets.PG_PASSWORD }}
+      TF_VAR_max_bot_token: ${{ secrets.MAX_BOT_TOKEN }}
+      TF_VAR_webhook_secret: ${{ secrets.WEBHOOK_SECRET }}
+      TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+      TF_VAR_polza_ai_api_key: ${{ secrets.POLZA_AI_API_KEY }}
+      TF_VAR_enable_workers: ${{ vars.ENABLE_WORKERS || 'false' }}
+      TF_VAR_enable_database: ${{ vars.ENABLE_DATABASE || 'false' }}
+      TF_VAR_enable_domain_https: ${{ vars.ENABLE_DOMAIN_HTTPS || 'false' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Секреты приложения на месте
+        working-directory: .
+        run: |
+          missing=""
+          for v in TF_VAR_max_bot_token TF_VAR_webhook_secret TF_VAR_jwt_secret; do
+            [ -n "${!v}" ] || missing="$missing $(echo "${v#TF_VAR_}" | tr a-z A-Z)"
+          done
+          if [ "$TF_VAR_enable_database" = "true" ] && [ -z "$TF_VAR_pg_password" ]; then
+            missing="$missing PG_PASSWORD"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Не заданы секреты репозитория:$missing (имена — в .github/workflows/README.md)"
+            exit 1
+          fi
 
       - name: Ключ сервисного аккаунта
         env:
@@ -73,10 +88,7 @@ jobs:
       # и apply сделал бы не то, что было видно.
       - name: План
         run: |
-          tofu plan -input=false -no-color -lock-timeout=5m -out=tfplan \
-            -var enable_workers=${{ inputs.enable_workers }} \
-            -var enable_database=${{ inputs.enable_database }} \
-            -var enable_domain_https=${{ inputs.enable_domain_https }}
+          tofu plan -input=false -no-color -lock-timeout=5m -out=tfplan
 
       - name: Применение
         run: tofu apply -input=false -no-color -lock-timeout=5m tfplan

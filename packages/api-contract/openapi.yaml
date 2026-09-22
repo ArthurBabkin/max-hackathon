@@ -76,6 +76,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SessionResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -122,6 +123,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Recommendations" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /olympiads:
@@ -262,6 +264,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TrackerItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -360,8 +363,15 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Proposal" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Олимпиада уже в трекере
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /proposals/{id}/accept:
     post:
@@ -448,6 +458,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Invite" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409":

@@ -10,6 +10,7 @@ import { useColorScheme } from '@maxhub/max-ui'
 import { useSession, useTracker } from './api/queries'
 import { getWebApp } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
+import { useStartRoute } from './lib/startParam'
 import { Icon, Logo } from './ui/Icon'
 import { Tabbar } from './ui/Tabbar'
 import { StateBlock } from './ui/primitives'
@@ -52,6 +53,8 @@ export function App() {
   const colorScheme = useColorScheme()
 
   const hasSheet = sheets.stack.length > 0
+  // Раздел из кнопки бота: «Трекер», «Семья», карточка олимпиады.
+  useStartRoute(session.isSuccess)
 
   // Токены темы и компоненты MAX UI должны переключаться вместе. Провайдер —
   // единственный источник правды: он же учтёт настройку, пришедшую из MAX,

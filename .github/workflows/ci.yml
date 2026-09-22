@@ -1,10 +1,14 @@
 # Проверки на каждый PR и на master. Ничего не выкладывают — только валидируют.
+# Всё то же самое запускается локально через make.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [master]
+
+permissions:
+  contents: read
 
 # Новый пуш в ту же ветку отменяет предыдущий прогон: на хакатоне пуши частые,
 # а очередь из устаревших проверок только тратит минуты.
@@ -15,65 +19,117 @@ concurrency:
 jobs:
   backend:
     name: Go
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    services:
+      # Интеграционные тесты store и сценариев идут против настоящего Postgres
+      # той же версии, что в compose и в Managed PostgreSQL.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: traektoria
+          POSTGRES_PASSWORD: traektoria
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U traektoria"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/postgres?sslmode=disable
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           # Версия должна совпадать с рантаймом Cloud Functions (golang123).
-          # Если собирать локально более новым Go, код может использовать то,
-          # чего нет в 1.23, и упасть уже в облаке.
-          go-version: '1.23'
-          # go.sum пока не существует: внешних зависимостей нет.
-          # Ключ кеша считаем по go.mod — он есть всегда и меняется
-          # при добавлении зависимости.
-          cache-dependency-path: go.mod
-
+          # Если собирать более новым Go, код может использовать то, чего нет
+          # в 1.23, и упасть уже в облаке.
+          go-version: "1.23.12"
+          cache: true
       - name: Форматирование
-        run: |
-          unformatted=$(gofmt -l apps packages)
-          if [ -n "$unformatted" ]; then
-            echo "Не отформатировано:"; echo "$unformatted"; exit 1
-          fi
-
-      - name: Сборка
-        run: go build ./...
-
+        run: make fmt-check
       - name: go vet
         run: go vet ./...
-
+      - name: Сборка
+        run: make build GO=go
       - name: Тесты
-        run: go test ./...
+        run: go test -count=1 ./...
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Генератор сида
+        run: python -m unittest discover -s datasets/parser -p 'test_*.py'
 
   web:
     name: Мини-приложение
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22.12.0"
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-
       # ci, а не install: ставит ровно то, что в lock-файле, и падает при
       # расхождении с package.json вместо тихого обновления зависимостей.
-      - name: Зависимости
-        run: npm ci
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:contrast
+      - run: npm run build
 
-      - name: Типы
-        run: npm run typecheck
-
-      - name: Тесты
-        run: npm test
-
-      - name: Сборка
-        run: npm run build
+  # Живой API против контракта: те же миграции и демо-траектория, что в
+  # docker-compose, без токенов — уведомления и модель помощника выключены.
+  contract:
+    name: Контракт API
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: traektoria
+          POSTGRES_PASSWORD: traektoria
+          POSTGRES_DB: traektoria
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U traektoria"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/traektoria?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.12"
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Миграции и демо-данные
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
+          goose -dir packages/db/migrations postgres "$DATABASE_URL" up
+          goose -table goose_demo_version -dir packages/db/migrations-demo postgres "$DATABASE_URL" up
+      - name: api
+        env:
+          APP_ENV: development
+          DEV_UNSIGNED_INITDATA: "true"
+          JWT_SECRET: ci-not-a-secret
+          PORT: "8081"
+        run: |
+          go build -o /tmp/api ./apps/api/cmd/local
+          /tmp/api > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:8081/api/v1/health && exit 0; sleep 1; done
+          cat /tmp/api.log; exit 1
+      - run: npm ci --no-audit --no-fund
+        working-directory: apps/web
+      - run: npm run contract:check
+        working-directory: apps/web
+      - if: failure()
+        run: cat /tmp/api.log
 
   infra:
     name: Terraform
@@ -102,7 +158,7 @@ jobs:
         run: tofu fmt -check -recursive
 
       # init без backend: состояние в CI не нужно, проверяем только синтаксис
-      # и схему провайдера.Плана и применения здесь нет намеренно —
+      # и схему провайдера. Плана и применения здесь нет намеренно —
       # инфраструктуру применяет человек, см. infra/terraform/README.md.
       - name: Валидация
         run: |
