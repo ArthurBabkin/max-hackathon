@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/schedule"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
@@ -67,18 +68,8 @@ func Detached(ctx context.Context) (context.Context, context.CancelFunc) {
 
 // Short — название для кавычек в тексте: «Всероссийская олимпиада
 // школьников «Высшая проба»» превращается в «Высшая проба», чтобы не было
-// кавычек в кавычках. Без кавычек в названии — как есть.
-func Short(name string) string {
-	open := strings.Index(name, "«")
-	if open < 0 {
-		return name
-	}
-	rest := name[open+len("«"):]
-	if end := strings.Index(rest, "»"); end > 0 {
-		return rest[:end]
-	}
-	return name
-}
+// кавычек в кавычках. То же имя, что в мини-приложении.
+func Short(name string) string { return names.Olympiad(name) }
 
 // StagePhrase — «регистрация на олимпиаду «Высшая проба»». Название
 // олимпиады не склоняем — оно в кавычках после родового слова.
