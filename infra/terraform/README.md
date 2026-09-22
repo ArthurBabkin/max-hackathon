@@ -51,29 +51,33 @@ tofu apply tfplan
 
 | Файл | Ресурсы |
 | --- | --- |
-| `functions.tf` | функция `traektoria-bot`, публичный вызов без IAM |
+| `functions.tf` | функции `bot`, `api`, `reminders`, `content-notifier` из одного zip; публичный вызов только у `bot` |
+| `apigateway.tf` | API Gateway перед `api`: прямой вызов функции не передаёт путь запроса (флаг `enable_workers`) |
+| `secrets.tf` | Lockbox с токенами и строкой подключения, сервисный аккаунт функций |
+| `postgres.tf` | Managed PostgreSQL 16 (флаг `enable_database`) |
+| `cicd.tf` | сервисные аккаунты GitHub Actions: `traektoria-cicd` выкладывает код, `traektoria-infra` применяет Terraform |
+| `triggers.tf` | таймеры: напоминания раз в 15 минут, изменения контента раз в сутки (флаг `enable_workers`) |
 | `storage.tf` | сервисный аккаунт для S3, оба бакета, хостинг сайта |
 | `dns.tf` | зона `traektoriaedu.ru`, запись апекса, запись проверки владения |
 | `certificate.tf` | сертификат Let's Encrypt |
-| `outputs.tf` | адреса вебхука, мини-аппа и лендинга |
+| `outputs.tf` | адреса вебхука, api, мини-аппа и лендинга |
 
 Значения по умолчанию (облако, каталог, домен) лежат в `variables.tf` — это не секреты,
 репозиторий приватный. Токен в конфигурацию не попадает и берётся только из `YC_TOKEN`.
 
-### Код функции выкладывается тем же `apply`
+### Код функций выкладывает пайплайн
 
-`functions.tf` упаковывает `apps/bot` в zip через `archive_file` и подставляет хеш в `user_hash`.
-Поэтому отдельного шага деплоя нет: поменяли Go-код — `tofu apply` создаст новую версию функции.
-Если хеш не изменился, новая версия не создаётся.
+Terraform создаёт функции и держит их настройки: окружение, секреты Lockbox,
+сервисный аккаунт, память, таймаут. Код при создании функции берётся из zip
+рабочей копии (`archive_file`), дальше его выкладывает **Deploy functions** при
+слиянии в `master`: `ignore_changes` на `user_hash` и `content` не даёт `apply`
+откатить выложенное. Подробно — [../../.github/workflows/README.md](../../.github/workflows/README.md).
 
 ### Содержимое сайта — не через Terraform
 
 Статика в бакетах намеренно не описана: это артефакт сборки, а не инфраструктура.
-Выкладка:
-
-```bash
-yc storage s3 cp apps/web/ s3://traektoria/ --recursive
-```
+Выкладывает её **Deploy web**: собранный `apps/web/dist/` с адресом API Gateway,
+не исходники.
 
 Адрес при этом не меняется, поэтому перезаливать можно сколько угодно, в том числе
 после того, как организаторы пропишут URL боту.
@@ -142,9 +146,66 @@ tofu apply -var enable_domain_https=true
 
 ---
 
-## Чего здесь пока нет
+## Выкатка бэкенда
 
-Managed PostgreSQL, Lockbox, Timer-триггеры и функции `api`, `reminders`, `content-notifier`
-не описаны, потому что ещё не созданы. Порядок и команды — в [../README.md](../README.md);
-при создании их надо заводить сразу здесь, а не через `yc`, иначе состояние разойдётся
-с реальностью и следующий `plan` покажет расхождения.
+Секреты передаются только переменными `TF_VAR_*` и уходят в Lockbox (`secrets.tf`),
+а не в переменные окружения версии функции. Функции читают их от имени сервисного
+аккаунта `traektoria-functions` с ролью `lockbox.payloadViewer`.
+
+Из пайплайна — **Actions → Infra apply**: секреты берутся из секретов
+репозитория, флаги — из переменных `ENABLE_*`. Руками то же самое:
+
+```bash
+set -a; . ../../.env; set +a                        # MAX_BOT_TOKEN, POLZA_AI_API_KEY, WEBHOOK_SECRET
+export TF_VAR_max_bot_token="$MAX_BOT_TOKEN"
+export TF_VAR_polza_ai_api_key="$POLZA_AI_API_KEY"
+export TF_VAR_webhook_secret="$WEBHOOK_SECRET"
+export TF_VAR_jwt_secret="$(openssl rand -hex 32)"  # один раз; сохранить — смена разлогинит всех
+export TF_VAR_pg_password='…'                      # пароль пользователя БД
+tofu plan -out=tfplan -var enable_database=true -var enable_workers=true
+tofu apply tfplan
+```
+
+Что получает каждая функция:
+
+| Функция | Окружение | Секреты из Lockbox |
+| --- | --- | --- |
+| `bot` | `APP_ENV=production`, ник и id бота, `REMINDER_HOUR` | `MAX_BOT_TOKEN`, `WEBHOOK_SECRET`, `DATABASE_URL` |
+| `api` | то же + `CORS_ALLOWED_ORIGINS`, `LLM_BASE_URL`, `LLM_MODEL` | `MAX_BOT_TOKEN`, `JWT_SECRET`, `POLZA_AI_API_KEY`, `DATABASE_URL` |
+| `reminders`, `notifier` | то же, что у `bot` | `MAX_BOT_TOKEN`, `DATABASE_URL` |
+
+`APP_ENV=production` выключает дев-обход подписи initData: api с
+`DEV_UNSIGNED_INITDATA=true` в проде не стартует. Функция бота не стартует
+без `WEBHOOK_SECRET`: её адрес публичный, и без секрета обновление от имени
+любого пользователя мог бы прислать кто угодно.
+
+Схему и контент катит **Deploy functions** перед выкладкой кода (секрет
+`DATABASE_URL`). Руками, из корня репозитория:
+
+```bash
+DATABASE_URL="$(cd infra/terraform && tofu output -raw database_url)"
+go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir packages/db/migrations postgres "$DATABASE_URL" up
+```
+
+Демо-миграции (`packages/db/migrations-demo`) в прод не катятся.
+
+Вебхук и подсказки команд — один раз, когда функция бота с новым кодом выкачена:
+
+```bash
+go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw webhook_url)"
+```
+
+Пока подписка есть, long polling (`BOT_MODE=poll`) ничего не получает: для локальной
+отладки её снимают флагом `-unsubscribe <адрес>`.
+
+Мини-приложению нужен адрес api на сборке — это адрес API Gateway, а не функции:
+Cloud Functions при прямом вызове не передаёт путь запроса («Cloud Functions не
+поддерживает пути в запросах. Для корректной работы http.ServeMux функцию нужно
+вызывать через API-шлюз», документация Go-рантайма).
+
+Пайплайн берёт его из переменной `YC_API_URL`. Руками:
+
+```bash
+VITE_API_BASE="$(cd infra/terraform && tofu output -raw api_url)" npm --prefix apps/web run build
+yc storage s3 cp apps/web/dist/ s3://traektoria/ --recursive
+```

@@ -41,6 +41,7 @@ export interface paths {
                         "application/json": components["schemas"]["SessionResponse"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 /** @description Подпись верна, но у пользователя нет траектории — нужно пройти онбординг у бота */
                 404: {
@@ -132,6 +133,7 @@ export interface paths {
                         "application/json": components["schemas"]["Recommendations"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -387,6 +389,7 @@ export interface paths {
                         "application/json": components["schemas"]["TrackerItem"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
@@ -595,8 +598,19 @@ export interface paths {
                         "application/json": components["schemas"]["Proposal"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Олимпиада уже в трекере */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -785,6 +799,7 @@ export interface paths {
                         "application/json": components["schemas"]["Invite"];
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
                 /** @description Ученик в траектории уже есть, вторую роль `kid` выдать нельзя */

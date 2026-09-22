@@ -57,3 +57,12 @@ resource "yandex_iam_service_account_key" "infra" {
   service_account_id = yandex_iam_service_account.infra.id
   description        = "GitHub Actions: секрет YC_INFRA_KEY"
 }
+
+# Версии функций работают от имени traektoria-functions (secrets.tf): так они
+# читают Lockbox. Указать сервисный аккаунт в новой версии IAM разрешает только
+# тому, кто вправе этот аккаунт использовать, — без роли выкладка из CI падает.
+resource "yandex_iam_service_account_iam_member" "cicd_uses_functions" {
+  service_account_id = yandex_iam_service_account.functions.id
+  role               = "iam.serviceAccounts.user"
+  member             = "serviceAccount:${yandex_iam_service_account.cicd.id}"
+}

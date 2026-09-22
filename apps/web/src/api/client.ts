@@ -29,6 +29,27 @@ export function hasToken(): boolean {
   return token !== null
 }
 
+/**
+ * Как получить новый токен. JWT живёт час, а ещё сервер отвечает 401, если
+ * участника удалили из траектории, — контракт обещает, что клиент тогда
+ * повторяет POST /session. Функцию регистрирует слой запросов (queries.ts),
+ * здесь о сессии ничего не знают.
+ */
+let reauth: (() => Promise<void>) | null = null
+let reauthInFlight: Promise<void> | null = null
+
+export function setReauth(fn: (() => Promise<void>) | null): void {
+  reauth = fn
+}
+
+/** Один повторный вход на все запросы, получившие 401 одновременно. */
+function reauthenticate(): Promise<void> {
+  reauthInFlight ??= (reauth ?? (() => Promise.resolve()))().finally(() => {
+    reauthInFlight = null
+  })
+  return reauthInFlight
+}
+
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 export interface RequestOptions {
@@ -36,6 +57,8 @@ export interface RequestOptions {
   body?: unknown
   /** Запрос без JWT — только POST /session. */
   anonymous?: boolean
+  /** Внутреннее: запрос уже повторён после нового входа. */
+  retried?: boolean
 }
 
 function buildPath(path: string, query: RequestOptions['query']): string {
@@ -74,6 +97,12 @@ export async function request<T>(
   }
 
   if (response.status === 204) return undefined as T
+
+  if (response.status === 401 && !options.anonymous && !options.retried && reauth) {
+    token = null
+    await reauthenticate()
+    return request<T>(method, path, { ...options, retried: true })
+  }
 
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw toApiError(response.status, payload)

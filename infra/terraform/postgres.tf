@@ -15,6 +15,10 @@ resource "yandex_mdb_postgresql_cluster" "main" {
   environment = "PRODUCTION"
   network_id  = data.yandex_vpc_network.default.id
 
+  # В базе траектории пользователей. Случайный apply с enable_database=false
+  # упадёт на защите, а не удалит кластер; удалить можно, только сняв её явно.
+  deletion_protection = true
+
   config {
     version = "16"
 

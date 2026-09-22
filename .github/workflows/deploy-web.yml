@@ -10,6 +10,8 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/api-contract/**'
+      # Словарь текстов общий с ботом, фронт импортирует его при сборке.
+      - 'packages/shared/texts/**'
       - '.github/workflows/deploy-web.yml'
   # Ручной запуск — чтобы выложить фронт, не делая пустой коммит.
   workflow_dispatch:
@@ -31,9 +33,18 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
+      # Адрес api вшивается в сборку. Это API Gateway, а не функция: прямой
+      # вызов функции не передаёт путь запроса. Без адреса сборка ходила бы
+      # в /api/v1 на бакете — мини-приложение не открылось бы дальше сплэша.
       - name: Сборка
         working-directory: apps/web
+        env:
+          VITE_API_BASE: ${{ vars.YC_API_URL }}
         run: |
+          if [ -z "$VITE_API_BASE" ]; then
+            echo "::error::Нет переменной YC_API_URL (tofu output -raw api_url), см. .github/workflows/README.md"
+            exit 1
+          fi
           npm ci
           npm run build
 

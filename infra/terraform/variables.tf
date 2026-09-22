@@ -81,9 +81,9 @@ variable "pg_password" {
 
 variable "enable_workers" {
   description = <<-EOT
-    Поднимать ли api, reminders, content-notifier и таймеры к ним.
-    Выключено, пока в них нет логики: лишние ресурсы только мешают читать план.
-    Сами функции в простое бесплатны, но таймеры дёргают их вхолостую каждые 15 минут.
+    Поднимать ли api с API Gateway, reminders, content-notifier и таймеры к ним.
+    Без базы (enable_database) им не с чем работать, поэтому включаются вместе:
+    -var enable_database=true -var enable_workers=true.
   EOT
   type        = bool
   default     = false
@@ -98,4 +98,82 @@ variable "enable_database" {
   EOT
   type        = bool
   default     = false
+}
+
+# --- Приложение ---------------------------------------------------------------
+# Секреты задаются только через TF_VAR_* и уходят в Lockbox (secrets.tf), а не
+# в переменные окружения версии функции: там их видно в консоли каждому, кто
+# может смотреть функцию.
+
+variable "max_bot_token" {
+  description = "Токен бота MAX (TF_VAR_max_bot_token). Им же проверяется подпись initData."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "webhook_secret" {
+  description = "Секрет вебхука MAX, [a-zA-Z0-9_-]{5,256} (TF_VAR_webhook_secret). Без него функция бота не стартует"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.webhook_secret == "" || can(regex("^[a-zA-Z0-9_-]{5,256}$", var.webhook_secret))
+    error_message = "Секрет вебхука: 5–256 символов из [a-zA-Z0-9_-] — маска платформы MAX."
+  }
+}
+
+variable "jwt_secret" {
+  description = "Ключ подписи JWT сессий, не короче 32 байт: openssl rand -hex 32 (TF_VAR_jwt_secret)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "polza_ai_api_key" {
+  description = "Ключ polza.ai для помощника (TF_VAR_polza_ai_api_key). Пусто — помощник отвечает шаблоном «данных нет»."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "database_url" {
+  description = <<-EOT
+    Строка подключения, если база не из этого конфига (TF_VAR_database_url).
+    При enable_database = true берётся из кластера в postgres.tf.
+  EOT
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "max_bot_name" {
+  description = "Ник бота для ссылок https://max.ru/<ник>?start=..."
+  type        = string
+  default     = "t356_hakaton_max_bot"
+}
+
+variable "max_bot_id" {
+  description = "user_id бота (GET /me) — contact_id кнопки open_app"
+  type        = string
+  default     = "426643746"
+}
+
+variable "reminder_hour" {
+  description = "Час напоминаний по местному времени ученика (ТЗ §6.3)"
+  type        = string
+  default     = "10"
+}
+
+variable "cors_allowed_origins" {
+  description = "Откуда мини-приложение ходит в api, через запятую"
+  type        = string
+  default     = "https://traektoria.website.yandexcloud.net"
+}
+
+variable "llm_model" {
+  description = "Модель помощника в polza.ai"
+  type        = string
+  default     = "GigaChat/GigaChat-3-Pro"
 }

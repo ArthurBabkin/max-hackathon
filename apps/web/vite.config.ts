@@ -22,6 +22,12 @@ export default defineConfig({
     // Vite по умолчанию не отдаёт файлы выше корня проекта, а нам нужны
     // packages/ — они на уровень выше apps/web.
     fs: { allow: [here('../..')] },
+    // Живой API в разработке (VITE_USE_MOCKS=off): тот же путь /api/v1, что
+    // и за nginx в compose, поэтому запрос остаётся same-origin и preflight
+    // с Authorization не возникает. Адрес меняется VITE_API_PROXY.
+    proxy: {
+      '/api/v1': { target: process.env.VITE_API_PROXY ?? 'http://localhost:8081' },
+    },
   },
 
   build: {

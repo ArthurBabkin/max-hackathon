@@ -9,7 +9,23 @@
 
 import type { MaxWebApp } from './types'
 
-const DEV_USER = { id: 900_000_001, first_name: 'Артём' }
+/**
+ * Персонажи демо-траектории (packages/db/migrations-demo): Артём — ученик,
+ * Ольга — мама. `?dev_user=parent` в адресе открывает приложение голосом
+ * родителя. Id из дев-диапазона 900000000–900000999: живой API принимает их
+ * без подписи только вне production.
+ */
+const DEV_USERS = {
+  kid: { id: 900_000_001, first_name: 'Артём' },
+  parent: { id: 900_000_002, first_name: 'Ольга' },
+}
+
+function devUser() {
+  const who = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('dev_user')
+  return who === 'parent' ? DEV_USERS.parent : DEV_USERS.kid
+}
+
+const DEV_USER = devUser()
 
 function fakeInitData(): string {
   const params = new URLSearchParams({
