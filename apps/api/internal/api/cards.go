@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
@@ -77,7 +78,7 @@ func nicksWith(rows []store.BenefitRow, benefit string) string {
 
 func (cs cardSet) card(p store.Profile, r match.Result) olympiadCard {
 	c := olympiadCard{
-		OlympiadProfileID: p.ID, OlympiadID: p.OlympiadID, Name: p.OlympiadName, Organizer: p.Organizer,
+		OlympiadProfileID: p.ID, OlympiadID: p.OlympiadID, Name: names.Olympiad(p.OlympiadName), Organizer: p.Organizer,
 		Kind: p.Kind, Level: p.Level, SubjectCode: p.SubjectCode, SubjectName: profileLabel(p.SubjectName, p.ProfileName),
 		Format: p.Format, IsOnline: r.Online, FinalCity: p.FinalCity, DeadlineAt: utc(r.Deadline),
 		BenefitsSummary: cs.benefitsSummary(p.ID), Reason: cs.reason(r), InTracker: cs.Tracker.InTracker[p.ID],

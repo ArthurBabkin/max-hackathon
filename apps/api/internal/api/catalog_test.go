@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 )
 
 func olympiadIDs(items []map[string]any) map[string]map[string]any {
@@ -39,6 +41,15 @@ func TestOlympiadsCatalog(t *testing.T) {
 	}
 	if _, ok := hse["short_name"]; !ok {
 		t.Fatal("поля плитки есть, пусть и null")
+	}
+	if hse["name"] != "Высшая проба" {
+		t.Fatalf("в списке — короткое название: %v", hse["name"])
+	}
+	for i := 1; i < len(all); i++ {
+		a, b := all[i-1]["name"].(string), all[i]["name"].(string)
+		if names.Key(a) > names.Key(b) {
+			t.Fatalf("по алфавиту видимого названия: %q перед %q", a, b)
+		}
 	}
 
 	for _, q := range []string{"высшая ПРОБА", "ниу вшэ"} {

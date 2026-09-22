@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
@@ -92,12 +93,15 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 		}
 		p := primaryOf(candidates, mine)
 		out.Items = append(out.Items, olympiadListItem{
-			OlympiadID: p.OlympiadID, Name: p.OlympiadName, Organizer: p.Organizer, Kind: p.Kind, FinalCity: p.FinalCity,
+			OlympiadID: p.OlympiadID, Name: names.Olympiad(p.OlympiadName), Organizer: p.Organizer, Kind: p.Kind, FinalCity: p.FinalCity,
 			PrimaryProfile: primaryProfile{OlympiadProfileID: p.ID, SubjectCode: p.SubjectCode,
 				SubjectName: profileLabel(p.SubjectName, p.ProfileName), Level: p.Level},
 			ProfilesCount: len(ps),
 		})
 	}
+	// По алфавиту того названия, что видно в списке, а не официального:
+	// иначе «Высшая проба» стояла бы среди «Всероссийских…».
+	sort.SliceStable(out.Items, func(i, j int) bool { return names.Key(out.Items[i].Name) < names.Key(out.Items[j].Name) })
 	writeJSON(w, http.StatusOK, out)
 	return nil
 }
@@ -195,7 +199,7 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 	}
 	for i, x := range rows {
 		out.Olympiads[i] = universityOlympiad{
-			OlympiadProfileID: x.ProfileID, OlympiadID: x.OlympiadID, Name: x.OlympiadName, SubjectCode: x.SubjectCode,
+			OlympiadProfileID: x.ProfileID, OlympiadID: x.OlympiadID, Name: names.Olympiad(x.OlympiadName), SubjectCode: x.SubjectCode,
 			SubjectName: profileLabel(x.SubjectName, x.ProfileName), Level: x.Level, Benefit: x.Benefit,
 			BenefitLabel: benefitLabels[x.Benefit],
 		}
