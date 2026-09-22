@@ -132,6 +132,9 @@ func (s *Server) addToTracker(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if created {
+		s.replan(r, m.TrajectoryID)
+	}
 	item, err := s.trackerItem(ctx, m.TrajectoryID, id)
 	if err != nil {
 		return err
@@ -176,11 +179,15 @@ func (s *Server) setRegistered(on bool) handlerFunc {
 		if err != nil {
 			return err
 		}
-		if _, err := s.store.SetRegistered(ctx, m.TrajectoryID, id, m.MemberID, on); err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				return errNoTrackerItem
-			}
+		changed, err := s.store.SetRegistered(ctx, m.TrajectoryID, id, m.MemberID, on)
+		if errors.Is(err, store.ErrNotFound) {
+			return errNoTrackerItem
+		}
+		if err != nil {
 			return err
+		}
+		if changed {
+			s.replan(r, m.TrajectoryID)
 		}
 		item, err := s.trackerItem(ctx, m.TrajectoryID, id)
 		if err != nil {

@@ -126,3 +126,18 @@ func TestLoad_BotNameDefaultsToTeamBot(t *testing.T) {
 		t.Fatalf("MaxBotName из окружения = %q", cfg.MaxBotName)
 	}
 }
+
+func TestReminderHour(t *testing.T) {
+	cfg, _ := load(env(map[string]string{"APP_ENV": "development", "JWT_SECRET": "x"}))
+	if cfg.ReminderHour != 10 {
+		t.Fatalf("по умолчанию 10:00, получили %d", cfg.ReminderHour)
+	}
+	if h, err := reminderHour(env(map[string]string{"REMINDER_HOUR": "9"})); err != nil || h != 9 {
+		t.Fatalf("из окружения: %d %v", h, err)
+	}
+	for _, bad := range []string{"24", "-1", "десять"} {
+		if _, err := load(env(map[string]string{"APP_ENV": "development", "JWT_SECRET": "x", "REMINDER_HOUR": bad})); err == nil {
+			t.Fatalf("REMINDER_HOUR=%s должен отклоняться", bad)
+		}
+	}
+}

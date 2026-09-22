@@ -43,7 +43,7 @@ func newEnv(t *testing.T) *env {
 		Store: e.st,
 		Config: config.Config{AppEnv: "test", DevUnsignedInitData: true,
 			JWTSecret: "test-jwt-secret-0123456789abcdef!", JWTTTL: time.Hour, MaxBotToken: testBotToken,
-			MaxBotName: "test_bot"},
+			MaxBotName: "test_bot", ReminderHour: 10},
 		Now: func() time.Time { return e.now },
 	})
 	// Служебная ручка только для тестов: кто я по мнению authed.
