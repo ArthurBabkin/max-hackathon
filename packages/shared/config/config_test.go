@@ -115,3 +115,14 @@ func TestConfig_StringHidesSecrets(t *testing.T) {
 		t.Fatalf("секрет попал в строку конфига: %s", s)
 	}
 }
+
+func TestLoad_BotNameDefaultsToTeamBot(t *testing.T) {
+	cfg, _ := load(env(map[string]string{"APP_ENV": "development", "JWT_SECRET": "x"}))
+	if cfg.MaxBotName != DefaultBotName {
+		t.Fatalf("MaxBotName по умолчанию = %q", cfg.MaxBotName)
+	}
+	cfg, _ = load(env(map[string]string{"APP_ENV": "development", "JWT_SECRET": "x", "MAX_BOT_NAME": "other_bot"}))
+	if cfg.MaxBotName != "other_bot" {
+		t.Fatalf("MaxBotName из окружения = %q", cfg.MaxBotName)
+	}
+}

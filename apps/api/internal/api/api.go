@@ -102,6 +102,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /proposals", s.authed(s.propose))
 	s.mux.HandleFunc("POST /proposals/{id}/accept", s.authed(s.resolveProposal(true)))
 	s.mux.HandleFunc("POST /proposals/{id}/decline", s.authed(s.resolveProposal(false)))
+	s.mux.HandleFunc("GET /family", s.authed(s.family))
+	s.mux.HandleFunc("POST /family/invites", s.authed(s.createInvite))
+	s.mux.HandleFunc("DELETE /family/members/{id}", s.authed(s.removeMember))
+	s.mux.HandleFunc("POST /family/leave", s.authed(s.leave))
 
 	// Ручки контракта, которые ещё не написаны, честно отвечают 501 в
 	// формате ошибки — фронт отличает «не готово» от «сломалось».
