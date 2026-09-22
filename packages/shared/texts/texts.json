@@ -588,7 +588,7 @@
     "parent": "В {month}"
   },
   "family.title": {
-    "kid": "Траектория {student}",
+    "kid": "Траектория {student_gen}",
     "parent": "Траектория {student_gen}"
   },
   "family.subtitle": {
