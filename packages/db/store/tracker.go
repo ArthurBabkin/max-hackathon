@@ -119,26 +119,12 @@ type ProposalRow struct {
 // PendingProposals — ждущие ответа предложения траектории, старые первыми.
 // proposedBy != "" оставляет только предложения этого участника.
 func (s *Store) PendingProposals(ctx context.Context, trajectoryID, proposedBy string) ([]ProposalRow, error) {
-	rows, err := s.db.Query(ctx, `
-		SELECT pr.id::text, p.id, o.id, o.name, pr.status, pm.id::text, pu.first_name, pm.role,
-		       pr.created_at, pr.resolved_at
-		FROM proposals pr
-		JOIN olympiad_profiles p ON p.id = pr.olympiad_profile_id
-		JOIN olympiads o ON o.id = p.olympiad_id
-		LEFT JOIN members pm ON pm.id = pr.proposed_by_member_id
-		LEFT JOIN users pu ON pu.id = pm.user_id
+	rows, err := s.db.Query(ctx, proposalSelect+`
 		WHERE pr.trajectory_id = $1 AND pr.status = 'pending'
 		  AND ($2 = '' OR pr.proposed_by_member_id::text = $2)
 		ORDER BY pr.created_at`, trajectoryID, proposedBy)
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return collect(rows, func(r rowScanner) (ProposalRow, error) {
-		var p ProposalRow
-		var id, name, role *string
-		err := r.Scan(&p.ID, &p.ProfileID, &p.OlympiadID, &p.OlympiadName, &p.Status, &id, &name, &role,
-			&p.CreatedAt, &p.ResolvedAt)
-		p.ProposedBy = brief(id, name, role)
-		return p, err
-	})
+	return collect(rows, scanProposal)
 }
