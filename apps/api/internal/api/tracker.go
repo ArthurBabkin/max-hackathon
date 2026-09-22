@@ -188,6 +188,9 @@ func (s *Server) setRegistered(on bool) handlerFunc {
 		}
 		if changed {
 			s.replan(r, m.TrajectoryID)
+			if on {
+				s.tell(r, func(ctx context.Context) { s.notify.Registered(ctx, m.TrajectoryID, id, m) })
+			}
 		}
 		item, err := s.trackerItem(ctx, m.TrajectoryID, id)
 		if err != nil {

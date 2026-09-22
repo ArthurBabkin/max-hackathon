@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -115,12 +116,14 @@ func (s *Server) removeMember(w http.ResponseWriter, r *http.Request) error {
 	if !uuidRe.MatchString(id) {
 		return errNoMember
 	}
-	if _, err := s.store.RemoveMember(ctx, m.TrajectoryID, id, m.MemberID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return errNoMember
-		}
+	removed, err := s.store.RemoveMember(ctx, m.TrajectoryID, id, m.MemberID)
+	if errors.Is(err, store.ErrNotFound) {
+		return errNoMember
+	}
+	if err != nil {
 		return err
 	}
+	s.tell(r, func(ctx context.Context) { s.notify.MemberRemoved(ctx, m.TrajectoryID, removed, m) })
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -131,9 +134,11 @@ func (s *Server) leave(w http.ResponseWriter, r *http.Request) error {
 	if !permissionsOf(m).Leave {
 		return forbidden("Создатель не может выйти из траектории — только удалить её командой /delete в чате бота.")
 	}
-	if _, err := s.store.LeaveTrajectory(ctx, m.TrajectoryID, m.MemberID); err != nil {
+	left, err := s.store.LeaveTrajectory(ctx, m.TrajectoryID, m.MemberID)
+	if err != nil {
 		return err
 	}
+	s.tell(r, func(ctx context.Context) { s.notify.Left(ctx, m.TrajectoryID, left) })
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
