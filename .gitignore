@@ -18,3 +18,9 @@ __pycache__/
 tfplan
 bootstrap.tfplan
 infra/terraform/.build/
+
+# Node. Мини-приложение в apps/web; корневой контекст сборки общий у всех
+# сервисов, поэтому игнорируем по всему дереву, а не только в apps/web.
+node_modules/
+dist/
+*.tsbuildinfo
