@@ -55,6 +55,33 @@ def load_html(vuz_id: str, filename: str) -> str:
     return (SNAP / vuz_id / filename).read_bytes().decode("utf-8", errors="replace").replace("­", "")
 
 
+_FETCHED_BY_URL: dict[str, str] | None = None
+
+
+def fetched_date(url: str | None = None) -> str:
+    """Дата, когда источник реально проверялся.
+
+    По п. 0.2 спеки source_date — это дата проверки источника, а не дата
+    запуска скрипта. Пересборка из вчерашних снапшотов ничего не перепроверяет,
+    поэтому дату берём из метаданных снапшота, иначе датасет будет утверждать,
+    что факт подтверждён сегодня, хотя страницу никто сегодня не открывал.
+    """
+    global _FETCHED_BY_URL
+    if _FETCHED_BY_URL is None:
+        _FETCHED_BY_URL = {}
+        for m in SNAP.rglob("*.meta.json"):
+            try:
+                d = json.loads(m.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            for key in (d.get("url"), d.get("final_url")):
+                if key:
+                    _FETCHED_BY_URL[key] = d.get("fetched_at") or TODAY
+    if url and url in _FETCHED_BY_URL:
+        return _FETCHED_BY_URL[url]
+    return max(_FETCHED_BY_URL.values(), default=TODAY)
+
+
 def meta(vuz_id: str, filename: str) -> dict:
     return json.loads((SNAP / vuz_id / f"{filename}.meta.json").read_text(encoding="utf-8"))
 
