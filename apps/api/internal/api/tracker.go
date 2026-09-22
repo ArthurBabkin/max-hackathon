@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
@@ -70,7 +71,7 @@ func (s *Server) proposalsOf(ctx context.Context, rows []store.ProposalRow) ([]p
 			continue
 		}
 		d := proposalDTO{
-			ID: p.ID, OlympiadProfileID: p.ProfileID, OlympiadID: p.OlympiadID, OlympiadName: p.OlympiadName,
+			ID: p.ID, OlympiadProfileID: p.ProfileID, OlympiadID: p.OlympiadID, OlympiadName: names.Olympiad(p.OlympiadName),
 			Status: p.Status, ProposedBy: *briefOf(p.ProposedBy), CreatedAt: p.CreatedAt.UTC(), ResolvedAt: utc(p.ResolvedAt),
 		}
 		if cur := stages.Current(st[p.ProfileID], false, now); cur >= 0 {

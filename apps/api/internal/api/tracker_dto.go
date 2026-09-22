@@ -7,6 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
@@ -81,7 +82,7 @@ func utc(t *time.Time) *time.Time {
 
 func trackerItemOf(t store.TrackerRow, st []stages.Stage, now time.Time) trackerItem {
 	item := trackerItem{
-		ID: t.ID, OlympiadProfileID: t.ProfileID, OlympiadID: t.OlympiadID, OlympiadName: t.OlympiadName,
+		ID: t.ID, OlympiadProfileID: t.ProfileID, OlympiadID: t.OlympiadID, OlympiadName: names.Olympiad(t.OlympiadName),
 		SubjectName: profileLabel(t.SubjectName, t.ProfileName), Kind: t.Kind, Level: t.Level,
 		RegisteredAt: utc(t.RegisteredAt), RegisteredBy: briefOf(t.RegisteredBy), AddedBy: briefOf(t.AddedBy),
 	}

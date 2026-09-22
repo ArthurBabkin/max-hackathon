@@ -37,7 +37,7 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	b := r.body
-	if b["name"] != "Всероссийская олимпиада школьников «Высшая проба»" || b["kind"] != "perechen" ||
+	if b["name"] != "Высшая проба" || b["kind"] != "perechen" ||
 		b["level"] != "I" || b["official_url"] == nil || b["stages_are_demo"] != false {
 		t.Fatalf("шапка карточки: %s", r.raw)
 	}
