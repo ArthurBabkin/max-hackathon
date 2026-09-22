@@ -25,7 +25,10 @@ jobs:
           # Если собирать локально более новым Go, код может использовать то,
           # чего нет в 1.23, и упасть уже в облаке.
           go-version: '1.23'
-          cache-dependency-path: go.sum
+          # go.sum пока не существует: внешних зависимостей нет.
+          # Ключ кеша считаем по go.mod — он есть всегда и меняется
+          # при добавлении зависимости.
+          cache-dependency-path: go.mod
 
       - name: Форматирование
         run: |
@@ -78,10 +81,22 @@ jobs:
     defaults:
       run:
         working-directory: infra/terraform
+    env:
+      TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
     steps:
       - uses: actions/checkout@v4
 
       - uses: opentofu/setup-opentofu@v1
+
+      # Провайдер Yandex весит около 100 МБ и без кеша качается каждый прогон.
+      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог,
+      # который мы и кешируем между запусками.
+      - name: Кеш провайдеров
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
+          restore-keys: tofu-providers-
 
       - name: Форматирование
         run: tofu fmt -check -recursive
@@ -91,5 +106,6 @@ jobs:
       # инфраструктуру применяет человек, см. infra/terraform/README.md.
       - name: Валидация
         run: |
+          mkdir -p ~/.terraform.d/plugin-cache
           tofu init -backend=false
           tofu validate
