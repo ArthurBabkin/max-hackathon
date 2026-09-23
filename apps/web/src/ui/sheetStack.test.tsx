@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { useSheetStack } from './sheets'
 
 /**
@@ -12,6 +12,7 @@ import { useSheetStack } from './sheets'
  */
 function Harness() {
   const sheets = useSheetStack()
+  const navigate = useNavigate()
   return (
     <div>
       <p data-testid="stack">{sheets.stack.map((s) => `${s.kind}:${s.id}`).join(' > ') || 'пусто'}</p>
@@ -21,8 +22,17 @@ function Harness() {
       <button type="button" onClick={() => sheets.open({ kind: 'vuz', id: 'inno' })}>
         Открыть вуз
       </button>
+      <button type="button" onClick={() => sheets.open({ kind: 'ai', id: '' })}>
+        Открыть помощника
+      </button>
+      <button type="button" onClick={() => sheets.replace({ kind: 'ai', id: 'c-2' })}>
+        Сменить чат
+      </button>
       <button type="button" onClick={sheets.back}>
         Назад
+      </button>
+      <button type="button" onClick={() => void navigate(-1)}>
+        Системная «Назад»
       </button>
       <button type="button" onClick={sheets.closeAll}>
         Закрыть
@@ -70,6 +80,20 @@ describe('стек нижних листов', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Открыть олимпиаду' }))
 
     // Иначе «Назад» пришлось бы жать дважды по одному и тому же листу.
+    expect(stack()).toBe('oly:hse:inf')
+  })
+
+  // Смена чата внутри помощника — не новый лист: системная «Назад» после неё
+  // должна закрыть помощника, а не вернуть прошлый чат.
+  it('замена верхнего листа не добавляет запись в историю', async () => {
+    setup()
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть олимпиаду' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Открыть помощника' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Сменить чат' }))
+    expect(stack()).toBe('oly:hse:inf > ai:c-2')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Системная «Назад»' }))
     expect(stack()).toBe('oly:hse:inf')
   })
 

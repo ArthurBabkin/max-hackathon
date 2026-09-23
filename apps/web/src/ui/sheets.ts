@@ -41,6 +41,8 @@ export interface SheetStack {
   stack: SheetEntry[]
   top: SheetEntry | null
   open: (entry: SheetEntry) => void
+  /** Заменить верхний лист без новой записи в истории — смена чата у помощника. */
+  replace: (entry: SheetEntry) => void
   /** Снять верхний лист. */
   back: () => void
   /** Закрыть все листы разом — крестик в шапке. */
@@ -74,8 +76,9 @@ export function useSheetStack(): SheetStack {
     [stack, write],
   )
 
+  const replace = useCallback((entry: SheetEntry) => write([...stack.slice(0, -1), entry], true), [stack, write])
   const back = useCallback(() => write(stack.slice(0, -1), false), [stack, write])
   const closeAll = useCallback(() => write([], false), [write])
 
-  return { stack, top: stack.at(-1) ?? null, open, back, closeAll }
+  return { stack, top: stack.at(-1) ?? null, open, replace, back, closeAll }
 }

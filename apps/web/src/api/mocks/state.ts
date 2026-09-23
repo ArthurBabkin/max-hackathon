@@ -46,9 +46,18 @@ export interface DemoInvite {
   created_at: string
 }
 
-export interface DemoAiMessage {
+/** Чат с помощником. Свой у каждого участника (F37), пустых не бывает. */
+export interface DemoAiChat {
   id: string
   memberId: string
+  title: string
+  created_at: string
+  last_message_at: string
+}
+
+export interface DemoAiMessage {
+  id: string
+  chatId: string
   role: 'user' | 'assistant'
   text: string
   card_refs: { type: 'olympiad' | 'university'; id: string; title: string }[]
@@ -77,6 +86,8 @@ export interface DemoState {
   tracker: DemoTrackerItem[]
   proposals: DemoProposal[]
   invites: DemoInvite[]
+  /** Свежие чаты впереди — в том порядке, в каком их отдаёт список. */
+  aiChats: DemoAiChat[]
   ai: DemoAiMessage[]
 }
 
@@ -119,6 +130,7 @@ export const state: DemoState = {
   ],
 
   invites: [],
+  aiChats: [],
   ai: [],
 }
 

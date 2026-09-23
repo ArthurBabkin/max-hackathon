@@ -15,7 +15,7 @@ export function SheetHost({ sheets }: { sheets: SheetStack }) {
   const top = sheets.top
   if (!top) return null
 
-  if (top.kind === 'ai') return <AiSheet sheets={sheets} />
+  if (top.kind === 'ai') return <AiSheet chatId={top.id} sheets={sheets} />
   if (top.kind === 'vuz') return <UniversitySheet id={top.id} sheets={sheets} />
   return <OlympiadSheet id={top.id} sheets={sheets} />
 }
