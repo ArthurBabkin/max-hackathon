@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# Дамп базы и выгрузка в Object Storage. Две копии по разным причинам:
+# локальная спасает, когда недоступен бакет, а копия в бакете — когда
+# недоступна сама ВМ. Второе и есть главный риск: хост один.
+set -euo pipefail
+umask 077
+
+DIR=/var/backups/postgresql
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+FILE="$DIR/{{ pg_name }}-$STAMP.sql.gz"
+
+# pipefail важен: без него упавший pg_dump оставил бы валидный пустой архив.
+sudo -u postgres pg_dump --format=plain --no-owner --no-privileges "{{ pg_name }}" \
+  | gzip -9 > "$FILE"
+
+# Пустой дамп — это отказ, а не бэкап: лучше упасть и дать таймеру пожаловаться.
+if [ ! -s "$FILE" ]; then
+  echo "дамп пуст: $FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+. /etc/traektoria-backup.env
+AWS_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY" \
+AWS_SECRET_ACCESS_KEY="$BACKUP_SECRET_KEY" \
+aws --endpoint-url="{{ backup_endpoint }}" s3 cp "$FILE" \
+  "s3://{{ backup_bucket }}/$(basename "$FILE")"
+
+# Локально держим немного: диск нужен базе, а не архиву. Срок хранения в
+# бакете задан правилом жизненного цикла в Terraform.
+# `|| true`: при set -o pipefail неудачный ls уронил бы скрипт уже после
+# успешно сделанного и выгруженного бэкапа — а это не отказ.
+{ ls -1t "$DIR"/{{ pg_name }}-*.sql.gz 2>/dev/null \
+  | tail -n +$(( {{ backup_keep_local }} + 1 )) \
+  | xargs -r rm -f; } || true
+
+echo "бэкап готов: $(basename "$FILE"), $(stat -c %s "$FILE") байт"

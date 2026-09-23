@@ -4,12 +4,18 @@
 # попадает.
 
 locals {
+  # Хост — имя из нашей зоны, а не адрес: если адрес когда-нибудь придётся
+  # пересоздать, строка подключения в Lockbox не изменится. Порт 5432, а не
+  # 6432: пулера соединений, который слушал у управляемого кластера, на своей
+  # ВМ нет — поэтому пул в packages/db ограничен двумя соединениями на инстанс.
+  # sslmode=require шифрует канал, не проверяя издателя: сертификат на ВМ
+  # самоподписанный, и выпускать для неё доверенный незачем.
   database_url = var.enable_database ? format(
-    "postgres://%s:%s@%s:6432/%s?sslmode=require",
-    yandex_mdb_postgresql_user.app[0].name,
+    "postgres://%s:%s@db.%s:5432/%s?sslmode=require",
+    var.db_name,
     var.pg_password,
-    try(yandex_mdb_postgresql_cluster.main[0].host[0].fqdn, ""),
-    yandex_mdb_postgresql_database.main[0].name,
+    var.domain,
+    var.db_name,
   ) : var.database_url
 
   # Пустые значения в Lockbox не кладём: пустая запись там недопустима, а

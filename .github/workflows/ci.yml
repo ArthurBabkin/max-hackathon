@@ -50,8 +50,10 @@ jobs:
         run: go vet ./...
       - name: Сборка
         run: make build GO=go
+      # -race: воркеры допускают одновременный запуск, и тесты на это есть.
+      # Без детектора гонки в них ловились бы только случайным падением.
       - name: Тесты
-        run: go test -count=1 ./...
+        run: go test -race -count=1 ./...
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

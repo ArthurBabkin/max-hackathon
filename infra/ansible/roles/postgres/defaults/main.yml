@@ -1,0 +1,26 @@
+# Мажорная версия. 16 — штатная в Ubuntu 24.04, та же, что в docker-compose,
+# в CI и в packages/db/migrations. Менять вместе с ними, не по отдельности.
+pg_version: 16
+
+# Диск под данные подключён Terraform с device_name = pgdata. Обращаемся по
+# by-id, а не по /dev/vdb: порядок букв зависит от порядка подключения дисков.
+pg_data_device: /dev/disk/by-id/virtio-pgdata
+pg_data_mount: /var/lib/postgresql
+
+# Имя базы и роли приложения. Должно совпадать с var.db_name в Terraform —
+# иначе строка подключения в Lockbox укажет на несуществующую базу.
+pg_name: traektoria
+
+# Пул в packages/db ограничен двумя соединениями на инстанс функции, а
+# инстансов у serverless бывает много. Ста хватает с запасом.
+pg_max_connections: 100
+# Четверть памяти — обычная отправная точка. База в мегабайтах, так что
+# фактически она целиком ляжет в страничный кеш.
+pg_shared_buffers: 512MB
+
+# Бэкапы. Локальная копия — на случай недоступного бакета, копия в бакете —
+# на случай недоступной ВМ. Срок хранения в бакете задаёт Terraform.
+backup_bucket: traektoria-db-backups
+backup_endpoint: https://storage.yandexcloud.net
+backup_keep_local: 3
+backup_hour: "03:17"
