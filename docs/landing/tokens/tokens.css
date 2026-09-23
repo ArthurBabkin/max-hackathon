@@ -1,0 +1,110 @@
+/* Траектория — дизайн-токены. Сгенерировано из tokens.json. */
+@font-face{font-family:"Onest";src:url("../fonts/Onest-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Unbounded";src:url("../fonts/Unbounded-Variable.woff2") format("woff2");font-weight:200 900;font-display:swap}
+
+:root {
+  --color-surface: #F6F5FB;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-tint: #EFEDF7;
+  --color-line: #E2DEEE;
+  --color-ink: #17142A;
+  --color-ink-muted: #625C78;
+  --color-brand: #6B2BFF;
+  --color-on-brand: #FFFFFF;
+  --color-brand-ink: #6B2BFF;
+  --color-brand-soft: #EFE8FF;
+  --color-brand-tint: #E6DDFF;
+  --color-cyan: #7FEAF7;
+  --color-pink: #FF3D8B;
+  --color-pink-ink: #C2185B;
+  --color-pink-soft: #FFE8F1;
+  --color-amber-ink: #8A5A00;
+  --color-amber-soft: #FFF2D6;
+  --color-green-ink: #08704D;
+  --color-green-soft: #E1F6EC;
+  --color-blue-ink: #1A66F0;
+  --color-link: var(--color-brand-ink);
+  --font-display: "Unbounded", "Onest", system-ui, sans-serif;
+  --font-sans: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --text-display-xl-size: 64px; --text-display-xl-line: 64px; --text-display-xl-weight: 600; --text-display-xl-tracking: -0.025em;
+  --text-display-size: 40px; --text-display-line: 44px; --text-display-weight: 600; --text-display-tracking: -0.02em;
+  --text-title-size: 24px; --text-title-line: 30px; --text-title-weight: 600; --text-title-tracking: -0.01em;
+  --text-numeral-size: 44px; --text-numeral-line: 44px; --text-numeral-weight: 700; --text-numeral-tracking: -0.02em;
+  --text-heading-size: 18px; --text-heading-line: 24px; --text-heading-weight: 700;
+  --text-body-lg-size: 18px; --text-body-lg-line: 28px; --text-body-lg-weight: 400;
+  --text-body-size: 16px; --text-body-line: 24px; --text-body-weight: 400;
+  --text-body-sm-size: 14px; --text-body-sm-line: 20px; --text-body-sm-weight: 400;
+  --text-label-size: 14px; --text-label-line: 20px; --text-label-weight: 600;
+  --text-caption-size: 12px; --text-caption-line: 16px; --text-caption-weight: 600; --text-caption-tracking: 0.01em;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --radius-none: 0px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px #17142a0d, 0 2px 8px #17142a0f;
+  --shadow-lg: 0 12px 32px -8px #2a1a7a33, 0 4px 12px #17142a14;
+  --focus-ring: 0 0 0 2px #F6F5FB, 0 0 0 4px #6B2BFF;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface: #110E1C;
+    --color-surface-raised: #1A1628;
+    --color-surface-tint: #231E34;
+    --color-line: #2F2944;
+    --color-ink: #F1EEFA;
+    --color-ink-muted: #A8A1BF;
+    --color-brand: #7D4DFF;
+    --color-on-brand: #FFFFFF;
+    --color-brand-ink: #A68BFF;
+    --color-brand-soft: #2A1F52;
+    --color-brand-tint: #2A2148;
+    --color-cyan: #7FEAF7;
+    --color-pink: #FF4F96;
+    --color-pink-ink: #FF8AB8;
+    --color-pink-soft: #3A1426;
+    --color-amber-ink: #FFC94D;
+    --color-amber-soft: #33260A;
+    --color-green-ink: #4FD69C;
+    --color-green-soft: #0F2E22;
+    --color-blue-ink: #6AA2FF;
+    --shadow-sm: 0 1px 3px #000000b3;
+    --shadow-lg: 0 16px 40px -8px #000000cc;
+    --focus-ring: 0 0 0 2px #110E1C, 0 0 0 4px #A68BFF;
+  }
+}
+:root[data-theme="dark"] {
+  --color-surface: #110E1C;
+  --color-surface-raised: #1A1628;
+  --color-surface-tint: #231E34;
+  --color-line: #2F2944;
+  --color-ink: #F1EEFA;
+  --color-ink-muted: #A8A1BF;
+  --color-brand: #7D4DFF;
+  --color-on-brand: #FFFFFF;
+  --color-brand-ink: #A68BFF;
+  --color-brand-soft: #2A1F52;
+  --color-brand-tint: #2A2148;
+  --color-cyan: #7FEAF7;
+  --color-pink: #FF4F96;
+  --color-pink-ink: #FF8AB8;
+  --color-pink-soft: #3A1426;
+  --color-amber-ink: #FFC94D;
+  --color-amber-soft: #33260A;
+  --color-green-ink: #4FD69C;
+  --color-green-soft: #0F2E22;
+  --color-blue-ink: #6AA2FF;
+  --shadow-sm: 0 1px 3px #000000b3;
+  --shadow-lg: 0 16px 40px -8px #000000cc;
+  --focus-ring: 0 0 0 2px #110E1C, 0 0 0 4px #A68BFF;
+}
