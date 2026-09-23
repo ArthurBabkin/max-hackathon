@@ -48,32 +48,91 @@ variable "max_api_base" {
   default     = "https://platform-api2.max.ru"
 }
 
-variable "pg_preset" {
-  description = <<-EOT
-    Класс хоста PostgreSQL. b2.medium — 2 ядра (burstable) и 4 ГБ, самый дешёвый
-    вменяемый вариант. Выделенные ядра начинаются с c3-c2-m4 и стоят заметно дороже.
-  EOT
-  type        = string
-  default     = "b2.medium"
+variable "db_cores" {
+  description = "Ядер у ВМ с базой. У standard-v3 при доле 20% допустимы 2 или 4."
+  type        = number
+  default     = 2
 }
 
-variable "pg_disk_size" {
-  description = "Размер диска в ГБ"
+variable "db_core_fraction" {
+  description = <<-EOT
+    Доля гарантированного ядра в процентах. 20 — минимум для standard-v3 и самый
+    дешёвый вариант: всплески обслуживаются сверх неё. Нагрузка MVP — единицы
+    запросов в секунду, поэтому доли хватает.
+  EOT
   type        = number
   default     = 20
 }
 
-variable "pg_host_count" {
-  description = <<-EOT
-    Число хостов. Один дешевле; два снимают риск техработ на окне проверки
-    30.09-14.10, когда решение должно быть доступно непрерывно.
-  EOT
+variable "db_memory" {
+  description = "Память ВМ в ГБ. При 2 ядрах допустимо от 1 до 8; 2 ГБ хватает, чтобы база целиком легла в страничный кеш."
   type        = number
-  default     = 1
+  default     = 2
+}
+
+variable "db_data_disk_type" {
+  description = <<-EOT
+    Тип диска под данные. network-ssd дороже network-hdd, но у HDD задержка
+    fsync такова, что каждая фиксация транзакции ощутима. Диск маленький,
+    поэтому разница в деньгах невелика.
+  EOT
+  type        = string
+  default     = "network-ssd"
+}
+
+variable "db_data_disk_size" {
+  description = "Размер диска под данные в ГБ"
+  type        = number
+  default     = 10
+}
+
+variable "ssh_public_key" {
+  description = <<-EOT
+    Открытый SSH-ключ для пользователя ubuntu на ВМ с базой: им ходит Ansible.
+    Задаётся через TF_VAR_ssh_public_key, например
+    export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)".
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "ssh_allowed_cidrs" {
+  description = <<-EOT
+    Откуда разрешён SSH к ВМ с базой. По умолчанию пусто — порт не открыт
+    никому, и случайный apply не выставит его в интернет. Для прогона Ansible
+    указать свой адрес: -var 'ssh_allowed_cidrs=["1.2.3.4/32"]'.
+  EOT
+  type        = list(string)
+  default     = []
+}
+
+variable "db_name" {
+  description = <<-EOT
+    Имя базы и роли приложения в PostgreSQL. Отсюда же его берёт Ansible —
+    значение должно быть одно, иначе строка подключения разойдётся с тем,
+    что реально заведено на ВМ.
+  EOT
+  type        = string
+  default     = "traektoria"
+}
+
+variable "backup_bucket" {
+  description = "Бакет для дампов базы. Имя без точек: иначе не работает HTTPS по wildcard-сертификату."
+  type        = string
+  default     = "traektoria-db-backups"
+}
+
+variable "backup_retention_days" {
+  description = "Сколько дней хранить дампы. Окно проверки 30.09-14.10 покрывается с запасом."
+  type        = number
+  default     = 30
 }
 
 variable "pg_password" {
-  description = "Пароль пользователя БД. Задаётся через TF_VAR_pg_password, в git не попадает."
+  description = <<-EOT
+    Пароль пользователя БД (TF_VAR_pg_password). В git не попадает.
+    Тот же пароль получает Ansible — он и заводит роль в PostgreSQL.
+  EOT
   type        = string
   sensitive   = true
   default     = ""
@@ -91,10 +150,11 @@ variable "enable_workers" {
 
 variable "enable_database" {
   description = <<-EOT
-    Поднимать ли кластер Managed PostgreSQL.
-    ВЫКЛЮЧЕНО НАМЕРЕННО: это единственный ресурс, который тарифицируется
-    круглосуточно независимо от нагрузки. Включать, когда дойдёт до работы с БД,
-    и обязательно держать включённым всё окно проверки 30.09-14.10.
+    Поднимать ли ВМ с PostgreSQL, диск под данные, адрес и бакет для бэкапов.
+    ВЫКЛЮЧЕНО НАМЕРЕННО: ВМ тарифицируется круглосуточно независимо от нагрузки.
+    Включать, когда дойдёт до работы с БД, и обязательно держать включённым всё
+    окно проверки 30.09-14.10. После apply настройку СУБД катит Ansible:
+    см. infra/ansible/README.md.
   EOT
   type        = bool
   default     = false
@@ -141,7 +201,7 @@ variable "polza_ai_api_key" {
 variable "database_url" {
   description = <<-EOT
     Строка подключения, если база не из этого конфига (TF_VAR_database_url).
-    При enable_database = true берётся из кластера в postgres.tf.
+    При enable_database = true собирается из ВМ в postgres.tf.
   EOT
   type        = string
   sensitive   = true

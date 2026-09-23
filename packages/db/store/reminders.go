@@ -227,16 +227,32 @@ func (s *Store) ReminderRecipients(ctx context.Context, d DueReminder) ([]Recipi
 	})
 }
 
-// ClaimDelivery занимает пару (напоминание, получатель). false — уже
-// отправлено или отправляется параллельным запуском: второй раз не слать.
-func (s *Store) ClaimDelivery(ctx context.Context, reminderID, memberID string) (bool, error) {
-	tag, err := s.db.Exec(ctx, `
-		INSERT INTO reminder_deliveries (reminder_id, member_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		reminderID, memberID)
+// ClaimDelivery занимает пару (напоминание, получатель).
+//
+// claimed — строку вставили мы, отправлять нам. Иначе пару занял другой
+// запуск, и тогда важно, чем он кончился: done означает «доставлено, второй
+// раз не слать», а !done — «ещё в работе или сорвалось». Разница
+// принципиальна для вызывающего: пометить напоминание разосланным можно
+// только по done, иначе оно уйдёт из выборки planned, так и не дойдя до
+// получателя.
+//
+// Вставка и чтение — одним запросом: снимок оператора не видит собственную
+// вставку CTE, поэтому только что занятая пара честно возвращает done=false.
+func (s *Store) ClaimDelivery(ctx context.Context, reminderID, memberID string) (claimed, done bool, err error) {
+	err = s.db.QueryRow(ctx, `
+		WITH claim AS (
+			INSERT INTO reminder_deliveries (reminder_id, member_id) VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+			RETURNING 1
+		)
+		SELECT EXISTS (SELECT 1 FROM claim),
+		       COALESCE((SELECT done_at IS NOT NULL FROM reminder_deliveries
+		                 WHERE reminder_id = $1 AND member_id = $2), false)`,
+		reminderID, memberID).Scan(&claimed, &done)
 	if err != nil {
-		return false, wrap(err)
+		return false, false, wrap(err)
 	}
-	return tag.RowsAffected() == 1, nil
+	return claimed, done, nil
 }
 
 // ReleaseDelivery освобождает пару после неудачной отправки: следующий
@@ -247,9 +263,42 @@ func (s *Store) ReleaseDelivery(ctx context.Context, reminderID, memberID string
 	return wrap(err)
 }
 
+// SetDeliveryMessage завершает доставку: запоминает сообщение и закрывает
+// захват, после чего ClaimDelivery отвечает done=true.
 func (s *Store) SetDeliveryMessage(ctx context.Context, reminderID, memberID, messageID string) error {
-	_, err := s.db.Exec(ctx, `UPDATE reminder_deliveries SET max_message_id = $3 WHERE reminder_id = $1 AND member_id = $2`,
+	_, err := s.db.Exec(ctx, `
+		UPDATE reminder_deliveries SET max_message_id = $3, done_at = now()
+		WHERE reminder_id = $1 AND member_id = $2`,
 		reminderID, memberID, messageID)
+	return wrap(err)
+}
+
+// ReapStaleDeliveries освобождает захваты, по которым результат так и не
+// записали. Такое случается, если база отказала между успешной отправкой в
+// MAX и отметкой о ней: пара остаётся занятой навсегда, и напоминание висит
+// в плане до истечения срока, не дойдя до получателя.
+//
+// Порог должен заведомо превышать время жизни запуска (таймаут функции — 60
+// секунд), иначе сборщик отнял бы пару у живого воркера. Цена в обмен на
+// доставку — возможный повтор в том редком случае, когда сообщение всё же
+// ушло: для напоминания дубль безобиднее тишины.
+func (s *Store) ReapStaleDeliveries(ctx context.Context, before time.Time) (int64, error) {
+	tag, err := s.db.Exec(ctx, `
+		DELETE FROM reminder_deliveries WHERE done_at IS NULL AND sent_at < $1`, before)
+	if err != nil {
+		return 0, wrap(err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+// MarkDeliveryDone закрывает захват без сообщения: получатель остановил
+// бота. Повторять нечего, но и «в работе» пара висеть не должна — иначе
+// напоминание никогда не станет разосланным.
+func (s *Store) MarkDeliveryDone(ctx context.Context, reminderID, memberID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE reminder_deliveries SET done_at = now()
+		WHERE reminder_id = $1 AND member_id = $2`,
+		reminderID, memberID)
 	return wrap(err)
 }
 

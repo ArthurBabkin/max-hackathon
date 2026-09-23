@@ -26,13 +26,27 @@ output "certificate_status" {
 output "database_url" {
   description = "Строка подключения к PostgreSQL. Кладётся в Lockbox как DATABASE_URL."
   sensitive   = true
-  value = var.enable_database ? format(
-    "postgres://%s:%s@%s:6432/%s?sslmode=require",
-    yandex_mdb_postgresql_user.app[0].name,
-    var.pg_password,
-    try(yandex_mdb_postgresql_cluster.main[0].host[0].fqdn, ""),
-    yandex_mdb_postgresql_database.main[0].name,
-  ) : null
+  value       = var.enable_database ? local.database_url : null
+}
+
+# --- Для прогона Ansible ------------------------------------------------------
+# Читать по одному, через -raw: см. предупреждение ниже про stdout.
+
+output "db_host" {
+  description = "Адрес ВМ с базой — сюда ходит Ansible и сюда же резолвится db.<домен>"
+  value       = try(yandex_vpc_address.db[0].external_ipv4_address[0].address, null)
+}
+
+output "db_backup_access_key" {
+  description = "Идентификатор ключа для выгрузки бэкапов в бакет (переменная Ansible)"
+  sensitive   = true
+  value       = try(yandex_iam_service_account_static_access_key.db[0].access_key, null)
+}
+
+output "db_backup_secret_key" {
+  description = "Секретный ключ для выгрузки бэкапов (переменная Ansible)"
+  sensitive   = true
+  value       = try(yandex_iam_service_account_static_access_key.db[0].secret_key, null)
 }
 
 # ---------------------------------------------------------------------------
