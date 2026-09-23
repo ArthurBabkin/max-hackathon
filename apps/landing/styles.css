@@ -398,7 +398,8 @@ html:not(.js) .tab-panel + .tab-panel { margin-top: 72px; }
 }
 .bento-hero {
   grid-row: 1 / span 3;
-  display: flex; justify-content: center; gap: 20px;
+  /* flex-start: иначе stretch тянет экраны по высоте ряда бенто */
+  display: flex; justify-content: center; align-items: flex-start; gap: 20px;
   padding: 48px 24px 0; overflow: hidden;
   border-radius: var(--r-lg);
   background: linear-gradient(160deg, var(--family-1), var(--family-2));
