@@ -19,7 +19,7 @@ function renderSheet(patch: Partial<OlympiadDetail>) {
 // «Демо-даты» относится к этапам, у льгот её быть не может.
 it('льготы без источника не помечает ни «Фактом», ни «Демо-датами»', () => {
   renderSheet({ benefits_source: null })
-  const block = screen.getByRole('heading', { name: /Льгота в твоих вузах/ }).closest('section')!
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
   expect(within(block).getByText('данные уточняются')).toBeInTheDocument()
   expect(within(block).queryByText('Демо-даты')).not.toBeInTheDocument()
   expect(within(block).queryByText('Факт')).not.toBeInTheDocument()
@@ -40,4 +40,38 @@ it('рассказывает об олимпиаде и ведёт на её с�
 it('без описания и сайта блока «Об олимпиаде» нет', () => {
   renderSheet({ description: null, official_url: null })
   expect(screen.queryByRole('heading', { name: 'Об олимпиаде' })).not.toBeInTheDocument()
+})
+
+// F18 и F19 в одном блоке: сначала общие условия, потом вузы, и под каждым —
+// что в нём не так, как у всех.
+it('условия — в блоке льгот: общие сверху, свои — под вузом', () => {
+  const base = olympiadDetail('hse:inf')!
+  const first = base.benefits[0]!
+  const second = base.benefits[1]!
+  renderSheet({
+    conditions: ['Нужен диплом победителя или призёра', 'БВИ можно использовать только в одном вузе'],
+    benefits: [
+      { ...first, conditions: ['Призёру — 100 баллов вместо БВИ', 'Порог ЕГЭ от 75 до 80 — зависит от программы'] },
+      second,
+    ],
+  })
+
+  expect(screen.queryByRole('heading', { name: 'Условия' })).not.toBeInTheDocument()
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  const general = within(block).getByRole('list')
+  expect(within(general).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+    'Нужен диплом победителя или призёра',
+    'БВИ можно использовать только в одном вузе',
+  ])
+
+  const rows = within(block).getAllByRole('button')
+  const firstRow = rows[0]!
+  const secondRow = rows[1]!
+  expect(firstRow).toHaveTextContent(first.university_name)
+  expect(within(firstRow).getByText('Призёру — 100 баллов вместо БВИ')).toBeInTheDocument()
+  expect(within(firstRow).getByText('Порог ЕГЭ от 75 до 80 — зависит от программы')).toBeInTheDocument()
+  expect(secondRow).toHaveTextContent(second.university_name)
+  expect(within(secondRow).queryByText(/Призёру|Порог/)).not.toBeInTheDocument()
+  // Общий список — над вузами.
+  expect(general.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
