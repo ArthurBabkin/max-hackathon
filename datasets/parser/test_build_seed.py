@@ -116,6 +116,7 @@ class BuildTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.seed = bs.build()
+        cls.demo = bs.build_demo()
 
     def test_benefit_keys_match_dataset(self):
         self.assertEqual(self.seed.stats["benefit_keys"], 1149)
@@ -130,7 +131,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(set(offered), set(everything))
 
     def test_every_profile_is_seeded_including_missing_in_c(self):
-        self.assertEqual(len(self.seed.profiles), 178 + 14 + len(bs.OTHER_OLYMPIADS))
+        self.assertEqual(len(self.seed.profiles), 178 + 14)
         self.assertIn("p669-5-yadernye-tehnologii", self.seed.profiles)
 
     def test_subject_codes_are_the_frontend_ones(self):
@@ -169,11 +170,18 @@ class BuildTest(unittest.TestCase):
             self.assertIn(b["source_id"], self.seed.sources)
 
     def test_other_olympiads_give_only_extra_points_within_ten(self):
-        for b in self.seed.benefits:
-            kind = self.seed.olympiads[self.seed.profiles[b["olympiad_profile_id"]]["olympiad_id"]]["kind"]
-            self.assertEqual(kind == "other", b["benefit"] == "extra_points", b["id"])
-            if b["extra_points"] is not None:
-                self.assertLessEqual(b["extra_points"], 10)
+        for seed in (self.seed, self.demo):
+            for b in seed.benefits:
+                kind = seed.olympiads[seed.profiles[b["olympiad_profile_id"]]["olympiad_id"]]["kind"]
+                self.assertEqual(kind == "other", b["benefit"] == "extra_points", b["id"])
+                if b["extra_points"] is not None:
+                    self.assertLessEqual(b["extra_points"], 10)
+
+    def test_fictional_olympiads_only_in_demo_seed(self):
+        # В проде вымышленную олимпиаду приняли бы за настоящую (F16 — только локально).
+        self.assertFalse([o for o in self.seed.olympiads.values() if o["kind"] == "other"])
+        self.assertEqual({o["organizer"] for o in self.demo.olympiads.values()}, {bs.OTHER_ORGANIZER})
+        self.assertTrue(self.demo.stages)
 
     def test_final_city_is_derived_only_from_single_university_organizers(self):
         o = self.seed.olympiads
@@ -183,7 +191,7 @@ class BuildTest(unittest.TestCase):
         # Оргкомитеты, министерство и консорциумы города не получают.
         for oid in ("vsosh-informatika", "p669-5", "p669-57", "p669-36"):
             self.assertIsNone(o[oid]["final_city"], oid)
-        self.assertEqual(o["other-tyk"]["final_city"], "Казань")
+        self.assertEqual(self.demo.olympiads["other-tyk"]["final_city"], "Казань")
 
     def test_organizer_cities_are_used_and_regions_exist(self):
         import json
