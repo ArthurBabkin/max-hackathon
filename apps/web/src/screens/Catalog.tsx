@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
-import { useOlympiads, useUniversities } from '@/api/queries'
+import { useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
+import { groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
+import type { TextKey } from '@/voice/texts'
 import { useVoice } from '@/voice/useVoice'
 import { plural } from '@/lib/deadline'
 
@@ -21,7 +23,13 @@ const SUBJECTS: { value: string; label: string }[] = [
   { value: 'inf', label: 'Информатика' },
   { value: 'math', label: 'Математика' },
   { value: 'phys', label: 'Физика' },
+  { value: 'chem', label: 'Химия' },
+  { value: 'bio', label: 'Биология' },
+  { value: 'soc', label: 'Обществознание' },
 ]
+
+/** Сколько строк группы видно сразу: дальше — «Показать ещё». */
+const GROUP_PREVIEW = 5
 
 const OLYMPIAD_CITIES = ['all', 'Казань', 'Иннополис', 'Москва']
 const UNIVERSITY_CITIES = ['all', 'Казань', 'Иннополис', 'Москва', 'Санкт-Петербург', 'Долгопрудный']
@@ -38,7 +46,15 @@ export function CatalogScreen() {
 
   const [segment, setSegment] = useState<Segment>('olympiads')
   const [query, setQuery] = useState('')
-  const [subject, setSubject] = useState('all')
+  // Пока пользователь не выбрал сам — предмет ученика, как на макете D1:
+  // семьдесят олимпиад разом никто не читает.
+  const [pickedSubject, setSubject] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const profile = useProfile()
+  const tracker = useTracker()
+  const mySubject = profile.data?.subjects.map((s) => s.code).find((code) => SUBJECTS.some((s) => s.value === code))
+  const subject = pickedSubject ?? mySubject ?? 'all'
+  const tracked = new Set(tracker.data?.items.map((item) => item.olympiad_id))
   const [city, setCity] = useState('all')
 
   const debouncedQuery = useDebounced(query)
@@ -79,29 +95,55 @@ export function CatalogScreen() {
     if (segment === 'olympiads') {
       const items = olympiads.data?.items ?? []
       if (items.length === 0) return empty
-      return (
-        <div className="list">
-          {items.map((item) => (
-            <button
-              key={item.olympiad_id}
-              type="button"
-              className="row"
-              onClick={() => sheets.open({ kind: 'oly', id: item.primary_profile.olympiad_profile_id })}
-            >
-              <Tile id={item.olympiad_id} name={item.name} shortName={item.short_name} color={item.color} />
-              <span className="row-main">
-                <span className="row-title">{item.name}</span>
-                <span className="row-subtitle">{item.organizer}</span>
-              </span>
-              <span
-                className={`level${item.kind === 'vsosh' ? ' level-vsosh' : item.kind === 'other' ? ' level-outside' : ''}`}
+      return groupByLevel(items).map((group) => {
+        const open = query.trim() !== '' || expanded.has(group.key)
+        const visible = open ? group.items : group.items.slice(0, GROUP_PREVIEW)
+        const hidden = group.items.length - visible.length
+        return (
+          <section key={group.key} className="catalog-group">
+            <h3 className="catalog-group-head">
+              {t(`catalog.group.${group.key}` as TextKey)}
+              <span className="catalog-group-count">{group.items.length}</span>
+            </h3>
+            <div className="list">
+              {visible.map((item) => (
+                <button
+                  key={item.olympiad_id}
+                  type="button"
+                  className="row"
+                  onClick={() => sheets.open({ kind: 'oly', id: item.primary_profile.olympiad_profile_id })}
+                >
+                  <Tile id={item.olympiad_id} name={item.name} shortName={item.short_name} color={item.color} />
+                  <span className="row-main">
+                    <span className="row-title">{item.name}</span>
+                    <span className="row-subtitle">{item.organizer}</span>
+                    {tracked.has(item.olympiad_id) ? (
+                      <span className="row-tracked">
+                        <Icon name="check" size={12} />
+                        {t('catalog.inTracker')}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span
+                    className={`level${item.kind === 'vsosh' ? ' level-vsosh' : item.kind === 'other' ? ' level-outside' : ''}`}
+                  >
+                    {levelLabel(item.primary_profile.level, item.kind, t('catalog.outsidePerechen'))}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {hidden > 0 ? (
+              <button
+                type="button"
+                className="link show-more"
+                onClick={() => setExpanded((prev) => new Set(prev).add(group.key))}
               >
-                {levelLabel(item.primary_profile.level, item.kind, t('catalog.outsidePerechen'))}
-              </span>
-            </button>
-          ))}
-        </div>
-      )
+                {t('catalog.showMore', { count: hidden })}
+              </button>
+            ) : null}
+          </section>
+        )
+      })
     }
 
     const items = universities.data?.items ?? []

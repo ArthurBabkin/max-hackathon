@@ -1,9 +1,11 @@
 /** Карточка вуза — экран D3. Функции F25, F26. */
 
+import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
 import { BENEFIT_LABELS } from '@contract'
 import { useProfile, useSetUniversities, useUniversity } from '@/api/queries'
 import { getWebApp } from '@/bridge'
+import { byOlympiad } from '@/lib/catalog'
 import { formatShortDate } from '@/lib/deadline'
 import { UniversityOlympiadRow } from '@/ui/BenefitRow'
 import { Icon } from '@/ui/Icon'
@@ -12,8 +14,12 @@ import { CardSkeletons, SourceTag, StateBlock, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 
+/** Сколько олимпиад вуза видно сразу: у Иннополиса их больше шестидесяти. */
+const PREVIEW = 8
+
 export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack }) {
   const t = useVoice()
+  const [showAll, setShowAll] = useState(false)
   const query = useUniversity(id)
   const { data: profile } = useProfile()
   const setUniversities = useSetUniversities()
@@ -43,6 +49,8 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
   const university = query.data
   const current = profile?.universities.map((u) => u.id) ?? []
   const isMine = university.is_mine
+  const olympiads = byOlympiad(university.olympiads)
+  const shown = showAll ? olympiads : olympiads.slice(0, PREVIEW)
 
   const toggle = () => {
     const next = isMine ? current.filter((x) => x !== university.id) : [...current, university.id]
@@ -96,19 +104,26 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
           {t('university.olympiadsTitle')}
           <SourceTag kind="fact" />
         </h3>
-        {university.olympiads.map((olympiad) => (
+        {/* Строка на олимпиаду, а не на профиль (D3): предметы через запятую,
+            льгота — лучшая из профилей; открывается профиль ученика. */}
+        {shown.map((row) => (
           <UniversityOlympiadRow
-            key={olympiad.olympiad_profile_id}
-            id={olympiad.olympiad_profile_id}
-            olympiadId={olympiad.olympiad_id ?? olympiad.olympiad_profile_id}
-            name={olympiad.name}
-            subtitle={olympiad.subject_name ?? ''}
-            label={olympiad.benefit_label ?? BENEFIT_LABELS[olympiad.benefit]}
-            shortName={olympiad.short_name}
-            color={olympiad.color}
+            key={row.olympiad_id}
+            id={row.open_profile_id}
+            olympiadId={row.olympiad_id}
+            name={row.first.name}
+            subtitle={row.subjects}
+            label={BENEFIT_LABELS[row.benefit]}
+            shortName={row.first.short_name}
+            color={row.first.color}
             onOpen={(profileId) => sheets.open({ kind: 'oly', id: profileId })}
           />
         ))}
+        {olympiads.length > shown.length ? (
+          <button type="button" className="link show-more" onClick={() => setShowAll(true)}>
+            {t('university.showAll', { count: olympiads.length })}
+          </button>
+        ) : null}
       </section>
 
       {university.ege_note ? (
