@@ -31,6 +31,18 @@ variable "fallback_bucket" {
   default     = "traektoria"
 }
 
+variable "enable_browser_demo" {
+  description = <<-EOT
+    ВРЕМЕННО: мини-приложение открывается в обычном браузере без MAX, от лица
+    демо-семьи Артёма и Ольги. api принимает неподписанный вход только для id
+    дев-диапазона 900000000–900000999 — настоящих пользователей MAX это не
+    затрагивает, их вход по-прежнему только с подписью. Выключить до 30.09,
+    к окну проверки. Демо-данные заливает и убирает Deploy functions.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "enable_domain_https" {
   description = <<-EOT
     Привязать сертификат к бакету собственного домена.
