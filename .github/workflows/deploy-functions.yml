@@ -53,6 +53,25 @@ jobs:
           go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
           goose -dir packages/db/migrations postgres "$DATABASE_URL" up
 
+      # Временный демо-режим (var.enable_browser_demo): демо-семья Артёма и
+      # Ольги живёт в боевой базе, пока флаг включён, и убирается, когда его
+      # сняли. Своя таблица версий — боевые миграции не задеваются.
+      - name: Демо-данные
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEMO: ${{ vars.ENABLE_BROWSER_DEMO }}
+        run: |
+          demo() { goose -table goose_demo_version -dir packages/db/migrations-demo postgres "$DATABASE_URL" "$@"; }
+          if [ "$DEMO" = "true" ]; then
+            demo up
+            # Ссылка-приглашение из демо-данных в проде открыла бы настоящему
+            # пользователю MAX вход в демо-семью.
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+              "UPDATE invites SET revoked_at = now() WHERE token = 'demoInviteParent01' AND revoked_at IS NULL"
+          elif [ -n "$(psql "$DATABASE_URL" -tAc "SELECT to_regclass('goose_demo_version')")" ]; then
+            demo reset
+          fi
+
   deploy:
     name: ${{ matrix.function }}
     needs: migrate

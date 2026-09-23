@@ -42,6 +42,9 @@ jobs:
           VITE_API_BASE: ${{ vars.YC_API_URL }}
           # Коммит сборки показывается внизу профиля рядом с версией сервера.
           VITE_APP_VERSION: ${{ github.sha }}
+          # Временный демо-режим (var.enable_browser_demo): вне MAX вместо
+          # моста — заглушка, вход от лица демо-семьи. Внутри MAX не влияет.
+          VITE_DEV_FAKE_WEBAPP: ${{ vars.ENABLE_BROWSER_DEMO == 'true' && 'true' || 'false' }}
         run: |
           if [ -z "$VITE_API_BASE" ]; then
             echo "::error::Нет переменной YC_API_URL (tofu output -raw api_url), см. .github/workflows/README.md"
