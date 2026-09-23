@@ -23,6 +23,9 @@ var router http.Handler
 // одного запроса. Пул создаётся здесь же и переживает вызовы в тёплом
 // инстансе, но в базу не ходит, пока не придёт первый запрос.
 func init() {
+	if err := api.CheckMux(); err != nil {
+		log.Fatalf("роутер: %v", err)
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("конфиг: %v", err)
