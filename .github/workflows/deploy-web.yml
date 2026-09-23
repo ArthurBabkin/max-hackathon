@@ -12,6 +12,8 @@ on:
       - 'packages/api-contract/**'
       # Словарь текстов общий с ботом, фронт импортирует его при сборке.
       - 'packages/shared/texts/**'
+      # Справочник регионов общий с ботом — список в профиле.
+      - 'packages/core/refdata/regions.json'
       - '.github/workflows/deploy-web.yml'
   # Ручной запуск — чтобы выложить фронт, не делая пустой коммит.
   workflow_dispatch:

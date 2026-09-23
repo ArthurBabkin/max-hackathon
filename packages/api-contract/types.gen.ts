@@ -320,6 +320,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/directions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Направления — справочник целей для правки профиля */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["Direction"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracker": {
         parameters: {
             query?: never;
@@ -1380,6 +1419,12 @@ export interface components {
             why: string;
             /** @description Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23). */
             benefit_universities: components["schemas"]["BenefitRow"][];
+        };
+        Direction: {
+            /** @example napr-09-03-04 */
+            id: string;
+            /** @example Программная инженерия */
+            name: string;
         };
         UniversityListItem: {
             id: string;
