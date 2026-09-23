@@ -94,7 +94,8 @@ resource "yandex_function" "fn" {
   }
 
   # Прод: дев-обход подписи initData выключен и не включится — api с
-  # APP_ENV=production и DEV_UNSIGNED_INITDATA=true не стартует.
+  # APP_ENV=production и DEV_UNSIGNED_INITDATA=true не стартует. Исключение —
+  # временный демо-режим var.enable_browser_demo, только для api.
   environment = merge({
     APP_ENV       = "production"
     MAX_API_BASE  = var.max_api_base
@@ -112,6 +113,9 @@ resource "yandex_function" "fn" {
     CORS_ALLOWED_ORIGINS = var.cors_allowed_origins
     LLM_BASE_URL         = "https://polza.ai/api/v1"
     LLM_MODEL            = var.llm_model
+    } : {}, each.key == "api" && var.enable_browser_demo ? {
+    APP_ENV               = "development"
+    DEV_UNSIGNED_INITDATA = "true"
   } : {})
 
   service_account_id = yandex_iam_service_account.functions.id
