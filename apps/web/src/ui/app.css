@@ -1228,25 +1228,28 @@
   font-weight: 600;
 }
 
-.rules-row {
+/* Ссылка внутри блока: блок уже на фоне --bg, поэтому строка — на --surface. */
+.about-link {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   min-height: var(--tap);
   margin-top: var(--gap-sm);
-  padding: 11px var(--gap-md);
+  padding: 10px 12px;
+  border: 0;
   border-radius: var(--r-md);
-  background: var(--bg);
+  background: var(--surface);
+  color: var(--p2);
+  font: inherit;
   font-size: var(--t-small);
   font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
-.rules-row > span:first-child {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.about-link .rules-date {
+  margin-left: auto;
 }
 
 .rules-date {

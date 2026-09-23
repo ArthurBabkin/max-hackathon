@@ -162,6 +162,8 @@ type universityDetail struct {
 	EgeNote         *string              `json:"ege_note"`
 	RulesURL        *string              `json:"rules_url"`
 	RulesVerifiedAt *string              `json:"rules_verified_at"`
+	Description     *string              `json:"description"`
+	SiteURL         *string              `json:"site_url"`
 	Olympiads       []universityOlympiad `json:"olympiads"`
 }
 
@@ -192,7 +194,7 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 
 	out := universityDetail{
 		universityItem: universityItemOf(d.University), Directions: d.Directions, EgeNote: d.EgeNote,
-		RulesURL: d.RulesURL, RulesVerifiedAt: dateOf(d.RulesVerifiedAt), Olympiads: make([]universityOlympiad, len(rows)),
+		RulesURL: d.RulesURL, RulesVerifiedAt: dateOf(d.RulesVerifiedAt), Description: d.Description, SiteURL: d.SiteURL, Olympiads: make([]universityOlympiad, len(rows)),
 	}
 	if out.Directions == nil {
 		out.Directions = []string{}
