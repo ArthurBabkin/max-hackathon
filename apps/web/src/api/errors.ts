@@ -3,10 +3,8 @@ import type { ErrorCode } from '@contract'
 /**
  * Ошибка API в едином виде.
  *
- * По ТЗ §10 сервер отдаёт `{"error": {"code", "message"}}`. Скелет apps/api
- * пока отвечает строкой (`{"error": "not_implemented"}`), поэтому разбор
- * принимает обе формы — это три строки, зато фронт не ломается, пока бэкенд
- * приводит ответ к ТЗ.
+ * По ТЗ §10 сервер отдаёт `{"error": {"code", "message"}}`. Любое другое тело
+ * (прокси, шлюз, обрыв) сводится к INTERNAL с текстом по статусу.
  */
 export class ApiError extends Error {
   readonly code: ErrorCode | string
@@ -52,9 +50,6 @@ export function toApiError(status: number, payload: unknown): ApiError {
     const { code, message } = error as { code?: string; message?: string }
     return new ApiError(status, code ?? 'INTERNAL', message ?? fallback(status))
   }
-
-  // Форма скелета: error строкой.
-  if (typeof error === 'string') return new ApiError(status, error, fallback(status))
 
   return new ApiError(status, 'INTERNAL', fallback(status))
 }
