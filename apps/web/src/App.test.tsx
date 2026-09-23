@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, it, vi } from 'vitest'
 import { makeSession } from './test/render'
@@ -44,4 +44,28 @@ it('не ходит за данными, пока не открыта сесси
   await waitFor(() => expect(calls).toContain('GET /tracker'))
   expect(calls.filter((c) => c.endsWith('401'))).toEqual([])
   expect(calls.filter((c) => c === 'POST /session')).toHaveLength(1)
+})
+
+// MAX открывает мини-приложение с данными запуска в hash:
+// `#WebAppData=…&WebAppPlatform=ios`. Хеш-роутер принимает это за путь, и
+// главная открывалась без кнопки «Спросить» — до первого перехода по вкладкам.
+it('при запуске из MAX главная открывается с кнопкой «Спросить»', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) =>
+      url.endsWith('/session')
+        ? Promise.resolve(reply(200, { token: 't', session: makeSession() }))
+        : new Promise(() => {}),
+    ),
+  )
+
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/WebAppData=user%3D%7B%7D%26hash%3Dabc&WebAppPlatform=ios&WebAppVersion=25.9.0']}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+
+  expect(await screen.findByRole('button', { name: 'Спросить' })).toBeInTheDocument()
 })

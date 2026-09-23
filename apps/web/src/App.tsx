@@ -5,7 +5,7 @@
 
 import { Suspense, lazy, useEffect } from 'react'
 import { Button, IconButton } from '@maxhub/max-ui'
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useColorScheme } from '@maxhub/max-ui'
 import { useSession, useTracker } from './api/queries'
 import { getWebApp } from './bridge'
@@ -123,7 +123,11 @@ export function App() {
             <Route path="/family" element={<FamilyScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/faq" element={<FaqScreen />} />
-            <Route path="*" element={<HomeScreen />} />
+            {/* MAX открывает приложение с данными запуска в hash
+                (`#WebAppData=…`), и хеш-роутер видит в них путь. Мост MAX к
+                этому моменту их уже прочитал — меняем адрес на главную, иначе
+                без кнопки «Спросить» и с лишней «Назад» открылась бы главная. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </main>
