@@ -20,6 +20,10 @@
   retries: 20
   delay: 15
   until: apt_update is success
+  # Обновление кеша само по себе изменением системы не является, а в отчёте
+  # оно каждый раз помечало бы прогон как «что-то поменялось» и прятало бы
+  # настоящие изменения.
+  changed_when: false
 
 - name: Файловая система на диске под данные
   # force не указываем намеренно: если файловая система уже есть, значит диск
@@ -36,6 +40,9 @@
     opts: defaults,noatime
     state: mounted
 
+# Клиента S3 в списке нет намеренно: пакета awscli в Ubuntu 24.04 не существует
+# (проверено на живой машине), а curl с --aws-sigv4 есть всегда и лишних
+# зависимостей не тянет. Выгрузку делает он, см. backup.sh.j2.
 - name: Установить PostgreSQL и вспомогательные пакеты
   ansible.builtin.apt:
     name:
@@ -43,7 +50,6 @@
       - "postgresql-client-{{ pg_version }}"
       # Нужен модулям community.postgresql.
       - python3-psycopg2
-      - awscli
       - gzip
     state: present
 

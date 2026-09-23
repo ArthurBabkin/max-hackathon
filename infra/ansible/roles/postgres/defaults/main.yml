@@ -22,5 +22,8 @@ pg_shared_buffers: 512MB
 # на случай недоступной ВМ. Срок хранения в бакете задаёт Terraform.
 backup_bucket: traektoria-db-backups
 backup_endpoint: https://storage.yandexcloud.net
+# Регион для подписи SigV4. У Object Storage он всегда ru-central1,
+# независимо от зоны, в которой стоит ВМ.
+backup_region: ru-central1
 backup_keep_local: 3
 backup_hour: "03:17"
