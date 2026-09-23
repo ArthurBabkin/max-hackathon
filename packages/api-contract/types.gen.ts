@@ -1365,6 +1365,8 @@ export interface components {
         OlympiadDetail: components["schemas"]["OlympiadCard"] & {
             /** Format: uri */
             official_url: string | null;
+            /** @description Что это за олимпиада — пара предложений по официальному сайту. Пусто — блок не показывается. */
+            description: string | null;
             /** @description Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17). */
             profiles: components["schemas"]["ProfileLevel"][];
             profiles_source: components["schemas"]["Source"] | null;
@@ -1400,6 +1402,10 @@ export interface components {
             rules_url: string | null;
             /** Format: date */
             rules_verified_at: string | null;
+            /** @description Что это за вуз — пара предложений по официальному сайту. */
+            description: string | null;
+            /** Format: uri */
+            site_url: string | null;
             /** @description Олимпиады, дающие льготу в этом вузе, с переходом в карточку (F26). */
             olympiads: (components["schemas"]["Badge"] & {
                 olympiad_profile_id: string;
