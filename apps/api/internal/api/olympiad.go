@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -58,6 +60,8 @@ type benefitRow struct {
 	DiplomaGrades       []int32    `json:"diploma_grades"`
 	Note                *string    `json:"note"`
 	Source              *sourceDTO `json:"source"`
+	// Conditions — своё у вуза в карточке олимпиады (F19); в других списках пусто.
+	Conditions []string `json:"conditions,omitempty"`
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
@@ -178,9 +182,14 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, b := range mine {
 		byUni[b.UniversityID] = b
 	}
+	minEge, _ := egeBounds(mine)
 	for _, u := range cs.Universities {
 		if b, ok := byUni[u.ID]; ok {
-			out.Benefits = append(out.Benefits, benefitRowOf(b))
+			row := benefitRowOf(b)
+			if p.Kind != "other" {
+				row.Conditions = cs.uniConditions(b, minEge)
+			}
+			out.Benefits = append(out.Benefits, row)
 			continue
 		}
 		out.Benefits = append(out.Benefits, benefitRow{
@@ -240,8 +249,10 @@ func benefitsSource(rows []store.BenefitRow) *sourceDTO {
 	}
 }
 
-// conditions — условия подтверждения льготы (F19), только из данных о
-// льготах: по вузам ученика, а если там льгот нет — по всем вузам базы.
+// conditions — общие условия подтверждения льготы (F19), только из данных о
+// льготах. Если льготу дают вузы ученика, здесь то, что верно для всех них,
+// а своё у вуза — в его строке (uniConditions). Если не дают — условия
+// собираются по всем вузам базы, вместе с особенностями вузов.
 func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []string {
 	v := cs.voice
 	if p.Kind == "other" {
@@ -251,61 +262,16 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	if p.Kind == "vsosh" {
 		out[0] = v.T("cond.diplomaVsosh", nil)
 	}
-	rows := mine
+	rows, own := mine, true
 	if len(rows) == 0 {
-		rows = all
+		rows, own = all, false
 	}
 	if len(rows) == 0 {
 		return append(out, v.T("cond.noBenefits", nil))
 	}
 
-	var minEge, maxEge *int
-	varies := false
-	subjects := map[string]int{}
-	var subjectOrder []string
-	type note struct{ text, nicks string }
-	var notes []note
-	noteAt := map[string]int{}
-	for _, b := range rows {
-		if b.EgeMin != nil {
-			if minEge == nil || *b.EgeMin < *minEge {
-				minEge = b.EgeMin
-			}
-			if maxEge == nil || *b.EgeMin > *maxEge {
-				maxEge = b.EgeMin
-			}
-		}
-		if b.Note == nil {
-			continue
-		}
-		for _, sentence := range strings.Split(*b.Note, ". ") {
-			sentence = strings.TrimSuffix(strings.TrimSpace(sentence), ".")
-			switch {
-			case strings.HasPrefix(sentence, "Подтвердить ЕГЭ: "):
-				subj := strings.TrimPrefix(sentence, "Подтвердить ЕГЭ: ")
-				if subjects[subj] == 0 {
-					subjectOrder = append(subjectOrder, subj)
-				}
-				subjects[subj]++
-			case strings.Contains(sentence, "зависит от программы"):
-				varies = true
-			case strings.HasPrefix(sentence, "Победителю") || strings.Contains(sentence, "только победителю"):
-				n := nick(b.UniversityID, b.UniversityShort)
-				if i, ok := noteAt[sentence]; ok {
-					notes[i].nicks += ", " + n
-				} else {
-					noteAt[sentence] = len(notes)
-					notes = append(notes, note{sentence, n})
-				}
-			}
-		}
-	}
-	subject := ""
-	for _, subj := range subjectOrder {
-		if subjects[subj] > subjects[subject] {
-			subject = subj
-		}
-	}
+	minEge, maxEge := egeBounds(rows)
+	subject := egeSubject(rows)
 	switch {
 	case minEge != nil && subject != "":
 		out = append(out, v.T("cond.ege", voice.Vars{"subject": subject, "count": *minEge}))
@@ -314,14 +280,21 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	case subject != "":
 		out = append(out, v.T("cond.egeSubject", voice.Vars{"subject": subject}))
 	}
-	if minEge != nil && (varies || *maxEge != *minEge) {
-		out = append(out, v.T("cond.egeVaries", nil))
-	}
-	if g := commonGrades(rows); g != "" {
-		out = append(out, v.T("cond.grades", voice.Vars{"grade": g}))
-	}
-	for _, n := range notes {
-		out = append(out, v.T("cond.note", voice.Vars{"names": n.nicks, "note": lowerFirst(n.text)}))
+	if !own {
+		varies := false
+		for _, b := range rows {
+			_, _, ok := egeRange(b.Note)
+			varies = varies || ok
+		}
+		if minEge != nil && (varies || *maxEge != *minEge) {
+			out = append(out, v.T("cond.egeVaries", nil))
+		}
+		if g := commonGrades(rows); g != "" {
+			out = append(out, v.T("cond.grades", voice.Vars{"grade": g}))
+		}
+		for _, n := range winnerNotes(rows) {
+			out = append(out, v.T("cond.note", voice.Vars{"names": n.nicks, "note": lowerFirst(n.text)}))
+		}
 	}
 	if b := pick.BestBenefit(rows); b == "bvi" || b == "bvi_winners" {
 		out = append(out, v.T("cond.bviOnce", nil))
@@ -329,7 +302,120 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	return out
 }
 
-// commonGrades — «9–11», если у всех строк одинаковые классы диплома; иначе "".
+// uniConditions — чем условия вуза отличаются от общих (F19): что получит
+// призёр, свой порог ЕГЭ и — только если мешает — за какой класс вуз
+// засчитывает диплом. minEge — общий порог по вузам ученика.
+func (cs cardSet) uniConditions(b store.BenefitRow, minEge *int) []string {
+	v := cs.voice
+	var out []string
+	for _, sentence := range noteSentences(b.Note) {
+		switch sentence {
+		case "Победителю — БВИ, призёру — 100 баллов":
+			out = append(out, v.T("cond.prizer100", nil))
+		case "БВИ только победителю", "100 баллов только победителю":
+			out = append(out, v.T("cond.prizerNone", nil))
+		}
+	}
+	if from, to, ok := egeRange(b.Note); ok {
+		out = append(out, v.T("cond.egeRange", voice.Vars{"from": from, "to": to}))
+	} else if b.EgeMin != nil && minEge != nil && *b.EgeMin > *minEge {
+		out = append(out, v.T("cond.egeUni", voice.Vars{"count": *b.EgeMin}))
+	}
+	grade := int32(cs.Trajectory.Grade)
+	if len(b.DiplomaGrades) > 0 && !slices.Contains(b.DiplomaGrades, grade) {
+		out = append(out, v.T("cond.gradeMiss", voice.Vars{"grades": gradesLabel(b.DiplomaGrades), "grade": grade}))
+	}
+	return out
+}
+
+// noteSentences — предложения примечания к льготе без точек на концах.
+func noteSentences(note *string) []string {
+	if note == nil {
+		return nil
+	}
+	var out []string
+	for _, sentence := range strings.Split(*note, ". ") {
+		out = append(out, strings.TrimSuffix(strings.TrimSpace(sentence), "."))
+	}
+	return out
+}
+
+var egeRangeRe = regexp.MustCompile(`Порог ЕГЭ зависит от программы: (\d+)–(\d+)`)
+
+// egeRange — разброс порога ЕГЭ по программам вуза, если он есть.
+func egeRange(note *string) (from, to string, ok bool) {
+	if note == nil {
+		return "", "", false
+	}
+	m := egeRangeRe.FindStringSubmatch(*note)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
+func egeBounds(rows []store.BenefitRow) (minEge, maxEge *int) {
+	for _, b := range rows {
+		if b.EgeMin == nil {
+			continue
+		}
+		if minEge == nil || *b.EgeMin < *minEge {
+			minEge = b.EgeMin
+		}
+		if maxEge == nil || *b.EgeMin > *maxEge {
+			maxEge = b.EgeMin
+		}
+	}
+	return minEge, maxEge
+}
+
+// egeSubject — предмет ЕГЭ для подтверждения, который чаще всего называют
+// вузы; при равенстве — тот, что встретился раньше.
+func egeSubject(rows []store.BenefitRow) string {
+	count := map[string]int{}
+	var order []string
+	for _, b := range rows {
+		for _, sentence := range noteSentences(b.Note) {
+			if subj, ok := strings.CutPrefix(sentence, "Подтвердить ЕГЭ: "); ok {
+				if count[subj] == 0 {
+					order = append(order, subj)
+				}
+				count[subj]++
+			}
+		}
+	}
+	subject := ""
+	for _, subj := range order {
+		if count[subj] > count[subject] {
+			subject = subj
+		}
+	}
+	return subject
+}
+
+type winnerNote struct{ text, nicks string }
+
+// winnerNotes — правила для победителя и призёра, с вузами, где они действуют.
+func winnerNotes(rows []store.BenefitRow) []winnerNote {
+	var notes []winnerNote
+	at := map[string]int{}
+	for _, b := range rows {
+		for _, sentence := range noteSentences(b.Note) {
+			if !strings.HasPrefix(sentence, "Победителю") && !strings.Contains(sentence, "только победителю") {
+				continue
+			}
+			n := nick(b.UniversityID, b.UniversityShort)
+			if i, ok := at[sentence]; ok {
+				notes[i].nicks += ", " + n
+			} else {
+				at[sentence] = len(notes)
+				notes = append(notes, winnerNote{sentence, n})
+			}
+		}
+	}
+	return notes
+}
+
 func commonGrades(rows []store.BenefitRow) string {
 	first := rows[0].DiplomaGrades
 	if len(first) == 0 {
@@ -340,18 +426,23 @@ func commonGrades(rows []store.BenefitRow) string {
 			return ""
 		}
 	}
+	return gradesLabel(first)
+}
+
+// gradesLabel — классы подряд через тире, иначе через запятую: «11», «9–11», «9, 11».
+func gradesLabel(grades []int32) string {
 	contiguous := true
-	for i := 1; i < len(first); i++ {
-		contiguous = contiguous && first[i] == first[i-1]+1
+	for i := 1; i < len(grades); i++ {
+		contiguous = contiguous && grades[i] == grades[i-1]+1
 	}
 	switch {
-	case len(first) == 1:
-		return fmt.Sprint(first[0])
+	case len(grades) == 1:
+		return fmt.Sprint(grades[0])
 	case contiguous:
-		return fmt.Sprintf("%d–%d", first[0], first[len(first)-1])
+		return fmt.Sprintf("%d–%d", grades[0], grades[len(grades)-1])
 	default:
-		parts := make([]string, len(first))
-		for i, g := range first {
+		parts := make([]string, len(grades))
+		for i, g := range grades {
 			parts[i] = fmt.Sprint(g)
 		}
 		return strings.Join(parts, ", ")

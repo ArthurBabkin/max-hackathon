@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { getWebApp } from '@/bridge'
@@ -33,6 +33,7 @@ it('поиск оставляет подходящие вопросы, пуст�
 
 it('родителю отвечает на «вы» и о ребёнке по имени', async () => {
   renderApp(<FaqScreen />, { route: '/faq', session: makeSession({ role: 'parent' }) })
-  await userEvent.click(screen.getByText('Нужно ли сдавать ЕГЭ, если есть диплом?'))
-  expect(screen.getByText(/в вузах Артёма/)).toBeVisible()
+  const question = screen.getByText('Нужно ли сдавать ЕГЭ, если есть диплом?')
+  await userEvent.click(question)
+  expect(within(question.closest('details')!).getByText(/в вузах Артёма/)).toBeVisible()
 })

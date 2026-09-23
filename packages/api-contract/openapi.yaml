@@ -1136,6 +1136,14 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Source"
             - type: "null"
+        conditions:
+          type: array
+          description: |
+            Чем условия в этом вузе отличаются от общих `OlympiadDetail.conditions` (F19):
+            что получит призёр, свой порог ЕГЭ, класс диплома — только если вуз не засчитает
+            диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
+          items: { type: string }
+          examples: [["Призёру — 100 баллов вместо БВИ", "Порог ЕГЭ от 75 до 80 — зависит от программы"]]
 
     Stage:
       type: object
@@ -1199,7 +1207,10 @@ components:
                 - type: "null"
             conditions:
               type: array
-              description: Условия подтверждения льготы — порог ЕГЭ, классы, «БВИ в один вуз» (F19).
+              description: |
+                Общие условия подтверждения льготы в вузах ученика — диплом, порог ЕГЭ, «БВИ в один вуз» (F19).
+                Своё у вуза — в `benefits[].conditions`. Если вузы ученика льготы не дают, условия
+                собраны по всем вузам базы и включают их особенности.
               items: { type: string }
             stages:
               type: array
