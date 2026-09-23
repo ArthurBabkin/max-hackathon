@@ -104,6 +104,11 @@ resource "yandex_function" "fn" {
     DB_MAX_CONNS  = "2"
     TZ            = "Europe/Moscow"
     }, each.key == "api" ? {
+    # Рантайм собирает функцию плагином к своему main-модулю, и дефолт GODEBUG
+    # там — старый ServeMux: шаблоны «GET /health» не матчатся, любой запрос
+    # получает 404. Настройка читается при старте процесса, из кода её не
+    # поменять. api.CheckMux не даст стартовать без неё.
+    GODEBUG              = "httpmuxgo121=0"
     CORS_ALLOWED_ORIGINS = var.cors_allowed_origins
     LLM_BASE_URL         = "https://polza.ai/api/v1"
     LLM_MODEL            = var.llm_model
