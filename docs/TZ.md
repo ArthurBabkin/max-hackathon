@@ -572,7 +572,9 @@ erDiagram
 | `POST /family/leave` | выйти | 48 |
 | `GET /profile` / `PATCH /profile` | профиль ученика | 49 |
 | `PUT /profile/universities` | вузы ученика | 9, 25, 49 |
-| `GET /ai/messages` / `POST /ai/messages` | личный чат помощника | 35–37 |
+| `GET /ai/chats` / `POST /ai/chats` `{text}` | свои чаты помощника; новый чат с первым вопросом | 37, 58, 59 |
+| `PATCH /ai/chats/:id` `{title}` | переименовать чат | 59 |
+| `GET /ai/chats/:id/messages` / `POST …/messages` `{text}` | реплики чата; вопрос с контекстом 10 реплик | 35–37, 60 |
 
 Бот работает с теми же сервисами напрямую, без HTTP.
 

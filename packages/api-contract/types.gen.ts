@@ -1055,7 +1055,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/ai/messages": {
+    "/ai/chats": {
         parameters: {
             query?: never;
             header?: never;
@@ -1063,8 +1063,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * История личного чата с помощником
-         * @description История своя у каждого участника и другим не видна (ТЗ F37).
+         * Чаты с помощником
+         * @description Свои чаты участника, свежие сверху — по времени последней реплики.
+         *     Другим участникам не видны (ТЗ F37). Пустых чатов не бывает: чат
+         *     появляется вместе с первым вопросом.
          */
         get: {
             parameters: {
@@ -1082,7 +1084,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: components["schemas"]["AiMessage"][];
+                            items: components["schemas"]["AiChat"][];
                         };
                     };
                 };
@@ -1091,9 +1093,9 @@ export interface paths {
         };
         put?: never;
         /**
-         * Вопрос помощнику
-         * @description RAG только по нашей базе. Если ответа в базе нет, приходит
-         *     `refused: true` и шаблон отказа со ссылкой на первоисточник (ТЗ F36).
+         * Новый чат с первым вопросом
+         * @description Создаёт чат и сразу отвечает на первый вопрос. Название — «Чат 23
+         *     сентября» по дню вопроса в часовом поясе траектории (ТЗ F59).
          */
         post: {
             parameters: {
@@ -1104,9 +1106,140 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        text: string;
+                    "application/json": components["schemas"]["AiQuestion"];
+                };
+            };
+            responses: {
+                /** @description Чат создан, ответ помощника */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
                     };
+                    content: {
+                        "application/json": components["schemas"]["AiExchange"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/chats/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Переименовать чат
+         * @description Пробелы по краям отбрасываются; остаётся от 1 до 60 символов (ТЗ F59).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `ai_chats.id`. Чужой чат для участника не существует — 404 (ТЗ F37). */
+                    id: components["parameters"]["ChatId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AiChat"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/ai/chats/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Реплики чата
+         * @description 50 последних реплик, от старых к новым.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `ai_chats.id`. Чужой чат для участника не существует — 404 (ТЗ F37). */
+                    id: components["parameters"]["ChatId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["AiMessage"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        /**
+         * Вопрос помощнику в чате
+         * @description RAG только по нашей базе. Карточки ищутся по тексту этого вопроса;
+         *     модель видит ещё 10 предыдущих реплик чата и карточки, на которые
+         *     ссылались ответы в них (ТЗ F60). Если ответа в базе нет, приходит
+         *     `refused: true` и шаблон отказа со ссылкой на первоисточник (ТЗ F36).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `ai_chats.id`. Чужой чат для участника не существует — 404 (ТЗ F37). */
+                    id: components["parameters"]["ChatId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AiQuestion"];
                 };
             };
             responses: {
@@ -1116,23 +1249,13 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            question: components["schemas"]["AiMessage"];
-                            answer: components["schemas"]["AiMessage"];
-                        };
+                        "application/json": components["schemas"]["AiExchange"];
                     };
                 };
                 400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
-                /** @description Слишком часто */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
+                404: components["responses"]["NotFound"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -1601,6 +1724,31 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        AiChat: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @example Чат 23 сентября
+             * @example Льготы в ИТМО
+             */
+            title: string;
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description Время последней реплики — по нему список идёт от свежих к старым.
+             */
+            last_message_at: string;
+        };
+        AiQuestion: {
+            text: string;
+        };
+        /** @description Пара вопрос–ответ и чат, в котором она сохранена. */
+        AiExchange: {
+            chat: components["schemas"]["AiChat"];
+            question: components["schemas"]["AiMessage"];
+            answer: components["schemas"]["AiMessage"];
+        };
     };
     responses: {
         /** @description Некорректный запрос */
@@ -1639,6 +1787,15 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Слишком часто */
+        RateLimited: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         /** @description `olympiad_profiles.id` */
@@ -1647,6 +1804,8 @@ export interface components {
         TrackerItemId: string;
         /** @description `proposals.id` */
         ProposalId: string;
+        /** @description `ai_chats.id`. Чужой чат для участника не существует — 404 (ТЗ F37). */
+        ChatId: string;
     };
     requestBodies: never;
     headers: never;
