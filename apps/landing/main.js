@@ -1,58 +1,64 @@
-// Прогрессивное улучшение: без этого файла страница целиком читается и работает,
-// просто без плашки у шапки, проявления блоков и вкладок (панели идут списком).
+// Поведение лендинга. Без скрипта страница читается целиком: первый ответ в
+// вопросах открыт, остальные раскрывает <noscript>-стиль; экраны в панелях
+// стоят на первом; меню-бургер прячется.
 
-// Класс ставит сам скрипт: если он не загрузится, скрытые до появления блоки
-// не останутся невидимыми навсегда.
-document.documentElement.classList.add('js')
+export const SWAP_MS = 3500
 
-// Шапка становится «пилюлей», как только страницу чуть прокрутили.
-const header = document.querySelector('[data-top]')
-const sentinel = Object.assign(document.createElement('div'), { ariaHidden: 'true' })
-sentinel.style.cssText = 'position:absolute;top:24px;left:0;width:1px;height:1px'
-document.body.prepend(sentinel)
-new IntersectionObserver(([e]) => header.toggleAttribute('data-scrolled', !e.isIntersecting)).observe(sentinel)
-
-// Блоки проявляются один раз, когда доезжают до экрана.
-const reveal = new IntersectionObserver(
-  (entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue
-      e.target.classList.add('is-in')
-      reveal.unobserve(e.target)
-    }
-  },
-  { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
-)
-document.querySelectorAll('.reveal').forEach((el) => reveal.observe(el))
-
-// Вкладки по паттерну WAI-ARIA: стрелки, Home и End, фокус ходит по кругу.
-for (const root of document.querySelectorAll('[data-tabs]')) {
-  const list = root.querySelector('[role=tablist]')
-  const tabs = [...list.querySelectorAll('[role=tab]')]
-  const panels = tabs.map((t) => document.getElementById(t.getAttribute('aria-controls')))
-
-  const select = (i, focus) => {
-    tabs.forEach((t, j) => {
-      const on = i === j
-      t.setAttribute('aria-selected', String(on))
-      t.tabIndex = on ? 0 : -1
-      panels[j].hidden = !on
-      panels[j].classList.toggle('is-shown', on && focus !== undefined)
-    })
-    if (focus) {
-      tabs[i].focus()
-      tabs[i].scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    }
+// Вопросы: одновременно открыт один. Повторный клик закрывает открытый.
+export function initFaq(toggles, doc) {
+  const items = toggles.map((btn) => ({ btn, answer: doc.getElementById(btn.getAttribute('aria-controls')) }))
+  const set = ({ btn, answer }, open) => {
+    btn.setAttribute('aria-expanded', String(open))
+    btn.lastElementChild.textContent = open ? '−' : '+'
+    answer.hidden = !open
   }
+  for (const item of items) {
+    item.btn.addEventListener('click', () => {
+      const open = item.btn.getAttribute('aria-expanded') !== 'true'
+      for (const other of items) set(other, false)
+      if (open) set(item, true)
+    })
+  }
+}
 
-  list.hidden = false
-  select(0)
-  tabs.forEach((t, i) => t.addEventListener('click', () => select(i, false)))
-  list.addEventListener('keydown', (e) => {
-    const i = tabs.indexOf(document.activeElement)
-    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key]
-    if (next === undefined) return
-    e.preventDefault()
-    select((next + tabs.length) % tabs.length, true)
+// Панели «Трекер» и «Помощник»: два экрана сменяют друг друга синхронно.
+// При reduced motion стоят на первом.
+export function initSwap(target, win) {
+  if (win.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  win.setInterval(() => target.classList.toggle('alt'), SWAP_MS)
+}
+
+// Меню на телефоне и планшете: закрывается выбором пункта, Escape и кликом мимо.
+export function initMenu(button, menu, doc) {
+  const isOpen = () => button.getAttribute('aria-expanded') === 'true'
+  const set = (open) => {
+    button.setAttribute('aria-expanded', String(open))
+    menu.hidden = !open
+  }
+  button.addEventListener('click', () => set(!isOpen()))
+  menu.addEventListener('click', (e) => {
+    if (e.target.closest('a')) set(false)
   })
+  doc.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !isOpen()) return
+    set(false)
+    button.focus()
+  })
+  doc.addEventListener('click', (e) => {
+    if (isOpen() && !menu.contains(e.target) && !button.contains(e.target)) set(false)
+  })
+}
+
+// Липкая шапка получает разделитель, как только страницу прокрутили.
+export function initHeader(header, win) {
+  const update = () => header.toggleAttribute('data-scrolled', win.scrollY > 0)
+  win.addEventListener('scroll', update, { passive: true })
+  update()
+}
+
+if (typeof document !== 'undefined') {
+  initFaq([...document.querySelectorAll('[data-faq-toggle]')], document)
+  initSwap(document.body, window)
+  initMenu(document.querySelector('.burger'), document.getElementById('menu'), document)
+  initHeader(document.querySelector('[data-top]'), window)
 }

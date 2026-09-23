@@ -430,7 +430,7 @@ go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw w
 | Vite, Vitest, Testing Library, jsdom, openapi-typescript (разработка) | см. package.json | MIT |
 | TypeScript (разработка) | 5.9.3 | Apache-2.0 |
 | Образы postgres:16-alpine, nginx:1.27-alpine, golang:1.23-alpine, node:22-alpine | | PostgreSQL License, BSD-2-Clause, BSD-3-Clause, MIT |
-| Шрифты Onest, Unbounded (лендинг, файлы в `apps/landing/assets/fonts`) | | SIL OFL 1.1 |
+| Шрифты Onest, Unbounded (лендинг, файлы в `apps/landing/fonts`) | | SIL OFL 1.1 |
 
 **Атрибуция.** Проверка initData и формат запросов Bot API сверены с официальным
 [Go SDK MAX](https://github.com/max-messenger/max-bot-api-client-go) (Apache License 2.0)
