@@ -5,6 +5,7 @@
 
 - Бот: [@t356_hakaton_max_bot](https://max.ru/t356_hakaton_max_bot)
 - Мини-приложение: https://traektoria.website.yandexcloud.net/ (открывается из бота)
+- Лендинг: https://traektoriaedu.ru/ ([apps/landing](apps/landing/README.md))
 
 Школьник или родитель проходит короткий онбординг в чате, получает 3–5 олимпиад
 под свою цель, видит льготы именно в своих вузах со ссылкой на первоисточник,
@@ -330,10 +331,12 @@ id MAX и состава семьи.
   собирает шаблонную базу из миграций и даёт каждому пакету свою копию.
   Бот тестируется целыми сценариями через поддельный отправитель MAX.
 - **Фронт**: Vitest, 554 тестов; словарь текстов проверяется и фронтом, и Go.
+- **Лендинг**: `node --test apps/landing/landing.test.mjs` — ассеты, якоря, ссылки
+  на бота, контраст токенов.
 - **Контракт**: `contract:check` против живого API.
 - **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)): gofmt, go vet,
   сборка всех бинарей, Go-тесты с сервисным Postgres, тесты генератора сида,
-  typecheck и тесты фронта, миграции + демо + запуск api + `contract:check`.
+  typecheck и тесты фронта, тесты лендинга, миграции + демо + запуск api + `contract:check`.
 
 ```bash
 make check && make test-db
@@ -351,6 +354,7 @@ cd apps/web && npm ci && npm run typecheck && npm test
 | База, функции, шлюз, Lockbox, таймеры | **Actions → Infra apply** (подтверждает второй человек) или `tofu apply` руками |
 | Миграции и код четырёх функций | автоматически при слиянии в `master` (**Deploy functions**): сначала `goose up`, потом новая версия каждой функции с настройками, заданными Terraform, проверка живости и откат `$latest` при провале |
 | Мини-приложение | автоматически при слиянии в `master` (**Deploy web**) со сборкой под адрес API Gateway |
+| Лендинг | автоматически при слиянии в `master` (**Deploy landing**): тесты и заливка `apps/landing` в бакет `traektoriaedu.ru` |
 | Вебхук MAX | один раз руками, когда бот с новым кодом выложен |
 
 ```bash
@@ -426,6 +430,7 @@ go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw w
 | Vite, Vitest, Testing Library, jsdom, openapi-typescript (разработка) | см. package.json | MIT |
 | TypeScript (разработка) | 5.9.3 | Apache-2.0 |
 | Образы postgres:16-alpine, nginx:1.27-alpine, golang:1.23-alpine, node:22-alpine | | PostgreSQL License, BSD-2-Clause, BSD-3-Clause, MIT |
+| Шрифты Onest, Unbounded (лендинг, файлы в `apps/landing/assets/fonts`) | | SIL OFL 1.1 |
 
 **Атрибуция.** Проверка initData и формат запросов Bot API сверены с официальным
 [Go SDK MAX](https://github.com/max-messenger/max-bot-api-client-go) (Apache License 2.0)
@@ -442,6 +447,7 @@ go run ./apps/bot/cmd/setup -webhook "$(cd infra/terraform && tofu output -raw w
 | `apps/reminders` | воркер напоминаний |
 | `apps/notifier` | воркер уведомлений об изменениях контента |
 | `apps/web` | мини-приложение: React + Vite + MAX UI ([README](apps/web/README.md)) |
+| `apps/landing` | лендинг на traektoriaedu.ru: статика без сборки ([README](apps/landing/README.md)) |
 | `packages/core` | бизнес-логика без HTTP и MAX |
 | `packages/db` | пул, `store`, миграции, демо-миграции, тестовый харнесс |
 | `packages/shared` | клиент MAX, клиент LLM, конфиг, словарь текстов kid/parent |
