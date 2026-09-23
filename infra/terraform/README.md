@@ -187,7 +187,7 @@ DATABASE_URL="$(cd infra/terraform && tofu output -raw database_url)"
 go run github.com/pressly/goose/v3/cmd/goose@v3.22.1 -dir packages/db/migrations postgres "$DATABASE_URL" up
 ```
 
-Демо-миграции (`packages/db/migrations-demo`) в прод не катятся.
+Демо-миграции (`packages/db/migrations-demo`, демо-семья) катятся в прод только при `ENABLE_BROWSER_DEMO=true` — это делает Deploy functions. Вымышленные олимпиады (`packages/db/migrations-local`) в прод не катятся никогда.
 
 Вебхук и подсказки команд — один раз, когда функция бота с новым кодом выкачена:
 
