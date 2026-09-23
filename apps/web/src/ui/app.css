@@ -141,8 +141,8 @@
   min-height: var(--tap);
   padding: 0 18px;
   border-radius: var(--r-pill);
-  background: var(--tx);
-  color: var(--bg);
+  background: var(--fab-fill);
+  color: var(--fab-tx);
   font-weight: 700;
   font-size: var(--t-small);
   box-shadow: var(--shadow-fab);
