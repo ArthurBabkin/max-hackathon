@@ -23,10 +23,18 @@ fi
 
 # shellcheck source=/dev/null
 . /etc/traektoria-backup.env
-AWS_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY" \
-AWS_SECRET_ACCESS_KEY="$BACKUP_SECRET_KEY" \
-aws --endpoint-url="{{ backup_endpoint }}" s3 cp "$FILE" \
-  "s3://{{ backup_bucket }}/$(basename "$FILE")"
+
+# Выгружаем curl'ом, а не клиентом S3: пакета awscli в Ubuntu 24.04 нет, а curl
+# умеет подписывать запросы SigV4 сам и уже стоит в системе.
+#
+# Ключи передаются конфигом со стандартного ввода, а не флагом --user: аргументы
+# процесса видны в ps любому пользователю машины, содержимое stdin — нет.
+printf 'user = "%s:%s"\n' "$BACKUP_ACCESS_KEY" "$BACKUP_SECRET_KEY" \
+  | curl --config - \
+      --fail --silent --show-error \
+      --aws-sigv4 "aws:amz:{{ backup_region }}:s3" \
+      --upload-file "$FILE" \
+      "{{ backup_endpoint }}/{{ backup_bucket }}/$(basename "$FILE")"
 
 # Локально держим немного: диск нужен базе, а не архиву. Срок хранения в
 # бакете задан правилом жизненного цикла в Terraform.
