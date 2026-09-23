@@ -233,6 +233,11 @@ export function ProfileScreen() {
         {t('profile.saveCta')}
       </Button>
 
+      <button type="button" className="link tutorial-replay" onClick={() => navigate('/?tutorial=1')}>
+        <Icon name="book" size={15} />
+        {t('tutorial.replay')}
+      </button>
+
       {/* По версиям видно, какие коммиты сейчас в проде. */}
       <p className="app-version">
         Версия: приложение {WEB_VERSION} · сервер {serverVersion.data ?? (serverVersion.isError ? '—' : '…')}

@@ -1992,3 +1992,90 @@
     transition: none;
   }
 }
+
+/* --- Туториал ----------------------------------------------------------------- */
+
+.tutorial {
+  z-index: 31;
+  padding-bottom: calc(var(--gap-lg) + env(safe-area-inset-bottom, 0px));
+}
+
+.sheet-backdrop:has(+ .tutorial) {
+  z-index: 30;
+}
+
+.tutorial-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.tutorial-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.tutorial-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ln-strong);
+  transition: width 200ms ease-out, background-color 200ms ease-out;
+}
+
+.tutorial-dots i.on {
+  width: 18px;
+  background: var(--p);
+}
+
+.tutorial-step {
+  padding: var(--gap-md) 0 var(--gap-lg);
+  animation: tutorial-in 220ms ease-out;
+}
+
+.tutorial-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--gap-md);
+  border-radius: var(--r-lg);
+  background: var(--ps);
+  color: var(--p);
+}
+
+.tutorial-step h2 {
+  margin: 0 0 8px;
+  font-size: var(--t-title);
+}
+
+.tutorial-step p {
+  margin: 0;
+  color: var(--tx-2);
+  font-size: var(--t-base);
+  line-height: 1.5;
+}
+
+.tutorial-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-bottom: var(--gap-sm);
+}
+
+@keyframes tutorial-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-step,
+  .tutorial-dots i {
+    animation: none;
+    transition: none;
+  }
+}
