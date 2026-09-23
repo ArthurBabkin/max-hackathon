@@ -39,8 +39,9 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
 DATA, SPEC = ROOT / "data", ROOT / "spec"
 OUT = REPO / "packages" / "db" / "migrations" / "0003_seed_content.sql"
-# Вымышленные олимпиады — только локальный стенд: migrations-demo в прод не катятся.
-DEMO_OUT = REPO / "packages" / "db" / "migrations-demo" / "0002_fictional_olympiads.sql"
+# Вымышленные олимпиады — только локальный стенд и CI. Не migrations-demo:
+# та катится и в прод, пока включён демо-режим в браузере.
+DEMO_OUT = REPO / "packages" / "db" / "migrations-local" / "0001_fictional_olympiads.sql"
 
 SCHOOL_YEAR = "2026/27"
 # Датасеты собраны 21.09.2026; это дата проверки источников, отмеченных как факт.
@@ -760,7 +761,7 @@ def render_demo(demo: Seed) -> str:
     ids = ", ".join(lit(k) for k in sorted(demo.olympiads))
     return "\n".join([
         "-- Вымышленные олимпиады вне перечня — чтобы локально показать блок F16.\n"
-        "-- Накатываются только на локальный стенд (seed-demo), в прод не попадают.\n"
+        "-- Накатываются только на локальный стенд (seed-demo) и в CI, в прод не попадают.\n"
         "--\n"
         "-- ФАЙЛ СГЕНЕРИРОВАН: datasets/parser/build_seed.py (make seed). Руками не править.\n",
         "-- +goose Up\n",

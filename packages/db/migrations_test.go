@@ -5,6 +5,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
@@ -248,5 +249,24 @@ func TestContent_FictionalOlympiadInTrackerSurvives(t *testing.T) {
 	var n int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM tracker_items WHERE olympiad_profile_id = 'other-tyk-inf'`).Scan(&n); err != nil || n != 1 {
 		t.Fatalf("пункт трекера пропал (n=%d, err=%v)", n, err)
+	}
+}
+
+// migrations-demo катится и в прод, пока включён демо-режим в браузере, —
+// вымышленных олимпиад там быть не должно: их увидели бы настоящие
+// пользователи. Они живут в migrations-local, только на локальном стенде.
+func TestDemoMigrations_HaveNoFictionalOlympiads(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join(dbtest.MigrationsDir(), "..", "migrations-demo", "*.sql"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("нет демо-миграций: %v", err)
+	}
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if up := dbtest.UpSection(string(raw)); strings.Contains(up, "INSERT INTO olympiads") {
+			t.Errorf("%s вставляет олимпиады — это прод-демо, а не локальный стенд", filepath.Base(f))
+		}
 	}
 }
