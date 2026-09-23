@@ -15,6 +15,7 @@ create` от предыдущей версии не наследует ниче�
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -111,6 +112,8 @@ def main():
            "--memory", f"{memory_mb}MB",
            "--execution-timeout", prev["execution_timeout"],
            "--source-path", a.source]
+    if os.environ.get("GITHUB_SHA"):
+        cmd += ["--description", f"commit {os.environ['GITHUB_SHA'][:7]}"]
     if prev.get("service_account_id"):
         cmd += ["--service-account-id", prev["service_account_id"]]
     if int(prev.get("concurrency") or 1) > 1:

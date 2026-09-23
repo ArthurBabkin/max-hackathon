@@ -113,8 +113,8 @@ func TestAuthed_ExpiredTokenIsUnauthorized(t *testing.T) {
 
 func TestRouter_PrefixUnknownRouteAndCORS(t *testing.T) {
 	e := newEnv(t)
-	if r := e.do("GET", "/api/v1/health", "", nil); r.code != 200 {
-		t.Fatalf("health с префиксом: %d", r.code)
+	if r := e.do("GET", "/api/v1/health", "", nil); r.code != 200 || r.body["version"] != "dev" {
+		t.Fatalf("health с префиксом и версией сборки: %d %s", r.code, r.raw)
 	}
 	if r := e.do("GET", "/api/v1/nope", "", nil); r.code != 404 || r.errCode() != "NOT_FOUND" {
 		t.Fatalf("неизвестный адрес — 404 в формате контракта: %d %s", r.code, r.raw)
