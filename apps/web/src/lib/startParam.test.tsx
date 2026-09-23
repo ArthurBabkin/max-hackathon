@@ -13,6 +13,7 @@ describe('startRoute', () => {
     expect(startRoute('tracker')).toEqual({ path: '/tracker' })
     expect(startRoute('family')).toEqual({ path: '/family' })
     expect(startRoute('match')).toEqual({ path: '/match' })
+    expect(startRoute('faq')).toEqual({ path: '/faq' })
   })
 
   it('карточка олимпиады по профилю — лист поверх главной', () => {
