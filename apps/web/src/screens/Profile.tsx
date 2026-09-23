@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
 import { GRADES, type Grade } from '@contract'
-import { usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
+import { districts, regions } from '@regions'
+import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock } from '@/ui/primitives'
 import { useVoice } from '@/voice/useVoice'
@@ -27,11 +28,14 @@ export function ProfileScreen() {
   const navigate = useNavigate()
   const profile = useProfile()
   const universities = useUniversities('', 'all')
+  const directions = useDirections()
   const save = usePatchProfile()
   const serverVersion = useServerVersion()
 
   const [name, setName] = useState('')
   const [grade, setGrade] = useState<Grade>(9)
+  const [region, setRegion] = useState('')
+  const [direction, setDirection] = useState('')
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>([])
   const [warning, setWarning] = useState<string | null>(null)
@@ -42,6 +46,8 @@ export function ProfileScreen() {
     if (!profile.data) return
     setName(profile.data.student_name)
     setGrade(profile.data.grade as Grade)
+    setRegion(profile.data.region_code)
+    setDirection(profile.data.direction_id ?? '')
     setSubjects(profile.data.subjects.map((s) => s.code))
     setSelectedUniversities(profile.data.universities.map((u) => u.id))
   }, [profile.data])
@@ -87,6 +93,8 @@ export function ProfileScreen() {
       {
         student_name: name.trim(),
         grade,
+        region_code: region,
+        ...(direction ? { direction_id: direction } : {}),
         subject_codes: subjects,
         university_ids: selectedUniversities,
       },
@@ -139,10 +147,23 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <div className="field">
-        <p className="field-label">{t('profile.regionLabel')}</p>
-        <p className="field-value">{data.region_name}</p>
-      </div>
+      {/* Нативный список: 89 регионов по округам, на телефоне — системный пикер. */}
+      <label className="field">
+        <span className="field-label">{t('profile.regionLabel')}</span>
+        <select className="field-select" value={region} onChange={(event) => setRegion(event.target.value)}>
+          {districts.map((district) => (
+            <optgroup key={district.n} label={`${district.name} округ`}>
+              {regions
+                .filter((r) => r.district === district.n)
+                .map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
 
       <div className="field">
         <p className="field-label">
@@ -165,10 +186,17 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <div className="field">
-        <p className="field-label">{t('profile.goalLabel')}</p>
-        <p className="field-value">{data.direction_name ?? t('home.goalEmpty')}</p>
-      </div>
+      <label className="field">
+        <span className="field-label">{t('profile.goalLabel')}</span>
+        <select className="field-select" value={direction} onChange={(event) => setDirection(event.target.value)}>
+          {direction ? null : <option value="">{t('home.goalEmpty')}</option>}
+          {(directions.data?.items ?? []).map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div className="field">
         <p className="field-label">
