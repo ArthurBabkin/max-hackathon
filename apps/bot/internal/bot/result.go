@@ -77,7 +77,7 @@ func directionText(v voice.Voice, tr store.Trajectory) string {
 }
 
 // resultText — «Под твою цель подходят 4 олимпиады и ВсОШ. Ближайший срок —
-// регистрация на олимпиаду «Высшая проба», осталось 4 дня. В навигаторе…»
+// регистрация на олимпиаду «Высшая проба», осталось 4 дня. В мини-приложении…»
 // Цифры — из того же подбора, что экран «Подбор» (core/pick).
 func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, pick.Result, error) {
 	res, err := pick.Recommend(t.ctx, b.store, tr, b.now(), "all")
@@ -132,7 +132,7 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 	return strings.Join(parts, " "), res, nil
 }
 
-// resultKeyboard — «Открыть навигатор», «Напоминать о сроках», «Пригласить…» (F11).
+// resultKeyboard — «Открыть мини-приложение», «Напоминать о сроках», «Пригласить…» (F11).
 func (b *Bot) resultKeyboard(v voice.Voice, m store.Member, remindersOn bool) maxapi.Keyboard {
 	remind := maxapi.CallbackButton(v.T("bot.btn.remind", nil), "rem:on")
 	if remindersOn {
@@ -164,7 +164,7 @@ func (b *Bot) sendResult(t *turn, m store.Member, v voice.Voice, tr store.Trajec
 
 // remindOn — «Напоминать о сроках» (F11): все четыре порога. Если трекер
 // пуст и пользователь может его пополнять, в него попадает подборка —
-// иначе напоминать было бы не о чем. Лишнее убирается в навигаторе.
+// иначе напоминать было бы не о чем. Лишнее убирается в мини-приложении.
 func (b *Bot) remindOn(t *turn, cb *maxapi.Callback, question *maxapi.Message) error {
 	m, ok, err := b.member(t)
 	if err != nil {

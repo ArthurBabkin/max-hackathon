@@ -177,7 +177,7 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 	summary := sent[len(sent)-2].Msg.Text
 	if summary != "Готово: Артём, 9 класс, Республика Татарстан. Предметы: информатика, математика. "+
 		"Цель: программная инженерия, информатика и вычислительная техника. Вузы: ВШЭ, Иннополис. "+
-		"Всё это можно поменять в профиле навигатора." {
+		"Всё это можно поменять в профиле мини-приложения." {
 		t.Fatalf("сводка: %q", summary)
 	}
 	result := h.fake.Last(artem.UserID)
