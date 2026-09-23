@@ -1,0 +1,7 @@
+# PostgreSQL 16 на ВМ, поднятой Terraform (infra/terraform/postgres.tf).
+# Запуск: см. infra/ansible/README.md
+- name: PostgreSQL для «Траектории»
+  hosts: db
+  become: true
+  roles:
+    - postgres

@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Ежедневный бэкап базы «Траектории»
+
+[Timer]
+OnCalendar=*-*-* {{ backup_hour }}:00 UTC
+# Пропущенный запуск (ВМ была выключена) наверстывается при следующем старте.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

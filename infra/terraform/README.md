@@ -54,7 +54,7 @@ tofu apply tfplan
 | `functions.tf` | функции `bot`, `api`, `reminders`, `content-notifier` из одного zip; публичный вызов только у `bot` |
 | `apigateway.tf` | API Gateway перед `api`: прямой вызов функции не передаёт путь запроса (флаг `enable_workers`) |
 | `secrets.tf` | Lockbox с токенами и строкой подключения, сервисный аккаунт функций |
-| `postgres.tf` | Managed PostgreSQL 16 (флаг `enable_database`) |
+| `postgres.tf` | ВМ с PostgreSQL 16, диск под данные, адрес, группа безопасности, бакет бэкапов (флаг `enable_database`). Настройку СУБД катит [Ansible](../ansible/README.md) |
 | `cicd.tf` | сервисные аккаунты GitHub Actions: `traektoria-cicd` выкладывает код, `traektoria-infra` применяет Terraform |
 | `triggers.tf` | таймеры: напоминания раз в 15 минут, изменения контента раз в сутки (флаг `enable_workers`) |
 | `storage.tf` | сервисный аккаунт для S3, оба бакета, хостинг сайта |

@@ -1,0 +1,8 @@
+- name: Перезапустить postgresql
+  ansible.builtin.systemd_service:
+    name: postgresql
+    state: restarted
+
+- name: Перечитать конфигурацию systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true

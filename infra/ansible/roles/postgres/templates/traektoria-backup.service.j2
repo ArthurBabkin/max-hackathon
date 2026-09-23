@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Дамп базы «Траектории» и выгрузка в Object Storage
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/traektoria-backup
+# Вывод уходит в журнал: systemctl status traektoria-backup покажет последний прогон.
+StandardOutput=journal
+StandardError=journal

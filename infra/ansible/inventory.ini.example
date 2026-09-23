@@ -1,0 +1,5 @@
+# Скопировать в inventory.ini и подставить адрес ВМ:
+#   tofu -chdir=../terraform output -raw db_host
+# Файл inventory.ini в git не попадает.
+[db]
+traektoria-db ansible_host=ЗАМЕНИТЬ_НА_АДРЕС ansible_user=ubuntu

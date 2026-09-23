@@ -24,3 +24,7 @@ infra/terraform/.build/
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Ansible: адрес ВМ, пароль базы и ключи к бакету бэкапов.
+infra/ansible/inventory.ini
+infra/ansible/group_vars/all.yml

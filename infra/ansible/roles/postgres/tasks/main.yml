@@ -1,0 +1,151 @@
+# Порядок здесь не случаен и менять его нельзя:
+#   1. диск монтируется ДО установки пакета — тогда кластер создаётся сразу на
+#      нём, и ничего не приходится переносить;
+#   2. конфигурация применяется ДО заведения роли — иначе пароль ляжет в базу
+#      в старом формате md5, а не scram-sha-256.
+
+- name: Проверить, что пароль базы задан
+  ansible.builtin.assert:
+    that: pg_password | default('') | length > 0
+    fail_msg: >-
+      Не задан pg_password. Скопируйте group_vars/all.yml.example
+      в group_vars/all.yml и заполните — см. infra/ansible/README.md.
+    quiet: true
+
+- name: Дождаться, пока освободится apt
+  # На первой загрузке cloud-init запускает unattended-upgrades и держит блокировку.
+  ansible.builtin.apt:
+    update_cache: true
+  register: apt_update
+  retries: 20
+  delay: 15
+  until: apt_update is success
+
+- name: Файловая система на диске под данные
+  # force не указываем намеренно: если файловая система уже есть, значит диск
+  # пережил пересоздание ВМ и трогать его нельзя.
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ pg_data_device }}"
+
+- name: Смонтировать диск под данные
+  ansible.posix.mount:
+    path: "{{ pg_data_mount }}"
+    src: "{{ pg_data_device }}"
+    fstype: ext4
+    opts: defaults,noatime
+    state: mounted
+
+- name: Установить PostgreSQL и вспомогательные пакеты
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ pg_version }}"
+      - "postgresql-client-{{ pg_version }}"
+      # Нужен модулям community.postgresql.
+      - python3-psycopg2
+      - awscli
+      - gzip
+    state: present
+
+- name: Настройки PostgreSQL
+  ansible.builtin.template:
+    src: traektoria.conf.j2
+    dest: "/etc/postgresql/{{ pg_version }}/main/conf.d/traektoria.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Перезапустить postgresql
+
+- name: Правила подключения
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "/etc/postgresql/{{ pg_version }}/main/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0640"
+  notify: Перезапустить postgresql
+
+- name: Служба запущена и включена в автозапуск
+  ansible.builtin.systemd_service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: Применить настройки до работы с ролями
+  # Без этого роль завелась бы со старым password_encryption.
+  ansible.builtin.meta: flush_handlers
+
+- name: Роль приложения
+  # Без права создавать базы и роли и без суперпользователя: функции ходят
+  # только в свою базу, и скомпрометированный пароль не даёт ничего сверх неё.
+  community.postgresql.postgresql_user:
+    name: "{{ pg_name }}"
+    password: "{{ pg_password }}"
+    role_attr_flags: NOSUPERUSER,NOCREATEDB,NOCREATEROLE
+    state: present
+  become_user: postgres
+  no_log: true
+
+- name: База приложения
+  community.postgresql.postgresql_db:
+    name: "{{ pg_name }}"
+    owner: "{{ pg_name }}"
+    encoding: UTF-8
+    state: present
+  become_user: postgres
+
+# --- Бэкапы -------------------------------------------------------------------
+
+- name: Каталог для дампов
+  ansible.builtin.file:
+    path: /var/backups/postgresql
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+
+- name: Ключ доступа к бакету
+  ansible.builtin.template:
+    src: backup.env.j2
+    dest: /etc/traektoria-backup.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Скрипт бэкапа
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/bin/traektoria-backup
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Юнит и таймер бэкапа
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - traektoria-backup.service
+    - traektoria-backup.timer
+  notify: Перечитать конфигурацию systemd
+
+- name: Применить юниты до включения таймера
+  ansible.builtin.meta: flush_handlers
+
+- name: Таймер бэкапа включён
+  ansible.builtin.systemd_service:
+    name: traektoria-backup.timer
+    state: started
+    enabled: true
+
+- name: Проверить, что база принимает подключения
+  # Дешёвая проверка того, ради чего всё и делалось: служба поднята и отвечает.
+  community.postgresql.postgresql_ping:
+    login_db: "{{ pg_name }}"
+  become_user: postgres
+  register: pg_ping
+  failed_when: not pg_ping.is_available
