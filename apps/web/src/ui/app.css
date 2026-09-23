@@ -1774,6 +1774,7 @@
 }
 
 .field {
+  display: block;
   background: var(--surface);
   border-radius: var(--r-lg);
   padding: 12px var(--gap-md);
@@ -1792,6 +1793,22 @@
 
 .field-value {
   margin: 0;
+  font-size: var(--t-base);
+  font-weight: 700;
+}
+
+/* Системный список с шевроном: видно, что поле меняется (F49). */
+.field-select {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 36px 0 12px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--bg) no-repeat right 12px center / 12px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%238A8699' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color: var(--tx);
+  font: inherit;
   font-size: var(--t-base);
   font-weight: 700;
 }
@@ -1827,4 +1844,115 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* --- Вопросы и ответы ------------------------------------------------------ */
+
+.faq-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: var(--gap-sm);
+  padding: 12px var(--gap-md);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.faq-entry > svg {
+  margin-left: auto;
+  color: var(--mu);
+  flex-shrink: 0;
+}
+
+.faq-entry-text {
+  display: grid;
+  gap: 2px;
+}
+
+.faq-entry-text b {
+  font-size: var(--t-base);
+}
+
+.faq-entry-text span {
+  font-size: var(--t-small);
+  color: var(--mu);
+}
+
+.explainer-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+}
+
+.faq-section {
+  padding-bottom: 4px;
+}
+
+.faq-item {
+  border-top: 1px solid var(--ln);
+}
+
+.faq-item:first-of-type {
+  border-top: 0;
+}
+
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  min-height: 48px;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: var(--t-base);
+  list-style: none;
+  cursor: pointer;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary svg {
+  flex-shrink: 0;
+  color: var(--mu);
+  transform: rotate(90deg);
+  transition: transform 160ms ease-out;
+}
+
+.faq-item[open] summary svg {
+  transform: rotate(-90deg);
+}
+
+.faq-item p {
+  margin: 0 0 8px;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--tx-2);
+}
+
+.faq-item .source-line {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item summary svg {
+    transition: none;
+  }
 }

@@ -18,6 +18,7 @@ RUN cd apps/web && npm ci --no-audit --no-fund
 # Общие пакеты. Отдельным слоем, потому что меняются реже кода мини-приложения.
 COPY packages/api-contract/ packages/api-contract/
 COPY packages/shared/texts/ packages/shared/texts/
+COPY packages/core/refdata/regions.json packages/core/refdata/
 
 COPY apps/web/ apps/web/
 

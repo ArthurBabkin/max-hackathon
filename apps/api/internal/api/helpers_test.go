@@ -41,6 +41,7 @@ type env struct {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	pool := dbtest.Open(t)
+	dbtest.Fictional(t, pool)
 	e := &env{t: t, pool: pool, st: store.New(pool), now: testNow, fake: &maxtest.Fake{}}
 	e.srv = newServer(Deps{
 		Store: e.st,

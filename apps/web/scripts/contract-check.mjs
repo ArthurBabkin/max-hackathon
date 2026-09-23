@@ -212,6 +212,7 @@ async function main() {
   await call('GET', '/universities', { token: kid, query: { city: 'Москва' }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: unis.items[0].id }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: 'nope' }, expect: 404 })
+  await call('GET', '/directions', { token: kid, expect: 200 })
 
   // Трекер: добавить то, чего там нет, отметить, снять отметку, удалить.
   const tracker = (await call('GET', '/tracker', { token: kid, expect: 200 })).data

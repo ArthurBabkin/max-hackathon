@@ -386,3 +386,11 @@ export const UNIVERSITIES: DemoUniversity[] = [
 export const DEFAULT_EGE_MIN = 75
 
 export { dayStart }
+
+/** Цели для правки профиля; id «dir-se» — у демо-траектории. */
+export const DIRECTIONS = [
+  { id: 'dir-se', name: 'Программная инженерия' },
+  { id: 'dir-ai', name: 'Искусственный интеллект' },
+  { id: 'dir-math', name: 'Математика' },
+  { id: 'dir-phys', name: 'Физика' },
+]
