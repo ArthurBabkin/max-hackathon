@@ -68,7 +68,7 @@ jobs:
             probe: bot
             optional: ''
           - function: traektoria-api
-            require: MAX_BOT_TOKEN,JWT_SECRET,DATABASE_URL
+            require: MAX_BOT_TOKEN,JWT_SECRET,DATABASE_URL,GODEBUG
             probe: api
             optional: --optional
           - function: traektoria-reminders
