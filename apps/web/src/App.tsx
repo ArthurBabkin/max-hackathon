@@ -137,7 +137,7 @@ export function App() {
       </main>
 
       {showFab ? (
-        <button type="button" className="fab" onClick={() => sheets.open({ kind: 'ai', id: '' })}>
+        <button type="button" className="fab" data-tour="ai" onClick={() => sheets.open({ kind: 'ai', id: '' })}>
           <Icon name="spark" size={15} />
           {t('ai.openFab')}
         </button>

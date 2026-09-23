@@ -2172,66 +2172,157 @@
 
 /* --- Туториал ----------------------------------------------------------------- */
 
-.tutorial {
-  z-index: 31;
-  padding-bottom: calc(var(--gap-lg) + env(safe-area-inset-bottom, 0px));
-}
+/* Слой перехватывает касания: пока идёт тур, интерфейс под ним не нажимается.
+   Кривые — «сильные»: встроенные ease слишком вялые для переезда. */
+.tour {
+  --tour-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --tour-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --tour-scrim: rgba(8, 6, 18, 0.64);
 
-.sheet-backdrop:has(+ .tutorial) {
+  position: fixed;
+  inset: 0;
   z-index: 30;
+  touch-action: none;
 }
 
-.tutorial-top {
+.tour[data-closing] {
+  pointer-events: none;
+  animation: tour-fade-out 160ms ease-out forwards;
+}
+
+/* Окно над целью. Затемнение — его огромная тень, поэтому окно и затемнение
+   двигаются как одно целое, а карточка переезжает вместе с ними. */
+.tour-spot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-shadow:
+    0 0 0 2px var(--p),
+    0 0 0 200vmax var(--tour-scrim);
+  transition:
+    transform 440ms var(--tour-move),
+    width 440ms var(--tour-move),
+    height 440ms var(--tour-move),
+    border-radius 440ms var(--tour-move);
+  animation: tour-fade 240ms ease-out;
+}
+
+/* Без цели окно схлопнуто в точку — обводка на ней выглядела бы соринкой. */
+.tour[data-anchored='false'] .tour-spot {
+  box-shadow: 0 0 0 200vmax var(--tour-scrim);
+}
+
+.tour-card {
+  position: absolute;
+  width: min(calc(100vw - 2 * var(--gap-lg)), 360px);
+  padding: var(--gap-md) var(--gap-lg) var(--gap-lg);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  /* Волосяная кромка отделяет карточку от затемнения в тёмной теме,
+     где тень на тёмном почти не видна. */
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--tx) 8%, transparent),
+    0 18px 44px rgba(8, 6, 18, 0.32);
+  transition:
+    top 440ms var(--tour-move),
+    left 440ms var(--tour-move);
+  animation: tour-card-in 320ms var(--tour-out);
+}
+
+.tour-caret {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 3px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.tour-caret-top {
+  top: -6px;
+}
+
+.tour-caret-bottom {
+  bottom: -6px;
+}
+
+.tour-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 44px;
+  margin-bottom: var(--gap-xs);
 }
 
-.tutorial-dots {
+.tour-dots {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
-.tutorial-dots i {
+.tour-dots i {
   width: 6px;
   height: 6px;
   border-radius: 3px;
   background: var(--ln-strong);
-  transition: width 200ms ease-out, background-color 200ms ease-out;
+  transition:
+    width 320ms var(--tour-out),
+    background-color 200ms ease;
 }
 
-.tutorial-dots i.on {
-  width: 18px;
+.tour-dots i.done {
+  background: color-mix(in srgb, var(--p) 45%, var(--surface));
+}
+
+.tour-dots i.on {
+  width: 20px;
   background: var(--p);
 }
 
-.tutorial-step {
-  padding: var(--gap-md) 0 var(--gap-lg);
-  animation: tutorial-in 220ms ease-out;
+/* Пропуск — второстепенное действие, поэтому приглушён, но тач-цель полная. */
+.tour-skip {
+  min-height: var(--tap);
+  margin-right: calc(-1 * var(--gap-sm));
+  padding: 0 var(--gap-sm);
+  color: var(--mu);
 }
 
-.tutorial-icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: var(--gap-md);
-  border-radius: var(--r-lg);
-  background: var(--ps);
-  color: var(--p);
+/* Смена шага: текст проявляется из лёгкого размытия, пока карточка едет. */
+.tour-body {
+  animation: tour-body-in 280ms var(--tour-out) 60ms backwards;
 }
 
-.tutorial-step h2 {
-  margin: 0 0 8px;
-  font-size: var(--t-title);
+.tour-title {
+  margin: 0 0 6px;
+  font-size: var(--t-strong);
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
-.tutorial-step p {
+.tour-text {
   margin: 0;
   color: var(--tx-2);
   font-size: var(--t-base);
-  line-height: 1.5;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.tour-actions {
+  display: flex;
+  gap: var(--gap-sm);
+  margin-top: var(--gap-lg);
+}
+
+/* «Дальше» растянута, но «Назад» не должна сжиматься до многоточия. */
+.tour-back {
+  flex: none;
+}
+
+.tour-actions > * {
+  transition: transform 160ms var(--tour-out);
+}
+
+.tour-actions > *:active {
+  transform: scale(0.97);
 }
 
 .tutorial-replay {
@@ -2242,17 +2333,46 @@
   margin-bottom: var(--gap-sm);
 }
 
-@keyframes tutorial-in {
+@keyframes tour-fade {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
 }
 
+@keyframes tour-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+@keyframes tour-body-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+/* Меньше движения — не ноль движения: окно и карточка переставляются сразу,
+   а появление остаётся мягким затуханием. */
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-step,
-  .tutorial-dots i {
-    animation: none;
+  .tour-spot,
+  .tour-card,
+  .tour-dots i {
     transition: none;
+  }
+
+  .tour-card {
+    animation: tour-fade 200ms ease-out;
+  }
+
+  .tour-body {
+    animation: tour-fade 160ms ease-out;
   }
 }
