@@ -267,10 +267,36 @@ func (b *Bot) transition(t *turn, cb *maxapi.Callback, question *maxapi.Message,
 		}
 		return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Message: &msg})
 	}
-	if err := b.max.Answer(t.ctx, cb.CallbackID, chosen(question, label)); err != nil {
+	answer := chosen(question, label)
+	if question != nil && (before.Step == stepSubjects || before.Step == stepUniversities) {
+		// После «Готово» у вопроса остаётся то, что выбрали, а не «✓ Готово».
+		d := after
+		d.Step = before.Step
+		msg, err := b.prompt(t, d)
+		if err != nil {
+			return err
+		}
+		answer = maxapi.CallbackAnswer{Message: picked(msg)}
+	}
+	if err := b.max.Answer(t.ctx, cb.CallbackID, answer); err != nil {
 		return err
 	}
 	return b.next(t, after)
+}
+
+// picked — вопрос мультивыбора, от клавиатуры которого остались отмеченные
+// кнопки; нажимать их уже незачем.
+func picked(msg maxapi.NewMessage) *maxapi.NewMessage {
+	var buttons []maxapi.Button
+	for _, row := range msg.Keyboard() {
+		for _, btn := range row {
+			if strings.HasPrefix(btn.Text, "✓ ") {
+				buttons = append(buttons, maxapi.CallbackButton(btn.Text, "noop"))
+			}
+		}
+	}
+	out := maxapi.WithKeyboard(msg.Text, grid(buttons, 2))
+	return &out
 }
 
 // chosen — ответ на нажатие: тот же вопрос, от клавиатуры остаётся выбор с «✓».
