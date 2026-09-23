@@ -251,8 +251,10 @@ it('переименование отправляет название без п
   open('ai:c-itmo', { chats: [itmo], logs: { 'c-itmo': itmoLog } })
 
   await userEvent.click(screen.getByRole('button', { name: 'Переименовать чат' }))
-  const field = screen.getByRole('textbox', { name: 'Название чата' })
+  const field = screen.getByRole<HTMLInputElement>('textbox', { name: 'Название чата' })
   expect(field).toHaveValue('Льготы в ИТМО')
+  // Название выделено целиком: новое набирается поверх, без стирания.
+  expect([field.selectionStart, field.selectionEnd]).toEqual([0, 'Льготы в ИТМО'.length])
 
   await userEvent.clear(field)
   await userEvent.type(field, '  Высшая проба  {Enter}')
