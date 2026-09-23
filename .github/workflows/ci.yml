@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       # Интеграционные тесты store и сценариев идут против настоящего Postgres
-      # той же версии, что в compose и в Managed PostgreSQL.
+      # той же версии, что в compose и в базе на проде.
       postgres:
         image: postgres:16-alpine
         env:

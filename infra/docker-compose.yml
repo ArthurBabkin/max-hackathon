@@ -32,7 +32,7 @@ name: traektoria
 x-app-env: &app-env
   # Локальная база внутри compose-сети: ходим по имени сервиса postgres,
   # DNS даёт его автоматически. sslmode=disable — у локального контейнера
-  # нет TLS; в Managed PostgreSQL на проде обязателен sslmode=require.
+  # нет TLS; в базе на проде обязателен sslmode=require.
   # Если меняете POSTGRES_USER/POSTGRES_PASSWORD, значения подставятся сюда же.
   DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-traektoria}:${POSTGRES_PASSWORD:-traektoria}@postgres:5432/${POSTGRES_DB:-traektoria}?sslmode=disable}
   # Пустой токен = бот не сможет отправлять сообщения, но поднимется и ответит
@@ -103,7 +103,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-traektoria}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-traektoria}
       # scram-sha-256 включаем явно, чтобы способ аутентификации совпадал
-      # с Managed PostgreSQL и локально не всплывали чужие сюрпризы с md5.
+      # с продовой базой (infra/ansible) и локально не всплывали чужие сюрпризы с md5.
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       TZ: ${TZ:-Europe/Moscow}
     ports:
