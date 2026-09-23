@@ -29,6 +29,7 @@
       "@contract": ["../../packages/api-contract/index.ts"],
       "@contract/*": ["../../packages/api-contract/*"],
       "@texts": ["../../packages/shared/texts/texts.json"],
+      "@regions": ["../../packages/core/refdata/regions.json"],
       "@/*": ["./src/*"]
     }
   },
@@ -36,6 +37,7 @@
     "src",
     "vite.config.ts",
     "../../packages/api-contract",
-    "../../packages/shared/texts/texts.json"
+    "../../packages/shared/texts/texts.json",
+    "../../packages/core/refdata/regions.json"
   ]
 }
