@@ -320,6 +320,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/directions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Направления — справочник целей для правки профиля */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["Direction"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracker": {
         parameters: {
             query?: never;
@@ -1365,6 +1404,8 @@ export interface components {
         OlympiadDetail: components["schemas"]["OlympiadCard"] & {
             /** Format: uri */
             official_url: string | null;
+            /** @description Что это за олимпиада — пара предложений по официальному сайту. Пусто — блок не показывается. */
+            description: string | null;
             /** @description Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17). */
             profiles: components["schemas"]["ProfileLevel"][];
             profiles_source: components["schemas"]["Source"] | null;
@@ -1380,6 +1421,12 @@ export interface components {
             why: string;
             /** @description Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23). */
             benefit_universities: components["schemas"]["BenefitRow"][];
+        };
+        Direction: {
+            /** @example napr-09-03-04 */
+            id: string;
+            /** @example Программная инженерия */
+            name: string;
         };
         UniversityListItem: {
             id: string;
@@ -1400,6 +1447,10 @@ export interface components {
             rules_url: string | null;
             /** Format: date */
             rules_verified_at: string | null;
+            /** @description Что это за вуз — пара предложений по официальному сайту. */
+            description: string | null;
+            /** Format: uri */
+            site_url: string | null;
             /** @description Олимпиады, дающие льготу в этом вузе, с переходом в карточку (F26). */
             olympiads: (components["schemas"]["Badge"] & {
                 olympiad_profile_id: string;

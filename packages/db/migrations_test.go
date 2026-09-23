@@ -176,3 +176,77 @@ func TestDemoSeed_AppliesOnTopOfContent(t *testing.T) {
 		t.Fatalf("трекер %d, ожидающих предложений %d", items, pending)
 	}
 }
+
+// Описания олимпиад: у всех ВсОШ и у главных олимпиад перечня под
+// IT и математику — они чаще всего попадают в подборку.
+func TestContent_OlympiadDescriptions(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	var vsoshWithout, described int
+	if err := pool.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM olympiads WHERE kind = 'vsosh' AND description IS NULL),
+		(SELECT count(*) FROM olympiads WHERE description IS NOT NULL)`).Scan(&vsoshWithout, &described); err != nil {
+		t.Fatal(err)
+	}
+	if vsoshWithout != 0 || described < 25 {
+		t.Fatalf("ВсОШ без описания: %d, всего с описанием: %d", vsoshWithout, described)
+	}
+	for _, id := range []string{"p669-8", "p669-50", "p669-54", "p669-22", "p669-57", "p669-5"} {
+		var d *string
+		if err := pool.QueryRow(ctx, `SELECT description FROM olympiads WHERE id = $1`, id).Scan(&d); err != nil || d == nil {
+			t.Fatalf("у %s нет описания (err=%v)", id, err)
+		}
+	}
+	// Раньше вела на «Урок цифры».
+	var url string
+	if err := pool.QueryRow(ctx, `SELECT official_url FROM olympiads WHERE id = 'p669-37'`).Scan(&url); err != nil ||
+		url != "https://mos.olimpiada.ru/" {
+		t.Fatalf("сайт Московской олимпиады: %q (err=%v)", url, err)
+	}
+}
+
+// Вымышленные олимпиады (F16) нужны только для локального показа: в проде
+// пользователь принял бы их за настоящие.
+func TestContent_NoFictionalOlympiads(t *testing.T) {
+	pool := dbtest.Open(t)
+	var olympiads, changes int
+	if err := pool.QueryRow(context.Background(), `SELECT
+		(SELECT count(*) FROM olympiads WHERE organizer = 'Вымышленный пример для демонстрации'),
+		(SELECT count(*) FROM content_changes WHERE entity_id LIKE 'other-%')`).Scan(&olympiads, &changes); err != nil {
+		t.Fatal(err)
+	}
+	if olympiads != 0 || changes != 0 {
+		t.Fatalf("вымышленных олимпиад %d, событий изменения о них %d — ждали 0 и 0", olympiads, changes)
+	}
+}
+
+// Если вымышленную олимпиаду успели взять в трекер, миграция её не трогает:
+// каскад снёс бы пункт трекера пользователя.
+func TestContent_FictionalOlympiadInTrackerSurvives(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	up, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0009_hide_fictional_olympiads.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	mustExec(t, tx.Exec, `INSERT INTO olympiads (id, name, organizer, kind)
+		VALUES ('other-tyk', 'Турнир юных программистов Казани', 'Вымышленный пример для демонстрации', 'other')`)
+	mustExec(t, tx.Exec, `INSERT INTO olympiad_profiles (id, olympiad_id, subject_code, profile_slug, school_year, grades_from, grades_to)
+		VALUES ('other-tyk-inf', 'other-tyk', 'inf', 'inf', '2026/27', 7, 11)`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, goal_status)
+		VALUES ('00000000-0000-4000-8000-00000000f001', 'Тест', 9, '16', 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO tracker_items (trajectory_id, olympiad_profile_id)
+		VALUES ('00000000-0000-4000-8000-00000000f001', 'other-tyk-inf')`)
+	mustExec(t, tx.Exec, dbtest.UpSection(string(up)))
+
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM tracker_items WHERE olympiad_profile_id = 'other-tyk-inf'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("пункт трекера пропал (n=%d, err=%v)", n, err)
+	}
+}

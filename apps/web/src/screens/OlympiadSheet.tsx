@@ -135,6 +135,20 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         <Pill deadlineAt={detail.deadline_at} doneLabel={t('pill.done')} />
       </div>
 
+      {/* Что это за олимпиада и где её сайт (F22) — первым делом, до льгот. */}
+      {detail.description || detail.official_url ? (
+        <section className="block">
+          <h3 className="block-head">{t('olympiad.aboutTitle')}</h3>
+          {detail.description ? <p className="block-text">{detail.description}</p> : null}
+          {detail.official_url ? (
+            <button type="button" className="about-link" onClick={() => getWebApp().openLink(detail.official_url!)}>
+              <Icon name="external" size={15} />
+              {t('olympiad.officialSite')}
+            </button>
+          ) : null}
+        </section>
+      ) : null}
+
       {/* Уровень профиля — F17. У ВсОШ уровней нет, вместо них этапы. */}
       {detail.kind === 'vsosh' ? (
         <section className="block">
@@ -246,16 +260,6 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
 
       <div className="sheet-actions">
         {mainButton()}
-        {detail.official_url ? (
-          <Button
-            stretched
-            variant="secondary"
-            iconAfter={<Icon name="external" size={14} />}
-            onClick={() => getWebApp().openLink(detail.official_url!)}
-          >
-            {t('olympiad.officialSite')}
-          </Button>
-        ) : null}
       </div>
 
       <p className="lock">

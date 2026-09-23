@@ -199,6 +199,7 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
   return {
     ...card,
     official_url: o.official_url,
+    description: null,
     profiles: levels,
     profiles_source: o.kind === 'perechen' ? (SOURCES.perechen as Source) : null,
     benefits: state.universities
@@ -260,6 +261,8 @@ export function universityDetail(u: DemoUniversity): UniversityDetail {
     directions: u.directions,
     ege_note: u.ege_note,
     rules_url: u.rules_url,
+    description: null,
+    site_url: null,
     rules_verified_at: u.rules_verified_at,
     olympiads: Object.entries(u.benefits).flatMap(([olympiadId, benefit]) => {
       const o = OLYMPIADS.find((x) => x.id === olympiadId)
