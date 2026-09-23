@@ -104,6 +104,9 @@ jobs:
             --exclude='infra' --exclude='apps/web' --exclude='build' \
             --exclude='olimpiady_spravochnik.json' --exclude='DATASET_C_NOTES.md' \
             ./ build/
+          # Коммит видно в /health и в описании версии функции — так понятно,
+          # что именно сейчас в проде.
+          printf '%s\n' "${GITHUB_SHA::7}" > build/packages/shared/version/commit.txt
           du -sh build
 
       # Дистрибутив yc весит около 177 МБ. Без кеша он качался бы на каждый

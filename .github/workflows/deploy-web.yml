@@ -40,6 +40,8 @@ jobs:
         working-directory: apps/web
         env:
           VITE_API_BASE: ${{ vars.YC_API_URL }}
+          # Коммит сборки показывается внизу профиля рядом с версией сервера.
+          VITE_APP_VERSION: ${{ github.sha }}
         run: |
           if [ -z "$VITE_API_BASE" ]; then
             echo "::error::Нет переменной YC_API_URL (tofu output -raw api_url), см. .github/workflows/README.md"

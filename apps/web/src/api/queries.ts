@@ -50,6 +50,7 @@ export const keys = {
   family: ['family'] as const,
   profile: ['profile'] as const,
   ai: ['ai'] as const,
+  health: ['health'] as const,
 }
 
 /** Экраны, на которых виден состав трекера. */
@@ -164,6 +165,16 @@ export const useFamily = () =>
 
 export const useProfile = () =>
   useQuery({ queryKey: keys.profile, queryFn: () => api.get<Profile>('/profile') })
+
+/** Коммит, из которого собран сервер. Меняется только с выкладкой. */
+export const useServerVersion = () =>
+  useQuery({
+    queryKey: keys.health,
+    queryFn: () => api.get<{ version?: string }>('/health'),
+    select: (health) => health.version ?? '—',
+    staleTime: Infinity,
+    retry: false,
+  })
 
 // --- Трекер ------------------------------------------------------------------
 

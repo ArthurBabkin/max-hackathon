@@ -4,10 +4,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
 import { GRADES, type Grade } from '@contract'
-import { usePatchProfile, useProfile, useUniversities } from '@/api/queries'
+import { usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock } from '@/ui/primitives'
 import { useVoice } from '@/voice/useVoice'
+
+/** Коммит сборки фронта; вне CI — «dev». */
+const WEB_VERSION = ((import.meta.env.VITE_APP_VERSION as string | undefined) || 'dev').slice(0, 7)
 
 /** Предметы онбординга (ТЗ F7). Придут справочником с сервера — разметка та же. */
 const SUBJECTS = [
@@ -25,6 +28,7 @@ export function ProfileScreen() {
   const profile = useProfile()
   const universities = useUniversities('', 'all')
   const save = usePatchProfile()
+  const serverVersion = useServerVersion()
 
   const [name, setName] = useState('')
   const [grade, setGrade] = useState<Grade>(9)
@@ -200,6 +204,11 @@ export function ProfileScreen() {
       >
         {t('profile.saveCta')}
       </Button>
+
+      {/* По версиям видно, какие коммиты сейчас в проде. */}
+      <p className="app-version">
+        Версия: приложение {WEB_VERSION} · сервер {serverVersion.data ?? (serverVersion.isError ? '—' : '…')}
+      </p>
     </div>
   )
 }
