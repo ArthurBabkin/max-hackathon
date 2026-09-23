@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { Home, Tracker, TrackerItem } from '@contract'
+import type { AiChat, AiExchange, AiMessage, Home, Tracker, TrackerItem } from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -23,6 +23,8 @@ beforeEach(() => {
     { id: 'mem-olga', name: 'Ольга', role: 'parent', is_creator: true, color: '#E92E78', joined_at: '' },
     { id: 'mem-artem', name: 'Артём', role: 'kid', is_creator: false, color: '#FF8A3D', joined_at: '' },
   ]
+  state.aiChats = []
+  state.ai = []
 })
 
 describe('диспетчер маршрутов', () => {
@@ -124,5 +126,48 @@ describe('главная', () => {
     const home = (await handleMock('GET', '/home')) as Home
     expect(home.next_step).toBeNull()
     expect(home.registered_count).toBe(1)
+  })
+})
+
+describe('помощник', () => {
+  const chats = async () => ((await handleMock('GET', '/ai/chats')) as { items: AiChat[] }).items
+
+  it('первый вопрос создаёт чат по дню, следующие вопросы идут в него (F58, F59)', async () => {
+    const first = (await handleMock('POST', '/ai/chats', { text: ' Что такое БВИ? ' })) as AiExchange
+    expect(first.chat.title).toMatch(/^Чат \d{1,2} [а-я]+$/)
+    expect(first.question.text).toBe('Что такое БВИ?')
+
+    const next = (await handleMock('POST', `/ai/chats/${first.chat.id}/messages`, { text: 'А 100 баллов?' })) as AiExchange
+    expect(next.chat.id).toBe(first.chat.id)
+
+    const log = (await handleMock('GET', `/ai/chats/${first.chat.id}/messages`)) as { items: AiMessage[] }
+    expect(log.items.map((m) => m.text).filter((_, i) => i % 2 === 0)).toEqual(['Что такое БВИ?', 'А 100 баллов?'])
+    expect(await chats()).toHaveLength(1)
+  })
+
+  it('чат с новой репликой — первым в списке', async () => {
+    const a = (await handleMock('POST', '/ai/chats', { text: 'Что такое БВИ?' })) as AiExchange
+    const b = (await handleMock('POST', '/ai/chats', { text: 'А 100 баллов?' })) as AiExchange
+    expect((await chats()).map((c) => c.id)).toEqual([b.chat.id, a.chat.id])
+
+    await handleMock('POST', `/ai/chats/${a.chat.id}/messages`, { text: 'Ещё раз про БВИ' })
+    expect((await chats()).map((c) => c.id)).toEqual([a.chat.id, b.chat.id])
+  })
+
+  it('чаты личные: родителю чата ученика не видно (F37)', async () => {
+    const { chat } = (await handleMock('POST', '/ai/chats', { text: 'Что такое БВИ?' })) as AiExchange
+    asParent()
+    expect(await chats()).toEqual([])
+    await expect(handleMock('GET', `/ai/chats/${chat.id}/messages`)).rejects.toMatchObject({ status: 404 })
+    await expect(handleMock('POST', `/ai/chats/${chat.id}/messages`, { text: 'А мне?' })).rejects.toMatchObject({ status: 404 })
+    await expect(handleMock('PATCH', `/ai/chats/${chat.id}`, { title: 'Моё' })).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('переименование обрезает пробелы, пустое название — 400', async () => {
+    const { chat } = (await handleMock('POST', '/ai/chats', { text: 'Что такое БВИ?' })) as AiExchange
+    const renamed = (await handleMock('PATCH', `/ai/chats/${chat.id}`, { title: '  Льготы  ' })) as AiChat
+    expect(renamed.title).toBe('Льготы')
+    expect((await chats())[0]!.title).toBe('Льготы')
+    await expect(handleMock('PATCH', `/ai/chats/${chat.id}`, { title: '   ' })).rejects.toMatchObject({ status: 400 })
   })
 })
