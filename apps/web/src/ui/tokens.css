@@ -62,6 +62,12 @@
   --grs: #e1f6ec;
   --gr-ink: #0a7c55;
 
+  /* Кнопка «Спросить». --fab-bg — сплошной цвет, по нему считается
+     контраст; --fab-fill — заливка, в тёмной теме это градиент. */
+  --fab-bg: #17142a;
+  --fab-fill: var(--fab-bg);
+  --fab-tx: #f4f4f9;
+
   --shadow-sheet: 0 -10px 30px rgba(20, 10, 50, 0.18);
   --shadow-fab: 0 8px 20px rgba(20, 10, 50, 0.3);
   --shadow-card: 0 1px 3px rgba(20, 10, 50, 0.06);
@@ -123,8 +129,15 @@
     --grs: #12332a;
     --gr-ink: #4ed6a0;
 
+    /* Светлая «таблетка» на тёмном фоне выпадала из интерфейса, а голубая
+       искра на ней терялась. Градиент — тот же, что у логотипа и карточки
+       цели; контраст считается по его светлому концу. */
+    --fab-bg: #3f4dff;
+    --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
+    --fab-tx: #ffffff;
+
     --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
-    --shadow-fab: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
 
     color-scheme: dark;
@@ -155,8 +168,12 @@
   --grs: #12332a;
   --gr-ink: #4ed6a0;
 
+  --fab-bg: #3f4dff;
+  --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
+  --fab-tx: #ffffff;
+
   --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
-  --shadow-fab: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
 
   color-scheme: dark;

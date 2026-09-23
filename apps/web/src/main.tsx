@@ -2,18 +2,19 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MaxUI } from '@maxhub/max-ui'
 import '@maxhub/max-ui/dist/styles.css'
 import './ui/tokens.css'
 import './ui/app.css'
 import { App } from './App'
 import { getWebApp } from './bridge'
 import { installCrashBanner } from './ui/crashBanner'
+import { ThemedMaxUI, applySavedTheme } from './ui/theme'
 
 // Внутри MAX нет консоли: необработанная ошибка превратилась бы в белый экран,
 // который с телефона не диагностируется. Баннер ставим до монтирования React,
 // чтобы он поймал и падение при старте.
 installCrashBanner()
+applySavedTheme()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,11 +42,11 @@ createRoot(document.getElementById('root')!).render(
       {/* Провайдер рисует свой div; без явной высоты он тянется по контенту,
           и тогда .app перестаёт ограничивать себя экраном, а вместо
           внутренней прокрутки страница начинает расти целиком. */}
-      <MaxUI platform={platform()} className="max-root">
+      <ThemedMaxUI platform={platform()} className="max-root">
         <HashRouter>
           <App />
         </HashRouter>
-      </MaxUI>
+      </ThemedMaxUI>
     </QueryClientProvider>
   </StrictMode>,
 )
