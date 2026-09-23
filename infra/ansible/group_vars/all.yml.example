@@ -1,0 +1,12 @@
+# Скопировать в group_vars/all.yml и заполнить. Файл в git не попадает;
+# права выставить в 0600 — здесь пароль от базы.
+#
+# Значения берутся из Terraform, по одному (вывод целиком покажет всё сразу):
+#   tofu -chdir=../terraform output -raw db_backup_access_key
+#   tofu -chdir=../terraform output -raw db_backup_secret_key
+# Пароль — тот же, что в TF_VAR_pg_password: Terraform кладёт его в строку
+# подключения, Ansible заводит с ним роль. Разойдутся — функции не подключатся.
+
+pg_password: ЗАМЕНИТЬ
+backup_access_key: ЗАМЕНИТЬ
+backup_secret_key: ЗАМЕНИТЬ
