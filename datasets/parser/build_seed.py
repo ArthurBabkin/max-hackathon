@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
 DATA, SPEC = ROOT / "data", ROOT / "spec"
 OUT = REPO / "packages" / "db" / "migrations" / "0003_seed_content.sql"
+# Вымышленные олимпиады — только локальный стенд: migrations-demo в прод не катятся.
+DEMO_OUT = REPO / "packages" / "db" / "migrations-demo" / "0002_fictional_olympiads.sql"
 
 SCHOOL_YEAR = "2026/27"
 # Датасеты собраны 21.09.2026; это дата проверки источников, отмеченных как факт.
@@ -129,7 +131,8 @@ DIRECTIONS = [
 # Олимпиады вне перечня (F16). В датасетах их нет, а без них блок «Вне
 # перечня» и пояснение «до 10 баллов» не проверить. Это вымышленные примеры —
 # так и написано в организаторе, источника нет, даты демо. Первая — та же,
-# что в прототипе (docs/prototype/index.html).
+# что в прототипе (docs/prototype/index.html). В основной сид не входят:
+# в проде их приняли бы за настоящие, поэтому они идут в DEMO_OUT.
 OTHER_OLYMPIADS = [
     {
         "id": "other-tyk", "name": "Турнир юных программистов Казани",
@@ -651,7 +654,6 @@ def build() -> Seed:
     perechen_title = (f"Перечень олимпиад школьников на {C_doc['_perechen_edition']} уч. г. "
                       f"({C_doc['_perechen_order']})")
     build_profiles(seed, C, missing, perechen_title)
-    build_other(seed)
     build_stages(seed)
     olympiad_format(seed)
     build_benefits(seed, B, UNIVERSITY_SHORT)
@@ -662,6 +664,14 @@ def build() -> Seed:
 # ---------------------------------------------------------------------------
 # SQL
 # ---------------------------------------------------------------------------
+
+
+def build_demo() -> Seed:
+    demo = Seed()
+    build_other(demo)
+    build_stages(demo)
+    olympiad_format(demo)
+    return demo
 
 
 def lit(v) -> str:
@@ -746,9 +756,40 @@ def render(seed: Seed) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def render_demo(demo: Seed) -> str:
+    ids = ", ".join(lit(k) for k in sorted(demo.olympiads))
+    return "\n".join([
+        "-- Вымышленные олимпиады вне перечня — чтобы локально показать блок F16.\n"
+        "-- Накатываются только на локальный стенд (seed-demo), в прод не попадают.\n"
+        "--\n"
+        "-- ФАЙЛ СГЕНЕРИРОВАН: datasets/parser/build_seed.py (make seed). Руками не править.\n",
+        "-- +goose Up\n",
+        insert("olympiads", ["id", "name", "organizer", "kind", "official_url", "format",
+                             "final_city", "final_region_code"],
+               [demo.olympiads[k] for k in sorted(demo.olympiads)]),
+        insert("olympiad_profiles", ["id", "olympiad_id", "subject_code", "profile_slug",
+                                     "profile_name", "level", "school_year", "grades_from",
+                                     "grades_to", "source_id"],
+               [demo.profiles[k] for k in sorted(demo.profiles)]),
+        insert("stages", ["id", "olympiad_profile_id", "kind", "title", "starts_at", "ends_at",
+                          "deadline_at", "is_online", "is_demo", "source_id"], demo.stages,
+               casts={"starts_at": "timestamptz", "ends_at": "timestamptz",
+                      "deadline_at": "timestamptz"}),
+        insert("benefits", ["id", "olympiad_profile_id", "university_id", "admission_year",
+                            "benefit", "extra_points", "ege_min", "diploma_grades", "note",
+                            "source_id"], sorted(demo.benefits, key=lambda b: b["id"]),
+               casts={"diploma_grades": "int[]"}),
+        "-- Вставка этапов и льгот рождает события изменения (0006) — о демо не уведомляем.\n"
+        "DELETE FROM content_changes WHERE notified_at IS NULL AND entity_id LIKE 'other-%';\n",
+        "-- +goose Down\n"
+        f"DELETE FROM olympiads WHERE id IN ({ids});\n",
+    ])
+
+
 def main():
     seed = build()
     OUT.write_text(render(seed), encoding="utf-8")
+    DEMO_OUT.write_text(render_demo(build_demo()), encoding="utf-8")
     counts = {
         "subjects": len(seed.subjects), "directions": len(seed.directions),
         "universities": len(seed.universities), "sources": len(seed.sources),
