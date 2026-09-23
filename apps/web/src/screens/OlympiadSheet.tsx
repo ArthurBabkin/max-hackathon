@@ -184,12 +184,21 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         </section>
       )}
 
-      {/* Льгота в вузах ученика — F18. */}
+      {/* Льгота и условия в вузах ученика — F18, F19: сначала общие
+          условия, потом вузы, и под каждым — его особенности. */}
       <section className="block">
         <h3 className="block-head">
           {t('olympiad.benefitsTitle')}
           {detail.benefits_source ? <SourceTag kind="fact" /> : null}
         </h3>
+        <ul className="conditions conditions-general">
+          {detail.conditions.map((condition) => (
+            <li key={condition}>
+              <Icon name="check" size={13} strokeWidth={2.6} />
+              <span>{condition}</span>
+            </li>
+          ))}
+        </ul>
         {detail.benefits.map((row) => (
           <BenefitRow
             key={row.university_id}
@@ -209,19 +218,6 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         ) : (
           <p className="fine">{t('olympiad.benefitsUnknown')}</p>
         )}
-      </section>
-
-      {/* Условия подтверждения — F19. */}
-      <section className="block">
-        <h3 className="block-head">{t('olympiad.conditionsTitle')}</h3>
-        <ul className="conditions">
-          {detail.conditions.map((condition) => (
-            <li key={condition}>
-              <Icon name="check" size={13} strokeWidth={2.6} />
-              <span>{condition}</span>
-            </li>
-          ))}
-        </ul>
       </section>
 
       {/* Почему подходит — F20. */}

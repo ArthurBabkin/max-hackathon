@@ -205,7 +205,10 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     benefits: state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
-      .map((u) => benefitRow(u, o.id)),
+      .map((u) => {
+        const own = u.conditions?.[o.id]
+        return own ? { ...benefitRow(u, o.id), conditions: own } : benefitRow(u, o.id)
+      }),
     benefits_source: SOURCES.rules as Source,
     conditions: o.conditions,
     stages: stages(o, registered),
