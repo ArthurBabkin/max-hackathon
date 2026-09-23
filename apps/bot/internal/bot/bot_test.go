@@ -455,3 +455,25 @@ func TestProposal_KidAcceptsFromChat(t *testing.T) {
 		t.Fatalf("повторный ответ: %+v", a)
 	}
 }
+
+// После «Готово» у вопроса остаётся выбор, а не «✓ Готово» (прототип, экраны A4 и A6).
+func TestMultiselectDoneKeepsPicked(t *testing.T) {
+	h := newHarness(t)
+	h.started(artem, "")
+	h.press(artem, "role:kid")
+	h.press(artem, "name:ok")
+	h.press(artem, "grade:9")
+	h.geo(artem, 55.79, 49.11)
+	h.press(artem, "subj:t:inf")
+	h.press(artem, "subj:t:math")
+	if a := h.answered(h.press(artem, "subj:done")); a.Message == nil || maxtest.Buttons(*a.Message) != "✓ Информатика | ✓ Математика" {
+		t.Fatalf("предметы после «Готово»: %+v", a.Message)
+	}
+	h.press(artem, "goal:known")
+	h.press(artem, "goal:napr-09-03-04")
+	h.press(artem, "vuz:t:innopolis")
+	h.press(artem, "vuz:t:hse")
+	if a := h.answered(h.press(artem, "vuz:done")); a.Message == nil || maxtest.Buttons(*a.Message) != "✓ ВШЭ | ✓ Иннополис" {
+		t.Fatalf("вузы после «Готово»: %+v", a.Message)
+	}
+}
