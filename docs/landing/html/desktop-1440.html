@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Траектория — лендинг, десктоп 1440</title>
+<style>
+@font-face{font-family:"Onest";src:url("../fonts/Onest-Variable.woff2") format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Unbounded";src:url("../fonts/Unbounded-Variable.woff2") format("woff2");font-weight:200 900;font-display:swap}
+[hidden]{display:none!important}
+.swap-a,.swap-b{transition:opacity .6s ease}
+.swap-b{opacity:0}
+.alt .swap-a{opacity:0}.alt .swap-b{opacity:1}
+@media (prefers-reduced-motion: reduce){.swap-a,.swap-b{transition:none}}
+
+body{margin:0;background:#F6F5FB;font-family:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;color:#17142A;-webkit-font-smoothing:antialiased}
+a{color:#6B2BFF;text-decoration:none}a:hover{color:#4F14D9}
+button{font-family:inherit}
+a:focus-visible,button:focus-visible{outline:none;box-shadow:0 0 0 2px #F6F5FB,0 0 0 4px #6B2BFF}
+</style>
+</head>
+<body>
+<div style="width: 1440px; margin: 0 auto; display: flex; flex-direction: column; background: #F6F5FB">
+<header style="height: 88px; flex-shrink: 0; box-sizing: border-box; padding: 0 80px; display: flex; align-items: center; justify-content: space-between">
+<a href="#hero" aria-label="Траектория, на главную" style="display: flex"><img src="../assets/logo/traektoriya-logo.svg" alt="Траектория" style="height: 40px; width: auto; display: block"></a>
+<nav style="display: flex; gap: 36px; align-items: center">
+<a href="#start" style="color: #17142A; font-size: 15px; font-weight: 600">Как начать</a>
+<a href="#features" style="color: #17142A; font-size: 15px; font-weight: 600">Возможности</a>
+<a href="#roles" style="color: #17142A; font-size: 15px; font-weight: 600">Для кого</a>
+<a href="#faq" style="color: #17142A; font-size: 15px; font-weight: 600">Вопросы</a>
+</nav>
+<div style="display: flex; gap: 10px">
+<a href="#start" style="height: 48px; padding: 0 20px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E2DEEE; box-sizing: border-box; color: #17142A; font-size: 15px; font-weight: 600; display: flex; align-items: center">Как это работает</a>
+<a href="https://max.ru/t356_hakaton_max_bot" style="height: 48px; padding: 0 22px; border-radius: 14px; background: #6B2BFF; color: #FFFFFF; font-size: 15px; font-weight: 600; display: flex; align-items: center">Открыть в MAX</a>
+</div>
+</header>
+
+<section id="hero" style="flex-shrink: 0; box-sizing: border-box; padding: 40px 80px 0; display: flex; flex-direction: column; align-items: center; gap: 48px">
+<div style="width: 1000px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center">
+<span style="padding: 7px 14px; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; font-size: 14px; font-weight: 600">Бот и мини-приложение в MAX</span>
+<h1 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 64px; line-height: 68px; font-weight: 600; letter-spacing: -0.025em">Олимпиады, которые ведут в&nbsp;твой вуз</h1>
+<p style="margin: 0; width: 720px; font-size: 19px; line-height: 30px; color: #625C78">Подборка олимпиад под цель, льготы в&nbsp;твоих вузах и&nbsp;напоминания о&nbsp;сроках&nbsp;— для всей семьи.</p>
+<div style="display: flex; gap: 12px; padding-top: 6px">
+<a href="https://max.ru/t356_hakaton_max_bot" style="height: 56px; padding: 0 28px; border-radius: 14px; background: #6B2BFF; color: #FFFFFF; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px">Открыть в MAX
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+<a href="#start" style="height: 56px; padding: 0 28px; border-radius: 14px; background: #FFFFFF; border: 1px solid #E2DEEE; box-sizing: border-box; color: #17142A; font-size: 16px; font-weight: 600; display: flex; align-items: center">Как это работает</a>
+</div>
+</div>
+
+<div style="position: relative; width: 1280px; height: 560px; border-radius: 40px; background: #EFE8FF; overflow: hidden">
+<svg width="1280" height="560" viewBox="0 0 1280 560" aria-hidden="true" style="position: absolute; left: 0; top: 0">
+<rect x="0" y="480" width="320" height="80" fill="#DCCFFF"></rect>
+<rect x="0" y="400" width="160" height="80" fill="#DCCFFF"></rect>
+<rect x="960" y="480" width="320" height="80" fill="#DCCFFF"></rect>
+<rect x="1120" y="400" width="160" height="80" fill="#DCCFFF"></rect>
+<rect x="1200" y="320" width="80" height="80" fill="#DCCFFF"></rect>
+<rect x="160" y="400" width="40" height="40" fill="#7FEAF7"></rect>
+<rect x="1120" y="400" width="40" height="40" fill="#FF3D8B"></rect>
+<rect x="1200" y="320" width="40" height="40" fill="#6B2BFF"></rect>
+<rect x="96" y="96" width="14" height="14" fill="#7FEAF7"></rect>
+<rect x="336" y="44" width="10" height="10" fill="#FF3D8B"></rect>
+<rect x="930" y="40" width="12" height="12" fill="#6B2BFF"></rect>
+<rect x="1180" y="120" width="14" height="14" fill="#7FEAF7"></rect>
+<rect x="870" y="508" width="10" height="10" fill="#FF3D8B"></rect>
+</svg>
+<img src="../assets/screens/chat-result.png" alt="Чат бота в MAX: итог онбординга и кнопка «Открыть мини-приложение»" style="position: absolute; left: 378px; top: 64px; width: 250px; height: auto; filter: drop-shadow(0 24px 40px rgba(42, 26, 122, 0.28))">
+<img src="../assets/screens/app-home.png" alt="Главная мини-приложения: цель, следующий шаг и ближайшие сроки" style="position: absolute; left: 652px; top: 104px; width: 250px; height: auto; filter: drop-shadow(0 24px 40px rgba(42, 26, 122, 0.28))">
+
+<svg width="120" height="150" viewBox="0 0 120 150" aria-hidden="true" style="position: absolute; left: 150px; top: 58px; transform: rotate(-10deg); filter: drop-shadow(0 16px 24px rgba(42, 26, 122, 0.22))">
+<path d="M34 0h24l-8 56H26z" fill="#FF3D8B"></path>
+<path d="M62 0h24l8 56H70z" fill="#7FEAF7"></path>
+<circle cx="60" cy="96" r="50" fill="#6B2BFF"></circle>
+<circle cx="60" cy="96" r="38" fill="#7D4DFF"></circle>
+<rect x="38" y="108" width="11" height="11" rx="2" fill="#FFFFFF"></rect>
+<rect x="49" y="97" width="11" height="11" rx="2" fill="#D6C8FF"></rect>
+<rect x="60" y="86" width="11" height="11" rx="2" fill="#7FEAF7"></rect>
+<rect x="71" y="75" width="11" height="11" rx="2" fill="#FF8DBE"></rect>
+</svg>
+
+<div style="position: absolute; left: 100px; top: 268px; width: 236px; box-sizing: border-box; padding: 14px 16px; border-radius: 18px; background: #FFFFFF; box-shadow: 0 12px 32px -8px rgba(42, 26, 122, 0.25); display: flex; gap: 12px; align-items: center; transform: rotate(-3deg)">
+<span style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: #FFE8F1; color: #C2185B; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0"></path></svg></span>
+<span style="display: flex; flex-direction: column; gap: 2px"><b style="font-size: 14px; line-height: 18px">Через 3 дня</b><span style="font-size: 13px; line-height: 17px; color: #625C78">регистрация на «Высшую пробу»</span></span>
+</div>
+
+<svg width="150" height="110" viewBox="0 0 150 110" aria-hidden="true" style="position: absolute; left: 180px; top: 396px; transform: rotate(8deg); filter: drop-shadow(0 16px 24px rgba(42, 26, 122, 0.22))">
+<path d="M30 52v30c0 12 20 22 45 22s45-10 45-22V52L75 72z" fill="#6B2BFF"></path>
+<path d="M75 8l71 34-71 34L4 42z" fill="#17142A"></path>
+<path d="M75 42l48 14v28" stroke="#7FEAF7" stroke-width="5" fill="none" stroke-linecap="round"></path>
+<rect x="116" y="82" width="14" height="18" rx="3" fill="#7FEAF7"></rect>
+</svg>
+
+<svg width="120" height="124" viewBox="0 0 120 124" aria-hidden="true" style="position: absolute; left: 1010px; top: 52px; transform: rotate(9deg); filter: drop-shadow(0 16px 24px rgba(42, 26, 122, 0.22))">
+<rect x="4" y="14" width="112" height="106" rx="20" fill="#FFFFFF"></rect>
+<path d="M4 34a20 20 0 0120-20h72a20 20 0 0120 20v8H4z" fill="#6B2BFF"></path>
+<rect x="30" y="4" width="10" height="22" rx="5" fill="#17142A"></rect>
+<rect x="80" y="4" width="10" height="22" rx="5" fill="#17142A"></rect>
+<rect x="22" y="56" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="42" y="56" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="62" y="56" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="82" y="56" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="22" y="78" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="42" y="78" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="62" y="78" width="14" height="14" rx="3" fill="#FF3D8B"></rect>
+<rect x="82" y="78" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="22" y="100" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+<rect x="42" y="100" width="14" height="14" rx="3" fill="#7FEAF7"></rect>
+<rect x="62" y="100" width="14" height="14" rx="3" fill="#E6DDFF"></rect>
+</svg>
+
+<div style="position: absolute; left: 944px; top: 236px; width: 250px; box-sizing: border-box; padding: 14px 16px; border-radius: 18px; background: #FFFFFF; box-shadow: 0 12px 32px -8px rgba(42, 26, 122, 0.25); display: flex; flex-direction: column; gap: 10px; transform: rotate(3deg)">
+<span style="font-size: 12px; line-height: 16px; font-weight: 600; color: #625C78">Льгота в твоих вузах</span>
+<span style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600">МФТИ<span style="padding: 3px 9px; border-radius: 9999px; background: #E1F6EC; color: #08704D; font-size: 12px">БВИ</span></span>
+<span style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600">ИТМО<span style="padding: 3px 9px; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; font-size: 12px">100 баллов</span></span>
+</div>
+
+</div>
+</section>
+
+<section id="problem" style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 0; display: flex; flex-direction: column; gap: 36px">
+<h2 style="margin: 0; width: 1040px; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Олимпиада&nbsp;— короткий путь на&nbsp;бюджет. Только дорогу к&nbsp;нему никто не&nbsp;показывает</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px">
+<div style="position: relative; overflow: hidden; background: #EFE8FF; border-radius: 28px; padding: 28px; min-height: 250px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 14px; font-weight: 600; color: #6B2BFF">ВсОШ и&nbsp;ещё</span>
+<div style="font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 64px; line-height: 64px; font-weight: 700; letter-spacing: -0.03em">83</div>
+<p style="margin: 0; font-size: 16px; line-height: 24px">олимпиады из&nbsp;перечня дают льготы при поступлении</p>
+<svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position: absolute; right: 0; top: 0"><rect x="24" y="0" width="24" height="24" fill="#6B2BFF"></rect><rect x="0" y="24" width="24" height="24" fill="#DCCFFF"></rect></svg>
+</div>
+<div style="position: relative; overflow: hidden; background: #DDF7FB; border-radius: 28px; padding: 28px; min-height: 250px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 14px; font-weight: 600; color: #0B5F6B">У&nbsp;одной «Высшей пробы»</span>
+<div style="font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 64px; line-height: 64px; font-weight: 700; letter-spacing: -0.03em">25</div>
+<p style="margin: 0; font-size: 16px; line-height: 24px">профилей, у&nbsp;каждого свой уровень</p>
+<svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position: absolute; right: 0; top: 0"><rect x="24" y="0" width="24" height="24" fill="#7FEAF7"></rect><rect x="0" y="24" width="24" height="24" fill="#B8EEF5"></rect></svg>
+</div>
+<div style="position: relative; overflow: hidden; background: #FFE8F1; border-radius: 28px; padding: 28px; min-height: 250px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 14px; font-weight: 600; color: #C2185B">МФТИ за&nbsp;один год сократил</span>
+<div style="font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 64px; line-height: 64px; font-weight: 700; letter-spacing: -0.03em">50→35</div>
+<p style="margin: 0; font-size: 16px; line-height: 24px">учитываемых олимпиад: каждый вуз решает сам</p>
+<svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position: absolute; right: 0; top: 0"><rect x="24" y="0" width="24" height="24" fill="#FF3D8B"></rect><rect x="0" y="24" width="24" height="24" fill="#FFC6DB"></rect></svg>
+</div>
+<div style="position: relative; overflow: hidden; background: #FFF2D6; border-radius: 28px; padding: 28px; min-height: 250px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 14px; font-weight: 600; color: #8A5A00">Каждый четвёртый</span>
+<div style="font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 64px; line-height: 64px; font-weight: 700; letter-spacing: -0.03em">26%</div>
+<p style="margin: 0; font-size: 16px; line-height: 24px">абитуриентов не&nbsp;хватало информации о&nbsp;поступлении</p>
+<svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" style="position: absolute; right: 0; top: 0"><rect x="24" y="0" width="24" height="24" fill="#FFC94D"></rect><rect x="0" y="24" width="24" height="24" fill="#FFE3A3"></rect></svg>
+</div>
+</div>
+<div style="background: #17142A; color: #F1EEFA; border-radius: 28px; padding: 32px 40px; display: flex; gap: 24px; align-items: center; justify-content: space-between">
+<p style="margin: 0; width: 860px; font-size: 21px; line-height: 32px">Всё это разбросано по&nbsp;сотням сайтов, и&nbsp;о&nbsp;сроках никто не&nbsp;напоминает. «Траектория» собирает это в&nbsp;одном чате.</p>
+<a href="#start" style="height: 52px; padding: 0 24px; border-radius: 14px; background: #FFFFFF; color: #17142A; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-shrink: 0">Как это работает
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: #625C78">Источники: приказ Минобрнауки №&nbsp;669; проект перечня на&nbsp;2026/27; пресс-служба МФТИ, 2025; опрос 4005 первокурсников, 2025.</p>
+</section>
+
+<section id="start" style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 0; display: flex; flex-direction: column; gap: 36px">
+<div style="display: flex; flex-direction: column; gap: 14px; width: 900px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Три шага, чтобы начать пользоваться</h2>
+<p style="margin: 0; font-size: 19px; line-height: 30px; color: #625C78">«Траектория» живёт в&nbsp;одном чате MAX: сначала бот задаёт пару вопросов, потом в&nbsp;этом&nbsp;же чате открывается мини-приложение.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+<div style="position: relative; overflow: hidden; height: 640px; background: #FFFFFF; border-radius: 28px; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px">
+<span style="align-self: flex-start; padding: 5px 12px; border-radius: 9999px; background: #6B2BFF; color: #FFFFFF; font-size: 13px; font-weight: 600">Шаг 1</span>
+<h3 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 700">Откройте бота в&nbsp;MAX</h3>
+<p style="margin: 0; font-size: 16px; line-height: 24px; color: #625C78">Кнопка ведёт прямо в&nbsp;чат. Ничего устанавливать не&nbsp;нужно.</p>
+<a href="https://max.ru/t356_hakaton_max_bot" style="align-self: flex-start; height: 44px; padding: 0 18px; border-radius: 14px; background: #6B2BFF; color: #FFFFFF; font-size: 15px; font-weight: 600; display: flex; align-items: center; margin-top: 4px">Открыть бота</a>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #EFE8FF"></div>
+<img src="../assets/screens/max-search-bot.png" alt="Бот «Траектория» в поиске MAX с кнопкой «Открыть»" style="position: absolute; left: 83px; top: 286px; width: 240px; height: auto; filter: drop-shadow(0 20px 32px rgba(42, 26, 122, 0.25))">
+</div>
+<div style="position: relative; overflow: hidden; height: 640px; background: #FFFFFF; border-radius: 28px; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px">
+<span style="align-self: flex-start; padding: 5px 12px; border-radius: 9999px; background: #7FEAF7; color: #17142A; font-size: 13px; font-weight: 600">Шаг 2</span>
+<h3 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 700">Ответьте на&nbsp;вопросы бота</h3>
+<p style="margin: 0; font-size: 16px; line-height: 24px; color: #625C78">Класс, регион, любимые предметы, цель и&nbsp;вузы. Нет цели? Бот поможет найти её по&nbsp;интересам.</p>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #DDF7FB"></div>
+<img src="../assets/screens/chat-onboarding.png" alt="Бот спрашивает имя, класс, регион и любимые предметы" style="position: absolute; left: 83px; top: 286px; width: 240px; height: auto; filter: drop-shadow(0 20px 32px rgba(42, 26, 122, 0.25))">
+</div>
+<div style="position: relative; overflow: hidden; height: 640px; background: #FFFFFF; border-radius: 28px; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px">
+<span style="align-self: flex-start; padding: 5px 12px; border-radius: 9999px; background: #FF3D8B; color: #FFFFFF; font-size: 13px; font-weight: 600">Шаг 3</span>
+<h3 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 700">Откройте мини-приложение</h3>
+<p style="margin: 0; font-size: 16px; line-height: 24px; color: #625C78">Бот соберёт подборку и&nbsp;пришлёт кнопку «Открыть мини-приложение»&nbsp;— оно откроется прямо поверх чата.</p>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #FFE8F1"></div>
+<img src="../assets/screens/app-match.png" alt="Подборка под цель: олимпиады с уровнем, сроком и льготой в вузах ученика" style="position: absolute; left: 83px; top: 286px; width: 240px; height: auto; filter: drop-shadow(0 20px 32px rgba(42, 26, 122, 0.25))">
+</div>
+</div>
+</section>
+
+<section id="features" style="flex-shrink: 0; box-sizing: border-box; padding: 96px 80px 0; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 14px; width: 900px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Что внутри мини-приложения</h2>
+<p style="margin: 0; font-size: 19px; line-height: 30px; color: #625C78">Это продолжение того&nbsp;же чата: ответы боту уже в&nbsp;профиле, а&nbsp;напоминания бот пришлёт туда&nbsp;же, где вы с&nbsp;ним общались.</p>
+</div>
+<div style="position: relative; overflow: hidden; height: 440px; background: #EFE8FF; border-radius: 32px; padding: 48px; box-sizing: border-box">
+<svg width="400" height="240" viewBox="0 0 400 240" aria-hidden="true" style="position: absolute; right: 0; bottom: 0">
+<rect x="0" y="180" width="400" height="60" fill="#DCCFFF"></rect><rect x="100" y="120" width="300" height="60" fill="#DCCFFF"></rect><rect x="200" y="60" width="200" height="60" fill="#DCCFFF"></rect><rect x="300" y="0" width="100" height="60" fill="#DCCFFF"></rect>
+<rect x="100" y="120" width="30" height="30" fill="#7FEAF7"></rect><rect x="300" y="0" width="30" height="30" fill="#FF3D8B"></rect>
+</svg>
+<div style="position: relative; width: 560px; display: flex; flex-direction: column; gap: 14px">
+<span style="align-self: flex-start; position: relative; padding: 5px 12px; border-radius: 9999px; background: #FFFFFF; color: #6B2BFF; font-size: 13px; font-weight: 600">В мини-приложении</span>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 26px; line-height: 32px; font-weight: 600">Льгота именно в&nbsp;ваших вузах</h3>
+<p style="margin: 0; font-size: 18px; line-height: 28px; color: #3A3450">Выберите олимпиаду&nbsp;— и&nbsp;сразу видно, что она даст в&nbsp;каждом вашем вузе.</p>
+<div style="display: flex; flex-direction: column; gap: 12px; padding-top: 4px">
+<div style="display: flex; gap: 12px; align-items: flex-start; font-size: 17px; line-height: 25px"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span><b>БВИ</b>&nbsp;— поступление без вступительных экзаменов</span></div>
+<div style="display: flex; gap: 12px; align-items: flex-start; font-size: 17px; line-height: 25px"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span><b>100 баллов</b>&nbsp;— диплом засчитают как 100 баллов ЕГЭ по&nbsp;предмету</span></div>
+<div style="display: flex; gap: 12px; align-items: flex-start; font-size: 17px; line-height: 25px"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span><b>Сроки</b>&nbsp;— когда регистрация и&nbsp;этапы, чтобы ничего не&nbsp;пропустить</span></div>
+</div>
+</div>
+<img src="../assets/screens/app-olympiad-card.png" alt="Карточка олимпиады: льгота в каждом вузе ученика и даты этапов" style="position: absolute; left: 770px; top: 40px; width: 240px; height: auto; filter: drop-shadow(0 24px 40px rgba(42, 26, 122, 0.28))">
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+<div style="position: relative; overflow: hidden; height: 520px; background: #FFFFFF; border-radius: 32px; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+<span style="align-self: flex-start; position: relative; padding: 5px 12px; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; font-size: 13px; font-weight: 600">В мини-приложении и&nbsp;в&nbsp;чате</span>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 24px; line-height: 30px; font-weight: 600">Ни&nbsp;одной пропущенной регистрации</h3>
+<p style="margin: 0; font-size: 17px; line-height: 26px; color: #625C78">Олимпиада попадает в&nbsp;трекер одной кнопкой. Напоминания приходят в&nbsp;чат MAX за&nbsp;месяц, неделю, три дня и&nbsp;накануне, а&nbsp;все сроки можно выгрузить в&nbsp;свой календарь.</p>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 240px; background: #FFE8F1"></div>
+<img src="../assets/screens/chat-reminders.png" alt="Напоминания о регистрации в чате MAX с кнопками «Открыть регистрацию» и «Я зарегистрировался»" style="position: absolute; left: 204px; top: 258px; width: 250px; height: auto; filter: drop-shadow(0 20px 32px rgba(42, 26, 122, 0.25))" class="swap-a">
+<img src="../assets/screens/app-calendar-export.png" alt="Календарь олимпиад с кнопкой «Выгрузить в календарь» для Google, Apple и других календарей" style="position: absolute; left: 204px; top: 258px; width: 250px; height: auto; filter: drop-shadow(0 20px 32px rgba(42, 26, 122, 0.25))" class="swap-b">
+<div class="swap-a">
+<div style="position: absolute; left: 60px; top: 310px; box-sizing: border-box; padding: 10px 14px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 12px 32px -8px rgba(42, 26, 122, 0.25); display: flex; gap: 8px; align-items: center; transform: rotate(-5deg)">
+<span style="width: 10px; height: 10px; border-radius: 9999px; background: #FF3D8B"></span>
+<span style="font-size: 13px; font-weight: 600">3 дня до&nbsp;срока</span>
+</div>
+</div>
+<div class="swap-b">
+<div style="position: absolute; left: 40px; top: 310px; box-sizing: border-box; padding: 10px 14px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 12px 32px -8px rgba(42, 26, 122, 0.25); display: flex; gap: 8px; align-items: center; transform: rotate(-5deg)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B2BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg>
+<span style="font-size: 13px; font-weight: 600">Google и&nbsp;Apple Календарь</span>
+</div>
+</div>
+</div>
+<div style="position: relative; overflow: hidden; height: 520px; background: #17142A; color: #F1EEFA; border-radius: 32px; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+<span style="align-self: flex-start; position: relative; padding: 5px 12px; border-radius: 9999px; background: #2A1F52; color: #A68BFF; font-size: 13px; font-weight: 600">В мини-приложении</span>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 24px; line-height: 30px; font-weight: 600">Помощник, который не&nbsp;выдумывает</h3>
+<p style="margin: 0; font-size: 17px; line-height: 26px; color: #CFC9E3">Отвечает только по&nbsp;карточкам олимпиад и&nbsp;вузов из&nbsp;базы: у&nbsp;каждого факта есть ссылка на&nbsp;первоисточник. Если ответа нет, так и&nbsp;скажет.</p>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 240px; background: #2A2148"></div>
+<img src="../assets/screens/app-assistant-answer.png" alt="Помощник отвечает со ссылкой на карточку и первоисточник" style="position: absolute; left: 204px; top: 258px; width: 250px; height: auto; filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.4))" class="swap-a">
+<img src="../assets/screens/app-assistant-nodata.png" alt="Помощник честно отвечает, что данных нет, и даёт ссылку на первоисточник" style="position: absolute; left: 204px; top: 258px; width: 250px; height: auto; filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.4))" class="swap-b">
+<div class="swap-a">
+<div style="position: absolute; left: 420px; top: 280px; box-sizing: border-box; padding: 10px 14px; border-radius: 14px; background: #FFFFFF; color: #17142A; box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.4); display: flex; gap: 8px; align-items: center; transform: rotate(5deg)">
+<span style="padding: 3px 9px; border-radius: 8px; background: #E1F6EC; color: #08704D; font-size: 12px; font-weight: 600">Факт</span>
+<span style="font-size: 13px; font-weight: 600">ответ со&nbsp;ссылкой на&nbsp;источник</span>
+</div>
+</div>
+<div class="swap-b">
+<div style="position: absolute; left: 420px; top: 280px; box-sizing: border-box; padding: 10px 14px; border-radius: 14px; background: #FFFFFF; color: #17142A; box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.4); display: flex; gap: 8px; align-items: center; transform: rotate(5deg)">
+<span style="padding: 3px 9px; border-radius: 8px; background: #FFF2D6; color: #8A5A00; font-size: 12px; font-weight: 600">Данных нет</span>
+<span style="font-size: 13px; font-weight: 600">и&nbsp;ссылка на&nbsp;источник</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section id="roles" style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 0; display: flex; flex-direction: column; gap: 36px">
+<h2 style="margin: 0; width: 1000px; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Одна траектория на&nbsp;ученика и&nbsp;его семью</h2>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+<div style="position: relative; overflow: hidden; background: #6B2BFF; color: #FFFFFF; border-radius: 28px; padding: 32px; min-height: 400px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true" style="position: absolute; right: 28px; top: 28px">
+<path d="M16 96c0-18 14-30 32-30s32 12 32 30z" fill="#7FEAF7"></path>
+<circle cx="48" cy="48" r="15" fill="#FFFFFF"></circle>
+<path d="M33 30v9c0 4 7 7 15 7s15-3 15-7v-9l-15 6z" fill="#17142A"></path>
+<path d="M48 12l32 13-32 13-32-13z" fill="#17142A"></path>
+<path d="M74 27v14" stroke="#FF3D8B" stroke-width="3" stroke-linecap="round" fill="none"></path>
+<circle cx="74" cy="43" r="3.5" fill="#FF3D8B"></circle>
+</svg>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 28px; line-height: 34px; font-weight: 600">Ученику</h3>
+<p style="margin: 0; width: 220px; font-size: 16px; line-height: 24px; color: #E8E0FF">Понятный путь к&nbsp;своему вузу</p>
+<ul style="margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 24px">
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #7FEAF7; flex-shrink: 0; margin-top: 7px"></span><span>3+ олимпиад под твою цель</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #7FEAF7; flex-shrink: 0; margin-top: 7px"></span><span>Льгота в&nbsp;каждом твоём вузе</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #7FEAF7; flex-shrink: 0; margin-top: 7px"></span><span>Напоминания о&nbsp;сроках в&nbsp;чат</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #7FEAF7; flex-shrink: 0; margin-top: 7px"></span><span>ИИ-помощник ответит на&nbsp;вопросы</span></li>
+</ul>
+<a href="https://max.ru/t356_hakaton_max_bot" style="margin-top: auto; align-self: flex-start; height: 48px; padding: 0 20px; border-radius: 14px; background: #FFFFFF; color: #6B2BFF; font-size: 15px; font-weight: 600; display: flex; align-items: center">Начать в&nbsp;MAX</a>
+</div>
+<div style="position: relative; overflow: hidden; background: #FFFFFF; border-radius: 28px; padding: 32px; min-height: 400px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true" style="position: absolute; right: 28px; top: 28px">
+<path d="M6 96c0-24 12-38 27-38s27 14 27 38z" fill="#6B2BFF"></path>
+<circle cx="33" cy="34" r="14" fill="#8F63FF"></circle>
+<path d="M50 96c0-17 9-28 20-28s20 11 20 28z" fill="#FF3D8B"></path>
+<circle cx="70" cy="54" r="10" fill="#FF8DBE"></circle>
+</svg>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 28px; line-height: 34px; font-weight: 600">Родителю</h3>
+<p style="margin: 0; width: 220px; font-size: 16px; line-height: 24px; color: #625C78">Видите сроки и&nbsp;понимаете льготы</p>
+<ul style="margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 24px">
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span>Та же траектория, что у&nbsp;ребёнка</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span>Напоминания приходят и&nbsp;вам</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span>Предлагаете олимпиаду ребёнку</span></li>
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #6B2BFF; flex-shrink: 0; margin-top: 7px"></span><span>ИИ-помощник объяснит льготы</span></li>
+</ul>
+<a href="https://max.ru/t356_hakaton_max_bot" style="margin-top: auto; align-self: flex-start; height: 48px; padding: 0 20px; border-radius: 14px; background: #EFE8FF; color: #6B2BFF; font-size: 15px; font-weight: 600; display: flex; align-items: center">Начать в&nbsp;MAX</a>
+</div>
+<div style="position: relative; overflow: hidden; background: #EFEDF7; border-radius: 28px; padding: 32px; min-height: 400px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true" style="position: absolute; right: 28px; top: 28px">
+<rect x="42" y="8" width="50" height="38" rx="6" fill="#FFFFFF" stroke="#6B2BFF" stroke-width="3"></rect>
+<path d="M51 20h30M51 31h18" stroke="#7FEAF7" stroke-width="4" stroke-linecap="round" fill="none"></path>
+<rect x="76" y="28" width="7" height="7" fill="#FF3D8B"></rect>
+<path d="M4 96c0-22 10-34 23-34s23 12 23 34z" fill="#6B2BFF"></path>
+<circle cx="27" cy="44" r="12" fill="#17142A"></circle>
+<path d="M44 70l16-26" stroke="#17142A" stroke-width="3" stroke-linecap="round" fill="none"></path>
+</svg>
+<span style="align-self: flex-start; padding: 4px 10px; border-radius: 8px; background: #FFFFFF; color: #625C78; font-size: 12px; font-weight: 600">Скоро</span>
+<h3 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 28px; line-height: 34px; font-weight: 600">Учителю</h3>
+<p style="margin: 0; width: 220px; font-size: 16px; line-height: 24px; color: #625C78">Олимпиадный сезон для всего класса</p>
+<ul style="margin: 12px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 16px; line-height: 24px">
+<li style="display: flex; gap: 12px; align-items: flex-start"><span style="width: 10px; height: 10px; background: #625C78; flex-shrink: 0; margin-top: 7px"></span><span>Ссылка на&nbsp;бота для чата класса</span></li>
+</ul>
+</div>
+</div>
+</section>
+
+
+<section id="compare" style="flex-shrink: 0; box-sizing: border-box; padding: 96px 80px 0; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 16px; width: 900px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">От&nbsp;цели до&nbsp;олимпиад и&nbsp;вузов в&nbsp;одном месте</h2>
+<p style="margin: 0; font-size: 19px; line-height: 30px; color: #625C78">В&nbsp;каталоге олимпиад школьник ищет сам. «Траектория» сама подбирает олимпиады, показывает условия вузов этого ученика и&nbsp;напоминает о&nbsp;сроках.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="background: #EFEDF7; border-radius: 32px; padding: 32px 40px; display: flex; flex-direction: column; gap: 0">
+<h3 style="margin: 0 0 6px; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 20px; line-height: 26px; font-weight: 600; color: #625C78">Каталог олимпиад</h3>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCD8E8; "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #FFFFFF; color: #625C78; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></span><span style="font-size: 17px; line-height: 1.35; color: #625C78">Олимпиады под цель ищете сами</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCD8E8; "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #FFFFFF; color: #625C78; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></span><span style="font-size: 17px; line-height: 1.35; color: #625C78">Условия вузов в&nbsp;десятках PDF</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCD8E8; "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #FFFFFF; color: #625C78; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></span><span style="font-size: 17px; line-height: 1.35; color: #625C78">Сроки держите в&nbsp;голове</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #FFFFFF; color: #625C78; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></span><span style="font-size: 17px; line-height: 1.35; color: #625C78">Родитель разбирается отдельно</span></div>
+</div>
+<div style="position: relative; overflow: hidden; background: #6B2BFF; color: #FFFFFF; border-radius: 32px; padding: 32px 40px; display: flex; flex-direction: column; gap: 0">
+<svg width="90" height="90" viewBox="0 0 120 120" aria-hidden="true" style="position: absolute; right: 0; top: 0"><rect x="80" y="0" width="40" height="40" fill="#7FEAF7"></rect><rect x="40" y="40" width="40" height="40" fill="#FF8DBE"></rect><rect x="80" y="40" width="40" height="40" fill="#8F63FF"></rect></svg>
+<h3 style="margin: 0 0 6px; position: relative; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 20px; line-height: 26px; font-weight: 600">«Траектория»</h3>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2); "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #7FEAF7; color: #17142A; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><span style="font-size: 17px; line-height: 1.35; font-weight: 500; color: #FFFFFF">Подборка под цель и&nbsp;вузы ученика</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2); "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #7FEAF7; color: #17142A; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><span style="font-size: 17px; line-height: 1.35; font-weight: 500; color: #FFFFFF">Льгота в&nbsp;каждом вузе с&nbsp;источником</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.2); "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #7FEAF7; color: #17142A; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><span style="font-size: 17px; line-height: 1.35; font-weight: 500; color: #FFFFFF">Напоминания в&nbsp;чат MAX</span></div>
+<div style="display: flex; gap: 16px; align-items: center; padding: 12px 0; "><span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #7FEAF7; color: #17142A; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><span style="font-size: 17px; line-height: 1.35; font-weight: 500; color: #FFFFFF">Одна траектория на&nbsp;семью</span></div>
+</div>
+</div>
+</section>
+
+
+<section id="trust" style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 0; display: flex; flex-direction: column; gap: 36px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Вузы, которые уже есть в&nbsp;базе</h2>
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">МГУ</b><span style="font-size: 13px; color: #625C78">Москва</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">СПбГУ</b><span style="font-size: 13px; color: #625C78">Санкт-Петербург</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">ВШЭ</b><span style="font-size: 13px; color: #625C78">Москва</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">МФТИ</b><span style="font-size: 13px; color: #625C78">Долгопрудный</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">ИТМО</b><span style="font-size: 13px; color: #625C78">Санкт-Петербург</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">НГУ</b><span style="font-size: 13px; color: #625C78">Новосибирск</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">КФУ</b><span style="font-size: 13px; color: #625C78">Казань</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">Иннополис</b><span style="font-size: 13px; color: #625C78">Иннополис</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">Сеченовский</b><span style="font-size: 13px; color: #625C78">Москва</span></span>
+<span style="padding: 14px 20px; border-radius: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 17px">Казанский ГМУ</b><span style="font-size: 13px; color: #625C78">Казань</span></span>
+</div>
+</div>
+</section>
+
+<section id="faq" style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em">Частые вопросы</h2>
+<p style="margin: 0; font-size: 16px; line-height: 24px; color: #625C78">Не&nbsp;нашли ответ? Спросите помощника прямо в&nbsp;боте.</p>
+</div>
+<div style="grid-column: span 2; background: #FFFFFF; border-radius: 28px; padding: 8px 32px">
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" data-faq-toggle aria-expanded="true" style="width: 100%; min-height: 72px; padding: 20px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; text-align: left; cursor: pointer; color: #17142A; font-size: 18px; line-height: 26px; font-weight: 600">
+<span>Нужно ли что-то устанавливать?</span>
+<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 20px; font-weight: 600">−</span>
+</button>
+<div class="faq-answer">
+<p style="margin: 0; padding: 0 56px 24px 0; font-size: 16px; line-height: 25px; color: #625C78">Нет. Бот и мини-приложение работают внутри MAX: достаточно открыть чат с ботом. Мини-приложение открывается поверх чата, профиль в нём уже заполнен ответами из диалога.</p>
+</div>
+</div>
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" data-faq-toggle aria-expanded="false" style="width: 100%; min-height: 72px; padding: 20px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; text-align: left; cursor: pointer; color: #17142A; font-size: 18px; line-height: 26px; font-weight: 600">
+<span>Что такое БВИ?</span>
+<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 20px; font-weight: 600">+</span>
+</button>
+<div class="faq-answer" hidden>
+<p style="margin: 0; padding: 0 56px 24px 0; font-size: 16px; line-height: 25px; color: #625C78">Зачисление без вступительных испытаний: с дипломом победителя или призёра можно поступить без конкурса по баллам ЕГЭ на направление, которое соответствует профилю олимпиады. Воспользоваться БВИ можно только в одном вузе и на одной программе.</p>
+</div>
+</div>
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" data-faq-toggle aria-expanded="false" style="width: 100%; min-height: 72px; padding: 20px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; text-align: left; cursor: pointer; color: #17142A; font-size: 18px; line-height: 26px; font-weight: 600">
+<span>Что значит «100 баллов»?</span>
+<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 20px; font-weight: 600">+</span>
+</button>
+<div class="faq-answer" hidden>
+<p style="margin: 0; padding: 0 56px 24px 0; font-size: 16px; line-height: 25px; color: #625C78">Диплом засчитывается как 100 баллов по вступительному испытанию того предмета, которому соответствует олимпиада. Остальные экзамены сдаются как обычно. Эту льготу можно использовать в каждом вузе, куда ученик подаёт документы.</p>
+</div>
+</div>
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" data-faq-toggle aria-expanded="false" style="width: 100%; min-height: 72px; padding: 20px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; text-align: left; cursor: pointer; color: #17142A; font-size: 18px; line-height: 26px; font-weight: 600">
+<span>Нужно ли сдавать ЕГЭ, если есть диплом?</span>
+<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 20px; font-weight: 600">+</span>
+</button>
+<div class="faq-answer" hidden>
+<p style="margin: 0; padding: 0 56px 24px 0; font-size: 16px; line-height: 25px; color: #625C78">Да. Льготу по олимпиаде из перечня подтверждают результатом ЕГЭ по профильному предмету не ниже 75 баллов, а вуз вправе поставить порог выше. Если порог выше, это написано в карточке олимпиады под этим вузом.</p>
+</div>
+</div>
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" data-faq-toggle aria-expanded="false" style="width: 100%; min-height: 72px; padding: 20px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; text-align: left; cursor: pointer; color: #17142A; font-size: 18px; line-height: 26px; font-weight: 600">
+<span>Как удалить данные?</span>
+<span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 20px; font-weight: 600">+</span>
+</button>
+<div class="faq-answer" hidden>
+<p style="margin: 0; padding: 0 56px 24px 0; font-size: 16px; line-height: 25px; color: #625C78">Создатель траектории удаляет её вместе со всеми данными командой /delete в чате бота. Остальные участники могут просто выйти из траектории во вкладке «Семья».</p>
+</div>
+</div>
+</div>
+</section>
+
+<section style="flex-shrink: 0; box-sizing: border-box; padding: 112px 80px 96px">
+<div style="position: relative; overflow: hidden; background: #6B2BFF; color: #FFFFFF; border-radius: 40px; padding: 64px; display: flex; flex-direction: column; gap: 20px">
+<svg width="420" height="280" viewBox="0 0 420 280" aria-hidden="true" style="position: absolute; right: 0; bottom: 0">
+<rect x="0" y="210" width="420" height="70" fill="#7D4DFF"></rect><rect x="105" y="140" width="315" height="70" fill="#7D4DFF"></rect><rect x="210" y="70" width="210" height="70" fill="#7D4DFF"></rect><rect x="315" y="0" width="105" height="70" fill="#7D4DFF"></rect>
+<rect x="105" y="140" width="44" height="44" fill="#7FEAF7"></rect><rect x="210" y="70" width="44" height="44" fill="#FF8DBE"></rect><rect x="315" y="0" width="44" height="44" fill="#FFFFFF"></rect>
+</svg>
+<svg width="120" height="150" viewBox="0 0 120 150" aria-hidden="true" style="position: absolute; left: 820px; top: 40px; transform: rotate(12deg); filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.25))">
+<path d="M34 0h24l-8 56H26z" fill="#FF3D8B"></path><path d="M62 0h24l8 56H70z" fill="#7FEAF7"></path>
+<circle cx="60" cy="96" r="50" fill="#FFFFFF"></circle><circle cx="60" cy="96" r="38" fill="#EFE8FF"></circle>
+<rect x="38" y="108" width="11" height="11" rx="2" fill="#6B2BFF"></rect><rect x="49" y="97" width="11" height="11" rx="2" fill="#8F63FF"></rect><rect x="60" y="86" width="11" height="11" rx="2" fill="#7FEAF7"></rect><rect x="71" y="75" width="11" height="11" rx="2" fill="#FF3D8B"></rect>
+</svg>
+<h2 style="margin: 0; position: relative; width: 680px; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 44px; line-height: 50px; font-weight: 600; letter-spacing: -0.02em">Начните с&nbsp;одного сообщения</h2>
+<p style="margin: 0; position: relative; width: 620px; font-size: 19px; line-height: 30px; color: #E8E0FF">Откройте бота, ответьте на&nbsp;вопросы и&nbsp;получите олимпиады, которые ведут в&nbsp;ваши вузы.</p>
+<a href="https://max.ru/t356_hakaton_max_bot" style="position: relative; align-self: flex-start; height: 56px; padding: 0 28px; border-radius: 14px; background: #FFFFFF; color: #6B2BFF; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; margin-top: 8px">Открыть в&nbsp;MAX
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+</div>
+</section>
+
+<footer style="flex-grow: 1; background: #FFFFFF; color: #17142A; border-top: 1px solid #E2DEEE; box-sizing: border-box; padding: 64px 80px 48px; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; justify-content: space-between; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 16px; width: 420px">
+<img src="../assets/logo/traektoriya-logo.svg" alt="Траектория" style="height: 40px; width: auto; align-self: flex-start">
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #625C78">Бот и&nbsp;мини-приложение про олимпиады и&nbsp;поступление в&nbsp;MAX.</p>
+</div>
+<div style="display: flex; gap: 80px">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<span style="font-size: 13px; font-weight: 600; color: #625C78">Продукт</span>
+<a href="#start" style="color: #17142A; font-size: 15px">Как начать</a>
+<a href="#features" style="color: #17142A; font-size: 15px">Возможности</a>
+<a href="#roles" style="color: #17142A; font-size: 15px">Для кого</a>
+<a href="#faq" style="color: #17142A; font-size: 15px">Вопросы</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px">
+<span style="font-size: 13px; font-weight: 600; color: #625C78">В&nbsp;MAX</span>
+<a href="https://max.ru/t356_hakaton_max_bot" style="color: #17142A; font-size: 15px">Открыть бота</a>
+</div>
+</div>
+</div>
+<p style="margin: 0; padding-top: 24px; border-top: 1px solid #E2DEEE; font-size: 13px; line-height: 20px; color: #625C78">Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения». Сроки части олимпиад демонстрационные: даты сезона 2026/27 олимпиады публикуют постепенно. На&nbsp;экранах примеры данных.</p>
+</footer>
+</div>
+<script>
+// FAQ: одновременно открыт один вопрос
+document.querySelectorAll('[data-faq-toggle]').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var item=btn.parentElement, ans=item.querySelector('.faq-answer'), wasOpen=!ans.hidden;
+    document.querySelectorAll('.faq-answer').forEach(function(a){
+      a.hidden=true; var b=a.parentElement.querySelector('[data-faq-toggle]');
+      b.setAttribute('aria-expanded','false'); b.lastElementChild.textContent='+';
+    });
+    if(!wasOpen){ans.hidden=false;btn.setAttribute('aria-expanded','true');btn.lastElementChild.textContent='−';}
+  });
+});
+// Панели «Трекер» и «Помощник»: два экрана сменяют друг друга каждые 3,5 с
+if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  setInterval(function(){document.body.classList.toggle('alt');},3500);
+}
+</script>
+</body>
+</html>
