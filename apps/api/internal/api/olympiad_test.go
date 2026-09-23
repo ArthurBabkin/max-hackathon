@@ -1,8 +1,14 @@
 package api
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
+	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
 func list(t *testing.T, v any) []map[string]any {
@@ -72,16 +78,22 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 		t.Fatalf("демо-строка снимает метку «Факт»: %v", b["benefits_source"])
 	}
 
+	// Общие условия — то, что верно для всех вузов ученика; своё у вуза — в
+	// его строке (F19).
 	conds, _ := b["conditions"].([]any)
-	for _, want := range []string{
+	want := []any{
 		"Нужен диплом победителя или призёра",
 		"ЕГЭ по предмету «Информатика» — не ниже 75",
-		"На некоторых программах порог выше — проверь правила вуза",
 		"БВИ можно использовать только в одном вузе",
-	} {
-		if !contains(conds, want) {
-			t.Fatalf("нет условия %q: %v", want, conds)
-		}
+	}
+	if fmt.Sprint(conds) != fmt.Sprint(want) {
+		t.Fatalf("общие условия: %v", conds)
+	}
+	if got := rowConditions(t, benefits[1]); got != "Порог ЕГЭ от 75 до 90 — зависит от программы" {
+		t.Fatalf("у ВШЭ порог зависит от программы: %q", got)
+	}
+	if benefits[0]["conditions"] != nil || benefits[2]["conditions"] != nil {
+		t.Fatalf("у КФУ и Иннополиса ничего своего: %v %v", benefits[0]["conditions"], benefits[2]["conditions"])
 	}
 	why, _ := b["why"].(string)
 	if !strings.Contains(why, "Профиль «информатика» совпадает с направлением «Программная инженерия».") ||
@@ -107,6 +119,74 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	if stages[0]["state"] != "past" || stages[1]["state"] != "current" || b["in_tracker"] != true ||
 		b["next_stage_title"] != "Отборочный этап, 1 тур" {
 		t.Fatalf("после отметки: %v", stages)
+	}
+}
+
+// rowConditions — условия вуза из строки льготы через « | ».
+func rowConditions(t *testing.T, row map[string]any) string {
+	t.Helper()
+	raw, _ := row["conditions"].([]any)
+	out := make([]string, len(raw))
+	for i, c := range raw {
+		out[i] = c.(string)
+	}
+	return strings.Join(out, " | ")
+}
+
+// У МГУ и МФТИ по «Высшей пробе» свои правила: призёру — 100 баллов, у МФТИ
+// порог зависит от программы, а МГУ засчитывает только диплом 11 класса.
+func TestOlympiad_ConditionsByUniversity(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"msu", "mipt", "kfu"}); err != nil {
+		t.Fatal(err)
+	}
+	b := e.do("GET", "/api/v1/olympiads/p669-8-informatika", e.login(900000001, "Артём"), nil).body
+
+	byUni := map[string]string{}
+	for _, row := range list(t, b["benefits"]) {
+		byUni[row["university_id"].(string)] = rowConditions(t, row)
+	}
+	for uni, want := range map[string]string{
+		"msu":  "Призёру — 100 баллов вместо БВИ | Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
+		"mipt": "Призёру — 100 баллов вместо БВИ | Порог ЕГЭ от 75 до 80 — зависит от программы",
+		"kfu":  "",
+	} {
+		if byUni[uni] != want {
+			t.Fatalf("условия %s: %q, ждали %q", uni, byUni[uni], want)
+		}
+	}
+	for _, c := range b["conditions"].([]any) {
+		if strings.Contains(c.(string), "МГУ") || strings.Contains(c.(string), "порог выше") {
+			t.Fatalf("своё у вуза не дублируется в общих условиях: %v", b["conditions"])
+		}
+	}
+}
+
+// Вузы ученика льготы не дают — условия собираются по всем вузам базы, и
+// особенности вузов остаются в общих условиях: строк с вузами, где их
+// показать, в карточке нет.
+func TestOlympiad_ConditionsFromAllUniversities(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"spbu"}); err != nil {
+		t.Fatal(err)
+	}
+	b := e.do("GET", "/api/v1/olympiads/p669-8-informatika", e.login(900000001, "Артём"), nil).body
+
+	conds, _ := b["conditions"].([]any)
+	want := []any{
+		"Нужен диплом победителя или призёра",
+		"ЕГЭ по предмету «Информатика» — не ниже 75",
+		"На некоторых программах порог выше — проверь правила вуза",
+		"МГУ, МФТИ: победителю — БВИ, призёру — 100 баллов",
+		"БВИ можно использовать только в одном вузе",
+	}
+	if fmt.Sprint(conds) != fmt.Sprint(want) {
+		t.Fatalf("условия по всем вузам: %v", conds)
+	}
+	if spbu := list(t, b["benefits"])[0]; spbu["benefit"] != nil || spbu["conditions"] != nil {
+		t.Fatalf("у вуза без льготы своих условий нет: %v", spbu)
 	}
 }
 
@@ -167,5 +247,31 @@ func TestOlympiad_NoStagesOutsideAndNotFound(t *testing.T) {
 
 	if r := e.do("GET", "/api/v1/olympiads/nope", token, nil); r.code != 404 || r.errCode() != "NOT_FOUND" {
 		t.Fatalf("неизвестный профиль — 404: %d %s", r.code, r.raw)
+	}
+}
+
+// Правила вуза, которых нет у демо-ученика: призёр без льготы, свой порог
+// без разброса по программам, класс диплома, который ученику не мешает.
+func TestUniConditions(t *testing.T) {
+	cs := cardSet{
+		Set:   pick.Set{Trajectory: store.Trajectory{Grade: 10}},
+		voice: voice.New(voice.Role("parent"), "Артём", "Ольга"),
+	}
+	for _, tc := range []struct {
+		name string
+		row  store.BenefitRow
+		want string
+	}{
+		{"призёру ничего", store.BenefitRow{Note: ptr("БВИ только победителю. Подтвердить ЕГЭ: Физика")}, "Призёру льготы нет"},
+		{"100 баллов только победителю", store.BenefitRow{Note: ptr("100 баллов только победителю")}, "Призёру льготы нет"},
+		{"порог выше общего", store.BenefitRow{EgeMin: ptr(80)}, "Порог ЕГЭ — не ниже 80"},
+		{"порог как у всех", store.BenefitRow{EgeMin: ptr(75)}, ""},
+		{"класс ученика засчитывается", store.BenefitRow{DiplomaGrades: []int32{10, 11}}, ""},
+		{"классы не подряд", store.BenefitRow{DiplomaGrades: []int32{9, 11}},
+			"Засчитывает только диплом 9, 11 класса — диплом за 10 класс не подойдёт"},
+	} {
+		if got := strings.Join(cs.uniConditions(tc.row, ptr(75)), " | "); got != tc.want {
+			t.Errorf("%s: %q, ждали %q", tc.name, got, tc.want)
+		}
 	}
 }

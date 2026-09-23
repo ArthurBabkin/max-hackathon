@@ -1499,6 +1499,16 @@ export interface components {
             diploma_grades?: number[] | null;
             note?: string | null;
             source: components["schemas"]["Source"] | null;
+            /**
+             * @description Чем условия в этом вузе отличаются от общих `OlympiadDetail.conditions` (F19):
+             *     что получит призёр, свой порог ЕГЭ, класс диплома — только если вуз не засчитает
+             *     диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
+             * @example [
+             *       "Призёру — 100 баллов вместо БВИ",
+             *       "Порог ЕГЭ от 75 до 80 — зависит от программы"
+             *     ]
+             */
+            conditions?: string[];
         };
         Stage: {
             id: string;
@@ -1535,7 +1545,11 @@ export interface components {
             /** @description По строке на каждый вуз ученика, включая «не учитывает» (F18). */
             benefits: components["schemas"]["BenefitRow"][];
             benefits_source: components["schemas"]["Source"] | null;
-            /** @description Условия подтверждения льготы — порог ЕГЭ, классы, «БВИ в один вуз» (F19). */
+            /**
+             * @description Общие условия подтверждения льготы в вузах ученика — диплом, порог ЕГЭ, «БВИ в один вуз» (F19).
+             *     Своё у вуза — в `benefits[].conditions`. Если вузы ученика льготы не дают, условия
+             *     собраны по всем вузам базы и включают их особенности.
+             */
             conditions: string[];
             stages: components["schemas"]["Stage"][];
             /** @description Ставит метку «Демо-даты» вместо «Факт», пока даты не выверены (ТЗ §0.5). */

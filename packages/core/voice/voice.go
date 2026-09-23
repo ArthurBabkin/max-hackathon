@@ -38,6 +38,9 @@ var KnownPlaceholders = []string{
 	"month",
 	"direction",
 	"grade",
+	"grades", // классы через тире или запятую: «10–11», «9, 11»
+	"from",   // границы диапазона: «от 75 до 90»
+	"to",
 	"region",
 	"subject",
 	"note",
