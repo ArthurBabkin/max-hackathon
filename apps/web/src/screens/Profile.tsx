@@ -1,4 +1,4 @@
-/** Профиль ученика — экран H1, функция F49. */
+/** Профиль ученика — экран H1, функции F49 и F61 (тема оформления). */
 
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +8,8 @@ import { districts, regions } from '@regions'
 import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock } from '@/ui/primitives'
+import { ThemeSetting } from '@/ui/ThemeSetting'
+import { readThemeChoice, setThemeChoice, type ThemeChoice } from '@/ui/theme'
 import { useVoice } from '@/voice/useVoice'
 
 /** Коммит сборки фронта; вне CI — «dev». */
@@ -39,6 +41,7 @@ export function ProfileScreen() {
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>([])
   const [warning, setWarning] = useState<string | null>(null)
+  const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice)
 
   // Форма заполняется, когда профиль приехал, и дальше живёт сама: иначе
   // фоновый перезапрос затирал бы то, что пользователь уже поправил.
@@ -89,6 +92,8 @@ export function ProfileScreen() {
   }
 
   const submit = () => {
+    // Тема живёт на устройстве и сервера не ждёт: применяется сразу.
+    setThemeChoice(theme)
     save.mutate(
       {
         student_name: name.trim(),
@@ -222,6 +227,8 @@ export function ProfileScreen() {
       </div>
 
       {warning ? <p className="field-warning">{warning}</p> : null}
+
+      <ThemeSetting value={theme} onChange={setTheme} />
 
       <Button
         stretched

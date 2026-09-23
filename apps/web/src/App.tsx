@@ -6,7 +6,6 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { Button, IconButton } from '@maxhub/max-ui'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { useColorScheme } from '@maxhub/max-ui'
 import { useSession, useTracker } from './api/queries'
 import { getWebApp } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
@@ -51,18 +50,11 @@ export function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const t = useVoice()
-  const colorScheme = useColorScheme()
 
   const hasSheet = sheets.stack.length > 0
   // Раздел из кнопки бота: «Трекер», «Семья», карточка олимпиады.
   useStartRoute(session.isSuccess)
 
-  // Токены темы и компоненты MAX UI должны переключаться вместе. Провайдер —
-  // единственный источник правды: он же учтёт настройку, пришедшую из MAX,
-  // а не только системную.
-  useEffect(() => {
-    document.documentElement.dataset.theme = colorScheme
-  }, [colorScheme])
   const isRoot = location.pathname === '/'
 
   // Системная кнопка «Назад» MAX ведёт по истории браузера: стек листов и
