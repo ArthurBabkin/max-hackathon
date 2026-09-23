@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Эмулятор MAX</title>
+<style>
+  :root {
+    --bg: #eef1f5; --panel: #fff; --line: #dde2ea; --text: #1b1f27; --muted: #6b7482;
+    --bot: #fff; --me: #d9ecff; --accent: #2b6ef2; --btn: #f1f5fd; --btn-line: #c9d8f7;
+    --toast: #1b1f27; --err: #c62828;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; }
+  aside { width: 280px; background: var(--panel); border-right: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+  h1 { font-size: 16px; margin: 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 6px; }
+  .users { display: flex; flex-direction: column; gap: 4px; }
+  .user { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .user:hover { background: var(--bg); }
+  .user.active { background: var(--me); border-color: var(--btn-line); }
+  .user small { color: var(--muted); font-size: 11px; }
+  .user .x { color: var(--muted); padding: 0 4px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); padding: 7px 10px; }
+  button:hover { border-color: var(--accent); }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .actions .wide { grid-column: span 2; }
+  .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .meta { font-size: 12px; color: var(--muted); word-break: break-word; }
+  .cmds button { display: block; width: 100%; text-align: left; margin-bottom: 4px; font-size: 13px; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  header .status { font-size: 12px; color: var(--muted); }
+  header .stopped { color: var(--err); }
+  #feed { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: min(560px, 85%); padding: 8px 12px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; box-shadow: 0 1px 1px rgba(0,0,0,.05); }
+  .msg.bot { background: var(--bot); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.me { background: var(--me); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg.deleted { opacity: .45; text-decoration: line-through; }
+  .msg .time { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; }
+  .msg a { color: var(--accent); }
+  .kb { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; white-space: normal; }
+  .kb .row { display: flex; gap: 4px; }
+  .kb button { flex: 1; background: var(--btn); border-color: var(--btn-line); color: var(--accent); font-size: 14px; padding: 7px 8px; }
+  .kb button small { display: block; font-size: 10px; color: var(--muted); }
+  .kb button:disabled { opacity: .5; cursor: progress; }
+  .empty { margin: auto; color: var(--muted); text-align: center; }
+  form { display: flex; gap: 8px; padding: 12px 16px; background: var(--panel); border-top: 1px solid var(--line); position: relative; }
+  form input { flex: 1; font: inherit; padding: 9px 12px; border-radius: 20px; border: 1px solid var(--line); outline: none; }
+  form input:focus { border-color: var(--accent); }
+  #hints { position: absolute; bottom: 100%; left: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.1); display: none; min-width: 260px; }
+  #hints div { padding: 8px 12px; cursor: pointer; }
+  #hints div:hover { background: var(--bg); }
+  #hints small { color: var(--muted); margin-left: 6px; }
+  #toasts { position: fixed; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+  .toast { background: var(--toast); color: #fff; padding: 10px 14px; border-radius: 10px; max-width: 360px; box-shadow: 0 4px 16px rgba(0,0,0,.2); white-space: pre-wrap; }
+  .toast.system { background: #4a5261; }
+  .toast.error { background: var(--err); }
+  @media (max-width: 720px) { body { flex-direction: column; } aside { width: auto; max-height: 38vh; flex-shrink: 0; padding: 12px 16px; } }
+</style>
+</head>
+<body>
+<aside>
+  <div>
+    <h1>Эмулятор MAX</h1>
+    <div class="meta" id="botinfo"></div>
+  </div>
+  <div>
+    <h2>Пользователь</h2>
+    <div class="users" id="users"></div>
+    <button id="add-user" style="margin-top:6px;width:100%">+ Новый пользователь</button>
+  </div>
+  <div>
+    <h2>Действия</h2>
+    <div class="actions">
+      <button class="primary wide" id="start">▶ Начать (bot_started)</button>
+      <button class="wide" id="start-payload">▶ Начать с параметром…</button>
+      <button id="geo">📍 Геопозиция</button>
+      <button id="stop">■ Остановить</button>
+      <button class="wide" id="clear">Очистить ленту</button>
+    </div>
+    <div class="meta" style="margin-top:6px">Очистка убирает только сообщения в эмуляторе — данные в базе остаются. Сбросить траекторию — /delete.</div>
+  </div>
+  <div class="cmds">
+    <h2>Команды бота</h2>
+    <button data-cmd="/start">/start</button>
+    <div id="cmds"></div>
+  </div>
+  <div class="meta">Бот работает внутри эмулятора, со своей базой: в настоящий MAX ничего не уходит. Мини-приложение отсюда не открывается.</div>
+</aside>
+<main>
+  <header>
+    <div><b id="chat-title">Траектория</b> <span class="status" id="status"></span></div>
+    <div class="status" id="pending"></div>
+  </header>
+  <div id="feed"></div>
+  <form id="compose" autocomplete="off">
+    <div id="hints"></div>
+    <input id="text" placeholder="Сообщение или /команда">
+    <button class="primary">Отправить</button>
+  </form>
+</main>
+<div id="toasts"></div>
+<script>
+const $ = (id) => document.getElementById(id)
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('maxemu.' + k)) ?? d } catch { return d } },
+  set(k, v) { try { localStorage.setItem('maxemu.' + k, JSON.stringify(v)) } catch {} },
+}
+// Ключ приходит в адресе (#key=…) и запоминается; в адресной строке не остаётся.
+const hashKey = new URLSearchParams(location.hash.slice(1)).get('key')
+if (hashKey) { store.set('key', hashKey); history.replaceState(null, '', location.pathname + location.search) }
+let key = store.get('key', '')
+let current = store.get('current', 900000001)
+let state = { messages: [], commands: [], toasts: [], users: [], bot: {} }
+let seenToast = null
+let busy = false
+const user = () => state.users.find((u) => u.user_id === current) ?? { user_id: current, first_name: '…' }
+
+async function call(path, body) {
+  const res = await fetch('ui/' + path + (body ? '' : `?user_id=${current}`), {
+    method: body ? 'POST' : 'GET',
+    headers: { 'Content-Type': 'application/json', 'X-Emu-Key': key },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (res.status === 401) {
+    const k = prompt('Ключ эмулятора (EMU_KEY)')
+    if (k) { key = k; store.set('key', k); return call(path, body) }
+    throw new Error('нужен ключ эмулятора')
+  }
+  const data = await res.json().catch(() => ({ error: 'HTTP ' + res.status }))
+  if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status)
+  if (data.user_id && data.user_id !== current) { current = data.user_id; store.set('current', current); seenToast = null }
+  state = data.state
+  render()
+  return data
+}
+
+// Действие в чате: бот отвечает в том же запросе, лента приходит в ответе.
+async function act(action, body = {}) {
+  busy = true
+  $('pending').textContent = 'бот думает…'
+  try { await call(action, { user_id: current, ...body }) }
+  catch (e) { toast(e.message, 'error') }
+  finally { busy = false; $('pending').textContent = '' }
+}
+
+function toast(text, kind = 'notification') {
+  const el = document.createElement('div')
+  el.className = 'toast ' + kind
+  el.textContent = text
+  $('toasts').append(el)
+  setTimeout(() => el.remove(), kind === 'system' ? 2500 : 6000)
+}
+
+// --- Ссылки ---------------------------------------------------------------
+// https://max.ru/<бот>?start=<payload> в эмуляторе — bot_started текущего
+// пользователя (например, приглашение: переключитесь на второго и нажмите).
+function startPayload(url) {
+  try {
+    const u = new URL(url)
+    if (u.hostname === 'max.ru' && u.pathname.replace(/^\//, '') === state.bot.username) return u.searchParams.get('start') ?? ''
+  } catch {}
+  return null
+}
+
+function openLink(url) {
+  const p = startPayload(url)
+  if (p === null) { window.open(url, '_blank', 'noopener'); return }
+  if (confirm(`Ссылка на бота со start=${p}.\nОткрыть как «${user().first_name}»?\n(Чтобы зайти другим пользователем — сначала переключитесь слева.)`)) {
+    act('start', { payload: p })
+  }
+}
+
+function linkify(text) {
+  const frag = document.createDocumentFragment()
+  const re = /https?:\/\/[^\s<>()]+[^\s<>().,;:!?»"']/g
+  let last = 0
+  for (const m of text.matchAll(re)) {
+    frag.append(text.slice(last, m.index))
+    const a = document.createElement('a')
+    a.href = m[0]; a.textContent = m[0]
+    a.onclick = (e) => { e.preventDefault(); openLink(m[0]) }
+    frag.append(a)
+    last = m.index + m[0].length
+  }
+  frag.append(text.slice(last))
+  return frag
+}
+
+// --- Кнопки ---------------------------------------------------------------
+const KIND = { callback: '', link: '↗ ссылка', open_app: '▣ мини-приложение', request_geo_location: '📍 геопозиция', request_contact: 'контакт' }
+
+function pressButton(msg, b, el) {
+  switch (b.type) {
+    case 'callback':
+      if (busy) return
+      el.disabled = true
+      return act('click', { mid: msg.mid, payload: b.payload })
+    case 'link':
+      return openLink(b.url)
+    case 'open_app': {
+      if (!state.web_app) {
+        return toast(`Мини-приложение, startapp=${b.payload || '—'}.\nВ эмуляторе не открывается: у эмулятора своя база, а мини-приложение ходит в боевой API.`, 'system')
+      }
+      const u = new URL(state.web_app)
+      if (b.payload) u.searchParams.set('startapp', b.payload)
+      if (current === 900000002) u.searchParams.set('dev_user', 'parent')
+      return window.open(u, '_blank')
+    }
+    case 'request_geo_location':
+      return askGeo()
+    default:
+      toast('Кнопка «' + b.type + '» в эмуляторе не поддерживается', 'error')
+  }
+}
+
+function askGeo() {
+  const v = prompt('Координаты «широта, долгота»', store.get('geo', '55.7558, 37.6173'))
+  if (!v) return
+  const [lat, lon] = v.split(/[,\s]+/).map(Number)
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return toast('Не разобрал координаты', 'error')
+  store.set('geo', v)
+  act('geo', { lat, lon })
+}
+
+// --- Отрисовка ------------------------------------------------------------
+function renderUsers() {
+  const box = $('users')
+  box.replaceChildren()
+  for (const u of state.users) {
+    const el = document.createElement('div')
+    el.className = 'user' + (u.user_id === current ? ' active' : '')
+    const name = document.createElement('div')
+    name.append(u.first_name, document.createElement('br'))
+    const id = document.createElement('small'); id.textContent = u.user_id
+    name.append(id)
+    el.append(name)
+    if (u.user_id >= 900000100) {
+      const x = document.createElement('span'); x.className = 'x'; x.textContent = '✕'; x.title = 'Убрать из списка (траектория в базе останется)'
+      x.onclick = (e) => { e.stopPropagation(); if (confirm(`Убрать «${u.first_name}» из списка?`)) call('users/remove', { user_id: u.user_id }).catch((err) => toast(err.message, 'error')) }
+      el.append(x)
+    }
+    el.onclick = () => select(u.user_id)
+    box.append(el)
+  }
+  $('chat-title').textContent = 'Траектория · вы: ' + user().first_name
+}
+
+function renderFeed() {
+  const feed = $('feed')
+  const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60
+  feed.replaceChildren()
+  if (!state.messages.length) {
+    const e = document.createElement('div'); e.className = 'empty'
+    e.textContent = 'Пусто. Нажмите «▶ Начать» — это то, что делает пользователь, впервые открывая бота.'
+    feed.append(e)
+  }
+  for (const m of state.messages) {
+    const el = document.createElement('div')
+    el.className = 'msg ' + (m.from_bot ? 'bot' : 'me') + (m.deleted ? ' deleted' : '')
+    if (m.location) el.append(`📍 ${m.location[0]}, ${m.location[1]}`)
+    else el.append(linkify(m.text || ''))
+    if (m.keyboard?.length && !m.deleted) {
+      const kb = document.createElement('div'); kb.className = 'kb'
+      for (const row of m.keyboard) {
+        const r = document.createElement('div'); r.className = 'row'
+        for (const b of row) {
+          const btn = document.createElement('button')
+          btn.type = 'button'
+          btn.append(b.text)
+          const hint = KIND[b.type] ?? b.type
+          const detail = b.type === 'callback' ? b.payload : b.type === 'open_app' ? 'startapp=' + (b.payload || '') : b.type === 'link' ? b.url : ''
+          btn.title = [b.type, detail].filter(Boolean).join(': ')
+          if (hint) { const s = document.createElement('small'); s.textContent = hint; btn.append(s) }
+          btn.onclick = () => pressButton(m, b, btn)
+          r.append(btn)
+        }
+        kb.append(r)
+      }
+      el.append(kb)
+    }
+    const t = document.createElement('div'); t.className = 'time'
+    t.textContent = new Date(m.time).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + (m.edited ? ' · изменено' : '')
+    el.append(t)
+    feed.append(el)
+  }
+  if (atBottom) feed.scrollTop = feed.scrollHeight
+}
+
+function renderMeta() {
+  $('botinfo').textContent = `@${state.bot?.username ?? '—'} · id ${state.bot?.user_id ?? '—'}`
+  $('status').textContent = state.stopped ? 'бот остановлен' : ''
+  $('status').className = 'status' + (state.stopped ? ' stopped' : '')
+  $('cmds').replaceChildren(...(state.commands || []).map((c) => {
+    const b = document.createElement('button'); b.dataset.cmd = '/' + c.name
+    b.textContent = `/${c.name} — ${c.description}`
+    return b
+  }))
+}
+
+function showToasts() {
+  const mine = state.toasts || []
+  if (seenToast === null) { seenToast = Math.max(0, ...mine.map((t) => t.id)); return }
+  for (const t of mine) if (t.id > seenToast) { toast(t.text, t.kind); seenToast = t.id }
+}
+
+function render() { renderUsers(); renderFeed(); renderMeta(); showToasts() }
+
+function select(uid) {
+  current = uid
+  store.set('current', uid)
+  seenToast = null
+  call('state').catch((e) => toast(e.message, 'error'))
+}
+
+// Лента обновляется в ответе на каждое действие; фоновый опрос нужен, только
+// если в эмулятор пишут с другой вкладки (приглашённый родитель и т. п.).
+setInterval(() => {
+  if (!busy && document.visibilityState === 'visible') call('state').catch(() => {})
+}, 4000)
+
+// --- Ввод -----------------------------------------------------------------
+function send(text) {
+  text = text.trim()
+  if (text) act('text', { text })
+}
+
+$('compose').onsubmit = (e) => { e.preventDefault(); send($('text').value); $('text').value = ''; $('hints').style.display = 'none' }
+$('text').oninput = () => {
+  const v = $('text').value, hints = $('hints')
+  const all = [{ name: 'start', description: '' }, ...(state.commands || [])]
+  const match = v.startsWith('/') && !v.includes(' ') ? all.filter((c) => ('/' + c.name).startsWith(v)) : []
+  hints.replaceChildren(...match.map((c) => {
+    const d = document.createElement('div'); d.textContent = '/' + c.name
+    const s = document.createElement('small'); s.textContent = c.description; d.append(s)
+    d.onclick = () => { send('/' + c.name); $('text').value = ''; hints.style.display = 'none' }
+    return d
+  }))
+  hints.style.display = match.length ? 'block' : 'none'
+}
+document.querySelector('.cmds').onclick = (e) => { const c = e.target.closest('[data-cmd]'); if (c) send(c.dataset.cmd) }
+$('start').onclick = () => act('start')
+$('start-payload').onclick = () => {
+  const p = prompt('Параметр start (например inv_<токен> или источник)', '')
+  if (p !== null) act('start', { payload: p.replace(/^.*[?&]start=/, '') })
+}
+$('geo').onclick = askGeo
+$('stop').onclick = () => act('stop')
+$('clear').onclick = () => act('clear')
+$('add-user').onclick = () => {
+  const name = prompt('Имя нового пользователя', 'Тест')
+  if (name) call('users/add', { first_name: name }).then(() => { seenToast = null }).catch((e) => toast(e.message, 'error'))
+}
+
+select(current)
+</script>
+</body>
+</html>
