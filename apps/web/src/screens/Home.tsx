@@ -181,7 +181,7 @@ export function HomeScreen() {
       />
 
       {data.upcoming.length > 0 ? (
-        <div className="list">
+        <div className="list" data-tour="upcoming">
           {data.upcoming.map((item) => (
             <TrackerRow key={item.id} item={item} onOpen={openOlympiad} />
           ))}
