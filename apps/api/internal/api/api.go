@@ -159,6 +159,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /olympiads/{id}", s.authed(s.olympiad))
 	s.mux.HandleFunc("GET /universities", s.authed(s.universities))
 	s.mux.HandleFunc("GET /universities/{id}", s.authed(s.university))
+	s.mux.HandleFunc("GET /directions", s.authed(s.directions))
 	s.mux.HandleFunc("GET /tracker", s.authed(s.getTracker))
 	s.mux.HandleFunc("POST /tracker", s.authed(s.addToTracker))
 	s.mux.HandleFunc("DELETE /tracker/{id}", s.authed(s.removeFromTracker))

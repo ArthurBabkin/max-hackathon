@@ -26,6 +26,7 @@ const CatalogScreen = lazy(() => import('./screens/Catalog').then((m) => ({ defa
 const TrackerScreen = lazy(() => import('./screens/Tracker').then((m) => ({ default: m.TrackerScreen })))
 const FamilyScreen = lazy(() => import('./screens/Family').then((m) => ({ default: m.FamilyScreen })))
 const ProfileScreen = lazy(() => import('./screens/Profile').then((m) => ({ default: m.ProfileScreen })))
+const FaqScreen = lazy(() => import('./screens/Faq').then((m) => ({ default: m.FaqScreen })))
 
 /** Вкладки, на которых показывается кнопка «Спросить» (ТЗ §7.1). */
 const FAB_ROUTES = ['/', '/match', '/catalog']
@@ -121,6 +122,7 @@ export function App() {
             <Route path="/tracker" element={<TrackerScreen />} />
             <Route path="/family" element={<FamilyScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
+            <Route path="/faq" element={<FaqScreen />} />
             <Route path="*" element={<HomeScreen />} />
           </Routes>
         </Suspense>
