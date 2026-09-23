@@ -194,18 +194,38 @@ func TestReminderDelivery_OncePerRecipient(t *testing.T) {
 		t.Fatalf("получатели «за день» — Артём и Ольга, без Игоря: %+v %v", rs, err)
 	}
 
-	ok, err := s.ClaimDelivery(ctx, d.ID, olga)
-	if err != nil || !ok {
-		t.Fatalf("первая отправка: %v %v", ok, err)
+	claimed, done, err := s.ClaimDelivery(ctx, d.ID, olga)
+	if err != nil || !claimed || done {
+		t.Fatalf("первая отправка: claimed=%v done=%v %v", claimed, done, err)
 	}
-	if ok, _ := s.ClaimDelivery(ctx, d.ID, olga); ok {
-		t.Fatal("второй раз тому же получателю — нельзя")
+	// Пара занята, но отправка не завершена — так выглядит параллельный
+	// запуск, ещё ждущий ответа MAX. Второй раз слать нельзя, но и
+	// обслуженной пара не считается: иначе напоминание пометят разосланным
+	// до того, как сообщение ушло.
+	if claimed, done, _ := s.ClaimDelivery(ctx, d.ID, olga); claimed || done {
+		t.Fatalf("занятая незавершённая пара: claimed=%v done=%v", claimed, done)
 	}
 	if err := s.ReleaseDelivery(ctx, d.ID, olga); err != nil {
 		t.Fatal(err)
 	}
-	if ok, _ := s.ClaimDelivery(ctx, d.ID, olga); !ok {
+	if claimed, _, _ := s.ClaimDelivery(ctx, d.ID, olga); !claimed {
 		t.Fatal("после неудачной отправки — можно снова")
+	}
+	if err := s.SetDeliveryMessage(ctx, d.ID, olga, "mid-1"); err != nil {
+		t.Fatal(err)
+	}
+	if claimed, done, _ := s.ClaimDelivery(ctx, d.ID, olga); claimed || !done {
+		t.Fatalf("доставленная пара: claimed=%v done=%v", claimed, done)
+	}
+	// Остановивший бота получатель тоже обслужен: повторять нечего.
+	if claimed, _, _ := s.ClaimDelivery(ctx, d.ID, f.creatorMember); !claimed {
+		t.Fatal("пара второго получателя свободна")
+	}
+	if err := s.MarkDeliveryDone(ctx, d.ID, f.creatorMember); err != nil {
+		t.Fatal(err)
+	}
+	if claimed, done, _ := s.ClaimDelivery(ctx, d.ID, f.creatorMember); claimed || !done {
+		t.Fatalf("пара заблокировавшего бота: claimed=%v done=%v", claimed, done)
 	}
 	if err := s.MarkReminderSent(ctx, d.ID); err != nil {
 		t.Fatal(err)

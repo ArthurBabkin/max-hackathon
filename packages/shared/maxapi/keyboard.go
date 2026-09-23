@@ -1,5 +1,10 @@
 package maxapi
 
+import (
+	"strings"
+	"unicode/utf8"
+)
+
 // Лимиты клавиатуры (dev.max.ru, «Клавиатура»): до 7 кнопок в ряду, до 3 —
 // если в ряду есть link, open_app, request_geo_location или request_contact;
 // до 30 рядов и 210 кнопок; payload callback-кнопки — до 1024 байт.
@@ -62,7 +67,24 @@ type NewMessage struct {
 }
 
 // Text — сообщение без клавиатуры.
-func Text(text string) NewMessage { return NewMessage{Text: text, Attachments: []OutAttachment{}} }
+//
+// Текст обрезается до MaxTextLen: MAX отвергает сообщение целиком, если
+// лимит превышен, и пользователь не получил бы ничего. Обрезка здесь, а не
+// у каждого вызывающего: Text — единственное место, где текст попадает в
+// NewMessage, поэтому лимит нельзя обойти по забывчивости.
+func Text(text string) NewMessage {
+	return NewMessage{Text: Truncate(text, MaxTextLen), Attachments: []OutAttachment{}}
+}
+
+// Truncate укорачивает текст до n символов (не байт: лимит MAX считает
+// символы, а кириллица занимает по два байта). Последний символ заменяется
+// многоточием, чтобы обрыв был виден.
+func Truncate(s string, n int) string {
+	if n <= 0 || utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return strings.TrimRight(string([]rune(s)[:n-1]), " \t\n") + "\u2026"
+}
 
 // WithKeyboard — сообщение с клавиатурой; пустая клавиатура — без неё.
 func WithKeyboard(text string, kb Keyboard) NewMessage {

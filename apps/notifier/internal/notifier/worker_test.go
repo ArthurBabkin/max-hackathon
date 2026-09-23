@@ -3,6 +3,7 @@ package notifier
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -254,5 +255,266 @@ func TestRun_WithoutTokenChangesWait(t *testing.T) {
 	e.w.max = e.fake
 	if res := e.run(t); res.Changes != 1 || res.Sent != 2 {
 		t.Fatalf("с токеном — дошли: %+v", res)
+	}
+}
+
+// second — ещё одна траектория с той же олимпиадой в трекере: нужна, чтобы
+// в запуске было две группы и обрыв на первой был заметен на второй.
+func (e *env) second(t *testing.T, maxUser int64) store.Member {
+	t.Helper()
+	ctx := context.Background()
+	direction := "napr-09-03-04"
+	u, err := e.st.UpsertUser(ctx, maxUser, "Игорь")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := e.st.CreateTrajectory(ctx, store.NewTrajectory{CreatorUserID: u, Role: "kid",
+		StudentName: "Игорь", Grade: 10, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known",
+		DirectionID: &direction, SubjectCodes: []string{"inf"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := e.st.AddTrackerItem(ctx, m.TrajectoryID, tracked, m.MemberID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.Exec(ctx, `DELETE FROM content_changes`); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func (e *env) pending(t *testing.T) int {
+	t.Helper()
+	var n int
+	if err := e.db.QueryRow(context.Background(),
+		`SELECT count(*) FROM content_changes WHERE notified_at IS NULL`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// Ради этого всё и затевалось: сбой отправки одному участнику оставляет
+// изменение в очереди, а следующий запуск дошлёт только ему — тот, кому уже
+// ушло, второго сообщения не получит.
+func TestRun_FailedRecipientIsRetriedWithoutRepeatingTheOther(t *testing.T) {
+	e := setup(t)
+	e.moveDeadline(t, tracked)
+	e.fake.Fail = func(userID int64) error {
+		if userID == parentMax {
+			return &maxapi.Error{Status: 503, Message: "temporarily unavailable"}
+		}
+		return nil
+	}
+	res := e.run(t)
+	if res.Sent != 1 || res.Failed != 1 || res.Postponed != 1 || res.Dropped != 0 {
+		t.Fatalf("первый запуск: %+v", res)
+	}
+	if n := e.pending(t); n != 1 {
+		t.Fatalf("недоставленное остаётся в очереди, а не сгорает: %d", n)
+	}
+
+	e.fake.Fail = nil
+	if res := e.run(t); res.Sent != 1 || res.Failed != 0 || res.Postponed != 0 {
+		t.Fatalf("второй запуск досылает только отставшему: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("все обслужены — изменение закрыто: %d в очереди", n)
+	}
+	if n := len(e.fake.To(kidMax)); n != 1 {
+		t.Errorf("ученику ровно одно сообщение, а не повтор: %d", n)
+	}
+	if n := len(e.fake.To(parentMax)); n != 1 {
+		t.Errorf("родителю ровно одно сообщение: %d", n)
+	}
+}
+
+// Остановивший бота — случай терминальный: повторять нечего, и изменение по
+// нему закрывается, а не висит до истечения срока попыток.
+func TestRun_BlockedRecipientIsNotRetried(t *testing.T) {
+	e := setup(t)
+	e.moveDeadline(t, tracked)
+	e.fake.Fail = func(userID int64) error {
+		if userID == parentMax {
+			return &maxapi.Error{Status: 403, Message: "chat.denied"}
+		}
+		return nil
+	}
+	if res := e.run(t); res.Sent != 1 || res.Skipped != 1 || res.Postponed != 0 {
+		t.Fatalf("первый запуск: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("повторять нечего — изменение закрыто: %d в очереди", n)
+	}
+	e.fake.Fail = nil
+	if res := e.run(t); res.Changes != 0 || res.Sent != 0 {
+		t.Fatalf("второй запуск молчит: %+v", res)
+	}
+}
+
+// Таймаут функции больше не теряет необработанное: группы, до которых обход
+// не дошёл, остаются в очереди и уходят следующим запуском.
+func TestRun_TimeoutPostponesInsteadOfLosing(t *testing.T) {
+	e := setup(t)
+	e.second(t, 900000003)
+	e.moveDeadline(t, tracked)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Обрываем запуск на первой же отправке: до второй группы обход не дойдёт.
+	e.fake.Fail = func(int64) error { cancel(); return nil }
+	res, err := e.w.Run(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Postponed != 1 || res.Dropped != 0 {
+		t.Fatalf("необработанное отложено, а не потеряно: %+v", res)
+	}
+	if n := e.pending(t); n != 1 {
+		t.Fatalf("изменение осталось в очереди: %d", n)
+	}
+	e.fake.Fail = nil
+	if res := e.run(t); res.Postponed != 0 {
+		t.Fatalf("второй запуск добирает остаток: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("всё обслужено — изменение закрыто: %d в очереди", n)
+	}
+	if n := len(e.fake.Sent); n != 3 {
+		t.Fatalf("три получателя, по одному сообщению каждому: %d", n)
+	}
+	for _, u := range []int64{kidMax, parentMax, 900000003} {
+		if n := len(e.fake.To(u)); n != 1 {
+			t.Errorf("получателю %d ровно одно сообщение: %d", u, n)
+		}
+	}
+}
+
+// Два запуска сразу — ровно то, чего serverless не запрещает. Каждая пара
+// достаётся кому-то одному, поэтому дубля не будет ни у кого.
+func TestRun_TwoRunsInParallelSendOnceEach(t *testing.T) {
+	e := setup(t)
+	e.second(t, 900000003)
+	e.moveDeadline(t, tracked)
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for i := range errs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errs[i] = e.w.Run(context.Background())
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, u := range []int64{kidMax, parentMax, 900000003} {
+		if n := len(e.fake.To(u)); n != 1 {
+			t.Errorf("получателю %d ровно одно сообщение, а не дубль: %d", u, n)
+		}
+	}
+	// Пары, занятые соседом, обслуженными не считаются, поэтому изменение
+	// могло остаться в очереди. Оно не потеряно — следующий запуск закроет
+	// его, никому ничего не прислав.
+	if res := e.run(t); res.Sent != 0 {
+		t.Fatalf("третий запуск не шлёт ничего: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("изменение закрыто: %d в очереди", n)
+	}
+	if n := len(e.fake.Sent); n != 3 {
+		t.Fatalf("всего сообщений: %d", n)
+	}
+}
+
+// Контекст запуска мог истечь сразу после последней отправки. Обслуженное
+// уже обслужено, и закрыть изменение обязаны: иначе запуск вернул бы ошибку,
+// а событие осталось бы в очереди и перепроверялось до истечения срока.
+func TestRun_ClosesServedChangesEvenIfContextExpired(t *testing.T) {
+	e := setup(t)
+	e.moveDeadline(t, tracked)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Родитель — последний получатель: к моменту отмены разослано всё.
+	e.fake.Fail = func(userID int64) error {
+		if userID == parentMax {
+			cancel()
+		}
+		return nil
+	}
+	res, err := e.w.Run(ctx)
+	if err != nil {
+		t.Fatalf("отмена после отправки не должна ронять запуск: %v", err)
+	}
+	if res.Sent != 2 || res.Postponed != 0 {
+		t.Fatalf("оба получателя обслужены: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("обслуженное изменение закрыто: %d в очереди", n)
+	}
+}
+
+func (e *env) firstChange(t *testing.T) string {
+	t.Helper()
+	var id string
+	if err := e.db.QueryRow(context.Background(),
+		`SELECT id::text FROM content_changes WHERE notified_at IS NULL ORDER BY created_at LIMIT 1`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// Захват, по которому результат так и не записали, иначе висел бы вечно: пара
+// выглядела бы занятой соседом, изменение не закрылось бы никогда, а через
+// неделю попало бы в отчёт о потерях — хотя сообщение ушло.
+func TestRun_StaleClaimIsReapedAndRedelivered(t *testing.T) {
+	e := setup(t)
+	e.moveDeadline(t, tracked)
+	cid := e.firstChange(t)
+
+	// Так выглядит запуск, умерший между отправкой и записью результата.
+	if _, err := e.db.Exec(context.Background(), `
+		INSERT INTO content_change_deliveries (change_id, member_id, claimed_at) VALUES ($1, $2, $3)`,
+		cid, e.parent.MemberID, e.w.now().Add(-staleClaimTTL-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+
+	res := e.run(t)
+	if res.Stale != 1 {
+		t.Fatalf("брошенный захват освобождён и посчитан: %+v", res)
+	}
+	if res.Sent != 2 || res.Postponed != 0 {
+		t.Fatalf("после освобождения сводка уходит обоим: %+v", res)
+	}
+	if n := e.pending(t); n != 0 {
+		t.Fatalf("изменение закрыто: %d в очереди", n)
+	}
+}
+
+// Свежий захват принадлежит работающему прямо сейчас запуску: отнять его —
+// значит прислать человеку сводку дважды.
+func TestRun_FreshClaimIsNotReaped(t *testing.T) {
+	e := setup(t)
+	e.moveDeadline(t, tracked)
+	cid := e.firstChange(t)
+
+	if _, err := e.db.Exec(context.Background(),
+		`INSERT INTO content_change_deliveries (change_id, member_id) VALUES ($1, $2)`,
+		cid, e.parent.MemberID); err != nil {
+		t.Fatal(err)
+	}
+	res := e.run(t)
+	if res.Stale != 0 {
+		t.Fatalf("свежий захват не трогаем: %+v", res)
+	}
+	if res.Sent != 1 || res.Postponed != 1 {
+		t.Fatalf("занятому получателю не шлём, изменение откладываем: %+v", res)
+	}
+	if n := e.pending(t); n != 1 {
+		t.Fatalf("изменение осталось в очереди: %d", n)
 	}
 }

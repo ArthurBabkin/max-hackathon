@@ -272,3 +272,137 @@ func TestRun_WithoutTokenOnlyMaintainsPlan(t *testing.T) {
 		t.Fatal("план сохранён до появления токена")
 	}
 }
+
+// Регрессия: занятая, но не завершённая доставка — это параллельный запуск,
+// ещё ждущий ответа MAX. Пока он не закончил, напоминание нельзя помечать
+// разосланным: оно ушло бы из выборки planned, а сообщение не дошло бы,
+// если параллельный запуск сорвётся.
+func TestRun_UnfinishedClaimKeepsReminderPlanned(t *testing.T) {
+	e := setup(t)
+	e.atFirstDue(t)
+	ctx := context.Background()
+
+	rid := e.firstPlanned(t)
+	// Так выглядит пара, занятая другим запуском: строка есть, done_at пуст.
+	if _, err := e.db.Exec(ctx, `INSERT INTO reminder_deliveries (reminder_id, member_id) VALUES ($1, $2)`,
+		rid, e.parent.MemberID); err != nil {
+		t.Fatal(err)
+	}
+
+	if res := e.run(t); res.Sent != 1 {
+		t.Fatalf("занятому получателю не шлём, второму — шлём: %+v", res)
+	}
+	if got := e.status(t, rid); got != "planned" {
+		t.Fatalf("доставка не завершена, а статус уже %q — напоминание потеряно", got)
+	}
+
+	// Параллельный запуск сорвался и освободил пару: следующий дошлёт.
+	if _, err := e.db.Exec(ctx, `DELETE FROM reminder_deliveries WHERE reminder_id = $1 AND member_id = $2`,
+		rid, e.parent.MemberID); err != nil {
+		t.Fatal(err)
+	}
+	if res := e.run(t); res.Sent != 1 {
+		t.Fatalf("доставка освобождённому получателю: %+v", res)
+	}
+	if got := e.status(t, rid); got != "sent" {
+		t.Fatalf("все получатели обслужены, а статус %q", got)
+	}
+}
+
+// Доставка, завершённая другим запуском, обслуженной считается: напоминание
+// помечается разосланным и второй раз никому не уходит.
+func TestRun_FinishedClaimMarksReminderSent(t *testing.T) {
+	e := setup(t)
+	e.atFirstDue(t)
+	ctx := context.Background()
+
+	rid := e.firstPlanned(t)
+	if _, err := e.db.Exec(ctx,
+		`INSERT INTO reminder_deliveries (reminder_id, member_id, max_message_id, done_at)
+		 VALUES ($1, $2, 'mid-parallel', now())`, rid, e.parent.MemberID); err != nil {
+		t.Fatal(err)
+	}
+
+	if res := e.run(t); res.Sent != 1 {
+		t.Fatalf("доставленному получателю второй раз не шлём: %+v", res)
+	}
+	if got := e.status(t, rid); got != "sent" {
+		t.Fatalf("все получатели обслужены, а статус %q", got)
+	}
+	if n := len(e.fake.Sent); n != 1 {
+		t.Fatalf("всего сообщений: %d", n)
+	}
+}
+
+func (e *env) status(t *testing.T, reminderID string) string {
+	t.Helper()
+	var s string
+	if err := e.db.QueryRow(context.Background(),
+		`SELECT status FROM reminders WHERE id = $1`, reminderID).Scan(&s); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func (e *env) firstPlanned(t *testing.T) string {
+	t.Helper()
+	var id string
+	if err := e.db.QueryRow(context.Background(),
+		`SELECT id::text FROM reminders WHERE status = 'planned' ORDER BY fire_at LIMIT 1`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+// Захват, по которому результат так и не записали, иначе висел бы вечно:
+// напоминание осталось бы в плане, не дойдя до получателя. Сборщик его
+// освобождает, и доставка происходит в том же запуске.
+func TestRun_StaleClaimIsReapedAndRedelivered(t *testing.T) {
+	e := setup(t)
+	now := e.atFirstDue(t)
+	ctx := context.Background()
+	rid := e.firstPlanned(t)
+
+	// Так выглядит запуск, умерший между отправкой и записью результата.
+	if _, err := e.db.Exec(ctx, `
+		INSERT INTO reminder_deliveries (reminder_id, member_id, sent_at) VALUES ($1, $2, $3)`,
+		rid, e.parent.MemberID, now.Add(-staleClaimTTL-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+
+	res := e.run(t)
+	if res.Stale != 1 {
+		t.Fatalf("брошенный захват освобождён и посчитан: %+v", res)
+	}
+	if res.Sent != 2 {
+		t.Fatalf("после освобождения напоминание уходит обоим: %+v", res)
+	}
+	if got := e.status(t, rid); got != "sent" {
+		t.Fatalf("все обслужены, статус %q", got)
+	}
+}
+
+// Свежий захват принадлежит работающему прямо сейчас запуску: отнимать его
+// нельзя, иначе получатель получил бы напоминание дважды.
+func TestRun_FreshClaimIsNotReaped(t *testing.T) {
+	e := setup(t)
+	e.atFirstDue(t)
+	ctx := context.Background()
+	rid := e.firstPlanned(t)
+
+	if _, err := e.db.Exec(ctx,
+		`INSERT INTO reminder_deliveries (reminder_id, member_id) VALUES ($1, $2)`,
+		rid, e.parent.MemberID); err != nil {
+		t.Fatal(err)
+	}
+	res := e.run(t)
+	if res.Stale != 0 {
+		t.Fatalf("свежий захват не трогаем: %+v", res)
+	}
+	if res.Sent != 1 {
+		t.Fatalf("занятому получателю не шлём: %+v", res)
+	}
+	if got := e.status(t, rid); got != "planned" {
+		t.Fatalf("доставка не завершена, статус %q", got)
+	}
+}

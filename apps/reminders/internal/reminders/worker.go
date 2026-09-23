@@ -28,6 +28,10 @@ const (
 	// deletedTTL — удалённая траектория стирается физически, когда
 	// уведомления об удалении уже разосланы.
 	deletedTTL = time.Hour
+	// staleClaimTTL — после какого возраста незакрытый захват считается
+	// брошенным. Заведомо больше таймаута функции (60 секунд), чтобы не
+	// отнять пару у запуска, который ещё работает.
+	staleClaimTTL = 15 * time.Minute
 )
 
 type Worker struct {
@@ -53,6 +57,8 @@ type Result struct {
 	// Skipped — получатель остановил бота: повторять бессмысленно.
 	Skipped int `json:"skipped"`
 	Expired int `json:"expired"`
+	// Stale — захваты, брошенные прошлыми запусками и освобождённые сейчас.
+	Stale int `json:"stale"`
 }
 
 func (w *Worker) Run(ctx context.Context) (Result, error) {
@@ -68,6 +74,14 @@ func (w *Worker) Run(ctx context.Context) (Result, error) {
 		return res, err
 	}
 	res.Expired = int(expired)
+	// До доставки: освобождённое должно уйти этим же запуском.
+	if n, err := w.store.ReapStaleDeliveries(ctx, now.Add(-staleClaimTTL)); err != nil {
+		slog.Warn("освобождение брошенных захватов", "err", err)
+	} else if n > 0 {
+		res.Stale = int(n)
+		slog.Warn("захваты доставки брошены прошлым запуском и освобождены — "+
+			"результат отправки не был записан, возможен повтор", "deliveries", n)
+	}
 	if w.max != nil {
 		if err := w.deliver(ctx, now, &res); err != nil {
 			return res, err
@@ -128,26 +142,36 @@ func (w *Worker) deliver(ctx context.Context, now time.Time, res *Result) error 
 	return nil
 }
 
-// send — одно напоминание одному получателю. false — не доставлено и
-// стоит повторить; ошибка — сбой базы, запуск прерывается.
+// send — одно напоминание одному получателю. Первый результат — обслужен
+// ли получатель: false означает «повторить следующим запуском», и по нему
+// напоминание остаётся в плане. Ошибка — сбой базы, запуск прерывается.
 func (w *Worker) send(ctx context.Context, d store.DueReminder, r store.Recipient, t store.Trajectory, now time.Time, res *Result) (bool, error) {
-	claimed, err := w.store.ClaimDelivery(ctx, d.ID, r.MemberID)
-	if err != nil || !claimed {
-		return true, err
+	claimed, done, err := w.store.ClaimDelivery(ctx, d.ID, r.MemberID)
+	if err != nil {
+		return false, err
+	}
+	if !claimed {
+		// Пару занял другой запуск. Обслуженной она считается, только если
+		// он довёл отправку до конца: иначе напоминание пометилось бы
+		// разосланным, пока сообщение ещё не ушло, и выпало бы из выборки
+		// planned навсегда.
+		return done, nil
 	}
 	mid, err := w.max.Send(ctx, r.MaxUserID, w.notify.Reminder(d, r, t, now))
+	// Итог отправки записываем контекстом, переживающим таймаут запуска:
+	// сообщение уже ушло (или уже понятно, что не уйдёт), и потерять этот
+	// факт нельзя — захват остался бы незакрытым.
+	rctx, cancel := notify.Detached(ctx)
+	defer cancel()
 	switch {
 	case maxapi.IsBlocked(err):
 		res.Skipped++
-		return true, nil
+		return true, w.store.MarkDeliveryDone(rctx, d.ID, r.MemberID)
 	case err != nil:
 		slog.Warn("отправка напоминания", "reminder", d.ID, "err", err)
 		res.Failed++
-		// Контекст запуска мог истечь — освобождаем пару без него.
-		rctx, cancel := notify.Detached(ctx)
-		defer cancel()
 		return false, w.store.ReleaseDelivery(rctx, d.ID, r.MemberID)
 	}
 	res.Sent++
-	return true, w.store.SetDeliveryMessage(ctx, d.ID, r.MemberID, mid)
+	return true, w.store.SetDeliveryMessage(rctx, d.ID, r.MemberID, mid)
 }
