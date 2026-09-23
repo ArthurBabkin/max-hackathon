@@ -27,7 +27,7 @@ func TestSession_SignedInitDataIssuesToken(t *testing.T) {
 		t.Fatalf("member: %v", member)
 	}
 	tr := s["trajectory"].(map[string]any)
-	if tr["region_name"] != "Республика Татарстан" || tr["direction_name"] != "Программная инженерия" ||
+	if tr["region_name"] != "Республика Татарстан" || tr["directions"].([]any)[0].(map[string]any)["name"] != "Программная инженерия" ||
 		tr["has_kid"] != true || tr["members_count"].(float64) != 1 {
 		t.Fatalf("trajectory: %v", tr)
 	}

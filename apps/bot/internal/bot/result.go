@@ -53,19 +53,27 @@ func (b *Bot) summary(t *turn, v voice.Voice, tr store.Trajectory) (string, erro
 	for i, u := range unis {
 		names[i] = uniLabel(u)
 	}
+	vuzy := strings.Join(names, ", ")
+	if len(names) == 0 {
+		vuzy = v.T("bot.vuz.noneChosen", nil)
+	}
 	region := tr.RegionCode
 	if reg, ok := refdata.ByCode(tr.RegionCode); ok {
 		region = reg.Name
 	}
 	return v.T("bot.summary", voice.Vars{"grade": tr.Grade, "region": region,
-		"subject": strings.Join(subjects, ", "), "direction": directionText(v, tr), "names": strings.Join(names, ", ")}), nil
+		"subject": strings.Join(subjects, ", "), "direction": directionText(v, tr), "names": vuzy}), nil
 }
 
 func directionText(v voice.Voice, tr store.Trajectory) string {
-	if tr.DirectionName == nil {
+	if len(tr.Directions) == 0 {
 		return v.T("bot.join.noGoal", nil)
 	}
-	return lowerFirst(*tr.DirectionName)
+	names := make([]string, len(tr.Directions))
+	for i, d := range tr.Directions {
+		names[i] = lowerFirst(d.Name)
+	}
+	return strings.Join(names, ", ")
 }
 
 // resultText — «Под твою цель подходят 4 олимпиады и ВсОШ. Ближайший срок —
@@ -103,6 +111,10 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 	if perechen == 1 && !vsosh || perechen == 0 {
 		key = "bot.result.one"
 	}
+	if len(tr.Directions) == 0 {
+		// Цели нет — подбор по предметам.
+		key += "Subjects"
+	}
 	parts := []string{v.T(key, voice.Vars{"count": count})}
 	if nearest != nil && nearest.Stage != nil {
 		days := voice.DaysUntil(*nearest.Deadline, b.now(), tzOf(tr))
@@ -112,7 +124,11 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 				"stage": notify.StagePhrase(v, nearest.Stage.Kind, name), "days": voice.Days(days)}))
 		}
 	}
-	parts = append(parts, v.T("bot.result.tail", nil))
+	tail := "bot.result.tail"
+	if len(res.Set.Universities) == 0 {
+		tail = "bot.result.tailNoVuz"
+	}
+	parts = append(parts, v.T(tail, nil))
 	return strings.Join(parts, " "), res, nil
 }
 
@@ -279,8 +295,19 @@ func (b *Bot) join(t *turn, token string) error {
 		}
 		return b.sendResult(t, m, mv, tr, "")
 	}
-	d, err := b.store.StartDialog(t.ctx, store.Dialog{UserID: t.userID, Step: stepJoinConfirm, Role: m.Role,
-		Draft: store.Draft{Name: tr.StudentName}})
+	// Предметы — чтобы в «Изменить цель» первыми шли подходящие направления.
+	subs, err := b.store.TrajectorySubjects(t.ctx, tr.ID)
+	if err != nil {
+		return err
+	}
+	draft := store.Draft{Name: tr.StudentName}
+	for _, s := range subs {
+		draft.SubjectCodes = append(draft.SubjectCodes, s.Code)
+	}
+	for _, d := range tr.Directions {
+		draft.DirectionIDs = append(draft.DirectionIDs, d.ID)
+	}
+	d, err := b.store.StartDialog(t.ctx, store.Dialog{UserID: t.userID, Step: stepJoinConfirm, Role: m.Role, Draft: draft})
 	if err != nil {
 		return err
 	}

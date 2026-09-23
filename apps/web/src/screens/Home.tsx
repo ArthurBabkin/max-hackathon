@@ -119,7 +119,7 @@ export function HomeScreen() {
         <p className="goal-label">
           {t('home.goalLabel')}, {trajectory.grade} класс
         </p>
-        <h2 className="goal-title">{trajectory.direction_name ?? t('home.goalEmpty')}</h2>
+        <h2 className="goal-title">{trajectory.directions.map((d) => d.name).join(', ') || t('home.goalEmpty')}</h2>
         <div className="goal-stats">
           <ProgressRing percent={percent} />
           <ul>

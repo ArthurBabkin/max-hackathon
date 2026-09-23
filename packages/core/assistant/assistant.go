@@ -489,8 +489,12 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 	b.WriteString("7. В card_ids перечисли id карточек, на которых основан ответ.\n")
 	b.WriteString("8. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	b.WriteString(`Ответ — только JSON-объект: {"answer": "текст", "card_ids": ["id"], "no_data": false}` + "\n")
-	fmt.Fprintf(&b, "Ученик: %d класс; предметы: %s; вузы: %s.\n", t.Grade,
-		orDash(strings.Join(c.subjects, ", ")), orDash(strings.Join(c.universities, ", ")))
+	directions := make([]string, len(t.Directions))
+	for i, d := range t.Directions {
+		directions[i] = d.Name
+	}
+	fmt.Fprintf(&b, "Ученик: %d класс; предметы: %s; направления: %s; вузы: %s.\n", t.Grade,
+		orDash(strings.Join(c.subjects, ", ")), orDash(strings.Join(directions, ", ")), orDash(strings.Join(c.universities, ", ")))
 	b.WriteString("Карточки:\n")
 	b.Write(ctxJSON)
 	msgs := []llm.Message{{Role: "system", Content: b.String()}}

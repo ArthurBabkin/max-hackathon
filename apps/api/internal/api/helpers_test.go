@@ -142,7 +142,7 @@ func (e *env) kidCreator() family {
 	}
 	m, err := e.st.CreateTrajectory(ctx, store.NewTrajectory{
 		CreatorUserID: uid, Role: "kid", StudentName: "Артём", Grade: 9, RegionCode: "16",
-		TZ: "Europe/Moscow", DirectionID: ptr("napr-09-03-04"), GoalStatus: "known",
+		TZ: "Europe/Moscow", DirectionIDs: []string{"napr-09-03-04"},
 		SubjectCodes: []string{"inf", "math"}, UniversityIDs: []string{"innopolis", "hse", "kfu"},
 	})
 	if err != nil {

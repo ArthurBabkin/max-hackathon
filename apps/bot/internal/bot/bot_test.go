@@ -143,12 +143,16 @@ func (h *harness) kidOnboarding() store.Member {
 	h.press(artem, "subj:t:inf")
 	h.press(artem, "subj:t:math")
 	h.press(artem, "subj:done")
-	h.mustContain(artem, "Есть цель")
-	h.press(artem, "goal:known")
-	h.press(artem, "goal:napr-09-03-04")
-	h.mustContain(artem, "В какие вузы хочешь поступить?")
+	h.mustContain(artem, "Куда думаешь поступать? Под твои предметы подходят")
+	h.press(artem, "dir:t:napr-09-03-04")
+	h.press(artem, "dir:t:napr-09-03-01")
+	h.press(artem, "dir:done")
+	h.mustContain(artem, "Где хочешь учиться?")
+	h.press(artem, "target:16")
+	h.mustContain(artem, "Вот вузы, которые подходят.")
 	h.press(artem, "vuz:t:innopolis")
-	h.press(artem, "vuz:t:hse")
+	h.press(artem, "vuz:other")
+	h.text(artem, "вшэ")
 	h.press(artem, "vuz:done")
 	m, err := h.st.CurrentMember(context.Background(), artem.UserID)
 	if err != nil {
@@ -165,12 +169,15 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 	}
 	tr, _ := h.st.Trajectory(context.Background(), m.TrajectoryID)
 	if tr.StudentName != "Артём" || tr.Grade != 9 || tr.RegionCode != "16" || tr.TZ != "Europe/Moscow" ||
-		tr.DirectionID == nil || *tr.DirectionID != "napr-09-03-04" || tr.GoalStatus != "known" {
+		len(tr.Directions) != 2 || tr.Directions[0].ID != "napr-09-03-04" || tr.Directions[1].ID != "napr-09-03-01" ||
+		tr.GoalStatus != "known" || tr.TargetRegionCode == nil || *tr.TargetRegionCode != "16" {
 		t.Fatalf("траектория: %+v", tr)
 	}
 	sent := h.fake.To(artem.UserID)
 	summary := sent[len(sent)-2].Msg.Text
-	if summary != "Готово: Артём, 9 класс, Республика Татарстан. Предметы: информатика, математика. Цель: программная инженерия. Вузы: ВШЭ, Иннополис." {
+	if summary != "Готово: Артём, 9 класс, Республика Татарстан. Предметы: информатика, математика. "+
+		"Цель: программная инженерия, информатика и вычислительная техника. Вузы: ВШЭ, Иннополис. "+
+		"Всё это можно поменять в профиле навигатора." {
 		t.Fatalf("сводка: %q", summary)
 	}
 	result := h.fake.Last(artem.UserID)
@@ -187,7 +194,7 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 	}
 }
 
-func TestParentOnboarding_InterestsSuggestDirection(t *testing.T) {
+func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h := newHarness(t)
 	h.started(olga, "")
 	h.press(olga, "role:parent")
@@ -215,15 +222,33 @@ func TestParentOnboarding_InterestsSuggestDirection(t *testing.T) {
 	}
 	h.press(olga, "subj:t:phys")
 	h.press(olga, "subj:done")
-	h.mustContain(olga, "Знаете, на какое направление хочет поступать Артём?")
-	h.press(olga, "goal:unknown")
-	h.mustContain(olga, "что интереснее Артёму?")
-	h.press(olga, "int:1:it")
-	h.press(olga, "int:2:phys")
-	h.press(olga, "int:3:phys")
-	h.mustContain(olga, "Похоже, Артёму подойдёт прикладные математика и физика.")
-	h.press(olga, "goal:napr-03-03-01")
-	h.mustContain(olga, "В какие вузы хочет поступить Артём?")
+
+	// Под физику — только физические направления, остальные по кнопке.
+	h.mustContain(olga, "Куда думает поступать Артём? Под выбранные предметы подходят")
+	payloads := maxtest.Payloads(h.fake.Last(olga.UserID))
+	if !slices.Contains(payloads, "dir:t:napr-03-03-01") || slices.Contains(payloads, "dir:t:napr-31-05-01") ||
+		!slices.Contains(payloads, "dir:all") {
+		t.Fatalf("направления под физику: %v", payloads)
+	}
+	id = h.press(olga, "dir:done")
+	if a := h.answered(id); a.Notification != "Отметьте направление или нажмите «Пока не знаем»" {
+		t.Fatalf("«Готово» без направлений: %+v", a)
+	}
+	id = h.press(olga, "dir:all")
+	if a := h.answered(id); a.Message == nil || !slices.Contains(maxtest.Payloads(*a.Message), "dir:t:napr-31-05-01") ||
+		slices.Contains(maxtest.Payloads(*a.Message), "dir:all") {
+		t.Fatalf("все направления на месте вопроса: %+v", a)
+	}
+	h.pressAny(olga, "dir:later", "")
+
+	// Москва и Петербург — отдельными кнопками: Артём не из них.
+	h.mustContain(olga, "Где Артём хочет учиться?")
+	payloads = maxtest.Payloads(h.fake.Last(olga.UserID))
+	if !slices.Equal(payloads, []string{"target:16", "target:77", "target:78", "target:any"}) {
+		t.Fatalf("варианты города: %v", payloads)
+	}
+	h.press(olga, "target:any")
+	h.mustContain(olga, "Вот вузы, которые подходят.")
 	h.press(olga, "vuz:other")
 	h.text(olga, "мфти")
 	h.press(olga, "vuz:done")
@@ -232,15 +257,59 @@ func TestParentOnboarding_InterestsSuggestDirection(t *testing.T) {
 		t.Fatalf("родитель — создатель без ученика: %+v %v", m, err)
 	}
 	tr, _ := h.st.Trajectory(context.Background(), m.TrajectoryID)
-	if tr.GoalStatus != "suggested" || tr.Grade != 10 {
-		t.Fatalf("цель предложена ботом: %+v", tr)
+	if tr.GoalStatus != "exploring" || len(tr.Directions) != 0 || tr.TargetRegionCode != nil || tr.Grade != 10 {
+		t.Fatalf("цель не выбрана, город не важен: %+v", tr)
 	}
 	result := h.fake.Last(olga.UserID)
-	if !strings.HasPrefix(result.Text, "Под цель Артёма подход") {
+	if !strings.HasPrefix(result.Text, "По предметам Артёма подход") {
 		t.Fatalf("итог родителю: %q", result.Text)
 	}
 	if kb := result.Keyboard(); kb[2][0].Text != "👋 Пригласить Артёма" {
 		t.Fatalf("третья кнопка родителя: %s", maxtest.Buttons(result))
+	}
+}
+
+// Вузы выбирать не обязательно, а если в выбранном городе подходящих нет,
+// бот честно говорит об этом и даёт выбрать другой город.
+func TestOnboarding_UniversitiesOptionalAndCityChange(t *testing.T) {
+	h := newHarness(t)
+	h.started(artem, "")
+	h.press(artem, "role:kid")
+	h.press(artem, "name:ok")
+	h.press(artem, "grade:11")
+	h.geo(artem, 55.03, 82.92) // Новосибирск
+	h.press(artem, "subj:t:bio")
+	h.press(artem, "subj:done")
+	h.press(artem, "dir:t:napr-31-05-01") // лечебное дело
+	h.press(artem, "dir:done")
+	h.press(artem, "target:54")
+	// В НГУ лечебное дело есть — предложен он один.
+	if p := maxtest.Payloads(h.fake.Last(artem.UserID)); !slices.Contains(p, "vuz:t:nsu") || slices.Contains(p, "vuz:t:kfu") {
+		t.Fatalf("вузы Новосибирска: %v", p)
+	}
+	h.press(artem, "vuz:city")
+	h.mustContain(artem, "Где хочешь учиться?")
+	h.press(artem, "target:77")
+	if p := maxtest.Payloads(h.fake.Last(artem.UserID)); !slices.Contains(p, "vuz:t:sechenov") || slices.Contains(p, "vuz:t:nsu") {
+		t.Fatalf("вузы Москвы: %v", p)
+	}
+	last := h.fake.Last(artem.UserID)
+	if kb := last.Keyboard(); kb[len(kb)-1][0].Text != "Пропустить" {
+		t.Fatalf("без вузов — «Пропустить»: %s", maxtest.Buttons(last))
+	}
+	h.press(artem, "vuz:done")
+	m, err := h.st.CurrentMember(context.Background(), artem.UserID)
+	if err != nil {
+		t.Fatalf("траектория без вузов создана: %v", err)
+	}
+	unis, _ := h.st.TrajectoryUniversities(context.Background(), m.TrajectoryID)
+	tr, _ := h.st.Trajectory(context.Background(), m.TrajectoryID)
+	if len(unis) != 0 || tr.TargetRegionCode == nil || *tr.TargetRegionCode != "77" {
+		t.Fatalf("вузы %v, город %v", unis, tr.TargetRegionCode)
+	}
+	sent := h.fake.To(artem.UserID)
+	if summary := sent[len(sent)-2].Msg.Text; !strings.Contains(summary, "Вузы: пока не выбраны.") {
+		t.Fatalf("сводка без вузов: %q", summary)
 	}
 }
 
@@ -289,8 +358,8 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	// Ольга создаёт траекторию сама.
 	uid, _ := h.st.UpsertUser(context.Background(), olga.UserID, olga.FirstName)
 	parent, err := h.st.CreateTrajectory(context.Background(), store.NewTrajectory{CreatorUserID: uid, Role: "parent",
-		StudentName: "Артём", Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known",
-		DirectionID: ptr("napr-09-03-04"), SubjectCodes: []string{"inf"}, UniversityIDs: []string{"hse"}})
+		StudentName: "Артём", Grade: 9, RegionCode: "16", TZ: "Europe/Moscow",
+		DirectionIDs: []string{"napr-09-03-04"}, SubjectCodes: []string{"inf"}, UniversityIDs: []string{"hse"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,6 +391,36 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	// Та же ссылка второй раз — недействительна.
 	h.started(igor, "inv_"+token)
 	h.mustContain(igor, "Приглашение уже недействительно")
+}
+
+// «Изменить цель» приглашённого (F42): те же направления с «✓», можно
+// добавить ещё одно.
+func TestInvite_KidChangesGoal(t *testing.T) {
+	h := newHarness(t)
+	uid, _ := h.st.UpsertUser(context.Background(), olga.UserID, olga.FirstName)
+	parent, err := h.st.CreateTrajectory(context.Background(), store.NewTrajectory{CreatorUserID: uid, Role: "parent",
+		StudentName: "Артём", Grade: 9, RegionCode: "16", TZ: "Europe/Moscow",
+		DirectionIDs: []string{"napr-09-03-04"}, SubjectCodes: []string{"inf", "math"}, UniversityIDs: []string{"hse"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const token = "kidInviteToken01"
+	if _, err := h.st.CreateInvite(context.Background(), parent.TrajectoryID, parent.MemberID, "kid", token); err != nil {
+		t.Fatal(err)
+	}
+	h.started(artem, "inv_"+token)
+	h.press(artem, "join:goal")
+	h.mustContain(artem, "Куда думаешь поступать?")
+	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.Contains(b, "✓ Программная инженерия") {
+		t.Fatalf("текущая цель отмечена: %s", b)
+	}
+	h.press(artem, "dir:t:napr-01-03-02")
+	h.press(artem, "dir:done")
+	tr, _ := h.st.Trajectory(context.Background(), parent.TrajectoryID)
+	if len(tr.Directions) != 2 || tr.Directions[1].ID != "napr-01-03-02" || tr.GoalStatus != "known" {
+		t.Fatalf("цель после правки: %+v", tr.Directions)
+	}
+	h.mustContain(artem, "Под твою цель подход")
 }
 
 func ptr(s string) *string { return &s }
@@ -469,11 +568,18 @@ func TestMultiselectDoneKeepsPicked(t *testing.T) {
 	if a := h.answered(h.press(artem, "subj:done")); a.Message == nil || maxtest.Buttons(*a.Message) != "✓ Информатика | ✓ Математика" {
 		t.Fatalf("предметы после «Готово»: %+v", a.Message)
 	}
-	h.press(artem, "goal:known")
-	h.press(artem, "goal:napr-09-03-04")
+	h.press(artem, "dir:t:napr-09-03-04")
+	h.press(artem, "dir:t:napr-09-03-01")
+	if a := h.answered(h.press(artem, "dir:done")); a.Message == nil ||
+		maxtest.Buttons(*a.Message) != "✓ Информатика и вычислительная техника | ✓ Программная инженерия" {
+		t.Fatalf("направления после «Готово»: %+v", a.Message)
+	}
+	h.press(artem, "target:16")
 	h.press(artem, "vuz:t:innopolis")
-	h.press(artem, "vuz:t:hse")
-	if a := h.answered(h.press(artem, "vuz:done")); a.Message == nil || maxtest.Buttons(*a.Message) != "✓ ВШЭ | ✓ Иннополис" {
+	h.press(artem, "vuz:t:kfu")
+	a := h.answered(h.press(artem, "vuz:done"))
+	if a.Message == nil || !strings.Contains(maxtest.Buttons(*a.Message), "✓ Иннополис") ||
+		!strings.Contains(maxtest.Buttons(*a.Message), "✓ КФУ") || strings.Contains(maxtest.Buttons(*a.Message), "Готово") {
 		t.Fatalf("вузы после «Готово»: %+v", a.Message)
 	}
 }

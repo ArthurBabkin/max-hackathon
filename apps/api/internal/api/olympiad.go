@@ -465,9 +465,13 @@ func (cs cardSet) why(p store.Profile, r match.Result, mine, all []store.Benefit
 	if p.Kind == "vsosh" {
 		parts = append(parts, v.T("why.vsosh", nil))
 	}
+	// Из нескольких направлений называем первое, куда входит предмет олимпиады.
+	dirIdx := slices.IndexFunc(cs.Trajectory.Directions, func(d store.Direction) bool {
+		return slices.Contains(d.SubjectCodes, p.SubjectCode)
+	})
 	switch {
-	case r.Factors[match.Direction] > 0 && cs.Trajectory.DirectionName != nil:
-		parts = append(parts, v.T("why.direction", voice.Vars{"subject": subject, "direction": *cs.Trajectory.DirectionName}))
+	case r.Factors[match.Direction] > 0 && dirIdx >= 0:
+		parts = append(parts, v.T("why.direction", voice.Vars{"subject": subject, "direction": cs.Trajectory.Directions[dirIdx].Name}))
 	case cs.Subjects[p.SubjectCode]:
 		parts = append(parts, v.T("why.subject", voice.Vars{"subject": subject}))
 	}

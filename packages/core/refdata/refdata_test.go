@@ -1,6 +1,7 @@
 package refdata
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -142,5 +143,18 @@ func TestDistricts(t *testing.T) {
 	tat, _ := ByCode("16")
 	if ds[tat.District-1].Name != "Приволжский" {
 		t.Errorf("Татарстан в округе %d", tat.District)
+	}
+}
+
+func TestMetro(t *testing.T) {
+	for code, want := range map[string]string{"77": "77,50", "50": "77,50", "78": "78,47", "47": "78,47", "16": "16"} {
+		if got := strings.Join(Metro(code), ","); got != want {
+			t.Errorf("Metro(%s) = %s, ждали %s", code, got, want)
+		}
+	}
+	m := Metro("77")
+	m[0] = "xx"
+	if Metro("77")[0] != "77" {
+		t.Error("Metro должен возвращать копию")
 	}
 }

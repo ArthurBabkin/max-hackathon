@@ -26,7 +26,7 @@ func newFamily(t *testing.T) family {
 	ctx := context.Background()
 	kidUser, _ := st.UpsertUser(ctx, 900000001, "Артём")
 	kid, err := st.CreateTrajectory(ctx, store.NewTrajectory{CreatorUserID: kidUser, Role: "kid", StudentName: "Артём",
-		Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known",
+		Grade: 9, RegionCode: "16", TZ: "Europe/Moscow",
 		SubjectCodes: []string{"inf", "math"}, UniversityIDs: []string{"hse"}})
 	if err != nil {
 		t.Fatal(err)

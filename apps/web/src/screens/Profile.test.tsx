@@ -11,8 +11,8 @@ import { ThemedMaxUI, setThemeChoice } from '@/ui/theme'
 vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
 const { ProfileScreen } = await import('./Profile')
 
-// ТЗ F49: в профиле правятся все поля, включая регион и цель.
-it('меняет регион и цель и отправляет их в PATCH /profile', async () => {
+// ТЗ F49: в профиле правятся все поля, включая регион, цель и город.
+it('меняет регион, направления и город и отправляет их в PATCH /profile', async () => {
   const sent: unknown[] = []
   vi.stubGlobal(
     'fetch',
@@ -36,10 +36,44 @@ it('меняет регион и цель и отправляет их в PATCH 
   })
 
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Регион' }), 'Москва')
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Цель' }), 'Математика')
+  const goals = within(screen.getByRole('group', { name: 'Направления' }))
+  await userEvent.click(goals.getByRole('button', { name: /Математика/ }))
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Где хочу учиться' }), 'Санкт-Петербург')
   await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
 
-  expect(sent).toEqual([expect.objectContaining({ region_code: '77', direction_id: 'dir-math' })])
+  expect(sent).toEqual([
+    expect.objectContaining({ region_code: '77', direction_ids: ['dir-se', 'dir-math'], target_region_code: '78' }),
+  ])
+})
+
+// «Пока не решил» и «не важно»: направления и вузы можно снять все (F8, F9).
+it('отправляет пустые направления и вузы и город «не важно»', async () => {
+  const sent: unknown[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((_url: string, init: RequestInit) => {
+      if (init.method === 'PATCH') sent.push(JSON.parse(init.body as string))
+      return new Promise(() => {})
+    }),
+  )
+  const data = profile()
+  renderApp(<ProfileScreen />, {
+    route: '/profile',
+    seed: (c) => {
+      c.setQueryData(keys.profile, data)
+      c.setQueryData(keys.universities('', 'all'), { items: data.universities })
+      c.setQueryData(keys.directions, { items: [{ id: 'dir-se', name: 'Программная инженерия' }] })
+    },
+  })
+
+  await userEvent.click(screen.getByRole('button', { name: /Программная инженерия/ }))
+  for (const u of data.universities) {
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(u.short_name) }))
+  }
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Где хочу учиться' }), 'Не важно')
+  await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+
+  expect(sent).toEqual([expect.objectContaining({ direction_ids: [], university_ids: [], target_region_code: '' })])
 })
 
 /** Профиль в провайдере темы: пустые справочники, сохранение не отвечает. */
