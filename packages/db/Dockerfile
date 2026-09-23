@@ -18,6 +18,7 @@ COPY packages/db/migrations/ ./
 # Демо-траектория для локальной проверки в браузере. Накатывается отдельным
 # сервисом seed-demo со своей таблицей версий; в прод не попадает.
 COPY packages/db/migrations-demo/ /migrations-demo/
+COPY packages/db/migrations-local/ /migrations-local/
 
 # goose сам создаёт таблицу goose_db_version и накатывает только новое,
 # поэтому повторный `docker compose up` безопасен.

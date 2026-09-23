@@ -115,6 +115,7 @@ jobs:
           go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
           goose -dir packages/db/migrations postgres "$DATABASE_URL" up
           goose -table goose_demo_version -dir packages/db/migrations-demo postgres "$DATABASE_URL" up
+          goose -table goose_local_version -dir packages/db/migrations-local postgres "$DATABASE_URL" up
       - name: api
         env:
           APP_ENV: development
