@@ -9,9 +9,10 @@ import { trackerAction } from '@/lib/permissions'
 import { BenefitRow } from '@/ui/BenefitRow'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
-import { CardSkeletons, Pill, SourceLine, SourceTag, StateBlock, Tile } from '@/ui/primitives'
+import { CardSkeletons, Pill, SourceLine, SourceTag, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
+import { ErrorState } from '@/ui/ErrorState'
 
 function levelLabel(detail: OlympiadDetail): string {
   if (detail.kind === 'vsosh') return 'ВсОШ'
@@ -54,11 +55,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
   if (query.isError || !query.data) {
     return (
       <Sheet label="Карточка олимпиады" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void query.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       </Sheet>
     )
   }

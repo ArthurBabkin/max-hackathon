@@ -11,8 +11,11 @@ import { getWebApp } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
 import { useStartRoute } from './lib/startParam'
 import { tutorialSeen } from './lib/tutorial'
+import { errorKind } from './api/errors'
+import { ErrorState } from './ui/ErrorState'
 import { Icon, Logo } from './ui/Icon'
 import { Tabbar } from './ui/Tabbar'
+import { Toaster } from './ui/Toaster'
 import { StateBlock } from './ui/primitives'
 import { Tutorial } from './ui/Tutorial'
 import { useSheetStack } from './ui/sheets'
@@ -87,13 +90,20 @@ export function App() {
   if (session.isPending) return <Splash />
 
   if (session.isError) {
+    // 404 на POST /session — траектории ещё нет: анкета в чате бота не
+    // пройдена. Это не сбой, а следующий шаг, поэтому без красной иконки.
+    const noTrajectory = errorKind(session.error) === 'notFound'
     return (
-      <div className="app">
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched iconBefore={<Icon name="refresh" size={16} />} onClick={() => void session.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+      <div className="app app-state">
+        {noTrajectory ? (
+          <StateBlock icon="target" title={t('state.noTrajectoryTitle')} text={t('state.noTrajectoryText')}>
+            <Button stretched iconBefore={<Icon name="refresh" size={16} />} onClick={() => void session.refetch()}>
+              {t('state.noTrajectoryRetry')}
+            </Button>
+          </StateBlock>
+        ) : (
+          <ErrorState error={session.error} onRetry={() => void session.refetch()} />
+        )}
       </div>
     )
   }
@@ -146,6 +156,8 @@ export function App() {
       <Tabbar trackerCount={badge} />
 
       <SheetHost sheets={sheets} />
+
+      <Toaster />
 
       {tutorial ? <Tutorial onDone={() => setTutorial(false)} /> : null}
     </div>

@@ -7,10 +7,11 @@ import { GRADES, type Grade } from '@contract'
 import { districts, regions } from '@regions'
 import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Chip, StateBlock } from '@/ui/primitives'
+import { CardSkeletons, Chip } from '@/ui/primitives'
 import { ThemeSetting } from '@/ui/ThemeSetting'
 import { readThemeChoice, setThemeChoice, type ThemeChoice } from '@/ui/theme'
 import { useVoice } from '@/voice/useVoice'
+import { ErrorState } from '@/ui/ErrorState'
 
 /** Коммит сборки фронта; вне CI — «dev». */
 const WEB_VERSION = ((import.meta.env.VITE_APP_VERSION as string | undefined) || 'dev').slice(0, 7)
@@ -69,11 +70,7 @@ export function ProfileScreen() {
   if (profile.isError || !profile.data) {
     return (
       <div className="screen">
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void profile.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />
       </div>
     )
   }
