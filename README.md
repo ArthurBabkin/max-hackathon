@@ -90,33 +90,6 @@ make bot-poll
 Пока у бота есть подписка на вебхук, MAX в long polling ничего не отдаёт:
 снять её — `go run ./apps/bot/cmd/setup -unsubscribe <адрес вебхука>`.
 
-Без аккаунта в MAX — эмулятор (`apps/bot/internal/emu`): веб-чат с ботом
-внутри, где работают `/start` с параметром, inline-кнопки, геопозиция и
-несколько пользователей (приглашения в семью). Ответы бота пишутся в таблицы
-`emu_*`, в настоящий MAX ничего не уходит. Локально — чат на
-http://localhost:9000; база — `DATABASE_URL`, Postgres на 5432 или
-одноразовый кластер из brew в `.maxemu/pg`:
-
-```bash
-make emu
-```
-
-В облаке эмулятор развёрнут отдельно от прода и **вне Terraform**: функция
-`traektoria-maxemu` (точка входа `apps/bot/cmd/emufn`), API Gateway
-`traektoria-maxemu`, секрет Lockbox `traektoria-maxemu` (`DATABASE_URL` и
-ключ чата `EMU_KEY`). База — та же ВМ, но своя схема `maxemu`
-(`search_path=maxemu` в `DATABASE_URL`): боевые таблицы в `public` и воркеры
-напоминаний её не видят. Адрес чата — `https://<домен шлюза>/#key=<EMU_KEY>`
-(`yc serverless api-gateway get traektoria-maxemu`,
-`yc lockbox payload get --name traektoria-maxemu --key EMU_KEY`). CI эмулятор не
-выкладывает; новая версия и миграции схемы — руками:
-
-```bash
-rsync -a --exclude-from=<(printf '%s\n' .git .github .claude .maxemu .env docs datasets dataset_c_src infra apps/web build) ./ /tmp/emu-src/
-python3 .github/scripts/deploy_function.py --name traektoria-maxemu --require DATABASE_URL,EMU_KEY --source /tmp/emu-src
-goose -dir packages/db/migrations postgres "$(yc lockbox payload get --name traektoria-maxemu --key DATABASE_URL)" up
-```
-
 ## Локальный запуск
 
 **Требования.** Docker с Compose v2 — для стенда. Для разработки дополнительно:
