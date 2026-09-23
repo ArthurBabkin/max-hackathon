@@ -233,11 +233,11 @@ func redact(raw string) string {
 }
 
 // Fictional накатывает вымышленные олимпиады вне перечня
-// (migrations-demo/0002): в основной сид они не входят, а блок F16 без них
+// (migrations-local/0001): в основной сид они не входят, а блок F16 без них
 // не проверить. Повторный вызов ничего не меняет — вставки с ON CONFLICT.
 func Fictional(t testing.TB, p *pgxpool.Pool) {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(MigrationsDir(), "..", "migrations-demo", "0002_fictional_olympiads.sql"))
+	raw, err := os.ReadFile(filepath.Join(MigrationsDir(), "..", "migrations-local", "0001_fictional_olympiads.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
