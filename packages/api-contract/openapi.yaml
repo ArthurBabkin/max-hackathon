@@ -566,7 +566,7 @@ paths:
               properties:
                 university_ids:
                   type: array
-                  minItems: 1
+                  description: Может быть пустым — вузы выбирать не обязательно (F9).
                   items: { type: string }
       responses:
         "200":
@@ -916,8 +916,7 @@ components:
           grade,
           region_code,
           region_name,
-          direction_id,
-          direction_name,
+          directions,
           goal_status,
           has_kid,
           members_count,
@@ -930,13 +929,16 @@ components:
         grade: { type: integer, enum: [8, 9, 10, 11] }
         region_code: { type: string, examples: ["16"] }
         region_name: { type: string, examples: ["Республика Татарстан"] }
-        direction_id: { type: [string, "null"] }
-        direction_name:
-          type: [string, "null"]
-          examples: ["Программная инженерия"]
+        directions:
+          type: array
+          description: Направления-цели в порядке выбора (F8). Пусто — ученик пока не решил.
+          items: { $ref: "#/components/schemas/Direction" }
         goal_status:
           type: string
-          enum: [known, suggested]
+          description: |
+            known — направления выбраны, exploring — пока не решил,
+            suggested — старые траектории, где цель предлагал опросник.
+          enum: [known, suggested, exploring]
         has_kid:
           type: boolean
           description: |
@@ -1443,9 +1445,10 @@ components:
           region_code,
           region_name,
           subjects,
-          direction_id,
-          direction_name,
+          directions,
           goal_status,
+          target_region_code,
+          target_region_name,
           universities,
           other_member_names,
         ]
@@ -1463,12 +1466,18 @@ components:
             properties:
               code: { type: string }
               name: { type: string }
-        direction_id: { type: [string, "null"] }
-        direction_name: { type: [string, "null"] }
-        goal_status: { type: string, enum: [known, suggested] }
+        directions:
+          type: array
+          items: { $ref: "#/components/schemas/Direction" }
+        goal_status: { type: string, enum: [known, suggested, exploring] }
+        target_region_code:
+          type: [string, "null"]
+          description: Где ученик хочет учиться — код субъекта РФ; null — не важно.
+          examples: ["77"]
+        target_region_name: { type: [string, "null"], examples: ["Москва"] }
         universities:
           type: array
-          minItems: 1
+          description: Может быть пустым — вузы выбирать не обязательно (F9).
           items: { $ref: "#/components/schemas/UniversityListItem" }
         other_member_names:
           type: array
@@ -1486,10 +1495,15 @@ components:
           type: array
           minItems: 1
           items: { type: string }
-        direction_id: { type: string }
+        direction_ids:
+          type: array
+          description: Направления в порядке выбора; пустой список — «пока не решил».
+          items: { type: string }
+        target_region_code:
+          type: string
+          description: Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно.
         university_ids:
           type: array
-          minItems: 1
           items: { type: string }
 
     AiCardRef:

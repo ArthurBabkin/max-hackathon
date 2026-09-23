@@ -31,7 +31,7 @@ func setup(t *testing.T) (*store.Store, store.Trajectory) {
 	uid, _ := st.UpsertUser(ctx, 900000001, "Артём")
 	dir := "napr-09-03-04"
 	m, err := st.CreateTrajectory(ctx, store.NewTrajectory{CreatorUserID: uid, Role: "kid", StudentName: "Артём",
-		Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known", DirectionID: &dir,
+		Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", DirectionIDs: []string{dir},
 		SubjectCodes: []string{"inf", "math"}, UniversityIDs: []string{"hse", "innopolis"}})
 	if err != nil {
 		t.Fatal(err)

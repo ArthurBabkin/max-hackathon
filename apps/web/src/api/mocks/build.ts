@@ -24,6 +24,7 @@ import {
   type UniversityDetail,
   type UniversityListItem,
 } from '@contract'
+import { regions as REGIONS } from '@regions'
 import { daysLeft, formatDay } from '@/lib/deadline'
 import { dative, genitive } from '@/lib/declension'
 import { derivePermissions } from '@/lib/permissions'
@@ -342,8 +343,7 @@ export function trajectorySummary(): TrajectorySummary {
     grade: state.grade,
     region_code: state.region_code,
     region_name: state.region_name,
-    direction_id: state.direction_id,
-    direction_name: state.direction_name,
+    directions: state.directions,
     goal_status: state.goal_status,
     has_kid: hasKid(),
     members_count: state.members.length,
@@ -402,9 +402,10 @@ export function profile(): Profile {
     region_code: state.region_code,
     region_name: state.region_name,
     subjects: state.subjects.map((code) => ({ code, name: subjectName(code) })),
-    direction_id: state.direction_id,
-    direction_name: state.direction_name,
+    directions: state.directions,
     goal_status: state.goal_status,
+    target_region_code: state.target_region_code,
+    target_region_name: REGIONS.find((r) => r.code === state.target_region_code)?.name ?? null,
     universities: state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)

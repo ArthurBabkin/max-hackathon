@@ -347,11 +347,15 @@ route('PATCH', '/profile', ({ body }) => {
   if (Array.isArray(patch.subject_codes) && patch.subject_codes.length > 0) {
     state.subjects = patch.subject_codes as string[]
   }
-  if (typeof patch.direction_id === 'string') {
-    state.direction_id = patch.direction_id
-    state.direction_name = DIRECTIONS.find((d) => d.id === patch.direction_id)?.name ?? state.direction_name
+  if (Array.isArray(patch.direction_ids)) {
+    const ids = patch.direction_ids as string[]
+    state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id))
+    state.goal_status = state.directions.length > 0 ? 'known' : 'exploring'
   }
-  if (Array.isArray(patch.university_ids) && patch.university_ids.length > 0) {
+  if (typeof patch.target_region_code === 'string') {
+    state.target_region_code = patch.target_region_code || null
+  }
+  if (Array.isArray(patch.university_ids)) {
     state.universities = patch.university_ids as string[]
   }
   return build.profile()
@@ -359,8 +363,8 @@ route('PATCH', '/profile', ({ body }) => {
 
 route('PUT', '/profile/universities', ({ body }) => {
   const ids = (body as { university_ids?: string[] })?.university_ids
-  if (!Array.isArray(ids) || ids.length === 0) {
-    throw new ApiError(400, 'BAD_REQUEST', 'Нужен хотя бы один вуз')
+  if (!Array.isArray(ids)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Не передан список вузов')
   }
   state.universities = ids
   return build.profile()

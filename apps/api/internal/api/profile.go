@@ -37,9 +37,10 @@ type profileResponse struct {
 	RegionCode       string           `json:"region_code"`
 	RegionName       string           `json:"region_name"`
 	Subjects         []subjectDTO     `json:"subjects"`
-	DirectionID      *string          `json:"direction_id"`
-	DirectionName    *string          `json:"direction_name"`
+	Directions       []directionItem  `json:"directions"`
 	GoalStatus       string           `json:"goal_status"`
+	TargetRegionCode *string          `json:"target_region_code"`
+	TargetRegionName *string          `json:"target_region_name"`
 	Universities     []universityItem `json:"universities"`
 	OtherMemberNames []string         `json:"other_member_names"`
 }
@@ -64,9 +65,14 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 	sum := summaryOf(t)
 	out := profileResponse{
 		StudentName: t.StudentName, Grade: t.Grade, RegionCode: t.RegionCode, RegionName: sum.RegionName,
-		DirectionID: t.DirectionID, DirectionName: t.DirectionName, GoalStatus: t.GoalStatus,
+		Directions: sum.Directions, GoalStatus: t.GoalStatus, TargetRegionCode: t.TargetRegionCode,
 		Subjects: make([]subjectDTO, len(subs)), Universities: make([]universityItem, len(unis)),
 		OtherMemberNames: others,
+	}
+	if t.TargetRegionCode != nil {
+		if reg, ok := refdata.ByCode(*t.TargetRegionCode); ok {
+			out.TargetRegionName = &reg.Name
+		}
 	}
 	for i, x := range subs {
 		out.Subjects[i] = subjectDTO{Code: x.Code, Name: x.Name}
@@ -88,12 +94,15 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request) error {
 }
 
 type profilePatch struct {
-	StudentName   *string  `json:"student_name"`
-	Grade         *int     `json:"grade"`
-	RegionCode    *string  `json:"region_code"`
-	SubjectCodes  []string `json:"subject_codes"`
-	DirectionID   *string  `json:"direction_id"`
-	UniversityIDs []string `json:"university_ids"`
+	StudentName  *string  `json:"student_name"`
+	Grade        *int     `json:"grade"`
+	RegionCode   *string  `json:"region_code"`
+	SubjectCodes []string `json:"subject_codes"`
+	// DirectionIDs: пустой список — «пока не решил», отсутствие — не менять.
+	DirectionIDs []string `json:"direction_ids"`
+	// TargetRegionCode: "" — «не важно».
+	TargetRegionCode *string  `json:"target_region_code"`
+	UniversityIDs    []string `json:"university_ids"`
 }
 
 // patchProfile — PATCH /profile (F49): только переданные поля.
@@ -126,8 +135,9 @@ func (s *Server) putUniversities(w http.ResponseWriter, r *http.Request) error {
 	if err := decodeJSON(r, &req); err != nil {
 		return err
 	}
-	if len(req.UniversityIDs) == 0 {
-		return badRequest("Выберите хотя бы один вуз.")
+	if req.UniversityIDs == nil {
+		// Вузы выбирать не обязательно (F9), но поле должно быть.
+		return badRequest("Не передан список вузов.")
 	}
 	return s.applyPatch(w, r, store.TrajectoryPatch{UniversityIDs: req.UniversityIDs})
 }
@@ -157,7 +167,7 @@ func (s *Server) applyPatch(w http.ResponseWriter, r *http.Request, patch store.
 func validatePatch(req profilePatch) (store.TrajectoryPatch, error) {
 	var p store.TrajectoryPatch
 	if req.StudentName == nil && req.Grade == nil && req.RegionCode == nil && req.SubjectCodes == nil &&
-		req.DirectionID == nil && req.UniversityIDs == nil {
+		req.DirectionIDs == nil && req.TargetRegionCode == nil && req.UniversityIDs == nil {
 		return p, badRequest("Нечего менять.")
 	}
 	if req.StudentName != nil {
@@ -186,17 +196,13 @@ func validatePatch(req profilePatch) (store.TrajectoryPatch, error) {
 		}
 		p.SubjectCodes = req.SubjectCodes
 	}
-	if req.DirectionID != nil {
-		if *req.DirectionID == "" {
-			return p, badRequest("Не указано направление.")
+	p.DirectionIDs = req.DirectionIDs
+	if req.TargetRegionCode != nil && *req.TargetRegionCode != "" {
+		if _, ok := refdata.ByCode(*req.TargetRegionCode); !ok {
+			return p, badRequest("Неизвестный регион, где учиться.")
 		}
-		p.DirectionID = req.DirectionID
 	}
-	if req.UniversityIDs != nil {
-		if len(req.UniversityIDs) == 0 {
-			return p, badRequest("Выберите хотя бы один вуз.")
-		}
-		p.UniversityIDs = req.UniversityIDs
-	}
+	p.TargetRegionCode = req.TargetRegionCode
+	p.UniversityIDs = req.UniversityIDs
 	return p, nil
 }

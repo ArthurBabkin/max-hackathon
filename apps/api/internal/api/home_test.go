@@ -76,6 +76,8 @@ func TestProfile_GetAndPatch(t *testing.T) {
 		{"student_name": "Абвгдежзийклмнопрстуфхцчшщъыьэюяабвгдежзи"}, // 41 символ
 		{"region_code": "999"},
 		{"university_ids": []string{"нет-такого"}},
+		{"direction_ids": []string{"нет-такого"}},
+		{"target_region_code": "999"},
 		{"subject_codes": []string{"klingon"}},
 	}
 	for _, body := range bad {
@@ -86,12 +88,20 @@ func TestProfile_GetAndPatch(t *testing.T) {
 
 	r = e.do("PATCH", "/api/v1/profile", token, map[string]any{
 		"grade": 10, "region_code": "77", "subject_codes": []string{"inf", "math", "phys"},
-		"direction_id": "napr-01-03-02", "student_name": " Артём ",
+		"direction_ids": []string{"napr-01-03-02", "napr-38-03-01"}, "target_region_code": "78", "student_name": " Артём ",
 	})
 	if r.code != 200 || r.body["grade"].(float64) != 10 || r.body["region_name"] != "Москва" ||
-		r.body["direction_name"] != "Прикладная математика и информатика" || r.body["goal_status"] != "known" ||
+		len(r.body["directions"].([]any)) != 2 ||
+		r.body["directions"].([]any)[0].(map[string]any)["name"] != "Прикладная математика и информатика" ||
+		r.body["goal_status"] != "known" || r.body["target_region_name"] != "Санкт-Петербург" ||
 		len(r.body["subjects"].([]any)) != 3 || r.body["student_name"] != "Артём" {
 		t.Fatalf("PATCH: %d %s", r.code, r.raw)
+	}
+	// «Пока не решил» и «не важно, где учиться».
+	r = e.do("PATCH", "/api/v1/profile", token, map[string]any{"direction_ids": []string{}, "target_region_code": ""})
+	if r.code != 200 || len(r.body["directions"].([]any)) != 0 || r.body["goal_status"] != "exploring" ||
+		r.body["target_region_code"] != nil {
+		t.Fatalf("PATCH без цели: %d %s", r.code, r.raw)
 	}
 	var tz string
 	_ = e.pool.QueryRow(context.Background(), "SELECT tz FROM trajectories").Scan(&tz)
@@ -104,8 +114,13 @@ func TestProfile_GetAndPatch(t *testing.T) {
 		t.Fatalf("Приморье — Владивосток: %d %s", r.code, tz)
 	}
 
-	if r := e.do("PUT", "/api/v1/profile/universities", token, map[string]any{"university_ids": []string{}}); r.code != 400 {
-		t.Fatalf("пустой список вузов: %d", r.code)
+	if r := e.do("PUT", "/api/v1/profile/universities", token, map[string]any{}); r.code != 400 {
+		t.Fatalf("без списка вузов: %d", r.code)
+	}
+	// Вузы выбирать не обязательно (F9).
+	if r := e.do("PUT", "/api/v1/profile/universities", token, map[string]any{"university_ids": []string{}}); r.code != 200 ||
+		len(r.body["universities"].([]any)) != 0 {
+		t.Fatalf("пустой список вузов: %d %s", r.code, r.raw)
 	}
 	r = e.do("PUT", "/api/v1/profile/universities", token, map[string]any{"university_ids": []string{"msu", "itmo"}})
 	if r.code != 200 || len(r.body["universities"].([]any)) != 2 {

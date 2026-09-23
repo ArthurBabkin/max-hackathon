@@ -51,7 +51,7 @@ func TestTracker_ParentWithoutKidOwnsTracker(t *testing.T) {
 	uid, _ := e.st.UpsertUser(ctx, 900000002, "Ольга")
 	_, err := e.st.CreateTrajectory(ctx, store.NewTrajectory{
 		CreatorUserID: uid, Role: "parent", StudentName: "Артём", Grade: 9, RegionCode: "16",
-		TZ: "Europe/Moscow", GoalStatus: "suggested", SubjectCodes: []string{"inf"}, UniversityIDs: []string{"kfu"},
+		TZ: "Europe/Moscow", SubjectCodes: []string{"inf"}, UniversityIDs: []string{"kfu"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestTracker_RegisteredMarkAndDelete(t *testing.T) {
 	uid, _ := e.st.UpsertUser(context.Background(), 900000005, "Мария")
 	_, err := e.st.CreateTrajectory(context.Background(), store.NewTrajectory{
 		CreatorUserID: uid, Role: "kid", StudentName: "Мария", Grade: 10, RegionCode: "77",
-		TZ: "Europe/Moscow", GoalStatus: "suggested", SubjectCodes: []string{"inf"}, UniversityIDs: []string{"hse"},
+		TZ: "Europe/Moscow", SubjectCodes: []string{"inf"}, UniversityIDs: []string{"hse"},
 	})
 	if err != nil {
 		t.Fatal(err)

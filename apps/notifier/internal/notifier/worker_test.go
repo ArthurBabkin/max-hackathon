@@ -43,7 +43,7 @@ func setup(t *testing.T) *env {
 	kidUser, _ := st.UpsertUser(ctx, kidMax, "Артём")
 	direction := "napr-09-03-04"
 	kid, err := st.CreateTrajectory(ctx, store.NewTrajectory{CreatorUserID: kidUser, Role: "kid",
-		StudentName: "Артём", Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known", DirectionID: &direction,
+		StudentName: "Артём", Grade: 9, RegionCode: "16", TZ: "Europe/Moscow", DirectionIDs: []string{direction},
 		SubjectCodes: []string{"inf"}, UniversityIDs: []string{"hse", "innopolis"}})
 	if err != nil {
 		t.Fatal(err)
@@ -269,8 +269,8 @@ func (e *env) second(t *testing.T, maxUser int64) store.Member {
 		t.Fatal(err)
 	}
 	m, err := e.st.CreateTrajectory(ctx, store.NewTrajectory{CreatorUserID: u, Role: "kid",
-		StudentName: "Игорь", Grade: 10, RegionCode: "16", TZ: "Europe/Moscow", GoalStatus: "known",
-		DirectionID: &direction, SubjectCodes: []string{"inf"}})
+		StudentName: "Игорь", Grade: 10, RegionCode: "16", TZ: "Europe/Moscow",
+		DirectionIDs: []string{direction}, SubjectCodes: []string{"inf"}})
 	if err != nil {
 		t.Fatal(err)
 	}
