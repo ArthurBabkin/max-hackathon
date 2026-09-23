@@ -89,6 +89,8 @@ func TestSubtitle(t *testing.T) {
 		{Stage{Kind: "municipal", StartsAt: at(2026, 11, 28, 0), EndsAt: at(2026, 11, 28, 23), DeadlineAt: at(2026, 11, 28, 0)}, "28 ноября"},
 		{Stage{Kind: "qualifying", StartsAt: at(2026, 11, 5, 0), EndsAt: at(2026, 12, 11, 23), DeadlineAt: at(2026, 12, 11, 23), IsOnline: true}, "до 11 декабря, онлайн"},
 		{Stage{Kind: "final"}, ""},
+		// «Финал — не позднее 31 марта»: организатор назвал только крайний день.
+		{Stage{Kind: "final", EndsAt: at(2027, 3, 31, 23), DeadlineAt: at(2027, 3, 31, 23)}, "до 31 марта"},
 	}
 	for _, c := range cases {
 		if got := Subtitle(c.s, msk); got != c.want {

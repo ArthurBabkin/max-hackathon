@@ -393,3 +393,72 @@ func TestMigration_TrajectoryDirections(t *testing.T) {
 		t.Fatalf("вузов без региона: %d — новый город нужно добавить в миграцию", noRegion)
 	}
 }
+
+// Даты сезона 2026/27, найденные 23.09.2026, на базе с прежними демо-датами:
+// найденные этапы становятся фактом, демо-этап, которого у олимпиады нет,
+// исчезает, ненайденный финал остаётся демо. Остальные олимпиады не трогаются.
+func TestMigration_RealStageDates(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0015_real_stage_dates.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Как было до поиска: у Финатлона и Турнира городов демо-даты, у Турнира
+	// ещё и демо-регистрация, которой у него нет.
+	mustExec(t, tx.Exec, `UPDATE stages SET is_demo = true, source_id = NULL,
+		starts_at = '2026-10-10 00:00+03', ends_at = '2026-10-30 23:59:59+03', deadline_at = '2026-10-30 23:59:59+03'
+		WHERE olympiad_profile_id IN ('p669-1-finansovaya-gramotnost', 'p669-81-matematika')`)
+	mustExec(t, tx.Exec, `INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo)
+		VALUES ('p669-81-matematika:registration:1', 'p669-81-matematika', 'registration', 'Регистрация',
+		        '2026-10-16 00:00+03', '2026-11-05 23:59:59+03', '2026-11-05 23:59:59+03', true, true)`)
+	var lomonosov int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM stages WHERE olympiad_profile_id LIKE 'p669-50-%' AND is_demo`).Scan(&lomonosov)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	type row struct {
+		id       string
+		demo     bool
+		deadline string
+		sourced  bool
+	}
+	got := map[string]row{}
+	rows, err := tx.Query(ctx, `SELECT id, is_demo, to_char(deadline_at AT TIME ZONE 'Europe/Moscow', 'YYYY-MM-DD'),
+		source_id IS NOT NULL FROM stages
+		WHERE olympiad_profile_id IN ('p669-1-finansovaya-gramotnost', 'p669-81-matematika')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.demo, &r.deadline, &r.sourced); err != nil {
+			t.Fatal(err)
+		}
+		got[r.id] = r
+	}
+	rows.Close()
+	want := map[string]row{
+		"p669-1-finansovaya-gramotnost:registration:1": {"p669-1-finansovaya-gramotnost:registration:1", false, "2026-11-30", true},
+		"p669-1-finansovaya-gramotnost:qualifying:1":   {"p669-1-finansovaya-gramotnost:qualifying:1", false, "2026-11-30", true},
+		"p669-1-finansovaya-gramotnost:final:1":        {"p669-1-finansovaya-gramotnost:final:1", false, "2027-03-06", true},
+		"p669-81-matematika:qualifying:1":              {"p669-81-matematika:qualifying:1", false, "2026-10-04", true},
+		"p669-81-matematika:qualifying:2":              {"p669-81-matematika:qualifying:2", false, "2026-10-18", true},
+		// Финал не объявлен — демо, через месяц после отбора.
+		"p669-81-matematika:final:1": {"p669-81-matematika:final:1", true, "2026-11-17", false},
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("этапы после миграции:\n%v\nожидали:\n%v", got, want)
+	}
+	var after int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM stages WHERE olympiad_profile_id LIKE 'p669-50-%' AND is_demo`).Scan(&after)
+	if lomonosov == 0 || after != lomonosov {
+		t.Fatalf("демо-этапы «Ломоносова» тронуты: было %d, стало %d", lomonosov, after)
+	}
+}

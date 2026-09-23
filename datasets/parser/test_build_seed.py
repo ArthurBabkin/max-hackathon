@@ -104,6 +104,38 @@ class StagesTest(unittest.TestCase):
         self.assertEqual(reg["deadline_at"], reg["ends_at"])
         self.assertEqual(first[2]["deadline_at"], first[2]["starts_at"])
 
+    def test_deadline_only_stage_has_no_start(self):
+        # «Регистрация до 30 ноября», «финал не позднее 31 марта»: начала нет.
+        reg = bs.stage("p", "registration", 1, None, "2026-11-30", True, False, "src")
+        self.assertIsNone(reg["starts_at"])
+        self.assertEqual(reg["deadline_at"], "2026-11-30 23:59:59+03")
+        final = bs.stage("p", "final", 1, None, "2027-03-31", False, False, "src")
+        self.assertIsNone(final["starts_at"])
+        self.assertEqual(final["deadline_at"], final["ends_at"])
+
+    def test_partial_calendar_gets_demo_final_a_month_after_last_stage(self):
+        seed = bs.Seed()
+        seed.olympiads["p669-11"] = {"name": "Сеченовская олимпиада"}
+        p = {"id": "p669-11-biologiya", "olympiad_id": "p669-11", "_c": {
+            "etapy_status": "partial_2026_27", "etapy_source_url": "https://olymp.example/",
+            "etapy_source_page": None, "etapy_checked_at": "2026-09-23",
+            "etapy": [
+                {"stage_name": "Регистрация", "type": "registration",
+                 "start_date": "2026-10-01", "end_date": "2026-10-29", "format": "online"},
+                {"stage_name": "Отборочный этап", "type": "qualifying",
+                 "start_date": "2026-11-10", "end_date": "2026-11-30", "format": "online"},
+            ]}}
+        st = bs.published_stages(seed, p)
+        self.assertEqual([s["kind"] for s in st], ["registration", "qualifying", "final"])
+        for s in st[:2]:
+            self.assertFalse(s["is_demo"])
+            self.assertEqual(seed.sources[s["source_id"]]["verified_at"], "2026-09-23")
+        final = st[2]
+        self.assertTrue(final["is_demo"])
+        self.assertIsNone(final["source_id"])
+        self.assertEqual(final["starts_at"], "2026-12-30 00:00:00+03")
+        self.assertEqual(final["ends_at"], "2027-01-01 23:59:59+03")
+
     def test_vsosh_has_four_stages_in_order(self):
         st = bs.vsosh_stages("vsosh-fizika")
         self.assertEqual([s["kind"] for s in st], ["school", "municipal", "regional", "final"])
@@ -152,14 +184,28 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(all(by_profile[p] == 4 for p in vsosh))
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 50)
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 112)
         self.assertEqual(self.seed.stats["stages_profiles_none"], 12)
 
     def test_stage_ids_unique_and_windows_ordered(self):
         ids = [s["id"] for s in self.seed.stages]
         self.assertEqual(len(ids), len(set(ids)))
         for s in self.seed.stages:
-            self.assertLessEqual(s["starts_at"], s["ends_at"], s["id"])
+            if s["starts_at"]:
+                self.assertLessEqual(s["starts_at"], s["ends_at"], s["id"])
+
+    def test_calendars_found_on_2026_09_23(self):
+        by_id = {s["id"]: s for s in self.seed.stages}
+        # Финатлон: регистрация и отбор — до 30 ноября, финал объявлен.
+        reg = by_id["p669-1-finansovaya-gramotnost:registration:1"]
+        self.assertFalse(reg["is_demo"])
+        self.assertIsNone(reg["starts_at"])
+        self.assertEqual(reg["deadline_at"], "2026-11-30 23:59:59+03")
+        self.assertFalse(by_id["p669-1-finansovaya-gramotnost:final:1"]["is_demo"])
+        # Сеченовская: финал ещё не объявлен — он демо, остальное факт.
+        bio = [(s["kind"], s["is_demo"]) for s in self.seed.stages
+               if s["olympiad_profile_id"] == "p669-11-biologiya"]
+        self.assertEqual(bio, [("registration", False), ("qualifying", False), ("final", True)])
 
     def test_demo_benefits_have_no_source(self):
         sourced = [b for b in self.seed.benefits if b["source_id"]]
