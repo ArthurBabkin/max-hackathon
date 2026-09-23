@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
 import type { Role } from '@contract'
 import { useCreateInvite, useFamily, useLeaveTrajectory, useRemoveMember, useSession } from '@/api/queries'
-import { getWebApp } from '@/bridge'
+import { shareLink } from '@/bridge'
+import { copyText } from '@/lib/clipboard'
 import { canRemoveMember } from '@/lib/permissions'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, SourceLine, StateBlock } from '@/ui/primitives'
@@ -51,23 +52,18 @@ export function FamilyScreen() {
   // подключён, вторую роль «ученик» выдать нельзя (ТЗ F42).
   const inviteRole: Role = hasKid ? 'parent' : 'kid'
 
-  const share = () => {
-    if (!lastInvite) return
-    const bridge = getWebApp()
-    if (bridge.shareMaxContent) bridge.shareMaxContent({ url: lastInvite.url })
-    else bridge.openLink(lastInvite.url)
-  }
-
   const copy = async () => {
     if (!lastInvite) return
-    try {
-      await navigator.clipboard.writeText(lastInvite.url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Буфер обмена может быть недоступен — тогда ссылка остаётся на экране,
-      // и её можно выделить руками. Молча ничего не делаем.
-    }
+    if (!(await copyText(lastInvite.url))) return
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Не вышло поделиться — кладём ссылку в буфер. Открывать её самому нельзя:
+  // приглашение одноразовое и досталось бы тому, кто его создал.
+  const share = async () => {
+    if (!lastInvite) return
+    if (!(await shareLink(lastInvite.url))) await copy()
   }
 
   return (
@@ -120,7 +116,7 @@ export function FamilyScreen() {
           <p className="invite-text">{t('family.linkText')}</p>
           <p className="invite-url">{lastInvite.url}</p>
           <div className="invite-actions">
-            <Button stretched iconBefore={<Icon name="send" size={15} />} onClick={share}>
+            <Button stretched iconBefore={<Icon name="send" size={15} />} onClick={() => void share()}>
               {t('family.linkShare')}
             </Button>
             <Button stretched variant="secondary" onClick={() => void copy()}>
