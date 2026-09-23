@@ -34,3 +34,30 @@ it('рассказывает о вузе и ведёт на сайт и прав
   await userEvent.click(within(about).getByRole('button', { name: /Правила приёма/ }))
   expect(openLink).toHaveBeenLastCalledWith('https://apply.innopolis.university/rules.pdf')
 })
+
+const benefitRow = (olympiad_id: string, subject_name: string, benefit = 'bvi') => ({
+  olympiad_profile_id: `${olympiad_id}-${subject_name}`,
+  olympiad_id,
+  name: `Олимпиада ${olympiad_id}`,
+  subject_name,
+  level: 'I',
+  benefit,
+  benefit_label: null,
+  short_name: null,
+  color: null,
+})
+
+it('олимпиады с льготой — строка на олимпиаду, длинный список свёрнут', async () => {
+  renderSheet({
+    olympiads: [
+      benefitRow('hse', 'Информатика'),
+      benefitRow('hse', 'Математика'),
+      ...['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map((id) => benefitRow(id, 'Физика', 'score100')),
+    ] as unknown as UniversityDetail['olympiads'],
+  })
+  const block = screen.getByRole('heading', { name: /Олимпиады с льготой/ }).closest('section')!
+  expect(within(block).getByText('Информатика, Математика')).toBeInTheDocument()
+  expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(8)
+  await userEvent.click(within(block).getByRole('button', { name: 'Показать все 10' }))
+  expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(10)
+})
