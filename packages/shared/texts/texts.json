@@ -1426,5 +1426,17 @@
   "bot.cmd.delete": {
     "kid": "Удалить траекторию или выйти из неё",
     "parent": "Удалить траекторию или выйти из неё"
+  },
+  "olympiad.aboutTitle": {
+    "kid": "Об олимпиаде",
+    "parent": "Об олимпиаде"
+  },
+  "university.aboutTitle": {
+    "kid": "О вузе",
+    "parent": "О вузе"
+  },
+  "university.site": {
+    "kid": "Сайт вуза",
+    "parent": "Сайт вуза"
   }
 }

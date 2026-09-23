@@ -24,3 +24,20 @@ it('льготы без источника не помечает ни «Факт
   expect(within(block).queryByText('Демо-даты')).not.toBeInTheDocument()
   expect(within(block).queryByText('Факт')).not.toBeInTheDocument()
 })
+
+it('рассказывает об олимпиаде и ведёт на её сайт с самого верха карточки', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
+  const { getWebApp } = await import('@/bridge')
+  const openLink = vi.spyOn(getWebApp(), 'openLink').mockImplementation(() => {})
+  renderSheet({ description: 'Олимпиада НИУ ВШЭ по двенадцати профилям.', official_url: 'https://olymp.hse.ru/mmo' })
+
+  const about = screen.getByRole('heading', { name: 'Об олимпиаде' }).closest('section')!
+  expect(within(about).getByText('Олимпиада НИУ ВШЭ по двенадцати профилям.')).toBeInTheDocument()
+  await userEvent.click(within(about).getByRole('button', { name: /Официальный сайт/ }))
+  expect(openLink).toHaveBeenCalledWith('https://olymp.hse.ru/mmo')
+})
+
+it('без описания и сайта блока «Об олимпиаде» нет', () => {
+  renderSheet({ description: null, official_url: null })
+  expect(screen.queryByRole('heading', { name: 'Об олимпиаде' })).not.toBeInTheDocument()
+})
