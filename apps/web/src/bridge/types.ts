@@ -43,7 +43,12 @@ export interface MaxWebApp {
   platform: string
   version?: string
   openLink(url: string): void
-  shareMaxContent?(payload: { text?: string; url?: string }): void
+  /**
+   * Промис. Отклоняется объектом `{ error: { code } }` без `.message`, поэтому
+   * необработанный отказ всплывает безымянной ошибкой. Ссылка — поле `link`,
+   * не `url`: с неизвестным полем MAX делиться нечем.
+   */
+  shareMaxContent?(payload: { text?: string; link?: string }): Promise<unknown>
   BackButton: MaxBackButton
   HapticFeedback?: MaxHapticFeedback
   getViewportSize?(): { width: number; height: number }

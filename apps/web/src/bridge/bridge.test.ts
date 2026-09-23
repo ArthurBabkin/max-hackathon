@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { isWorkingBridge } from './index'
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isWorkingBridge, shareLink } from './index'
 import type { MaxWebApp } from './types'
 
 /**
@@ -21,5 +22,39 @@ describe('isWorkingBridge', () => {
 
   it('мост с подписанными данными запуска — настоящий', () => {
     expect(isWorkingBridge(bridge({ initData: 'user=%7B%7D&hash=abc' }))).toBe(true)
+  })
+})
+
+/**
+ * Настоящий мост отклоняет shareMaxContent объектом { error: { code } } —
+ * так в исходнике st.max.ru/js/max-web-app.js. Необработанный отказ давал
+ * баннер «Что-то сломалось: запрос не завершился» на экране «Семья».
+ */
+describe('shareLink', () => {
+  const inMax = (shareMaxContent?: MaxWebApp['shareMaxContent']) => {
+    window.WebApp = { initData: 'user=%7B%7D&hash=abc', shareMaxContent } as MaxWebApp
+  }
+
+  afterEach(() => {
+    delete window.WebApp
+    vi.restoreAllMocks()
+  })
+
+  it('отдаёт ссылку в поле link — поле url MAX не знает', async () => {
+    const share = vi.fn().mockResolvedValue({ status: 'shared' })
+    inMax(share)
+    expect(await shareLink('https://max.ru/bot?start=inv_x')).toBe(true)
+    expect(share).toHaveBeenCalledWith({ link: 'https://max.ru/bot?start=inv_x' })
+  })
+
+  it('отказ моста не отклоняет промис, а возвращает false', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    inMax(() => Promise.reject({ error: { code: 'client.web_app_max_share.request_timeout' } }))
+    await expect(shareLink('https://max.ru/bot?start=inv_x')).resolves.toBe(false)
+  })
+
+  it('метода нет в клиенте — false, ссылку никто не открывает', async () => {
+    inMax(undefined)
+    expect(await shareLink('https://max.ru/bot?start=inv_x')).toBe(false)
   })
 })

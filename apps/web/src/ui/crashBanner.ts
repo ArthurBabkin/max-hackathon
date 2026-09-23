@@ -50,7 +50,9 @@ export function installCrashBanner(): void {
   })
 
   window.addEventListener('unhandledrejection', (event) => {
-    const reason = event.reason as { message?: string } | undefined
-    render(reason?.message ?? 'запрос не завершился')
+    // MAX Bridge отклоняет промисы объектом { error: { code } } без message —
+    // код хотя бы подскажет, какой вызов моста упал.
+    const reason = event.reason as { message?: string; error?: { code?: string } } | undefined
+    render(reason?.message ?? reason?.error?.code ?? 'запрос не завершился')
   })
 }
