@@ -52,16 +52,16 @@ func NewPool(ctx context.Context, url string, maxConns int32) (*pgxpool.Pool, er
 	// Инстанс функции обслуживает один запрос за раз: пул нужен ради
 	// переиспользования соединения, а не ради параллелизма. Каждое лишнее
 	// соединение умножается на число тёплых инстансов всех функций и
-	// упирается в max_connections Managed PostgreSQL.
+	// упирается в max_connections базы на ВМ.
 	cfg.MaxConns = maxConns
 	cfg.MinConns = 0
 	// Спящий инстанс не должен держать соединение: закрываем раньше, чем
-	// Managed PostgreSQL или сеть оборвут его сами.
+	// сервер или сеть оборвут его сами.
 	cfg.MaxConnIdleTime = 2 * time.Minute
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.HealthCheckPeriod = 30 * time.Second
-	// Кеш подготовленных выражений безопасен: к Managed PostgreSQL ходим
-	// напрямую, без пулера в режиме транзакций.
+	// Кеш подготовленных выражений безопасен: к базе ходим напрямую
+	// в 5432, без пулера в режиме транзакций.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
 	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
 	return pgxpool.NewWithConfig(ctx, cfg)
