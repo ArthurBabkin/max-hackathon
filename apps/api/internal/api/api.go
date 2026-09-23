@@ -16,6 +16,7 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/llm"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/version"
 )
 
 // BasePath — базовый путь контракта (servers[0].url в openapi.yaml).
@@ -145,7 +146,8 @@ func (s *Server) handle(h handlerFunc) http.HandlerFunc {
 
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		// version — по нему видно, какой коммит сейчас в проде.
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version.Commit()})
 	})
 	s.mux.HandleFunc("POST /session", s.handle(s.createSession))
 	s.mux.HandleFunc("GET /home", s.authed(s.home))
