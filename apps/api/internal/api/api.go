@@ -3,8 +3,10 @@
 package api
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/assistant"
@@ -95,6 +97,30 @@ func newServer(d Deps) *Server {
 	s.routes()
 	return s
 }
+
+// CheckMux проверяет, что ServeMux понимает шаблоны с методом («GET /health»).
+// Рантайм Cloud Functions собирает функцию плагином к своему main-модулю, и
+// дефолт GODEBUG берётся оттуда, а не из нашего go.mod: там включён старый
+// роутер (httpmuxgo121=1). Он считает «GET /health» буквальным путём, и все
+// запросы молча уходят в catch-all «/» с ответом 404. Лучше не стартовать
+// вовсе — тогда проба выкладки увидит 502 и откатит версию.
+func CheckMux() error {
+	mux := http.NewServeMux()
+	matched := false
+	mux.HandleFunc("GET /probe", func(http.ResponseWriter, *http.Request) { matched = true })
+	mux.ServeHTTP(discard{}, &http.Request{Method: http.MethodGet, URL: &url.URL{Path: "/probe"}})
+	if !matched {
+		return errors.New("ServeMux в режиме Go 1.21 не понимает шаблоны маршрутов: " +
+			"задайте функции GODEBUG=httpmuxgo121=0")
+	}
+	return nil
+}
+
+type discard struct{}
+
+func (discard) Header() http.Header         { return http.Header{} }
+func (discard) Write(b []byte) (int, error) { return len(b), nil }
+func (discard) WriteHeader(int)             {}
 
 func (s *Server) handler(corsOrigins []string) http.Handler {
 	return stripPrefix(BasePath, cors(corsOrigins, requestID(logRequests(s.mux))))
