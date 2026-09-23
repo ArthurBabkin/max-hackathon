@@ -22,14 +22,14 @@ func TestReminders_ReplannedAfterTrackerChanges(t *testing.T) {
 		return n
 	}
 
-	// Регистрация до 21.10, отборочный до 10.11, финал до 10.12; сейчас 22.09.
-	r := e.do("POST", "/api/v1/tracker", kid, map[string]any{"olympiad_profile_id": "p669-1-finansovaya-gramotnost"})
+	// Турнир Ломоносова: регистрация до 2.10, осенний тур 4.10, финал 13.03; сейчас 22.09.
+	r := e.do("POST", "/api/v1/tracker", kid, map[string]any{"olympiad_profile_id": "p669-82-fizika"})
 	if r.code != 201 {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	id := r.body["id"].(string)
-	// «За 30 дней» до регистрации было 21.09 — уже прошло: 3 + 4 + 4.
-	if n := count(`r.status = 'planned'`); n != 11 {
+	// «За 30 дней» до регистрации и тура было в начале сентября — уже прошло: 3 + 3 + 4.
+	if n := count(`r.status = 'planned'`); n != 10 {
 		t.Fatalf("прошедшие пороги не планируются, получили %d", n)
 	}
 

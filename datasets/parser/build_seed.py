@@ -19,8 +19,9 @@
 * Запись вуза с требованием уровня строже, чем уровень профиля, отбрасывается.
 * `is_demo` — признак, а не фильтр: если хоть одна запись ключа демо, у льготы
   нет источника, и API честно отдаёт «данные уточняются».
-* Даты этапов: опубликованные — как есть; ВсОШ и остальные профили — демо,
-  с пометкой is_demo, чтобы работали трекер, календарь и напоминания.
+* Даты этапов: опубликованные — как есть, а если опубликованы только ранние
+  этапы, финал — демо; ВсОШ и остальные профили — демо, с пометкой is_demo,
+  чтобы работали трекер, календарь и напоминания.
 
 Запуск: `make seed` (или `python3 datasets/parser/build_seed.py`).
 """
@@ -365,20 +366,29 @@ DEFAULT_TITLE = {
 
 
 def stage(pid, kind, n, start, end, online, demo, src=None, title=None):
-    starts, ends = ts(start), ts(end or start, end=True)
+    # Бывает, что организатор называет только крайний день («не позднее
+    # 31 марта»): начала нет, и срок — этот день.
+    starts, ends = (ts(start) if start else None), ts(end or start, end=True)
     return {
         "id": f"{pid}:{kind}:{n}", "olympiad_profile_id": pid, "kind": kind,
         "title": title or DEFAULT_TITLE[kind], "starts_at": starts, "ends_at": ends,
-        "deadline_at": ends if kind in DEADLINE_AT_END else starts,
+        "deadline_at": ends if kind in DEADLINE_AT_END or not starts else starts,
         "is_online": online, "is_demo": demo, "source_id": src,
     }
+
+
+# Календарь сезона опубликован целиком или частично: во втором случае финала
+# ещё нет, и он ставится демо — иначе трекер и календарь не видели бы, чем
+# кончается сезон.
+PUBLISHED = {"published_2026_27", "partial_2026_27"}
 
 
 def published_stages(seed: Seed, p: dict) -> list[dict]:
     c = p["_c"]
     src = add_source(seed, c["etapy_source_url"], c["etapy_source_page"], "site",
-                     f"{seed.olympiads[p['olympiad_id']]['name']} — сроки этапов", CHECKED)
-    demo = c["etapy_status"] != "published_2026_27"
+                     f"{seed.olympiads[p['olympiad_id']]['name']} — сроки этапов",
+                     c.get("etapy_checked_at") or CHECKED)
+    demo = c["etapy_status"] not in PUBLISHED
     out, counter = [], Counter()
     for e in c["etapy"]:
         kind = e["type"]
@@ -386,6 +396,10 @@ def published_stages(seed: Seed, p: dict) -> list[dict]:
         online = e["format"] == "online" or (kind == "registration" and e["format"] is None)
         out.append(stage(p["id"], kind, counter[kind], e["start_date"], e["end_date"], online,
                          demo, None if demo else src, e["stage_name"]))
+    if c["etapy_status"] == "partial_2026_27" and not counter["final"]:
+        # Как у сгенерированных демо-дат: финал через месяц после отбора, три дня.
+        final = date.fromisoformat(max(e["end_date"] for e in c["etapy"])) + timedelta(days=30)
+        out.append(stage(p["id"], "final", 1, final, final + timedelta(days=2), False, True))
     return out
 
 
