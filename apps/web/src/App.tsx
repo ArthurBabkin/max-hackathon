@@ -45,7 +45,7 @@ function Splash() {
 
 export function App() {
   const session = useSession()
-  const { data: tracker } = useTracker()
+  const { data: tracker } = useTracker(session.isSuccess)
   const sheets = useSheetStack()
   const location = useLocation()
   const navigate = useNavigate()
