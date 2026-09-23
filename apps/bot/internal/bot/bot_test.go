@@ -244,7 +244,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	// Москва и Петербург — отдельными кнопками: Артём не из них.
 	h.mustContain(olga, "Где Артём хочет учиться?")
 	payloads = maxtest.Payloads(h.fake.Last(olga.UserID))
-	if !slices.Equal(payloads, []string{"target:16", "target:77", "target:78", "target:any"}) {
+	if !slices.Equal(payloads, []string{"target:16", "target:77", "target:78", "target:any", "target:list"}) {
 		t.Fatalf("варианты города: %v", payloads)
 	}
 	h.press(olga, "target:any")
@@ -421,6 +421,49 @@ func TestInvite_KidChangesGoal(t *testing.T) {
 		t.Fatalf("цель после правки: %+v", tr.Directions)
 	}
 	h.mustContain(artem, "Под твою цель подход")
+}
+
+// «Другой регион» (F9): из Казани — в Новосибирск через список округов,
+// который правит тот же вопрос.
+func TestOnboarding_TargetOtherRegion(t *testing.T) {
+	h := newHarness(t)
+	h.started(artem, "")
+	h.press(artem, "role:kid")
+	h.press(artem, "name:ok")
+	h.press(artem, "grade:10")
+	h.geo(artem, 55.79, 49.11) // Казань
+	h.press(artem, "subj:t:inf")
+	h.press(artem, "subj:done")
+	h.press(artem, "dir:later")
+	h.mustContain(artem, "Где хочешь учиться?")
+	id := h.press(artem, "target:list")
+	if a := h.answered(id); a.Message == nil || !slices.Contains(maxtest.Payloads(*a.Message), "target:d:7") {
+		t.Fatalf("округа на месте вопроса: %+v", a)
+	}
+	id = h.pressAny(artem, "target:d:7", "")
+	a := h.answered(id)
+	if a.Message == nil || !slices.Contains(maxtest.Payloads(*a.Message), "target:54") ||
+		!slices.Contains(maxtest.Payloads(*a.Message), "target:list") {
+		t.Fatalf("субъекты Сибири: %+v", a)
+	}
+	h.pressAny(artem, "target:54", "")
+	if p := maxtest.Payloads(h.fake.Last(artem.UserID)); !slices.Contains(p, "vuz:t:nsu") || slices.Contains(p, "vuz:t:kfu") {
+		t.Fatalf("вузы Новосибирска: %v", p)
+	}
+	// «Другой город» возвращает к кнопкам, а не к открытому списку.
+	h.press(artem, "vuz:city")
+	if p := maxtest.Payloads(h.fake.Last(artem.UserID)); !slices.Contains(p, "target:list") || slices.Contains(p, "target:d:7") {
+		t.Fatalf("снова вопрос о городе: %v", p)
+	}
+	h.press(artem, "target:any")
+	h.press(artem, "vuz:done")
+	m, err := h.st.CurrentMember(context.Background(), artem.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tr, _ := h.st.Trajectory(context.Background(), m.TrajectoryID); tr.TargetRegionCode != nil {
+		t.Fatalf("город «не важно»: %v", *tr.TargetRegionCode)
+	}
 }
 
 func ptr(s string) *string { return &s }

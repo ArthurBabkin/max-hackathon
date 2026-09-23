@@ -32,8 +32,8 @@ const (
 	stepDone          = "done"
 )
 
-// districtList — в черновике District < 0: открыт список округов.
-const districtList = -1
+// districtsOpen — в черновике District < 0: открыт список округов.
+const districtsOpen = -1
 
 // offerLimit — сколько вузов бот предлагает кнопками на шаге «Вузы» (F9).
 const offerLimit = 6
@@ -109,22 +109,33 @@ func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	return maxapi.NewMessage{}, errors.New("bot: у шага нет вопроса: " + d.Step)
 }
 
-func (b *Bot) regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
+// districtList — список «округ → субъект» для шагов региона и «Где хочешь
+// учиться?»; kind — начало payload: region или target. ok = false — список
+// не открыт.
+func districtList(v voice.Voice, d store.Dialog, kind string) (maxapi.NewMessage, bool) {
 	cb := maxapi.CallbackButton
 	switch {
-	case d.Draft.District == districtList:
+	case d.Draft.District == districtsOpen:
 		var buttons []maxapi.Button
 		for _, dist := range refdata.Districts() {
-			buttons = append(buttons, cb(dist.Name, "region:d:"+strconv.Itoa(dist.N)))
+			buttons = append(buttons, cb(dist.Name, kind+":d:"+strconv.Itoa(dist.N)))
 		}
-		return maxapi.WithKeyboard(v.T("bot.region.district", nil), grid(buttons, 2))
+		return maxapi.WithKeyboard(v.T("bot.region.district", nil), grid(buttons, 2)), true
 	case d.Draft.District > 0:
 		var buttons []maxapi.Button
 		for _, r := range refdata.InDistrict(d.Draft.District) {
-			buttons = append(buttons, cb(r.Name, "region:"+r.Code))
+			buttons = append(buttons, cb(r.Name, kind+":"+r.Code))
 		}
-		kb := append(grid(buttons, 2), maxapi.Row(cb(v.T("bot.region.back", nil), "region:list")))
-		return maxapi.WithKeyboard(v.T("bot.region.pick", nil), kb)
+		kb := append(grid(buttons, 2), maxapi.Row(cb(v.T("bot.region.back", nil), kind+":list")))
+		return maxapi.WithKeyboard(v.T("bot.region.pick", nil), kb), true
+	}
+	return maxapi.NewMessage{}, false
+}
+
+func (b *Bot) regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
+	cb := maxapi.CallbackButton
+	if msg, ok := districtList(v, d, "region"); ok {
+		return msg
 	}
 	return maxapi.WithKeyboard(v.T("bot.region.ask", nil), maxapi.Keyboard{
 		maxapi.Row(maxapi.GeoButton(v.T("bot.region.geo", nil))),
@@ -200,11 +211,17 @@ func targetOptions(own string) []targetOption {
 	return append(opts, targetOption{"bot.target.any", store.TargetAny})
 }
 
+// targetPrompt — «Где хочешь учиться?»; «Другой регион» открывает на месте
+// вопроса тот же список «округ → субъект», что и на шаге региона.
 func targetPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
+	if msg, ok := districtList(v, d, "target"); ok {
+		return msg
+	}
 	var buttons []maxapi.Button
 	for _, o := range targetOptions(d.Draft.RegionCode) {
 		buttons = append(buttons, maxapi.CallbackButton(v.T(o.key, nil), "target:"+o.code))
 	}
+	buttons = append(buttons, maxapi.CallbackButton(v.T("bot.target.other", nil), "target:list"))
 	return maxapi.WithKeyboard(v.T("bot.target.ask", nil), grid(buttons, 2))
 }
 
@@ -487,7 +504,7 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 	case "dir":
 		return true, b.directionCallback(t, cb, question, arg(0), arg(1))
 	case "target":
-		return true, b.targetCallback(t, cb, question, arg(0))
+		return true, b.targetCallback(t, cb, question, args)
 	case "vuz":
 		return true, b.universityCallback(t, cb, question, arg(0), arg(1))
 	}
@@ -504,7 +521,7 @@ func (b *Bot) regionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Mess
 			if err := expect(d, stepRegion); err != nil {
 				return err
 			}
-			d.Draft.District = districtList
+			d.Draft.District = districtsOpen
 			return nil
 		})
 	case args[0] == "d" && len(args) > 1:
@@ -597,7 +614,32 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 }
 
 // targetCallback — «Где хочешь учиться?»: город и вузы в нём (F9).
-func (b *Bot) targetCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, code string) error {
+func (b *Bot) targetCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, args []string) error {
+	if len(args) == 0 {
+		return b.stale(t, cb, nil)
+	}
+	// Список округов и субъектов правит тот же вопрос.
+	district := 0
+	switch {
+	case args[0] == "list":
+		district = districtsOpen
+	case args[0] == "d" && len(args) > 1:
+		n, err := strconv.Atoi(args[1])
+		if err != nil || len(refdata.InDistrict(n)) == 0 {
+			return b.stale(t, cb, nil)
+		}
+		district = n
+	}
+	if district != 0 {
+		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepTarget); err != nil {
+				return err
+			}
+			d.Draft.District = district
+			return nil
+		})
+	}
+	code := args[0]
 	label := kidVoice(t).T("bot.target.any", nil)
 	if reg, ok := refdata.ByCode(code); ok {
 		label = reg.Name
@@ -608,10 +650,7 @@ func (b *Bot) targetCallback(t *turn, cb *maxapi.Callback, question *maxapi.Mess
 		if err := expect(d, stepTarget); err != nil {
 			return err
 		}
-		if !slices.ContainsFunc(targetOptions(d.Draft.RegionCode), func(o targetOption) bool { return o.code == code }) {
-			return store.ErrStale
-		}
-		d.Draft.Target, d.Step = code, stepUniversities
+		d.Draft.Target, d.Draft.District, d.Step = code, 0, stepUniversities
 		return offer(t, tx, d)
 	})
 }
@@ -632,7 +671,7 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			if err := expect(d, stepUniversities); err != nil {
 				return err
 			}
-			d.Step = stepTarget
+			d.Step, d.Draft.District = stepTarget, 0
 			return nil
 		})
 	case "done":
