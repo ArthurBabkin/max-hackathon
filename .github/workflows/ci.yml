@@ -81,6 +81,17 @@ jobs:
       - run: npm run check:contrast
       - run: npm run build
 
+  # Лендинг — статика без зависимостей, тесты на встроенном node:test.
+  landing:
+    name: Лендинг
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.12.0"
+      - run: node --test apps/landing/landing.test.mjs
+
   # Живой API против контракта: те же миграции и демо-траектория, что в
   # docker-compose, без токенов — уведомления и модель помощника выключены.
   contract:

@@ -1,0 +1,77 @@
+# Выкладка лендинга в бакет собственного домена при слиянии в master.
+#
+# Бакет, DNS-зону и сертификат создаёт Terraform (infra/terraform: storage.tf,
+# dns.tf, certificate.tf); здесь только заливка файлов. Сборки нет: лендинг —
+# статика, в бакет уходит папка apps/landing как есть, кроме тестов и README.
+name: Deploy landing
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/landing/**'
+      - '.github/workflows/deploy-landing.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-landing
+  cancel-in-progress: false
+
+env:
+  # Имя бакета обязано совпадать с доменом (var.domain в Terraform).
+  BUCKET: ${{ vars.YC_LANDING_BUCKET || 'traektoriaedu.ru' }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.YC_STORAGE_ACCESS_KEY }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_STORAGE_SECRET_KEY }}
+  AWS_DEFAULT_REGION: ru-central1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      # Битую ссылку или якорь лучше поймать до заливки, а не на проде.
+      - name: Тесты
+        run: node --test apps/landing/landing.test.mjs
+
+      # В имени бакета точки: адрес вида traektoriaedu.ru.storage.yandexcloud.net
+      # не покрывается wildcard-сертификатом, поэтому только path-style.
+      - name: Настройка aws cli
+        run: aws configure set default.s3.addressing_style path
+
+      # У файлов нет хеша в имени, поэтому кеш короткий: правка доезжает
+      # до посетителей максимум за час. ponytail: хеши в именах, если понадобится кешировать надолго.
+      - name: Выкладка ассетов
+        run: |
+          aws s3 sync apps/landing "s3://$BUCKET" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --delete \
+            --exclude index.html \
+            --exclude '*.test.mjs' \
+            --exclude README.md \
+            --cache-control "public, max-age=3600"
+
+      # index.html — последним и без кеша, как у мини-приложения.
+      - name: Выкладка index.html
+        run: |
+          aws s3 cp apps/landing/index.html "s3://$BUCKET/index.html" \
+            --endpoint-url=https://storage.yandexcloud.net \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache"
+
+      # main.js подключён как модуль: с неверным Content-Type браузер его не выполнит.
+      - name: Проверка
+        run: |
+          curl -fsS "https://$BUCKET/" | grep -q 'Одна траектория'
+          for f in styles.css main.js; do
+            type=$(curl -fsSI "https://$BUCKET/$f" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')
+            echo "$f -> $type"
+            case "$f:$type" in
+              styles.css:text/css*|main.js:*javascript*) ;;
+              *) echo "::error::$f отдаётся как $type"; exit 1 ;;
+            esac
+          done
