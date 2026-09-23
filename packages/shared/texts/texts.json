@@ -1427,6 +1427,42 @@
     "kid": "Удалить траекторию или выйти из неё",
     "parent": "Удалить траекторию или выйти из неё"
   },
+  "catalog.group.vsosh": {
+    "kid": "ВсОШ",
+    "parent": "ВсОШ"
+  },
+  "catalog.group.I": {
+    "kid": "I уровень",
+    "parent": "I уровень"
+  },
+  "catalog.group.II": {
+    "kid": "II уровень",
+    "parent": "II уровень"
+  },
+  "catalog.group.III": {
+    "kid": "III уровень",
+    "parent": "III уровень"
+  },
+  "catalog.group.other": {
+    "kid": "Вне перечня",
+    "parent": "Вне перечня"
+  },
+  "catalog.group.unknown": {
+    "kid": "Уровень уточняется",
+    "parent": "Уровень уточняется"
+  },
+  "catalog.showMore": {
+    "kid": "Показать ещё {count}",
+    "parent": "Показать ещё {count}"
+  },
+  "catalog.inTracker": {
+    "kid": "в трекере",
+    "parent": "в трекере"
+  },
+  "university.showAll": {
+    "kid": "Показать все {count}",
+    "parent": "Показать все {count}"
+  },
   "olympiad.aboutTitle": {
     "kid": "Об олимпиаде",
     "parent": "Об олимпиаде"
