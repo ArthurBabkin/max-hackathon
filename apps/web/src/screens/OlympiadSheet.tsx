@@ -174,7 +174,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
       <section className="block">
         <h3 className="block-head">
           {t('olympiad.benefitsTitle')}
-          <SourceTag kind={detail.benefits_source ? 'fact' : 'demo'} />
+          {detail.benefits_source ? <SourceTag kind="fact" /> : null}
         </h3>
         {detail.benefits.map((row) => (
           <BenefitRow
