@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Траектория — лендинг, телефон, часть 3</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Unbounded:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F5FB;font-family:"Onest",system-ui,-apple-system,"Segoe UI",sans-serif;color:#17142A;-webkit-font-smoothing:antialiased}
+a{color:#6B2BFF;text-decoration:none}a:hover{color:#4F14D9}
+button{font-family:inherit}
+a:focus-visible,button:focus-visible{outline:none;box-shadow:0 0 0 2px #F6F5FB,0 0 0 4px #6B2BFF}
+</style>
+</helmet>
+<div style="width: 390px; height: 1900px; display: flex; flex-direction: column; background: #F6F5FB; overflow: hidden">
+
+<section id="trust" style="flex-shrink: 0; box-sizing: border-box; padding: 48px 20px 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0 0 4px; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 25px; line-height: 31px; font-weight: 600; letter-spacing: -0.02em">Вузы, которые уже есть в&nbsp;базе</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">МГУ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">СПбГУ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">ВШЭ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">МФТИ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">ИТМО</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">НГУ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">КФУ</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">Иннополис</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">Сеченовский</span>
+<span style="padding: 10px 14px; border-radius: 14px; background: #FFFFFF; font-size: 15px; font-weight: 700">Казанский ГМУ</span>
+</div>
+</section>
+
+<section id="faq" style="flex-shrink: 0; box-sizing: border-box; padding: 64px 20px 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 25px; line-height: 31px; font-weight: 600; letter-spacing: -0.02em">Частые вопросы</h2>
+<div style="background: #FFFFFF; border-radius: 24px; padding: 4px 20px">
+<sc-for list="{{faq}}" as="item" hint-placeholder-count="7">
+<div style="border-bottom: 1px solid #E2DEEE">
+<button type="button" onClick="{{item.toggle}}" aria-expanded="{{item.expanded}}" style="width: 100%; min-height: 60px; padding: 14px 0; background: transparent; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; cursor: pointer; color: #17142A; font-size: 16px; line-height: 22px; font-weight: 600">
+<span>{{item.q}}</span>
+<span style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 9999px; background: #EFE8FF; color: #6B2BFF; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 18px; font-weight: 600">{{item.sign}}</span>
+</button>
+<sc-if value="{{item.isOpen}}" hint-placeholder-val="{{false}}">
+<p style="margin: 0; padding: 0 6px 16px 0; font-size: 15px; line-height: 22px; color: #625C78">{{item.a}}</p>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="flex-shrink: 0; box-sizing: border-box; padding: 64px 20px 56px">
+<div style="position: relative; overflow: hidden; background: #6B2BFF; color: #FFFFFF; border-radius: 28px; padding: 26px 24px 120px; display: flex; flex-direction: column; gap: 12px">
+<svg width="240" height="96" viewBox="0 0 240 96" aria-hidden="true" style="position: absolute; right: 0; bottom: 0">
+<rect x="0" y="72" width="240" height="24" fill="#7D4DFF"></rect><rect x="80" y="48" width="160" height="24" fill="#7D4DFF"></rect><rect x="160" y="24" width="80" height="24" fill="#7D4DFF"></rect>
+<rect x="80" y="48" width="24" height="24" fill="#7FEAF7"></rect><rect x="160" y="24" width="24" height="24" fill="#FF8DBE"></rect><rect x="216" y="0" width="24" height="24" fill="#FFFFFF"></rect>
+</svg>
+<h2 style="margin: 0; position: relative; font-family: 'Unbounded', 'Onest', system-ui, sans-serif; font-size: 26px; line-height: 31px; font-weight: 600; letter-spacing: -0.02em">Начните с&nbsp;одного сообщения</h2>
+<p style="margin: 0; position: relative; font-size: 15px; line-height: 23px; color: #E8E0FF">Откройте бота, ответьте на&nbsp;вопросы и&nbsp;получите олимпиады, которые ведут в&nbsp;ваши вузы.</p>
+<a href="https://max.ru/t356_hakaton_max_bot" style="position: relative; height: 52px; border-radius: 14px; background: #FFFFFF; color: #6B2BFF; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-top: 6px">Открыть в&nbsp;MAX</a>
+</div>
+</section>
+
+<footer style="flex-grow: 1; background: #FFFFFF; color: #17142A; border-top: 1px solid #E2DEEE; box-sizing: border-box; padding: 44px 20px 36px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<img src="/_blob/7570c6b4870a2d3ee4d88edec45d891c" alt="Траектория" style="height: 32px; width: auto; align-self: flex-start">
+<p style="margin: 0; font-size: 14px; line-height: 21px; color: #625C78">Бот и&nbsp;мини-приложение про олимпиады и&nbsp;поступление в&nbsp;MAX.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; font-weight: 600; color: #625C78">Продукт</span>
+<a href="#start" style="color: #17142A; font-size: 15px">Как начать</a>
+<a href="#features" style="color: #17142A; font-size: 15px">Возможности</a>
+<a href="#roles" style="color: #17142A; font-size: 15px">Для кого</a>
+<a href="#faq" style="color: #17142A; font-size: 15px">Вопросы</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 13px; font-weight: 600; color: #625C78">В&nbsp;MAX</span>
+<a href="https://max.ru/t356_hakaton_max_bot" style="color: #17142A; font-size: 15px">Открыть бота</a>
+</div>
+</div>
+<p style="margin: 0; padding-top: 18px; border-top: 1px solid #E2DEEE; font-size: 12px; line-height: 18px; color: #625C78">Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения». Сроки части олимпиад демонстрационные. На&nbsp;экранах примеры данных.</p>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: 0 };
+  }
+  renderVals() {
+    const data = [
+      { q: 'Нужно ли что-то устанавливать?', a: 'Нет. Бот и мини-приложение работают внутри MAX: достаточно открыть чат с ботом. Мини-приложение открывается поверх чата, профиль уже заполнен ответами из диалога.' },
+      { q: 'Что такое БВИ?', a: 'Зачисление без вступительных испытаний: с дипломом победителя или призёра можно поступить без конкурса по баллам ЕГЭ на направление по профилю олимпиады. БВИ можно использовать только в одном вузе и на одной программе.' },
+      { q: 'Что значит «100 баллов»?', a: 'Диплом засчитывается как 100 баллов по вступительному испытанию профильного предмета. Остальные экзамены сдаются как обычно. Эту льготу можно использовать в каждом вузе.' },
+      { q: 'Нужно ли сдавать ЕГЭ, если есть диплом?', a: 'Да. Льготу по олимпиаде из перечня подтверждают ЕГЭ по профильному предмету не ниже 75 баллов, а вуз вправе поставить порог выше.' },
+      { q: 'Как удалить данные?', a: 'Создатель траектории удаляет её вместе с данными командой /delete. Остальные участники могут выйти из траектории во вкладке «Семья».' }
+    ];
+    const open = this.state.open;
+    return {
+      faq: data.map((d, i) => ({
+        q: d.q,
+        a: d.a,
+        isOpen: open === i,
+        expanded: open === i ? 'true' : 'false',
+        sign: open === i ? '−' : '+',
+        toggle: () => this.setState({ open: open === i ? -1 : i })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

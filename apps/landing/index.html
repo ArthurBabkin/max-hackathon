@@ -1,326 +1,478 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Траектория — навигатор по олимпиадам в MAX</title>
-<meta name="description" content="Бот в MAX подбирает олимпиады под цель ученика, показывает льготы в его вузах с источником и напоминает о сроках всей семье.">
-<meta name="theme-color" content="#5A22F0">
-<meta name="color-scheme" content="light dark">
+<title>Траектория — олимпиады, которые ведут в твой вуз</title>
+<meta name="description" content="Бот и мини-приложение в MAX: подборка олимпиад под цель, льготы в твоих вузах и напоминания о сроках для всей семьи">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#6B2BFF">
 <link rel="canonical" href="https://traektoriaedu.ru/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ru_RU">
 <meta property="og:url" content="https://traektoriaedu.ru/">
-<meta property="og:title" content="Траектория — навигатор по олимпиадам в MAX">
-<meta property="og:description" content="Подборка олимпиад под цель ученика, льготы в его вузах с источником и напоминания о сроках всей семье.">
-<meta property="og:image" content="https://traektoriaedu.ru/assets/og.png">
+<meta property="og:site_name" content="Траектория">
+<meta property="og:title" content="Траектория — олимпиады, которые ведут в твой вуз">
+<meta property="og:description" content="Бот и мини-приложение в MAX: подборка олимпиад под цель, льготы в твоих вузах и напоминания о сроках для всей семьи">
+<meta property="og:image" content="https://traektoriaedu.ru/assets/logo/traektoriya-og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Траектория: одна траектория на ученика и его семью">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="preload" href="assets/fonts/unbounded-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="icon" type="image/png" href="assets/logo/traektoriya-app-icon.png">
+<link rel="apple-touch-icon" href="assets/logo/traektoriya-app-icon.png">
+<link rel="preload" href="fonts/Unbounded-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Onest-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="tokens/tokens.css">
 <link rel="stylesheet" href="styles.css">
 <script type="module" src="main.js"></script>
+<noscript><style>.faq-answer[hidden]{display:block!important}.burger{display:none!important}</style></noscript>
 </head>
 <body>
-
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
-  <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
-  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-users" viewBox="0 0 24 24"><path d="M9 11a4 4 0 100-8a4 4 0 000 8zM2 21v-1a6 6 0 0112 0v1M16 3.5a4 4 0 010 7.5M22 21v-1a6 6 0 00-4-5.6"/></symbol>
-  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></symbol>
-  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0"/></symbol>
-  <symbol id="i-logo" viewBox="0 0 48 48">
-    <defs><linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7B3BFF"/><stop offset="1" stop-color="#1A6DFF"/></linearGradient></defs>
-    <rect width="48" height="48" rx="14" fill="url(#logo-g)"/>
-    <rect x="9" y="31" width="8" height="8" rx="1.5" fill="#fff"/>
-    <rect x="17" y="23" width="8" height="8" rx="1.5" fill="#fff" opacity=".85"/>
-    <rect x="25" y="15" width="8" height="8" rx="1.5" fill="#8EF0FB"/>
-    <rect x="33" y="7" width="8" height="8" rx="1.5" fill="#FF8DBE"/>
-  </symbol>
-</svg>
-
 <a class="skip" href="#main">К содержанию</a>
 
 <header class="top" data-top>
-  <div class="top-in">
-    <a class="brand" href="#hero" aria-label="Траектория, в начало страницы">
-      <svg width="36" height="36" aria-hidden="true"><use href="#i-logo"/></svg>
-      <span>Траектория</span>
-    </a>
-    <nav class="top-nav" aria-label="Разделы">
-      <a href="#start">Как начать</a>
-      <a href="#features">Возможности</a>
-      <a href="#family">Семье</a>
-      <a href="#faq">Вопросы</a>
-    </nav>
-    <a class="btn btn-sm" href="https://max.ru/t356_hakaton_max_bot" target="_blank" rel="noopener">Открыть в MAX</a>
-  </div>
+<div class="top__bar wrap">
+<a class="top__logo" href="#hero" aria-label="Траектория, на главную"><img src="assets/logo/traektoriya-logo.svg" alt="Траектория" width="231" height="48"></a>
+<nav class="top__nav wide-only" aria-label="Разделы">
+<a href="#start">Как начать</a>
+<a href="#features">Возможности</a>
+<a href="#roles">Для кого</a>
+<a href="#faq">Вопросы</a>
+</nav>
+<div class="top__actions">
+<a class="btn btn--ghost top__how wide-only" href="#start">Как это работает</a>
+<a class="btn btn--brand top__cta" href="https://max.ru/t356_hakaton_max_bot">Открыть в MAX</a>
+<button class="burger narrow-only" type="button" aria-label="Меню" aria-expanded="false" aria-controls="menu">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+</button>
+</div>
+</div>
+<nav id="menu" class="menu narrow-only" aria-label="Меню" hidden>
+<a href="#start">Как начать</a>
+<a href="#features">Возможности</a>
+<a href="#roles">Для кого</a>
+<a href="#faq">Вопросы</a>
+</nav>
 </header>
 
-<section class="hero" id="hero" aria-labelledby="hero-title">
-  <svg class="hero-stairs" viewBox="0 0 760 560" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
-    <g class="st">
-      <rect x="40" y="480" width="720" height="80"/>
-      <rect x="190" y="400" width="570" height="80"/>
-      <rect x="340" y="320" width="420" height="80"/>
-      <rect x="490" y="240" width="270" height="80"/>
-      <rect x="640" y="160" width="120" height="80"/>
-    </g>
-    <rect class="sb" x="190" y="400" width="60" height="80" fill="#FF3D8B"/>
-    <rect class="sb" x="490" y="240" width="60" height="80" fill="#4D8DFF"/>
-    <rect class="sb" x="640" y="80" width="60" height="80" fill="#A98BFF"/>
-    <rect class="sb" x="700" y="0" width="60" height="80" fill="#7FEAF7"/>
-  </svg>
-  <div class="wrap hero-in">
-    <div class="hero-copy">
-      <h1 id="hero-title">Одна траектория на&nbsp;ученика и&nbsp;его семью</h1>
-      <p class="hero-sub">Бот в&nbsp;MAX подбирает олимпиады под цель ученика, показывает льготы в&nbsp;его вузах и&nbsp;напоминает о&nbsp;сроках всей семье.</p>
-      <div class="hero-cta">
-        <a class="btn btn-light" href="https://max.ru/t356_hakaton_max_bot" target="_blank" rel="noopener">Открыть в MAX</a>
-        <a class="btn btn-ghost" href="#start">Как это работает</a>
-      </div>
-    </div>
-    <div class="hero-shots" aria-hidden="true">
-      <img class="shot shot-back" src="assets/screens/A7.webp" width="292" height="613" alt="" decoding="async">
-      <img class="shot shot-front" src="assets/screens/C1.webp" width="292" height="613" alt="" fetchpriority="high" decoding="async">
-    </div>
-  </div>
+<main id="main">
+<section id="hero" class="hero wrap">
+<div class="hero__text">
+<span class="pill">Бот и мини-приложение в MAX</span>
+<h1 class="hero__title">Олимпиады, которые ведут в&nbsp;твой вуз</h1>
+<p class="hero__lead d-only">Подборка олимпиад под цель, льготы в&nbsp;твоих вузах и&nbsp;напоминания о&nbsp;сроках&nbsp;— для всей семьи.</p>
+<p class="hero__lead m-only">Бот подбирает олимпиады под цель ученика, показывает льготы в&nbsp;его вузах со&nbsp;ссылкой на&nbsp;источник и&nbsp;напоминает о&nbsp;сроках всей семье.</p>
+<div class="hero__cta">
+<a class="btn btn--brand btn--lg" href="https://max.ru/t356_hakaton_max_bot">Открыть в&nbsp;MAX
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<a class="btn btn--ghost btn--lg" href="#start">Как это работает</a>
+</div>
+</div>
+
+<div class="stage stage--wide wide-only">
+<svg class="stage__deco" viewBox="0 0 1280 560" aria-hidden="true">
+<rect x="0" y="480" width="320" height="80" fill="#DCCFFF"/>
+<rect x="0" y="400" width="160" height="80" fill="#DCCFFF"/>
+<rect x="960" y="480" width="320" height="80" fill="#DCCFFF"/>
+<rect x="1120" y="400" width="160" height="80" fill="#DCCFFF"/>
+<rect x="1200" y="320" width="80" height="80" fill="#DCCFFF"/>
+<rect x="160" y="400" width="40" height="40" fill="#7FEAF7"/>
+<rect x="1120" y="400" width="40" height="40" fill="#FF3D8B"/>
+<rect x="1200" y="320" width="40" height="40" fill="#6B2BFF"/>
+<rect x="96" y="96" width="14" height="14" fill="#7FEAF7"/>
+<rect x="336" y="44" width="10" height="10" fill="#FF3D8B"/>
+<rect x="930" y="40" width="12" height="12" fill="#6B2BFF"/>
+<rect x="1180" y="120" width="14" height="14" fill="#7FEAF7"/>
+<rect x="870" y="508" width="10" height="10" fill="#FF3D8B"/>
+</svg>
+<img class="w-chat" src="assets/screens/chat-result-584.webp" srcset="assets/screens/chat-result-292.webp 292w, assets/screens/chat-result-584.webp 584w" sizes="250px" width="584" height="1226" fetchpriority="high" alt="Чат бота в MAX: итог онбординга и кнопка «Открыть мини-приложение»">
+<img class="w-home" src="assets/screens/app-home-584.webp" srcset="assets/screens/app-home-292.webp 292w, assets/screens/app-home-584.webp 584w" sizes="250px" width="584" height="1226" loading="lazy" decoding="async" alt="Главная мини-приложения: цель, следующий шаг и ближайшие сроки">
+<svg class="w-medal" viewBox="0 0 120 150" aria-hidden="true">
+<path d="M34 0h24l-8 56H26z" fill="#FF3D8B"/>
+<path d="M62 0h24l8 56H70z" fill="#7FEAF7"/>
+<circle cx="60" cy="96" r="50" fill="#6B2BFF"/>
+<circle cx="60" cy="96" r="38" fill="#7D4DFF"/>
+<rect x="38" y="108" width="11" height="11" rx="2" fill="#FFFFFF"/>
+<rect x="49" y="97" width="11" height="11" rx="2" fill="#D6C8FF"/>
+<rect x="60" y="86" width="11" height="11" rx="2" fill="#7FEAF7"/>
+<rect x="71" y="75" width="11" height="11" rx="2" fill="#FF8DBE"/>
+</svg>
+<div class="w-soon plate">
+<span class="plate__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0"/></svg></span>
+<span class="plate__txt"><b>Через 3 дня</b><span>регистрация на «Высшую пробу»</span></span>
+</div>
+<svg class="w-cap" viewBox="0 0 150 110" aria-hidden="true">
+<path d="M30 52v30c0 12 20 22 45 22s45-10 45-22V52L75 72z" fill="#6B2BFF"/>
+<path d="M75 8l71 34-71 34L4 42z" fill="#17142A"/>
+<path d="M75 42l48 14v28" stroke="#7FEAF7" stroke-width="5" fill="none" stroke-linecap="round"/>
+<rect x="116" y="82" width="14" height="18" rx="3" fill="#7FEAF7"/>
+</svg>
+<svg class="w-cal" viewBox="0 0 120 124" aria-hidden="true">
+<rect x="4" y="14" width="112" height="106" rx="20" fill="#FFFFFF"/>
+<path d="M4 34a20 20 0 0120-20h72a20 20 0 0120 20v8H4z" fill="#6B2BFF"/>
+<rect x="30" y="4" width="10" height="22" rx="5" fill="#17142A"/>
+<rect x="80" y="4" width="10" height="22" rx="5" fill="#17142A"/>
+<rect x="22" y="56" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="42" y="56" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="62" y="56" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="82" y="56" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="22" y="78" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="42" y="78" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="62" y="78" width="14" height="14" rx="3" fill="#FF3D8B"/>
+<rect x="82" y="78" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="22" y="100" width="14" height="14" rx="3" fill="#E6DDFF"/>
+<rect x="42" y="100" width="14" height="14" rx="3" fill="#7FEAF7"/>
+<rect x="62" y="100" width="14" height="14" rx="3" fill="#E6DDFF"/>
+</svg>
+<div class="w-perk plate plate--perk">
+<span class="plate__cap">Льгота в твоих вузах</span>
+<span class="plate__row">МФТИ<span class="tag tag--green">БВИ</span></span>
+<span class="plate__row">ИТМО<span class="tag tag--brand">100 баллов</span></span>
+</div>
+</div>
+
+<div class="stage stage--narrow narrow-only">
+<svg class="n-steps-l" viewBox="0 0 120 100" aria-hidden="true"><rect x="0" y="50" width="120" height="50" fill="#DCCFFF"/><rect x="0" y="0" width="60" height="50" fill="#DCCFFF"/><rect x="60" y="0" width="26" height="26" fill="#7FEAF7"/></svg>
+<svg class="n-steps-r" viewBox="0 0 100 100" aria-hidden="true"><rect x="0" y="50" width="100" height="50" fill="#DCCFFF"/><rect x="50" y="0" width="50" height="50" fill="#DCCFFF"/><rect x="50" y="0" width="26" height="26" fill="#FF3D8B"/></svg>
+<span class="n-dot n-dot--cyan"></span>
+<span class="n-dot n-dot--brand"></span>
+<svg class="n-medal" viewBox="0 0 120 150" aria-hidden="true">
+<path d="M34 0h24l-8 56H26z" fill="#FF3D8B"/><path d="M62 0h24l8 56H70z" fill="#7FEAF7"/>
+<circle cx="60" cy="96" r="50" fill="#6B2BFF"/><circle cx="60" cy="96" r="38" fill="#7D4DFF"/>
+<rect x="38" y="108" width="11" height="11" rx="2" fill="#FFFFFF"/><rect x="49" y="97" width="11" height="11" rx="2" fill="#D6C8FF"/><rect x="60" y="86" width="11" height="11" rx="2" fill="#7FEAF7"/><rect x="71" y="75" width="11" height="11" rx="2" fill="#FF8DBE"/>
+</svg>
+<img class="n-chat" src="assets/screens/chat-result-584.webp" srcset="assets/screens/chat-result-292.webp 292w, assets/screens/chat-result-584.webp 584w" sizes="210px" width="584" height="1226" alt="Чат бота в MAX: итог онбординга и кнопка «Открыть мини-приложение»">
+<div class="n-perk plate plate--perk">
+<span class="plate__cap">Льгота в&nbsp;твоих вузах</span>
+<span class="plate__row">МФТИ<span class="tag tag--green">БВИ</span></span>
+<span class="plate__row">ИТМО<span class="tag tag--brand">100 баллов</span></span>
+</div>
+<div class="n-soon plate">
+<span class="plate__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 003.4 0"/></svg></span>
+<span class="plate__txt"><b>Через 3 дня</b><span>регистрация на&nbsp;«Высшую пробу»</span></span>
+</div>
+</div>
 </section>
 
-<main class="sheet" id="main">
+<section id="problem" class="sec sec--problem wrap">
+<h2 class="h2 problem__title">Олимпиада&nbsp;— короткий путь на&nbsp;бюджет. Только дорогу к&nbsp;нему никто не&nbsp;показывает</h2>
+<div class="stats">
+<div class="stat stat--violet">
+<span class="stat__label">ВсОШ и&nbsp;ещё</span>
+<div class="stat__num">83</div>
+<p class="stat__text"><span class="d-only">олимпиады из&nbsp;перечня дают льготы при поступлении</span><span class="m-only">олимпиады из&nbsp;перечня дают льготы</span></p>
+<svg class="stat__deco d-only" viewBox="0 0 48 48" aria-hidden="true"><rect x="24" y="0" width="24" height="24" fill="#6B2BFF"/><rect x="0" y="24" width="24" height="24" fill="#DCCFFF"/></svg>
+</div>
+<div class="stat stat--cyan">
+<span class="stat__label"><span class="d-only">У&nbsp;одной «Высшей пробы»</span><span class="m-only">У&nbsp;«Высшей пробы»</span></span>
+<div class="stat__num">25</div>
+<p class="stat__text"><span class="d-only">профилей, у&nbsp;каждого свой уровень</span><span class="m-only">профилей, у&nbsp;каждого свой уровень и&nbsp;классы</span></p>
+<svg class="stat__deco d-only" viewBox="0 0 48 48" aria-hidden="true"><rect x="24" y="0" width="24" height="24" fill="#7FEAF7"/><rect x="0" y="24" width="24" height="24" fill="#B8EEF5"/></svg>
+</div>
+<div class="stat stat--pink">
+<span class="stat__label"><span class="d-only">МФТИ за&nbsp;один год сократил</span><span class="m-only">МФТИ за&nbsp;год сократил</span></span>
+<div class="stat__num stat__num--long">50→35</div>
+<p class="stat__text"><span class="d-only">учитываемых олимпиад: каждый вуз решает сам</span><span class="m-only">олимпиад: каждый вуз решает сам</span></p>
+<svg class="stat__deco d-only" viewBox="0 0 48 48" aria-hidden="true"><rect x="24" y="0" width="24" height="24" fill="#FF3D8B"/><rect x="0" y="24" width="24" height="24" fill="#FFC6DB"/></svg>
+</div>
+<div class="stat stat--amber">
+<span class="stat__label">Каждый четвёртый</span>
+<div class="stat__num">26%</div>
+<p class="stat__text">абитуриентов не&nbsp;хватало информации о&nbsp;поступлении</p>
+<svg class="stat__deco d-only" viewBox="0 0 48 48" aria-hidden="true"><rect x="24" y="0" width="24" height="24" fill="#FFC94D"/><rect x="0" y="24" width="24" height="24" fill="#FFE3A3"/></svg>
+</div>
+</div>
+<div class="verdict">
+<p class="verdict__text">Всё это разбросано по&nbsp;сотням сайтов, и&nbsp;о&nbsp;сроках никто не&nbsp;напоминает. «Траектория» собирает это в&nbsp;одном чате.</p>
+<a class="btn btn--white verdict__btn d-only" href="#start">Как это работает
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+<p class="sources d-only">Источники: приказ Минобрнауки №&nbsp;669; проект перечня на&nbsp;2026/27; пресс-служба МФТИ, 2025; опрос 4005 первокурсников, 2025.</p>
+<p class="sources m-only">Перечень олимпиад на&nbsp;2025/26, приказ Минобрнауки №&nbsp;669; МФТИ&nbsp;— пресс-служба вуза, 2025; опрос 4005 первокурсников, 2025.</p>
+</section>
 
-  <section class="problem wrap" aria-labelledby="problem-title">
-    <h2 id="problem-title" class="problem-title">Олимпиада — короткий путь на&nbsp;бюджет. Только дорогу к&nbsp;нему никто не&nbsp;показывает</h2>
-    <p class="problem-text reveal">
-      Льготы при поступлении дают ВсОШ и&nbsp;ещё <b>83&nbsp;олимпиады</b> из&nbsp;перечня.
-      У&nbsp;одной «Высшей пробы» <b>25&nbsp;профилей</b>, и&nbsp;уровень у&nbsp;каждого свой.
-      А&nbsp;льготу определяет вуз: какие олимпиады учесть, за&nbsp;какой класс, с&nbsp;каким баллом ЕГЭ, обычно от&nbsp;<b>75</b>.
-      Всё это разбросано по&nbsp;сотням сайтов, и&nbsp;о&nbsp;сроках никто не&nbsp;напоминает.
-    </p>
-    <p class="problem-note">Перечень олимпиад школьников на 2025/26 учебный год, приказ Минобрнауки № 669</p>
-  </section>
+<section id="start" class="sec sec--start wrap">
+<div class="sec__head">
+<h2 class="h2">Три шага, чтобы начать пользоваться</h2>
+<p class="lead d-only">«Траектория» живёт в&nbsp;одном чате MAX: сначала бот задаёт пару вопросов, потом в&nbsp;этом&nbsp;же чате открывается мини-приложение.</p>
+<p class="lead m-only">«Траектория» живёт в&nbsp;одном чате MAX: сначала бот задаёт пару вопросов, потом там&nbsp;же открывается мини-приложение.</p>
+</div>
+<div class="steps">
+<article class="step">
+<span class="step__num step__num--1">Шаг 1</span>
+<h3 class="step__title">Откройте бота в&nbsp;MAX</h3>
+<p class="step__text">Кнопка ведёт прямо в&nbsp;чат. Ничего устанавливать не&nbsp;нужно.</p>
+<a class="btn btn--brand step__btn d-only" href="https://max.ru/t356_hakaton_max_bot">Открыть бота</a>
+<div class="step__floor floor--violet"></div>
+<img class="step__shot" src="assets/screens/max-search-bot-584.webp" srcset="assets/screens/max-search-bot-292.webp 292w, assets/screens/max-search-bot-584.webp 584w" sizes="(max-width: 767px) 200px, 240px" width="584" height="1226" loading="lazy" decoding="async" alt="Бот «Траектория» в поиске MAX с кнопкой «Открыть»">
+</article>
+<article class="step">
+<span class="step__num step__num--2">Шаг 2</span>
+<h3 class="step__title">Ответьте на&nbsp;вопросы бота</h3>
+<p class="step__text d-only">Класс, регион, любимые предметы, цель и&nbsp;вузы. Нет цели? Бот поможет найти её по&nbsp;интересам.</p>
+<p class="step__text m-only">Класс, регион, любимые предметы, цель и&nbsp;вузы.</p>
+<div class="step__floor floor--cyan"></div>
+<img class="step__shot" src="assets/screens/chat-onboarding-584.webp" srcset="assets/screens/chat-onboarding-292.webp 292w, assets/screens/chat-onboarding-584.webp 584w" sizes="(max-width: 767px) 200px, 240px" width="584" height="1226" loading="lazy" decoding="async" alt="Бот спрашивает имя, класс, регион и любимые предметы">
+</article>
+<article class="step">
+<span class="step__num step__num--3">Шаг 3</span>
+<h3 class="step__title">Откройте мини-приложение</h3>
+<p class="step__text d-only">Бот соберёт подборку и&nbsp;пришлёт кнопку «Открыть мини-приложение»&nbsp;— оно откроется прямо поверх чата.</p>
+<p class="step__text m-only">Бот пришлёт кнопку «Открыть мини-приложение»&nbsp;— подборка откроется поверх чата.</p>
+<div class="step__floor floor--pink"></div>
+<img class="step__shot" src="assets/screens/app-match-584.webp" srcset="assets/screens/app-match-292.webp 292w, assets/screens/app-match-584.webp 584w" sizes="(max-width: 767px) 200px, 240px" width="584" height="1226" loading="lazy" decoding="async" alt="Подборка под цель: олимпиады с уровнем, сроком и льготой в вузах ученика">
+</article>
+</div>
+</section>
 
-  <section class="start wrap" id="start" aria-labelledby="start-title">
-    <h2 id="start-title">Три шага до своей подборки</h2>
-    <ol class="steps">
-      <li class="step reveal">
-        <span class="step-n" aria-hidden="true">1</span>
-        <h3>Откройте бота в&nbsp;MAX</h3>
-        <p>Кнопка «Открыть в MAX» ведёт прямо в&nbsp;чат. Ничего устанавливать не&nbsp;нужно.</p>
-        <img class="step-shot" src="assets/screens/A2.webp" width="292" height="613" alt="Бот здоровается и спрашивает, кто пришёл: школьник или родитель" loading="lazy" decoding="async">
-      </li>
-      <li class="step reveal">
-        <span class="step-n" aria-hidden="true">2</span>
-        <h3>Ответьте на&nbsp;пару вопросов</h3>
-        <p>Класс, регион, любимые предметы, цель и&nbsp;вузы. Нет цели? Помогут три вопроса об&nbsp;интересах.</p>
-        <img class="step-shot" src="assets/screens/A6.webp" width="292" height="613" alt="Выбор вузов, в которые хочет поступить ученик" loading="lazy" decoding="async">
-      </li>
-      <li class="step reveal">
-        <span class="step-n" aria-hidden="true">3</span>
-        <h3>Получите подборку</h3>
-        <p>3–5 олимпиад под цель, льготы в&nbsp;ваших вузах и&nbsp;напоминания о&nbsp;сроках прямо в&nbsp;чат.</p>
-        <img class="step-shot" src="assets/screens/I1.webp" width="292" height="613" alt="Напоминания о регистрации с кнопками «Открыть регистрацию» и «Я зарегистрировался»" loading="lazy" decoding="async">
-      </li>
-    </ol>
-  </section>
+<section id="features" class="sec sec--features wrap">
+<div class="sec__head">
+<h2 class="h2">Что внутри мини-приложения</h2>
+<p class="lead d-only">Это продолжение того&nbsp;же чата: ответы боту уже в&nbsp;профиле, а&nbsp;напоминания бот пришлёт туда&nbsp;же, где вы с&nbsp;ним общались.</p>
+<p class="lead m-only">Это продолжение того&nbsp;же чата: ответы боту уже в&nbsp;профиле, а&nbsp;напоминания бот пришлёт туда&nbsp;же.</p>
+</div>
+<article class="perk">
+<svg class="perk__steps d-only" viewBox="0 0 400 240" aria-hidden="true">
+<rect x="0" y="180" width="400" height="60" fill="#DCCFFF"/><rect x="100" y="120" width="300" height="60" fill="#DCCFFF"/><rect x="200" y="60" width="200" height="60" fill="#DCCFFF"/><rect x="300" y="0" width="100" height="60" fill="#DCCFFF"/>
+<rect x="100" y="120" width="30" height="30" fill="#7FEAF7"/><rect x="300" y="0" width="30" height="30" fill="#FF3D8B"/>
+</svg>
+<div class="perk__text">
+<span class="badge badge--white">В мини-приложении</span>
+<h3 class="h3 perk__title">Льгота именно в&nbsp;ваших вузах</h3>
+<p class="perk__lead d-only">Выберите олимпиаду&nbsp;— и&nbsp;сразу видно, что она даст в&nbsp;каждом вашем вузе.</p>
+<p class="perk__lead m-only">Сразу видно, что даст олимпиада в&nbsp;каждом вашем вузе: <b>БВИ</b>&nbsp;— поступление без экзаменов или <b>100&nbsp;баллов</b> ЕГЭ.</p>
+<ul class="perk__list d-only">
+<li><span class="sq"></span><span><b>БВИ</b>&nbsp;— поступление без вступительных экзаменов</span></li>
+<li><span class="sq"></span><span><b>100 баллов</b>&nbsp;— диплом засчитают как 100 баллов ЕГЭ по&nbsp;предмету</span></li>
+<li><span class="sq"></span><span><b>Сроки</b>&nbsp;— когда регистрация и&nbsp;этапы, чтобы ничего не&nbsp;пропустить</span></li>
+</ul>
+</div>
+<img class="perk__shot" src="assets/screens/app-olympiad-card-584.webp" srcset="assets/screens/app-olympiad-card-292.webp 292w, assets/screens/app-olympiad-card-584.webp 584w" sizes="(max-width: 767px) 200px, 240px" width="584" height="1226" loading="lazy" decoding="async" alt="Карточка олимпиады: льгота в каждом вузе ученика и даты этапов">
+</article>
+<div class="duo">
+<article class="panel panel--light">
+<span class="badge badge--lilac">В мини-приложении и&nbsp;в&nbsp;чате</span>
+<h3 class="h3 panel__title">Ни&nbsp;одной пропущенной регистрации</h3>
+<p class="panel__text d-only">Олимпиада попадает в&nbsp;трекер одной кнопкой. Напоминания приходят в&nbsp;чат MAX за&nbsp;месяц, неделю, три дня и&nbsp;накануне, а&nbsp;все сроки можно выгрузить в&nbsp;свой календарь.</p>
+<p class="panel__text m-only">Трекер в&nbsp;одну кнопку, напоминания в&nbsp;чат и&nbsp;выгрузка сроков в&nbsp;ваш календарь.</p>
+<div class="panel__stage">
+<div class="panel__floor floor--pink"></div>
+<img class="panel__shot swap-a" src="assets/screens/chat-reminders-584.webp" srcset="assets/screens/chat-reminders-292.webp 292w, assets/screens/chat-reminders-584.webp 584w" sizes="(max-width: 767px) 200px, 250px" width="584" height="1226" loading="lazy" decoding="async" alt="Напоминания о регистрации в чате MAX с кнопками «Открыть регистрацию» и «Я зарегистрировался»">
+<img class="panel__shot swap-b" src="assets/screens/app-calendar-export-584.webp" srcset="assets/screens/app-calendar-export-292.webp 292w, assets/screens/app-calendar-export-584.webp 584w" sizes="(max-width: 767px) 200px, 250px" width="584" height="1226" loading="lazy" decoding="async" alt="Календарь олимпиад с кнопкой «Выгрузить в календарь» для Google, Apple и других календарей">
+<div class="float float--deadline swap-a d-only"><span class="float__dot"></span><span>3 дня до&nbsp;срока</span></div>
+<div class="float float--calendar swap-b d-only"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B2BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg><span>Google и&nbsp;Apple Календарь</span></div>
+</div>
+</article>
+<article class="panel panel--night">
+<span class="badge badge--night">В мини-приложении</span>
+<h3 class="h3 panel__title">Помощник, который не&nbsp;выдумывает</h3>
+<p class="panel__text d-only">Отвечает только по&nbsp;карточкам олимпиад и&nbsp;вузов из&nbsp;базы: у&nbsp;каждого факта есть ссылка на&nbsp;первоисточник. Если ответа нет, так и&nbsp;скажет.</p>
+<p class="panel__text m-only">Отвечает только по&nbsp;базе, у&nbsp;каждого факта есть первоисточник. Нет ответа&nbsp;— так и&nbsp;скажет.</p>
+<div class="panel__stage">
+<div class="panel__floor floor--night"></div>
+<img class="panel__shot swap-a" src="assets/screens/app-assistant-answer-584.webp" srcset="assets/screens/app-assistant-answer-292.webp 292w, assets/screens/app-assistant-answer-584.webp 584w" sizes="(max-width: 767px) 200px, 250px" width="584" height="1226" loading="lazy" decoding="async" alt="Помощник отвечает со ссылкой на карточку и первоисточник">
+<img class="panel__shot swap-b" src="assets/screens/app-assistant-nodata-584.webp" srcset="assets/screens/app-assistant-nodata-292.webp 292w, assets/screens/app-assistant-nodata-584.webp 584w" sizes="(max-width: 767px) 200px, 250px" width="584" height="1226" loading="lazy" decoding="async" alt="Помощник честно отвечает, что данных нет, и даёт ссылку на первоисточник">
+<div class="float float--answer swap-a d-only"><span class="tag tag--fact">Факт</span><span>ответ со&nbsp;ссылкой на&nbsp;источник</span></div>
+<div class="float float--answer swap-b d-only"><span class="tag tag--nodata">Данных нет</span><span>и&nbsp;ссылка на&nbsp;источник</span></div>
+</div>
+</article>
+</div>
+</section>
 
-  <section class="features" id="features" aria-labelledby="features-title">
-    <div class="wrap">
-      <h2 id="features-title">Что умеет мини-приложение</h2>
-      <p class="lead">Оно открывается поверх чата, и&nbsp;профиль в&nbsp;нём уже заполнен ответами из&nbsp;диалога.</p>
-      <div class="tabs" data-tabs>
-        <div class="tab-list" role="tablist" aria-label="Возможности" hidden>
-          <button role="tab" id="t-match" aria-controls="p-match" aria-selected="true">Подбор</button>
-          <button role="tab" id="t-benefit" aria-controls="p-benefit" aria-selected="false" tabindex="-1">Льготы в&nbsp;вузах</button>
-          <button role="tab" id="t-tracker" aria-controls="p-tracker" aria-selected="false" tabindex="-1">Сроки</button>
-          <button role="tab" id="t-ai" aria-controls="p-ai" aria-selected="false" tabindex="-1">Помощник</button>
-          <button role="tab" id="t-catalog" aria-controls="p-catalog" aria-selected="false" tabindex="-1">Каталог</button>
-        </div>
-        <div class="tab-panel" role="tabpanel" id="p-match" aria-labelledby="t-match">
-          <div class="tp-copy">
-            <h3>3–5 олимпиад, и&nbsp;у&nbsp;каждой причина</h3>
-            <p>Олимпиады из&nbsp;перечня и&nbsp;ВсОШ под цель ученика. Рядом видно, почему подходит: профиль совпадает с&nbsp;целью, уровень, льгота в&nbsp;выбранных вузах. Фильтры по&nbsp;уровню, скорому сроку и&nbsp;онлайн-отбору.</p>
-          </div>
-          <img class="tp-shot" src="assets/screens/C3.webp" width="292" height="613" alt="Подбор: «Высшая проба» и ВсОШ по информатике с уровнем, сроком и причиной рекомендации" loading="lazy" decoding="async">
-        </div>
-        <div class="tab-panel" role="tabpanel" id="p-benefit" aria-labelledby="t-benefit">
-          <div class="tp-copy">
-            <h3>Льгота именно в&nbsp;ваших вузах</h3>
-            <p>БВИ или 100 баллов в&nbsp;каждом вузе ученика, уровень конкретного профиля и&nbsp;условия: подтвердить ЕГЭ от&nbsp;75 баллов, засчитают&nbsp;ли диплом 9&nbsp;класса. У&nbsp;каждой льготы ссылка на&nbsp;правила приёма и&nbsp;дата проверки.</p>
-          </div>
-          <img class="tp-shot" src="assets/screens/C5.webp" width="292" height="613" alt="Карточка «Высшей пробы»: уровень по профилям и льгота в Иннополисе, КФУ и ВШЭ" loading="lazy" decoding="async">
-        </div>
-        <div class="tab-panel" role="tabpanel" id="p-tracker" aria-labelledby="t-tracker">
-          <div class="tp-copy">
-            <h3>Ни&nbsp;одной пропущенной регистрации</h3>
-            <p>Олимпиада попадает в&nbsp;трекер одной кнопкой. Напоминания приходят в&nbsp;чат MAX за&nbsp;месяц, неделю, три дня и&nbsp;накануне. Отметить регистрацию можно прямо из&nbsp;сообщения.</p>
-          </div>
-          <img class="tp-shot" src="assets/screens/E1.webp" width="292" height="613" alt="Трекер: статусы регистраций и отметка, кто её поставил" loading="lazy" decoding="async">
-        </div>
-        <div class="tab-panel" role="tabpanel" id="p-ai" aria-labelledby="t-ai">
-          <div class="tp-copy">
-            <h3>Помощник, который не&nbsp;выдумывает</h3>
-            <p>Отвечает по&nbsp;карточкам олимпиад и&nbsp;вузов из&nbsp;базы и&nbsp;даёт ссылку на&nbsp;первоисточник. Если ответа в&nbsp;базе нет, так и&nbsp;скажет. У&nbsp;каждого участника свой чат, другие его не&nbsp;видят.</p>
-          </div>
-          <img class="tp-shot" src="assets/screens/F1.webp" width="292" height="613" alt="Помощник отвечает, какие льготы даёт «Высшая проба», с меткой «Факт»" loading="lazy" decoding="async">
-        </div>
-        <div class="tab-panel" role="tabpanel" id="p-catalog" aria-labelledby="t-catalog">
-          <div class="tp-copy">
-            <h3>Все олимпиады и&nbsp;вузы под рукой</h3>
-            <p>Каталог с&nbsp;поиском и&nbsp;фильтрами по&nbsp;предмету и&nbsp;городу. В&nbsp;карточке вуза видно, по&nbsp;каким олимпиадам туда поступают с&nbsp;льготой и&nbsp;какой нужен балл ЕГЭ.</p>
-          </div>
-          <img class="tp-shot" src="assets/screens/D3.webp" width="292" height="613" alt="Карточка вуза: направления, олимпиады с льготой и порог ЕГЭ" loading="lazy" decoding="async">
-        </div>
-      </div>
-    </div>
-  </section>
+<section id="roles" class="sec sec--roles wrap">
+<h2 class="h2 roles__title">Одна траектория на&nbsp;ученика и&nbsp;его семью</h2>
+<div class="roles">
+<article class="role role--student">
+<svg class="role__icon" viewBox="0 0 96 96" aria-hidden="true">
+<path d="M16 96c0-18 14-30 32-30s32 12 32 30z" fill="#7FEAF7"/>
+<circle cx="48" cy="48" r="15" fill="#FFFFFF"/>
+<path d="M33 30v9c0 4 7 7 15 7s15-3 15-7v-9l-15 6z" fill="#17142A"/>
+<path d="M48 12l32 13-32 13-32-13z" fill="#17142A"/>
+<path d="M74 27v14" stroke="#FF3D8B" stroke-width="3" stroke-linecap="round" fill="none"/>
+<circle cx="74" cy="43" r="3.5" fill="#FF3D8B"/>
+</svg>
+<h3 class="h3 role__title">Ученику</h3>
+<p class="role__lead">Понятный путь к&nbsp;своему вузу</p>
+<ul class="role__list">
+<li><span class="sq"></span><span>3+ олимпиад под твою цель</span></li>
+<li><span class="sq"></span><span>Льгота в&nbsp;каждом твоём вузе</span></li>
+<li><span class="sq"></span><span>Напоминания о&nbsp;сроках в&nbsp;чат</span></li>
+<li><span class="sq"></span><span>ИИ-помощник ответит на&nbsp;вопросы</span></li>
+</ul>
+<a class="btn role__btn d-only" href="https://max.ru/t356_hakaton_max_bot">Начать в&nbsp;MAX</a>
+</article>
+<article class="role role--parent">
+<svg class="role__icon" viewBox="0 0 96 96" aria-hidden="true">
+<path d="M6 96c0-24 12-38 27-38s27 14 27 38z" fill="#6B2BFF"/>
+<circle cx="33" cy="34" r="14" fill="#8F63FF"/>
+<path d="M50 96c0-17 9-28 20-28s20 11 20 28z" fill="#FF3D8B"/>
+<circle cx="70" cy="54" r="10" fill="#FF8DBE"/>
+</svg>
+<h3 class="h3 role__title">Родителю</h3>
+<p class="role__lead">Видите сроки и&nbsp;понимаете льготы</p>
+<ul class="role__list">
+<li><span class="sq"></span><span>Та же траектория, что у&nbsp;ребёнка</span></li>
+<li><span class="sq"></span><span>Напоминания приходят и&nbsp;вам</span></li>
+<li><span class="sq"></span><span>Предлагаете олимпиаду ребёнку</span></li>
+<li><span class="sq"></span><span>ИИ-помощник объяснит льготы</span></li>
+</ul>
+<a class="btn role__btn d-only" href="https://max.ru/t356_hakaton_max_bot">Начать в&nbsp;MAX</a>
+</article>
+<article class="role role--teacher">
+<svg class="role__icon d-only" viewBox="0 0 96 96" aria-hidden="true">
+<rect x="42" y="8" width="50" height="38" rx="6" fill="#FFFFFF" stroke="#6B2BFF" stroke-width="3"/>
+<path d="M51 20h30M51 31h18" stroke="#7FEAF7" stroke-width="4" stroke-linecap="round" fill="none"/>
+<rect x="76" y="28" width="7" height="7" fill="#FF3D8B"/>
+<path d="M4 96c0-22 10-34 23-34s23 12 23 34z" fill="#6B2BFF"/>
+<circle cx="27" cy="44" r="12" fill="#17142A"/>
+<path d="M44 70l16-26" stroke="#17142A" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>
+<span class="soon">Скоро</span>
+<h3 class="h3 role__title">Учителю</h3>
+<p class="role__lead d-only">Олимпиадный сезон для всего класса</p>
+<ul class="role__list d-only">
+<li><span class="sq"></span><span>Ссылка на&nbsp;бота для чата класса</span></li>
+</ul>
+<p class="role__lead role__lead--wide m-only">Ссылка на&nbsp;бота для чата класса в&nbsp;пару касаний.</p>
+</article>
+</div>
+</section>
 
-  <section class="family wrap" id="family" aria-labelledby="family-title">
-    <h2 id="family-title">Родитель предлагает, ученик решает</h2>
-    <div class="bento">
-      <div class="bento-hero reveal">
-        <img src="assets/screens/I2.webp" width="292" height="613" alt="Напоминание родителю: у Артёма через 3 дня закрывается регистрация" loading="lazy" decoding="async">
-        <img src="assets/screens/I3.webp" width="292" height="613" alt="Артём добавляет в трекер олимпиаду, которую предложила Ольга" loading="lazy" decoding="async">
-      </div>
-      <div class="bento-cell reveal">
-        <svg class="ico" aria-hidden="true"><use href="#i-users"/></svg>
-        <h3>Каждому своим голосом</h3>
-        <p>Школьнику бот пишет на&nbsp;«ты», родителю на&nbsp;«вы» и&nbsp;называет ребёнка по&nbsp;имени.</p>
-      </div>
-      <div class="bento-cell reveal">
-        <svg class="ico" aria-hidden="true"><use href="#i-link"/></svg>
-        <h3>Одноразовые приглашения</h3>
-        <p>Каждая ссылка срабатывает для одного человека. Приглашённому не&nbsp;нужно заново проходить онбординг.</p>
-      </div>
-      <div class="bento-cell reveal">
-        <svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg>
-        <h3>Общие сроки</h3>
-        <p>Напоминания приходят всем. Регистрацию может отметить любой, и&nbsp;напоминания о&nbsp;ней прекратятся у&nbsp;всех.</p>
-      </div>
-    </div>
-  </section>
+<section id="compare" class="sec sec--compare wrap">
+<div class="sec__head">
+<h2 class="h2">От&nbsp;цели до&nbsp;олимпиад и&nbsp;вузов в&nbsp;одном месте</h2>
+<p class="lead">В&nbsp;каталоге олимпиад школьник ищет сам. «Траектория» сама подбирает олимпиады, показывает условия вузов этого ученика и&nbsp;напоминает о&nbsp;сроках.</p>
+</div>
+<div class="versus">
+<div class="vs vs--catalog">
+<h3 class="h3 vs__title">Каталог олимпиад</h3>
+<ul class="vs__list">
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span>Олимпиады под цель ищете сами</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span>Условия вузов в&nbsp;десятках PDF</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span>Сроки держите в&nbsp;голове</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></span><span>Родитель разбирается отдельно</span></li>
+</ul>
+</div>
+<div class="vs vs--ours">
+<svg class="vs__deco" viewBox="0 0 120 120" aria-hidden="true"><rect x="80" y="0" width="40" height="40" fill="#7FEAF7"/><rect x="40" y="40" width="40" height="40" fill="#FF8DBE"/><rect x="80" y="40" width="40" height="40" fill="#8F63FF"/></svg>
+<h3 class="h3 vs__title">«Траектория»</h3>
+<ul class="vs__list">
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span>Подборка под цель и&nbsp;вузы ученика</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span>Льгота в&nbsp;каждом вузе с&nbsp;источником</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span>Напоминания в&nbsp;чат MAX</span></li>
+<li><span class="vs__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span>Одна траектория на&nbsp;семью</span></li>
+</ul>
+</div>
+</div>
+</section>
 
-  <section class="compare wrap" aria-labelledby="compare-title">
-    <h2 id="compare-title">Не&nbsp;справочник, а&nbsp;навигатор</h2>
-    <p class="lead">В&nbsp;каталоге олимпиад школьник ищет сам. Траектория сама подбирает олимпиады, показывает условия вузов этого ученика и&nbsp;напоминает о&nbsp;сроках.</p>
-    <div class="vs">
-      <div class="vs-col vs-old reveal">
-        <h3>Каталог олимпиад</h3>
-        <ul>
-          <li><svg aria-hidden="true"><use href="#i-close"/></svg>Олимпиады под цель ищете сами</li>
-          <li><svg aria-hidden="true"><use href="#i-close"/></svg>Условия вузов в&nbsp;десятках PDF</li>
-          <li><svg aria-hidden="true"><use href="#i-close"/></svg>Сроки держите в&nbsp;голове</li>
-          <li><svg aria-hidden="true"><use href="#i-close"/></svg>Родитель разбирается отдельно</li>
-        </ul>
-      </div>
-      <div class="vs-col vs-new reveal">
-        <h3>Траектория</h3>
-        <ul>
-          <li><svg aria-hidden="true"><use href="#i-check"/></svg>Подборка под цель и&nbsp;вузы ученика</li>
-          <li><svg aria-hidden="true"><use href="#i-check"/></svg>Льгота в&nbsp;каждом вузе с&nbsp;источником</li>
-          <li><svg aria-hidden="true"><use href="#i-check"/></svg>Напоминания в&nbsp;чат MAX</li>
-          <li><svg aria-hidden="true"><use href="#i-check"/></svg>Одна траектория на&nbsp;семью</li>
-        </ul>
-      </div>
-    </div>
-  </section>
+<section id="trust" class="sec sec--trust wrap">
+<h2 class="h2">Вузы, которые уже есть в&nbsp;базе</h2>
+<ul class="unis">
+<li class="uni"><b>МГУ</b><span class="d-only">Москва</span></li>
+<li class="uni"><b>СПбГУ</b><span class="d-only">Санкт-Петербург</span></li>
+<li class="uni"><b>ВШЭ</b><span class="d-only">Москва</span></li>
+<li class="uni"><b>МФТИ</b><span class="d-only">Долгопрудный</span></li>
+<li class="uni"><b>ИТМО</b><span class="d-only">Санкт-Петербург</span></li>
+<li class="uni"><b>НГУ</b><span class="d-only">Новосибирск</span></li>
+<li class="uni"><b>КФУ</b><span class="d-only">Казань</span></li>
+<li class="uni"><b>Иннополис</b><span class="d-only">Иннополис</span></li>
+<li class="uni"><b>Сеченовский</b><span class="d-only">Москва</span></li>
+<li class="uni"><b>Казанский ГМУ</b><span class="d-only">Казань</span></li>
+</ul>
+</section>
 
-  <section class="data wrap" id="data" aria-labelledby="data-title">
-    <div class="data-copy">
-      <h2 id="data-title">Каждый факт с&nbsp;источником</h2>
-      <p class="lead">Данные берём из&nbsp;перечня олимпиад Минобрнауки, правил приёма вузов на&nbsp;2026&nbsp;год и&nbsp;сайтов олимпиад. Метка у&nbsp;каждого факта говорит, насколько ему можно доверять.</p>
-      <dl class="labels">
-        <div><dt class="lb lb-fact">Факт</dt><dd>есть источник и&nbsp;дата проверки</dd></div>
-        <div><dt class="lb lb-rec">Рекомендация</dt><dd>наш вывод из&nbsp;профиля ученика</dd></div>
-        <div><dt class="lb lb-demo">Демо-даты</dt><dd>сроки ещё не&nbsp;опубликованы, это ориентир</dd></div>
-        <div><dt class="lb lb-tbd">Данные уточняются</dt><dd>источника пока нет, проверьте в&nbsp;правилах вуза</dd></div>
-      </dl>
-    </div>
-    <img class="data-shot reveal" src="assets/screens/F2.webp" width="292" height="613" alt="Помощник честно отвечает, что данных нет, и даёт ссылку на первоисточник" loading="lazy" decoding="async">
-    <div class="unis">
-      <h3>10 вузов в&nbsp;базе</h3>
-      <ul>
-        <li><b>МГУ</b>Москва</li>
-        <li><b>СПбГУ</b>Санкт-Петербург</li>
-        <li><b>ВШЭ</b>Москва</li>
-        <li><b>МФТИ</b>Долгопрудный</li>
-        <li><b>ИТМО</b>Санкт-Петербург</li>
-        <li><b>НГУ</b>Новосибирск</li>
-        <li><b>КФУ</b>Казань</li>
-        <li><b>Иннополис</b>Иннополис</li>
-        <li><b>Сеченовский</b>Москва</li>
-        <li><b>Казанский ГМУ</b>Казань</li>
-      </ul>
-    </div>
-  </section>
+<section id="faq" class="sec sec--faq wrap">
+<div class="faq__head">
+<h2 class="h2">Частые вопросы</h2>
+<p class="faq__hint d-only">Не&nbsp;нашли ответ? Спросите помощника прямо в&nbsp;боте.</p>
+</div>
+<div class="faq">
+<div class="faq__item">
+<button class="faq__q" type="button" data-faq-toggle aria-expanded="true" aria-controls="faq-1"><span>Нужно ли что-то устанавливать?</span><span class="faq__sign" aria-hidden="true">−</span></button>
+<div class="faq-answer" id="faq-1">
+<p class="faq__a d-only">Нет. Бот и мини-приложение работают внутри MAX: достаточно открыть чат с ботом. Мини-приложение открывается поверх чата, профиль в нём уже заполнен ответами из диалога.</p>
+<p class="faq__a m-only">Нет. Бот и мини-приложение работают внутри MAX: достаточно открыть чат с ботом. Мини-приложение открывается поверх чата, профиль уже заполнен ответами из диалога.</p>
+</div>
+</div>
+<div class="faq__item">
+<button class="faq__q" type="button" data-faq-toggle aria-expanded="false" aria-controls="faq-2"><span>Что такое БВИ?</span><span class="faq__sign" aria-hidden="true">+</span></button>
+<div class="faq-answer" id="faq-2" hidden>
+<p class="faq__a d-only">Зачисление без вступительных испытаний: с дипломом победителя или призёра можно поступить без конкурса по баллам ЕГЭ на направление, которое соответствует профилю олимпиады. Воспользоваться БВИ можно только в одном вузе и на одной программе.</p>
+<p class="faq__a m-only">Зачисление без вступительных испытаний: с дипломом победителя или призёра можно поступить без конкурса по баллам ЕГЭ на направление по профилю олимпиады. БВИ можно использовать только в одном вузе и на одной программе.</p>
+</div>
+</div>
+<div class="faq__item">
+<button class="faq__q" type="button" data-faq-toggle aria-expanded="false" aria-controls="faq-3"><span>Что значит «100 баллов»?</span><span class="faq__sign" aria-hidden="true">+</span></button>
+<div class="faq-answer" id="faq-3" hidden>
+<p class="faq__a d-only">Диплом засчитывается как 100 баллов по вступительному испытанию того предмета, которому соответствует олимпиада. Остальные экзамены сдаются как обычно. Эту льготу можно использовать в каждом вузе, куда ученик подаёт документы.</p>
+<p class="faq__a m-only">Диплом засчитывается как 100 баллов по вступительному испытанию профильного предмета. Остальные экзамены сдаются как обычно. Эту льготу можно использовать в каждом вузе.</p>
+</div>
+</div>
+<div class="faq__item">
+<button class="faq__q" type="button" data-faq-toggle aria-expanded="false" aria-controls="faq-4"><span>Нужно ли сдавать ЕГЭ, если есть диплом?</span><span class="faq__sign" aria-hidden="true">+</span></button>
+<div class="faq-answer" id="faq-4" hidden>
+<p class="faq__a d-only">Да. Льготу по олимпиаде из перечня подтверждают результатом ЕГЭ по профильному предмету не ниже 75 баллов, а вуз вправе поставить порог выше. Если порог выше, это написано в карточке олимпиады под этим вузом.</p>
+<p class="faq__a m-only">Да. Льготу по олимпиаде из перечня подтверждают ЕГЭ по профильному предмету не ниже 75 баллов, а вуз вправе поставить порог выше.</p>
+</div>
+</div>
+<div class="faq__item">
+<button class="faq__q" type="button" data-faq-toggle aria-expanded="false" aria-controls="faq-5"><span>Как удалить данные?</span><span class="faq__sign" aria-hidden="true">+</span></button>
+<div class="faq-answer" id="faq-5" hidden>
+<p class="faq__a d-only">Создатель траектории удаляет её вместе со всеми данными командой /delete в чате бота. Остальные участники могут просто выйти из траектории во вкладке «Семья».</p>
+<p class="faq__a m-only">Создатель траектории удаляет её вместе с данными командой /delete. Остальные участники могут выйти из траектории во вкладке «Семья».</p>
+</div>
+</div>
+</div>
+</section>
 
-  <section class="faq wrap" id="faq" aria-labelledby="faq-title">
-    <h2 id="faq-title">Частые вопросы</h2>
-    <div class="faq-list">
-      <details name="faq">
-        <summary>Нужно&nbsp;ли что-то устанавливать?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Нет. Бот и&nbsp;мини-приложение работают внутри MAX: достаточно открыть чат с&nbsp;ботом. Мини-приложение открывается поверх чата, профиль в&nbsp;нём уже заполнен ответами из&nbsp;диалога.</p>
-      </details>
-      <details name="faq">
-        <summary>Что такое БВИ?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Зачисление без вступительных испытаний: с&nbsp;дипломом победителя или призёра можно поступить без конкурса по&nbsp;баллам ЕГЭ на&nbsp;направление, которое соответствует профилю олимпиады. Воспользоваться БВИ можно только в&nbsp;одном вузе и&nbsp;на&nbsp;одной программе.</p>
-      </details>
-      <details name="faq">
-        <summary>Что значит «100 баллов»?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Диплом засчитывается как 100 баллов по&nbsp;вступительному испытанию того предмета, которому соответствует олимпиада. Остальные экзамены сдаются как обычно. В&nbsp;отличие от&nbsp;БВИ, эту льготу можно использовать в&nbsp;каждом вузе, куда ученик подаёт документы.</p>
-      </details>
-      <details name="faq">
-        <summary>Нужно&nbsp;ли сдавать ЕГЭ, если есть диплом?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Да. Льготу по&nbsp;олимпиаде из&nbsp;перечня подтверждают результатом ЕГЭ по&nbsp;профильному предмету не&nbsp;ниже 75&nbsp;баллов, а&nbsp;вуз вправе поставить порог выше. Если порог в&nbsp;вузе выше, это написано в&nbsp;карточке олимпиады под этим вузом.</p>
-      </details>
-      <details name="faq">
-        <summary>Когда приходят напоминания?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>В&nbsp;чат MAX за&nbsp;месяц, за&nbsp;неделю, за&nbsp;три дня и&nbsp;накануне срока, в&nbsp;10:00 по&nbsp;времени региона. Какие из&nbsp;них присылать, настраивается командой /settings в&nbsp;чате бота.</p>
-      </details>
-      <details name="faq">
-        <summary>Как подключить ребёнка или второго родителя?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Во&nbsp;вкладке «Семья» создайте ссылку-приглашение и&nbsp;отправьте её в&nbsp;MAX. По&nbsp;одной ссылке подключится один человек. Все участники видят одни и&nbsp;те&nbsp;же олимпиады и&nbsp;сроки, а&nbsp;олимпиады, которые предложил родитель, попадают в&nbsp;трекер после согласия ученика.</p>
-      </details>
-      <details name="faq">
-        <summary>Как удалить данные?<svg aria-hidden="true"><use href="#i-plus"/></svg></summary>
-        <p>Создатель траектории удаляет её вместе со&nbsp;всеми данными командой /delete в&nbsp;чате бота. Остальные участники могут просто выйти из&nbsp;траектории во&nbsp;вкладке «Семья».</p>
-      </details>
-    </div>
-  </section>
-
-  <section class="final wrap" aria-labelledby="final-title">
-    <div class="final-card">
-      <svg class="final-stairs" viewBox="0 0 400 240" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">
-        <g class="st">
-          <rect x="160" y="160" width="240" height="80"/>
-          <rect x="240" y="80" width="160" height="80"/>
-          <rect x="320" y="0" width="80" height="80"/>
-        </g>
-        <rect x="160" y="160" width="40" height="40" fill="#FF3D8B"/>
-        <rect x="320" y="0" width="40" height="40" fill="#7FEAF7"/>
-      </svg>
-      <h2 id="final-title">Начните с&nbsp;одного сообщения</h2>
-      <p>Откройте бота, ответьте на&nbsp;вопросы и&nbsp;получите олимпиады, которые ведут в&nbsp;ваши вузы.</p>
-      <a class="btn btn-light" href="https://max.ru/t356_hakaton_max_bot" target="_blank" rel="noopener">Открыть в MAX</a>
-    </div>
-  </section>
-
+<section id="cta" class="sec sec--cta wrap">
+<div class="cta">
+<svg class="cta__steps d-only" viewBox="0 0 420 280" aria-hidden="true">
+<rect x="0" y="210" width="420" height="70" fill="#7D4DFF"/><rect x="105" y="140" width="315" height="70" fill="#7D4DFF"/><rect x="210" y="70" width="210" height="70" fill="#7D4DFF"/><rect x="315" y="0" width="105" height="70" fill="#7D4DFF"/>
+<rect x="105" y="140" width="44" height="44" fill="#7FEAF7"/><rect x="210" y="70" width="44" height="44" fill="#FF8DBE"/><rect x="315" y="0" width="44" height="44" fill="#FFFFFF"/>
+</svg>
+<svg class="cta__steps m-only" viewBox="0 0 240 96" aria-hidden="true">
+<rect x="0" y="72" width="240" height="24" fill="#7D4DFF"/><rect x="80" y="48" width="160" height="24" fill="#7D4DFF"/><rect x="160" y="24" width="80" height="24" fill="#7D4DFF"/>
+<rect x="80" y="48" width="24" height="24" fill="#7FEAF7"/><rect x="160" y="24" width="24" height="24" fill="#FF8DBE"/><rect x="216" y="0" width="24" height="24" fill="#FFFFFF"/>
+</svg>
+<svg class="cta__medal d-only" viewBox="0 0 120 150" aria-hidden="true">
+<path d="M34 0h24l-8 56H26z" fill="#FF3D8B"/><path d="M62 0h24l8 56H70z" fill="#7FEAF7"/>
+<circle cx="60" cy="96" r="50" fill="#FFFFFF"/><circle cx="60" cy="96" r="38" fill="#EFE8FF"/>
+<rect x="38" y="108" width="11" height="11" rx="2" fill="#6B2BFF"/><rect x="49" y="97" width="11" height="11" rx="2" fill="#8F63FF"/><rect x="60" y="86" width="11" height="11" rx="2" fill="#7FEAF7"/><rect x="71" y="75" width="11" height="11" rx="2" fill="#FF3D8B"/>
+</svg>
+<h2 class="cta__title">Начните с&nbsp;одного сообщения</h2>
+<p class="cta__text">Откройте бота, ответьте на&nbsp;вопросы и&nbsp;получите олимпиады, которые ведут в&nbsp;ваши вузы.</p>
+<a class="btn btn--white btn--lg cta__btn" href="https://max.ru/t356_hakaton_max_bot">Открыть в&nbsp;MAX
+<svg class="d-only" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+</div>
+</section>
 </main>
 
 <footer class="foot">
-  <div class="wrap foot-in">
-    <div class="foot-brand">
-      <svg width="32" height="32" aria-hidden="true"><use href="#i-logo"/></svg>
-      <p><b>Траектория</b><br>Навигатор по&nbsp;олимпиадам и&nbsp;поступлению в&nbsp;MAX</p>
-    </div>
-    <p class="foot-note">Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения». Сроки части олимпиад демонстрационные: даты сезона 2026/27 олимпиады публикуют постепенно. На&nbsp;экранах примеры данных.</p>
-  </div>
+<div class="foot__in wrap">
+<div class="foot__top">
+<div class="foot__about">
+<img class="foot__logo" src="assets/logo/traektoriya-logo.svg" alt="Траектория" width="231" height="48" loading="lazy" decoding="async">
+<p>Бот и&nbsp;мини-приложение про олимпиады и&nbsp;поступление в&nbsp;MAX.</p>
+</div>
+<div class="foot__cols">
+<nav class="foot__col" aria-label="Продукт">
+<span class="foot__cap">Продукт</span>
+<a href="#start">Как начать</a>
+<a href="#features">Возможности</a>
+<a href="#roles">Для кого</a>
+<a href="#faq">Вопросы</a>
+</nav>
+<div class="foot__col">
+<span class="foot__cap">В&nbsp;MAX</span>
+<a href="https://max.ru/t356_hakaton_max_bot">Открыть бота</a>
+</div>
+</div>
+</div>
+<p class="foot__note d-only">Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения». Сроки части олимпиад демонстрационные: даты сезона 2026/27 олимпиады публикуют постепенно. На&nbsp;экранах примеры данных.</p>
+<p class="foot__note m-only">Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения». Сроки части олимпиад демонстрационные. На&nbsp;экранах примеры данных.</p>
+</div>
 </footer>
-
 </body>
 </html>
