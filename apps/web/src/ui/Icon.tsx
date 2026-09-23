@@ -11,6 +11,7 @@ import type { SVGProps } from 'react'
 export const ICON_PATHS = {
   back: 'M15 18l-6-6 6-6',
   chevron: 'M9 6l6 6-6 6',
+  down: 'M6 9l6 6 6-6',
   close: 'M18 6L6 18M6 6l12 12',
   dots: 'M5 12h.01M12 12h.01M19 12h.01',
   search: 'M11 4a7 7 0 100 14a7 7 0 100-14zM20 20l-4-4',
@@ -30,6 +31,7 @@ export const ICON_PATHS = {
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   link: 'M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1',
   send: 'M4 12l16-8-6 16-2-7z',
+  pencil: 'M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16zM13.5 6.5l4 4',
   refresh: 'M20 11a8 8 0 10-2.3 5.7M20 4v7h-7',
   wifiOff: 'M3 3l18 18M8.5 16.5a5 5 0 017 0M5 12.9a10 10 0 015.2-2.8M19 12.9a10 10 0 00-2.4-1.7M2 8.8a15 15 0 014.2-2.7M22 8.8A15 15 0 0010.5 5.1M12 20h.01',
   book: 'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 5v16M8 7h7',

@@ -27,6 +27,10 @@ const (
 	maxAnswerRunes      = 1200
 	// MaxQuestionRunes — ТЗ §6.4: вопрос не длиннее 500 символов.
 	MaxQuestionRunes = 500
+	// HistoryMessages — сколько прошлых реплик чата видит модель (F60).
+	HistoryMessages = 10
+	// maxCarriedCards — сколько карточек прошлых ответов переносится в контекст.
+	maxCarriedCards = 6
 )
 
 // Assistant отвечает на вопросы по базе. LLM == nil — модель не
@@ -44,17 +48,20 @@ type Answer struct {
 	Refused  bool
 }
 
-// Ask — один вопрос. Ошибка — только сбой базы; недоступная или
-// непослушная модель превращается в отказ «данных нет».
-func (a *Assistant) Ask(ctx context.Context, v voice.Voice, t store.Trajectory, question string) (Answer, error) {
-	c, err := a.collect(ctx, t, question)
+// Ask — вопрос в чате. history — прошлые реплики чата от старых к новым
+// (F60): модель видит разговор, а в контекст, кроме карточек по вопросу,
+// попадают карточки, на которые опирались прошлые ответы. Ошибка — только
+// сбой базы; недоступная или непослушная модель превращается в отказ
+// «данных нет».
+func (a *Assistant) Ask(ctx context.Context, v voice.Voice, t store.Trajectory, history []store.AiMessage, question string) (Answer, error) {
+	c, err := a.collect(ctx, t, history, question)
 	if err != nil {
 		return Answer{}, err
 	}
 	if len(c.cards) == 0 || a.LLM == nil {
 		return a.refuse(ctx, v, c)
 	}
-	raw, err := a.LLM.JSON(ctx, c.prompt(v, t, question))
+	raw, err := a.LLM.JSON(ctx, c.prompt(v, t, history, question))
 	if err != nil {
 		slog.Warn("помощник: модель недоступна", "err", err)
 		return a.refuse(ctx, v, c)
@@ -85,7 +92,9 @@ type collected struct {
 	fallback []store.Source
 }
 
-func (a *Assistant) collect(ctx context.Context, t store.Trajectory, question string) (collected, error) {
+// collect ищет карточки по тексту последнего вопроса — и только по нему:
+// из истории берутся лишь карточки, на которые уже сослались ответы.
+func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []store.AiMessage, question string) (collected, error) {
 	c := collected{grade: t.Grade}
 	olympiads, err := a.Store.OlympiadNames(ctx)
 	if err != nil {
@@ -157,7 +166,55 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, question st
 		}
 		c.cards = append(c.cards, card{id: "glossary", body: glossary, sources: []store.Source{*order}})
 	}
-	return c, nil
+	return c, a.carryCards(ctx, &c, t, history, subjects, benefitUnis, uniShort)
+}
+
+// carryCards добавляет карточки, на которые опирались прошлые ответы чата:
+// без них уточнение «а когда у неё регистрация?» не к чему привязать.
+// Карточки читаются из базы заново — данные свежие. От новых ответов к
+// старым, без повторов, не больше maxCarriedCards; чего в базе больше нет,
+// то пропускается.
+func (a *Assistant) carryCards(ctx context.Context, c *collected, t store.Trajectory, history []store.AiMessage,
+	subjects, unis []string, uniShort map[string]string) error {
+	have := map[string]bool{}
+	for _, cd := range c.cards {
+		have[cd.id] = true
+	}
+	var profiles, universities []string
+	for i := len(history) - 1; i >= 0; i-- {
+		for _, r := range history[i].CardRefs {
+			if len(profiles)+len(universities) == maxCarriedCards {
+				break
+			}
+			if have[r.Type+":"+r.ID] {
+				continue
+			}
+			have[r.Type+":"+r.ID] = true
+			switch r.Type {
+			case "olympiad":
+				profiles = append(profiles, r.ID)
+			case "university":
+				if _, ok := uniShort[r.ID]; ok {
+					universities = append(universities, r.ID)
+				}
+			}
+		}
+	}
+	if len(profiles) > 0 {
+		picked, err := a.Store.Profiles(ctx, store.ProfileQuery{IDs: profiles})
+		if err != nil {
+			return err
+		}
+		if err := a.profileCards(ctx, c, t, picked, unis); err != nil {
+			return err
+		}
+	}
+	for _, uid := range universities {
+		if err := a.universityCard(ctx, c, t.ID, uid, uniShort[uid], subjects); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // glossary — термины, без которых не ответить на «чем БВИ отличается от
@@ -215,7 +272,15 @@ func (a *Assistant) olympiadCards(ctx context.Context, c *collected, t store.Tra
 		})
 		picked = append(picked, own[:min(len(own), profilesPerOlympiad)]...)
 	}
-	picked = picked[:min(len(picked), maxProfiles)]
+	return a.profileCards(ctx, c, t, picked[:min(len(picked), maxProfiles)], unis)
+}
+
+// profileCards собирает карточки профилей: этапы, льготы в вузах unis и
+// первоисточники.
+func (a *Assistant) profileCards(ctx context.Context, c *collected, t store.Trajectory, picked []store.Profile, unis []string) error {
+	if len(picked) == 0 {
+		return nil
+	}
 	ids := make([]string, len(picked))
 	for i, p := range picked {
 		ids[i] = p.ID
@@ -394,10 +459,11 @@ func appendSite(out []store.Source, p store.Profile) []store.Source {
 		Title: notify.Short(p.OlympiadName) + ": сайт олимпиады", URL: *p.OfficialURL})
 }
 
-// prompt — инструкции и карточки в системном сообщении, вопрос — отдельным
-// сообщением пользователя: текст пользователя с инструкциями не смешивается.
-// Имён и состава семьи здесь нет — только класс, предметы и вузы.
-func (c collected) prompt(v voice.Voice, t store.Trajectory, question string) []llm.Message {
+// prompt — инструкции и карточки в системном сообщении, дальше прошлые
+// реплики чата с их ролями и новый вопрос отдельным сообщением пользователя:
+// текст пользователя с инструкциями не смешивается. Имён и состава семьи
+// здесь нет — только класс, предметы и вузы.
+func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiMessage, question string) []llm.Message {
 	cards := make([]map[string]any, len(c.cards))
 	for i, cd := range c.cards {
 		body := map[string]any{"id": cd.id}
@@ -421,12 +487,17 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, question string) []
 	b.WriteString("5. Если у олимпиады demo_dates: true — скажи, что даты предварительные. Если data_unverified: true — что данные уточняются.\n")
 	b.WriteString("6. Пустой benefits_in_universities значит: в проверенных вузах льготы по этому профилю нет.\n")
 	b.WriteString("7. В card_ids перечисли id карточек, на которых основан ответ.\n")
+	b.WriteString("8. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	b.WriteString(`Ответ — только JSON-объект: {"answer": "текст", "card_ids": ["id"], "no_data": false}` + "\n")
 	fmt.Fprintf(&b, "Ученик: %d класс; предметы: %s; вузы: %s.\n", t.Grade,
 		orDash(strings.Join(c.subjects, ", ")), orDash(strings.Join(c.universities, ", ")))
 	b.WriteString("Карточки:\n")
 	b.Write(ctxJSON)
-	return []llm.Message{{Role: "system", Content: b.String()}, {Role: "user", Content: question}}
+	msgs := []llm.Message{{Role: "system", Content: b.String()}}
+	for _, m := range history {
+		msgs = append(msgs, llm.Message{Role: m.Role, Content: m.Text})
+	}
+	return append(msgs, llm.Message{Role: "user", Content: question})
 }
 
 func orDash(s string) string {

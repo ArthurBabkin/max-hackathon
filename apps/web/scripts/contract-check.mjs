@@ -265,10 +265,21 @@ async function main() {
   await call('DELETE', '/family/members/{id}', { token: kid, params: { id: '00000000-0000-4000-8000-000000000000' }, expect: 404 })
   await call('POST', '/family/leave', { token: kid, expect: 403 })
 
-  // Помощник: вопрос вне базы — шаблон без вызова модели.
-  await call('POST', '/ai/messages', { token: kid, body: { text: 'Какая завтра погода?' }, expect: 200 })
-  await call('POST', '/ai/messages', { token: kid, body: { text: '' }, expect: 400 })
-  await call('GET', '/ai/messages', { token: kid, expect: 200 })
+  // Помощник: вопросы вне базы — шаблон без вызова модели. Чат ученика
+  // родитель не видит: для него такого чата нет.
+  const chat = (await call('POST', '/ai/chats', { token: kid, body: { text: 'Какая завтра погода?' }, expect: 201 })).data?.chat
+  await call('POST', '/ai/chats', { token: kid, body: { text: '' }, expect: 400 })
+  await call('GET', '/ai/chats', { token: kid, expect: 200 })
+  if (chat) {
+    const id = { id: chat.id }
+    await call('POST', '/ai/chats/{id}/messages', { token: kid, params: id, body: { text: 'А послезавтра?' }, expect: 200 })
+    await call('POST', '/ai/chats/{id}/messages', { token: kid, params: id, body: { text: ' ' }, expect: 400 })
+    await call('GET', '/ai/chats/{id}/messages', { token: kid, params: id, expect: 200 })
+    await call('GET', '/ai/chats/{id}/messages', { token: parent, params: id, expect: 404 })
+    await call('PATCH', '/ai/chats/{id}', { token: kid, params: id, body: { title: 'Погода' }, expect: 200 })
+    await call('PATCH', '/ai/chats/{id}', { token: kid, params: id, body: { title: '' }, expect: 400 })
+    await call('PATCH', '/ai/chats/{id}', { token: parent, params: id, body: { title: 'Моё' }, expect: 404 })
+  }
 
   // Покрытие: каждая операция контракта вызвана хотя бы раз.
   for (const [template, ops] of Object.entries(spec.paths)) {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"sync"
@@ -8,11 +9,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/assistant"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
-// historyLimit — сколько последних реплик показывает чат помощника.
+// historyLimit — сколько последних реплик чата показывает экран помощника.
 const historyLimit = 50
 
 type aiMessageDTO struct {
@@ -37,9 +39,62 @@ func aiMessageOf(m store.AiMessage) aiMessageDTO {
 	return d
 }
 
-// aiHistory — GET /ai/messages (F37): только свой чат.
-func (s *Server) aiHistory(w http.ResponseWriter, r *http.Request) error {
-	msgs, err := s.store.AiMessages(r.Context(), me(r).MemberID, historyLimit)
+// maxChatTitleRunes — F59: своё название чата от 1 до 60 символов.
+const maxChatTitleRunes = 60
+
+var errChatNotFound = notFound("Чат не найден.")
+
+// aiChatDTO — AiChat контракта.
+type aiChatDTO struct {
+	ID            string    `json:"id"`
+	Title         string    `json:"title"`
+	CreatedAt     time.Time `json:"created_at"`
+	LastMessageAt time.Time `json:"last_message_at"`
+}
+
+func aiChatOf(c store.AiChat) aiChatDTO {
+	return aiChatDTO{ID: c.ID, Title: c.Title, CreatedAt: c.CreatedAt, LastMessageAt: c.LastMessageAt}
+}
+
+func aiExchangeOf(ex store.AiExchange) map[string]any {
+	return map[string]any{"chat": aiChatOf(ex.Chat), "question": aiMessageOf(ex.Question), "answer": aiMessageOf(ex.Answer)}
+}
+
+// aiChats — GET /ai/chats (F58): свои чаты, свежие сверху.
+func (s *Server) aiChats(w http.ResponseWriter, r *http.Request) error {
+	chats, err := s.store.AiChats(r.Context(), me(r).MemberID)
+	if err != nil {
+		return err
+	}
+	items := make([]aiChatDTO, len(chats))
+	for i, c := range chats {
+		items[i] = aiChatOf(c)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	return nil
+}
+
+// aiChatOfPath — свой чат из пути. Чужой, несуществующий или не uuid — 404:
+// о чужих чатах участник не узнаёт даже их существования (F37).
+func (s *Server) aiChatOfPath(r *http.Request) (store.AiChat, error) {
+	id := r.PathValue("id")
+	if !uuidRe.MatchString(id) {
+		return store.AiChat{}, errChatNotFound
+	}
+	c, err := s.store.AiChat(r.Context(), me(r).MemberID, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return c, errChatNotFound
+	}
+	return c, err
+}
+
+// aiChatHistory — GET /ai/chats/{id}/messages (F37).
+func (s *Server) aiChatHistory(w http.ResponseWriter, r *http.Request) error {
+	c, err := s.aiChatOfPath(r)
+	if err != nil {
+		return err
+	}
+	msgs, err := s.store.AiChatMessages(r.Context(), me(r).MemberID, c.ID, historyLimit)
 	if err != nil {
 		return err
 	}
@@ -54,40 +109,126 @@ func (s *Server) aiHistory(w http.ResponseWriter, r *http.Request) error {
 var errRateLimited = &Error{http.StatusTooManyRequests, "RATE_LIMITED",
 	"Слишком много вопросов подряд. Подождите минуту и спросите снова."}
 
-// askAI — POST /ai/messages (F35, F36).
-func (s *Server) askAI(w http.ResponseWriter, r *http.Request) error {
-	ctx, m := r.Context(), me(r)
+// readQuestion — текст вопроса из тела: без пробелов по краям, не пустой и
+// не длиннее 500 символов (ТЗ §6.4).
+func readQuestion(r *http.Request) (string, error) {
 	var body struct {
 		Text string `json:"text"`
 	}
 	if err := decodeJSON(r, &body); err != nil {
-		return err
+		return "", err
 	}
 	question := strings.TrimSpace(body.Text)
 	if question == "" {
-		return badRequest("Напишите вопрос.")
+		return "", badRequest("Напишите вопрос.")
 	}
 	if utf8.RuneCountInString(question) > assistant.MaxQuestionRunes {
-		return badRequest("Вопрос длиннее 500 символов — сократите его.")
+		return "", badRequest("Вопрос длиннее 500 символов — сократите его.")
 	}
+	return question, nil
+}
+
+// answer — ответ помощника на вопрос в чате с историей history (F35, F36, F60).
+func (s *Server) answer(r *http.Request, history []store.AiMessage, question string) (voice.Voice, store.Trajectory, store.AiMessage, error) {
+	ctx, m := r.Context(), me(r)
+	t, err := s.store.Trajectory(ctx, m.TrajectoryID)
+	if err != nil {
+		return voice.Voice{}, t, store.AiMessage{}, err
+	}
+	v := voice.New(voice.Role(m.Role), t.StudentName, m.FirstName)
+	ans, err := s.assistant.Ask(ctx, v, t, history, question)
+	return v, t, store.AiMessage{Text: ans.Text, CardRefs: ans.CardRefs, Sources: ans.Sources, Refused: ans.Refused}, err
+}
+
+// startAiChat — POST /ai/chats (F58, F59): новый чат начинается с вопроса и
+// называется по дню этого вопроса в часовом поясе траектории.
+func (s *Server) startAiChat(w http.ResponseWriter, r *http.Request) error {
+	question, err := readQuestion(r)
+	if err != nil {
+		return err
+	}
+	m := me(r)
 	if !s.aiLimit.allow(m.MemberID, s.now()) {
 		return errRateLimited
 	}
-	t, err := s.store.Trajectory(ctx, m.TrajectoryID)
+	v, t, ans, err := s.answer(r, nil, question)
 	if err != nil {
 		return err
 	}
-	v := voice.New(voice.Role(m.Role), t.StudentName, m.FirstName)
-	ans, err := s.assistant.Ask(ctx, v, t, question)
+	loc, err := time.LoadLocation(t.TZ)
+	if err != nil {
+		loc = moscow
+	}
+	title := v.T("ai.chatTitle", voice.Vars{"date": stages.Day(s.now().In(loc))})
+	ex, err := s.store.StartAiChat(r.Context(), m.MemberID, title, question, ans)
 	if err != nil {
 		return err
 	}
-	q, a, err := s.store.SaveAiExchange(ctx, m.MemberID, question, store.AiMessage{
-		Text: ans.Text, CardRefs: ans.CardRefs, Sources: ans.Sources, Refused: ans.Refused})
+	writeJSON(w, http.StatusCreated, aiExchangeOf(ex))
+	return nil
+}
+
+// askInAiChat — POST /ai/chats/{id}/messages: модель видит последние
+// реплики этого чата (F60).
+func (s *Server) askInAiChat(w http.ResponseWriter, r *http.Request) error {
+	question, err := readQuestion(r)
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"question": aiMessageOf(q), "answer": aiMessageOf(a)})
+	c, err := s.aiChatOfPath(r)
+	if err != nil {
+		return err
+	}
+	m := me(r)
+	if !s.aiLimit.allow(m.MemberID, s.now()) {
+		return errRateLimited
+	}
+	history, err := s.store.AiChatMessages(r.Context(), m.MemberID, c.ID, assistant.HistoryMessages)
+	if err != nil {
+		return err
+	}
+	_, _, ans, err := s.answer(r, history, question)
+	if err != nil {
+		return err
+	}
+	ex, err := s.store.SaveAiExchange(r.Context(), m.MemberID, c.ID, question, ans)
+	if errors.Is(err, store.ErrNotFound) {
+		return errChatNotFound
+	}
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, aiExchangeOf(ex))
+	return nil
+}
+
+// renameAiChat — PATCH /ai/chats/{id} (F59).
+func (s *Server) renameAiChat(w http.ResponseWriter, r *http.Request) error {
+	var body struct {
+		Title string `json:"title"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		return err
+	}
+	title := strings.TrimSpace(body.Title)
+	if title == "" {
+		return badRequest("Напишите название чата.")
+	}
+	if utf8.RuneCountInString(title) > maxChatTitleRunes {
+		return badRequest("Название длиннее 60 символов — сократите его.")
+	}
+	c, err := s.aiChatOfPath(r)
+	if err != nil {
+		return err
+	}
+	c, err = s.store.RenameAiChat(r.Context(), me(r).MemberID, c.ID, title)
+	if errors.Is(err, store.ErrNotFound) {
+		return errChatNotFound
+	}
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, aiChatOf(c))
 	return nil
 }
 

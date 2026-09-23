@@ -24,35 +24,104 @@ type AiMessage struct {
 	CreatedAt time.Time
 }
 
-// AiMessages — последние limit реплик участника, от старых к новым.
-func (s *Store) AiMessages(ctx context.Context, memberID string, limit int) ([]AiMessage, error) {
+// AiChat — чат участника с помощником (F58).
+type AiChat struct {
+	ID            string
+	Title         string
+	CreatedAt     time.Time
+	LastMessageAt time.Time
+}
+
+// AiExchange — вопрос и ответ, сохранённые в чат.
+type AiExchange struct {
+	Chat     AiChat
+	Question AiMessage
+	Answer   AiMessage
+}
+
+const aiChatCols = `id::text, title, created_at, last_message_at`
+
+func scanAiChat(r rowScanner) (AiChat, error) {
+	var c AiChat
+	return c, r.Scan(&c.ID, &c.Title, &c.CreatedAt, &c.LastMessageAt)
+}
+
+// AiChats — чаты участника, свежие сверху.
+func (s *Store) AiChats(ctx context.Context, memberID string) ([]AiChat, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+aiChatCols+` FROM ai_chats WHERE member_id = $1
+		ORDER BY last_message_at DESC, created_at DESC, id`, memberID)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanAiChat)
+}
+
+// AiChat — чат участника. Чужой чат для него не существует (F37): ErrNotFound.
+func (s *Store) AiChat(ctx context.Context, memberID, chatID string) (AiChat, error) {
+	c, err := scanAiChat(s.db.QueryRow(ctx, `SELECT `+aiChatCols+` FROM ai_chats
+		WHERE id = $1 AND member_id = $2`, chatID, memberID))
+	return c, wrap(err)
+}
+
+// RenameAiChat меняет название своего чата. Место в списке не меняется:
+// порядок задаёт последняя реплика, а не правка.
+func (s *Store) RenameAiChat(ctx context.Context, memberID, chatID, title string) (AiChat, error) {
+	c, err := scanAiChat(s.db.QueryRow(ctx, `UPDATE ai_chats SET title = $3
+		WHERE id = $1 AND member_id = $2 RETURNING `+aiChatCols, chatID, memberID, title))
+	return c, wrap(err)
+}
+
+// AiChatMessages — последние limit реплик своего чата, от старых к новым.
+func (s *Store) AiChatMessages(ctx context.Context, memberID, chatID string, limit int) ([]AiMessage, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT id, role, text, card_refs, sources, refused, created_at FROM (
 		  SELECT id::text, role, text, card_refs, sources, refused, created_at FROM ai_messages
-		  WHERE member_id = $1 ORDER BY created_at DESC, role DESC LIMIT $2) m
-		ORDER BY created_at, role DESC`, memberID, limit)
+		  WHERE chat_id = $1 AND member_id = $2 ORDER BY created_at DESC, role DESC LIMIT $3) m
+		ORDER BY created_at, role DESC`, chatID, memberID, limit)
 	if err != nil {
 		return nil, wrap(err)
 	}
 	return collect(rows, scanAiMessage)
 }
 
-func scanAiMessage(r rowScanner) (AiMessage, error) {
-	var m AiMessage
-	var refs, sources []byte
-	if err := r.Scan(&m.ID, &m.Role, &m.Text, &refs, &sources, &m.Refused, &m.CreatedAt); err != nil {
-		return m, err
-	}
-	if err := json.Unmarshal(refs, &m.CardRefs); err != nil {
-		return m, err
-	}
-	return m, json.Unmarshal(sources, &m.Sources)
+// StartAiChat создаёт чат вместе с первым вопросом и ответом: пустых чатов
+// в базе не бывает.
+func (s *Store) StartAiChat(ctx context.Context, memberID, title, question string, answer AiMessage) (AiExchange, error) {
+	var ex AiExchange
+	err := s.Tx(ctx, func(tx *Store) error {
+		var err error
+		ex.Chat, err = scanAiChat(tx.db.QueryRow(ctx, `INSERT INTO ai_chats (member_id, title)
+			VALUES ($1, $2) RETURNING `+aiChatCols, memberID, title))
+		if err != nil {
+			return wrap(err)
+		}
+		ex.Question, ex.Answer, err = tx.insertExchange(ctx, memberID, ex.Chat.ID, question, answer)
+		return err
+	})
+	return ex, err
 }
 
-// SaveAiExchange сохраняет вопрос и ответ одной транзакцией: в истории не
-// бывает вопроса без ответа. Время вопроса и ответа одно — порядок задаёт
-// роль (user раньше assistant).
-func (s *Store) SaveAiExchange(ctx context.Context, memberID, question string, answer AiMessage) (q, a AiMessage, err error) {
+// SaveAiExchange дописывает вопрос и ответ в свой чат и поднимает его в
+// списке. Чужой чат — ErrNotFound, в него ничего не пишется.
+func (s *Store) SaveAiExchange(ctx context.Context, memberID, chatID, question string, answer AiMessage) (AiExchange, error) {
+	var ex AiExchange
+	err := s.Tx(ctx, func(tx *Store) error {
+		var err error
+		ex.Chat, err = scanAiChat(tx.db.QueryRow(ctx, `UPDATE ai_chats SET last_message_at = now()
+			WHERE id = $1 AND member_id = $2 RETURNING `+aiChatCols, chatID, memberID))
+		if err != nil {
+			return wrap(err)
+		}
+		ex.Question, ex.Answer, err = tx.insertExchange(ctx, memberID, chatID, question, answer)
+		return err
+	})
+	return ex, err
+}
+
+// insertExchange пишет пару одной транзакцией: в истории не бывает вопроса
+// без ответа. Время вопроса и ответа одно — порядок задаёт роль (user
+// раньше assistant).
+func (s *Store) insertExchange(ctx context.Context, memberID, chatID, question string, answer AiMessage) (q, a AiMessage, err error) {
 	if answer.CardRefs == nil {
 		answer.CardRefs = []AiCardRef{}
 	}
@@ -67,24 +136,33 @@ func (s *Store) SaveAiExchange(ctx context.Context, memberID, question string, a
 	if err != nil {
 		return q, a, err
 	}
-	err = s.Tx(ctx, func(tx *Store) error {
-		row := tx.db.QueryRow(ctx, `
-			INSERT INTO ai_messages (member_id, role, text) VALUES ($1, 'user', $2)
-			RETURNING id::text, role, text, card_refs, sources, refused, created_at`, memberID, question)
-		if q, err = scanAiMessage(row); err != nil {
-			return wrap(err)
-		}
-		row = tx.db.QueryRow(ctx, `
-			INSERT INTO ai_messages (member_id, role, text, card_refs, sources, refused)
-			VALUES ($1, 'assistant', $2, $3, $4, $5)
-			RETURNING id::text, role, text, card_refs, sources, refused, created_at`,
-			memberID, answer.Text, refs, sources, answer.Refused)
-		if a, err = scanAiMessage(row); err != nil {
-			return wrap(err)
-		}
-		return nil
-	})
-	return q, a, err
+	row := s.db.QueryRow(ctx, `
+		INSERT INTO ai_messages (member_id, chat_id, role, text) VALUES ($1, $2, 'user', $3)
+		RETURNING id::text, role, text, card_refs, sources, refused, created_at`, memberID, chatID, question)
+	if q, err = scanAiMessage(row); err != nil {
+		return q, a, wrap(err)
+	}
+	row = s.db.QueryRow(ctx, `
+		INSERT INTO ai_messages (member_id, chat_id, role, text, card_refs, sources, refused)
+		VALUES ($1, $2, 'assistant', $3, $4, $5, $6)
+		RETURNING id::text, role, text, card_refs, sources, refused, created_at`,
+		memberID, chatID, answer.Text, refs, sources, answer.Refused)
+	if a, err = scanAiMessage(row); err != nil {
+		return q, a, wrap(err)
+	}
+	return q, a, nil
+}
+
+func scanAiMessage(r rowScanner) (AiMessage, error) {
+	var m AiMessage
+	var refs, sources []byte
+	if err := r.Scan(&m.ID, &m.Role, &m.Text, &refs, &sources, &m.Refused, &m.CreatedAt); err != nil {
+		return m, err
+	}
+	if err := json.Unmarshal(refs, &m.CardRefs); err != nil {
+		return m, err
+	}
+	return m, json.Unmarshal(sources, &m.Sources)
 }
 
 // Named — id и название для поиска упоминаний в вопросе помощнику.
