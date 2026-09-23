@@ -5,10 +5,11 @@ import { Button } from '@maxhub/max-ui'
 import { useHome } from '@/api/queries'
 import { daysLabel, daysLeft, formatToday, plural } from '@/lib/deadline'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Note, Section, SourceLine, StateBlock } from '@/ui/primitives'
+import { CardSkeletons, Note, Section, SourceLine } from '@/ui/primitives'
 import { TrackerRow } from '@/ui/TrackerRow'
 import { useSheetStack } from '@/ui/sheets'
 import { useRole, useVoice } from '@/voice/useVoice'
+import { ErrorState } from '@/ui/ErrorState'
 
 /** Кольцо прогресса регистраций в карточке цели. */
 function ProgressRing({ percent }: { percent: number }) {
@@ -80,11 +81,7 @@ export function HomeScreen() {
 
   if (home.isError || !home.data) {
     return (
-      <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-        <Button stretched iconBefore={<Icon name="refresh" size={16} />} onClick={() => void home.refetch()}>
-          {t('state.errorRetry')}
-        </Button>
-      </StateBlock>
+      <ErrorState error={home.error} onRetry={() => void home.refetch()} />
     )
   }
 

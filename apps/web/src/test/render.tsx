@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { render } from '@testing-library/react'
 import type { Permissions, Role, Session } from '@contract'
 import { keys } from '@/api/queries'
+import { errorToastCache } from '@/api/queryClient'
 import { derivePermissions } from '@/lib/permissions'
 
 export function makeSession(over: { role?: Role; is_creator?: boolean; has_kid?: boolean } = {}): Session {
@@ -45,6 +46,8 @@ export interface RenderOptions {
 
 export function renderApp(ui: ReactElement, options: RenderOptions = {}) {
   const client = new QueryClient({
+    // Ошибки действий — всплывающим сообщением, как в приложении.
+    mutationCache: errorToastCache(),
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
 
