@@ -110,35 +110,48 @@ func (s *Store) OtherMemberNames(ctx context.Context, trajectoryID, exceptMember
 
 // TrajectoryPatch — правка профиля ученика; nil означает «не менять».
 type TrajectoryPatch struct {
-	StudentName   *string
-	Grade         *int
-	RegionCode    *string
-	TZ            *string
-	DirectionID   *string
-	SubjectCodes  []string
-	UniversityIDs []string
+	StudentName *string
+	Grade       *int
+	RegionCode  *string
+	TZ          *string
+	// DirectionIDs: nil — не менять, пустой срез — «пока не решил».
+	DirectionIDs []string
+	// TargetRegionCode: nil — не менять, "" — «не важно».
+	TargetRegionCode *string
+	SubjectCodes     []string
+	UniversityIDs    []string
 }
 
-// UpdateTrajectory применяет правку одной транзакцией. Выбор направления в
-// профиле — осознанная цель, поэтому goal_status становится known.
+// UpdateTrajectory применяет правку одной транзакцией. Выбранные в профиле
+// направления — осознанная цель (known), пустой список — «пока не решил».
 func (s *Store) UpdateTrajectory(ctx context.Context, trajectoryID, memberID string, p TrajectoryPatch) error {
+	var goal *string
+	if p.DirectionIDs != nil {
+		g := GoalStatusOf(p.DirectionIDs)
+		goal = &g
+	}
 	return s.Tx(ctx, func(tx *Store) error {
 		tag, err := tx.db.Exec(ctx, `
 			UPDATE trajectories SET
-			  student_name = COALESCE($2, student_name),
-			  grade        = COALESCE($3, grade),
-			  region_code  = COALESCE($4, region_code),
-			  tz           = COALESCE($5, tz),
-			  direction_id = COALESCE($6, direction_id),
-			  goal_status  = CASE WHEN $6::text IS NULL THEN goal_status ELSE 'known' END,
-			  updated_at   = now()
+			  student_name       = COALESCE($2, student_name),
+			  grade              = COALESCE($3, grade),
+			  region_code        = COALESCE($4, region_code),
+			  tz                 = COALESCE($5, tz),
+			  goal_status        = COALESCE($6, goal_status),
+			  target_region_code = CASE WHEN $7::text IS NULL THEN target_region_code ELSE NULLIF($7, '') END,
+			  updated_at         = now()
 			WHERE id = $1 AND deleted_at IS NULL`,
-			trajectoryID, p.StudentName, p.Grade, p.RegionCode, p.TZ, p.DirectionID)
+			trajectoryID, p.StudentName, p.Grade, p.RegionCode, p.TZ, goal, p.TargetRegionCode)
 		if err != nil {
 			return wrap(err)
 		}
 		if tag.RowsAffected() == 0 {
 			return ErrNotFound
+		}
+		if p.DirectionIDs != nil {
+			if err := tx.ReplaceDirections(ctx, trajectoryID, p.DirectionIDs); err != nil {
+				return err
+			}
 		}
 		if p.SubjectCodes != nil {
 			if err := tx.ReplaceSubjects(ctx, trajectoryID, p.SubjectCodes); err != nil {
@@ -236,9 +249,9 @@ func (s *Store) AllSubjects(ctx context.Context) ([]Subject, error) {
 }
 
 type Direction struct {
-	ID           string
-	Name         string
-	SubjectCodes []string
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	SubjectCodes []string `json:"subject_codes"`
 }
 
 // Directions — направления подготовки для выбора цели (F8).
@@ -251,6 +264,33 @@ func (s *Store) Directions(ctx context.Context) ([]Direction, error) {
 		var x Direction
 		return x, r.Scan(&x.ID, &x.Name, &x.SubjectCodes)
 	})
+}
+
+// SuggestUniversities — вузы для шага «Вузы» онбординга (F9): в регионах
+// regions (пусто — где угодно), с одним из направлений directionIDs (пусто —
+// с любыми). Сначала те, где совпало больше направлений, потом где больше
+// олимпиад дают льготу.
+func (s *Store) SuggestUniversities(ctx context.Context, directionIDs, regions []string, limit int) ([]University, error) {
+	rows, err := s.db.Query(ctx, `
+		WITH names AS (SELECT array_agg(name) AS n FROM directions WHERE id = ANY($1::text[]))
+		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`, false
+		FROM universities u, names
+		WHERE (cardinality($2::text[]) = 0 OR u.region_code = ANY($2::text[]))
+		  AND (cardinality($1::text[]) = 0 OR u.directions && names.n)
+		ORDER BY cardinality(ARRAY(SELECT unnest(u.directions) INTERSECT SELECT unnest(names.n))) DESC,
+		         5 DESC, u.name
+		LIMIT $3`, nonNil(directionIDs), nonNil(regions), limit)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanUniversity)
+}
+
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 // FindUniversities — вузы по подстроке названия, для онбординга (F9):

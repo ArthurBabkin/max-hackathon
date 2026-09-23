@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -76,35 +77,47 @@ func (s *Store) ActiveMember(ctx context.Context, memberID string) (Member, erro
 // Trajectory — сводка траектории, схема TrajectorySummary без названия
 // региона (его знает справочник в Go).
 type Trajectory struct {
-	ID            string
-	StudentName   string
-	Grade         int
-	RegionCode    string
-	TZ            string
-	DirectionID   *string
-	DirectionName *string
-	// DirectionSubjects — ключевые предметы направления для подбора.
+	ID          string
+	StudentName string
+	Grade       int
+	RegionCode  string
+	TZ          string
+	// Directions — направления в порядке выбора; пусто — ученик пока не решил.
+	Directions []Direction
+	// DirectionSubjects — ключевые предметы всех направлений для подбора, без повторов.
 	DirectionSubjects []string
-	GoalStatus        string
-	HasKid            bool
-	MembersCount      int
-	CreatedAt         time.Time
+	// TargetRegionCode — где ученик хочет учиться; nil — не важно.
+	TargetRegionCode *string
+	GoalStatus       string
+	HasKid           bool
+	MembersCount     int
+	CreatedAt        time.Time
 }
 
 func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 	var t Trajectory
+	var dirs []byte
 	err := s.db.QueryRow(ctx, `
-		SELECT t.id::text, t.student_name, t.grade, t.region_code, t.tz, t.direction_id, d.name,
-		       COALESCE(d.subject_codes, '{}'), t.goal_status,
+		SELECT t.id::text, t.student_name, t.grade, t.region_code, t.tz,
+		       COALESCE((SELECT json_agg(json_build_object('id', d.id, 'name', d.name, 'subject_codes', d.subject_codes)
+		                                 ORDER BY td.position)
+		                 FROM trajectory_directions td JOIN directions d ON d.id = td.direction_id
+		                 WHERE td.trajectory_id = t.id), '[]'),
+		       ARRAY(SELECT DISTINCT c FROM trajectory_directions td
+		             JOIN directions d ON d.id = td.direction_id, unnest(d.subject_codes) AS c
+		             WHERE td.trajectory_id = t.id ORDER BY c),
+		       t.target_region_code, t.goal_status,
 		       EXISTS (SELECT 1 FROM members k WHERE k.trajectory_id = t.id AND k.role = 'kid'
 		               AND k.left_at IS NULL AND k.removed_at IS NULL),
 		       (SELECT count(*) FROM members k WHERE k.trajectory_id = t.id
 		               AND k.left_at IS NULL AND k.removed_at IS NULL),
 		       t.created_at
 		FROM trajectories t
-		LEFT JOIN directions d ON d.id = t.direction_id
 		WHERE t.id = $1 AND t.deleted_at IS NULL`, id).Scan(
-		&t.ID, &t.StudentName, &t.Grade, &t.RegionCode, &t.TZ, &t.DirectionID, &t.DirectionName,
-		&t.DirectionSubjects, &t.GoalStatus, &t.HasKid, &t.MembersCount, &t.CreatedAt)
-	return t, wrap(err)
+		&t.ID, &t.StudentName, &t.Grade, &t.RegionCode, &t.TZ, &dirs,
+		&t.DirectionSubjects, &t.TargetRegionCode, &t.GoalStatus, &t.HasKid, &t.MembersCount, &t.CreatedAt)
+	if err != nil {
+		return t, wrap(err)
+	}
+	return t, json.Unmarshal(dirs, &t.Directions)
 }

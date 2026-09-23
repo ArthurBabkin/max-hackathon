@@ -190,9 +190,13 @@ async function main() {
   const profile = (await call('GET', '/profile', { token: kid, expect: 200 })).data
   await call('PATCH', '/profile', { token: kid, body: { grade: profile.trajectory?.grade ?? profile.grade }, expect: 200 })
   await call('PATCH', '/profile', { token: kid, body: { subject_codes: [] }, expect: 400 })
+  // Направления и город — теми же значениями: демо-данные не меняются.
+  const goal = { direction_ids: profile.directions.map((d) => d.id), target_region_code: profile.target_region_code ?? '' }
+  await call('PATCH', '/profile', { token: kid, body: goal, expect: 200 })
+  await call('PATCH', '/profile', { token: kid, body: { target_region_code: '999' }, expect: 400 })
   const uniIds = (profile.universities ?? []).map((u) => u.id)
   await call('PUT', '/profile/universities', { token: kid, body: { university_ids: uniIds }, expect: 200 })
-  await call('PUT', '/profile/universities', { token: kid, body: { university_ids: [] }, expect: 400 })
+  await call('PUT', '/profile/universities', { token: kid, body: {}, expect: 400 })
 
   for (const filter of ['all', 'level1', 'soon', 'online']) {
     await call('GET', '/recommendations', { token: kid, query: { filter }, expect: 200 })

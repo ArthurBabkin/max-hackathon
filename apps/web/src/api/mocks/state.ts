@@ -77,9 +77,10 @@ export interface DemoState {
   grade: 8 | 9 | 10 | 11
   region_code: string
   region_name: string
-  direction_id: string | null
-  direction_name: string | null
-  goal_status: 'known' | 'suggested'
+  directions: { id: string; name: string }[]
+  goal_status: 'known' | 'suggested' | 'exploring'
+  /** Где ученик хочет учиться; null — не важно. */
+  target_region_code: string | null
   subjects: string[]
   universities: string[]
   members: DemoMember[]
@@ -106,9 +107,9 @@ export const state: DemoState = {
   grade: 9,
   region_code: '16',
   region_name: 'Республика Татарстан',
-  direction_id: 'dir-se',
-  direction_name: 'Программная инженерия',
+  directions: [{ id: 'dir-se', name: 'Программная инженерия' }],
   goal_status: 'known',
+  target_region_code: '16',
   subjects: ['inf', 'math'],
   universities: ['inno', 'kfu', 'hse'],
 

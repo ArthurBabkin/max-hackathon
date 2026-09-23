@@ -6,16 +6,15 @@ import (
 )
 
 type trajectorySummary struct {
-	ID            string  `json:"id"`
-	StudentName   string  `json:"student_name"`
-	Grade         int     `json:"grade"`
-	RegionCode    string  `json:"region_code"`
-	RegionName    string  `json:"region_name"`
-	DirectionID   *string `json:"direction_id"`
-	DirectionName *string `json:"direction_name"`
-	GoalStatus    string  `json:"goal_status"`
-	HasKid        bool    `json:"has_kid"`
-	MembersCount  int     `json:"members_count"`
+	ID           string          `json:"id"`
+	StudentName  string          `json:"student_name"`
+	Grade        int             `json:"grade"`
+	RegionCode   string          `json:"region_code"`
+	RegionName   string          `json:"region_name"`
+	Directions   []directionItem `json:"directions"`
+	GoalStatus   string          `json:"goal_status"`
+	HasKid       bool            `json:"has_kid"`
+	MembersCount int             `json:"members_count"`
 }
 
 func summaryOf(t store.Trajectory) trajectorySummary {
@@ -25,7 +24,16 @@ func summaryOf(t store.Trajectory) trajectorySummary {
 	}
 	return trajectorySummary{
 		ID: t.ID, StudentName: t.StudentName, Grade: t.Grade, RegionCode: t.RegionCode,
-		RegionName: region, DirectionID: t.DirectionID, DirectionName: t.DirectionName,
+		RegionName: region, Directions: directionItems(t.Directions),
 		GoalStatus: t.GoalStatus, HasKid: t.HasKid, MembersCount: t.MembersCount,
 	}
+}
+
+// directionItems — направления траектории для ответа; пусто — [], не null.
+func directionItems(ds []store.Direction) []directionItem {
+	out := make([]directionItem, len(ds))
+	for i, d := range ds {
+		out[i] = directionItem{ID: d.ID, Name: d.Name}
+	}
+	return out
 }
