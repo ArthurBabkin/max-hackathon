@@ -35,6 +35,7 @@ export function Tabbar({ trackerCount }: { trackerCount: number }) {
           key={tab.to}
           to={tab.to}
           end={tab.to === '/'}
+          data-tour={tab.to.slice(1) || 'home'}
           className={({ isActive }) => `tab${isActive ? ' tab-on' : ''}`}
         >
           <span className="tab-icon">
