@@ -46,6 +46,7 @@ jobs:
       TF_VAR_enable_workers: ${{ vars.ENABLE_WORKERS || 'false' }}
       TF_VAR_enable_database: ${{ vars.ENABLE_DATABASE || 'false' }}
       TF_VAR_enable_domain_https: ${{ vars.ENABLE_DOMAIN_HTTPS || 'false' }}
+      TF_VAR_enable_browser_demo: ${{ vars.ENABLE_BROWSER_DEMO || 'false' }}
       # Открытый ключ — не секрет, поэтому переменная, а не secret: так видно,
       # чей он, и его можно сверить глазами на ревью.
       TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
