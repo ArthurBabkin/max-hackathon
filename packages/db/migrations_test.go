@@ -328,3 +328,68 @@ func TestMigration_AiChats_OldHistoryBecomesFirstChat(t *testing.T) {
 		t.Fatal("реплика без чата должна быть запрещена")
 	}
 }
+
+// Новый онбординг (F8, F9): направление старой траектории переезжает в
+// trajectory_directions, траектория без направления становится exploring,
+// у вузов появляется регион, а диалог, застрявший на опроснике, продолжается
+// с выбора направлений.
+func TestMigration_TrajectoryDirections(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0014_trajectory_directions.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	mustExec(t, tx.Exec, dbtest.DownSection(string(raw)))
+	mustExec(t, tx.Exec, `INSERT INTO users (id, max_user_id, first_name) VALUES
+		('00000000-0000-4000-8000-00000000d001', 900000011, 'Артём')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, direction_id, goal_status) VALUES
+		('00000000-0000-4000-8000-00000000d010', 'Артём', 9, '16', 'napr-09-03-04', 'suggested'),
+		('00000000-0000-4000-8000-00000000d011', 'Игорь', 10, '16', NULL, 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO users (id, max_user_id, first_name) VALUES
+		('00000000-0000-4000-8000-00000000d002', 900000012, 'Игорь')`)
+	mustExec(t, tx.Exec, `INSERT INTO bot_dialogs (user_id, step, role, draft) VALUES
+		('00000000-0000-4000-8000-00000000d001', 'interests', 'kid', '{"name":"Артём","interests":["it"]}'),
+		('00000000-0000-4000-8000-00000000d002', 'universities', 'kid', '{"name":"Игорь","direction_id":"napr-09-03-04","goal_status":"known"}')`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	var dir string
+	var pos int
+	if err := tx.QueryRow(ctx, `SELECT direction_id, position FROM trajectory_directions
+		WHERE trajectory_id = '00000000-0000-4000-8000-00000000d010'`).Scan(&dir, &pos); err != nil || dir != "napr-09-03-04" || pos != 0 {
+		t.Fatalf("направление не переехало: %q %d (err=%v)", dir, pos, err)
+	}
+	var old, empty string
+	_ = tx.QueryRow(ctx, `SELECT goal_status FROM trajectories WHERE id = '00000000-0000-4000-8000-00000000d010'`).Scan(&old)
+	_ = tx.QueryRow(ctx, `SELECT goal_status FROM trajectories WHERE id = '00000000-0000-4000-8000-00000000d011'`).Scan(&empty)
+	if old != "suggested" || empty != "exploring" {
+		t.Fatalf("goal_status: с направлением %q, без направления %q", old, empty)
+	}
+	var step, draft string
+	_ = tx.QueryRow(ctx, `SELECT step, draft::text FROM bot_dialogs WHERE user_id = '00000000-0000-4000-8000-00000000d001'`).Scan(&step, &draft)
+	if step != "direction" || strings.Contains(draft, "interests") {
+		t.Fatalf("диалог: шаг %q, черновик %s", step, draft)
+	}
+	var picked string
+	_ = tx.QueryRow(ctx, `SELECT step || ' ' || (draft->'direction_ids')::text FROM bot_dialogs
+		WHERE user_id = '00000000-0000-4000-8000-00000000d002'`).Scan(&picked)
+	if picked != `target ["napr-09-03-04"]` {
+		t.Fatalf("диалог на вузах: %s", picked)
+	}
+	var kfu string
+	if err := tx.QueryRow(ctx, `SELECT region_code FROM universities WHERE id = 'kfu'`).Scan(&kfu); err != nil || kfu != "16" {
+		t.Fatalf("регион КФУ %q (err=%v)", kfu, err)
+	}
+	var noRegion int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM universities WHERE region_code IS NULL`).Scan(&noRegion)
+	if noRegion != 0 {
+		t.Fatalf("вузов без региона: %d — новый город нужно добавить в миграцию", noRegion)
+	}
+}

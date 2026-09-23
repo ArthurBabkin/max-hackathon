@@ -37,7 +37,9 @@ export function ProfileScreen() {
   const [name, setName] = useState('')
   const [grade, setGrade] = useState<Grade>(9)
   const [region, setRegion] = useState('')
-  const [direction, setDirection] = useState('')
+  const [selectedDirections, setSelectedDirections] = useState<string[]>([])
+  /** Где учиться: код субъекта, '' — не важно. */
+  const [target, setTarget] = useState('')
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>([])
   const [warning, setWarning] = useState<string | null>(null)
@@ -50,7 +52,8 @@ export function ProfileScreen() {
     setName(profile.data.student_name)
     setGrade(profile.data.grade as Grade)
     setRegion(profile.data.region_code)
-    setDirection(profile.data.direction_id ?? '')
+    setSelectedDirections(profile.data.directions.map((d) => d.id))
+    setTarget(profile.data.target_region_code ?? '')
     setSubjects(profile.data.subjects.map((s) => s.code))
     setSelectedUniversities(profile.data.universities.map((u) => u.id))
   }, [profile.data])
@@ -77,8 +80,8 @@ export function ProfileScreen() {
 
   const data = profile.data
 
-  /** Мультивыбор, в котором нельзя снять последний элемент (ТЗ F7, F9). */
-  const toggle = (list: string[], value: string, emptyMessage: string): string[] => {
+  /** Мультивыбор, в котором нельзя снять последний элемент (ТЗ F7). */
+  const toggleRequired = (list: string[], value: string, emptyMessage: string): string[] => {
     if (!list.includes(value)) {
       setWarning(null)
       return [...list, value]
@@ -91,6 +94,10 @@ export function ProfileScreen() {
     return list.filter((item) => item !== value)
   }
 
+  /** Мультивыбор, который может остаться пустым: направления и вузы (F8, F9). */
+  const toggle = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
+
   const submit = () => {
     // Тема живёт на устройстве и сервера не ждёт: применяется сразу.
     setThemeChoice(theme)
@@ -99,7 +106,8 @@ export function ProfileScreen() {
         student_name: name.trim(),
         grade,
         region_code: region,
-        ...(direction ? { direction_id: direction } : {}),
+        direction_ids: selectedDirections,
+        target_region_code: target,
         subject_codes: subjects,
         university_ids: selectedUniversities,
       },
@@ -181,7 +189,7 @@ export function ProfileScreen() {
               key={subject.code}
               active={subjects.includes(subject.code)}
               onClick={() =>
-                setSubjects((list) => toggle(list, subject.code, t('profile.needSubject')))
+                setSubjects((list) => toggleRequired(list, subject.code, t('profile.needSubject')))
               }
             >
               {subjects.includes(subject.code) ? '✓ ' : ''}
@@ -191,14 +199,40 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      <label className="field">
-        <span className="field-label">{t('profile.goalLabel')}</span>
-        <select className="field-select" value={direction} onChange={(event) => setDirection(event.target.value)}>
-          {direction ? null : <option value="">{t('home.goalEmpty')}</option>}
+      <div className="field">
+        <p className="field-label">
+          <span>{t('profile.goalLabel')}</span>
+          <span>{t('profile.selectedCount', { count: selectedDirections.length })}</span>
+        </p>
+        <div className="wrap-chips" role="group" aria-label={t('profile.goalLabel')}>
           {(directions.data?.items ?? []).map((d) => (
-            <option key={d.id} value={d.id}>
+            <Chip
+              key={d.id}
+              active={selectedDirections.includes(d.id)}
+              onClick={() => setSelectedDirections((list) => toggle(list, d.id))}
+            >
+              {selectedDirections.includes(d.id) ? '✓ ' : ''}
               {d.name}
-            </option>
+            </Chip>
+          ))}
+        </div>
+        <p className="field-note">{t('profile.goalHint')}</p>
+      </div>
+
+      <label className="field">
+        <span className="field-label">{t('profile.targetLabel')}</span>
+        <select className="field-select" value={target} onChange={(event) => setTarget(event.target.value)}>
+          <option value="">{t('profile.targetAny')}</option>
+          {districts.map((district) => (
+            <optgroup key={district.n} label={`${district.name} округ`}>
+              {regions
+                .filter((r) => r.district === district.n)
+                .map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.name}
+                  </option>
+                ))}
+            </optgroup>
           ))}
         </select>
       </label>
@@ -214,9 +248,7 @@ export function ProfileScreen() {
               key={university.id}
               active={selectedUniversities.includes(university.id)}
               onClick={() =>
-                setSelectedUniversities((list) =>
-                  toggle(list, university.id, t('profile.needUniversity')),
-                )
+                setSelectedUniversities((list) => toggle(list, university.id))
               }
             >
               {selectedUniversities.includes(university.id) ? '✓ ' : ''}

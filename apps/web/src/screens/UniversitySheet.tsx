@@ -53,13 +53,10 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
   const shown = showAll ? olympiads : olympiads.slice(0, PREVIEW)
 
   const toggle = () => {
+    // Вузы выбирать не обязательно (F9): последний тоже можно убрать.
     const next = isMine ? current.filter((x) => x !== university.id) : [...current, university.id]
-    // Хотя бы один вуз обязателен (F9, F49): без него не из чего считать льготы.
-    if (next.length === 0) return
     setUniversities.mutate(next)
   }
-
-  const lastOne = isMine && current.length <= 1
 
   return (
     <Sheet
@@ -162,7 +159,6 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
         <Button
           stretched
           variant={isMine ? 'secondary' : 'primary'}
-          disabled={lastOne}
           loading={setUniversities.isPending}
           iconBefore={<Icon name={isMine ? 'check' : 'plus'} size={16} />}
           onClick={toggle}
@@ -173,7 +169,7 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
 
       <p className="lock">
         <Icon name="users" size={12} />
-        {lastOne ? t('profile.needUniversity') : t('university.sharedNote')}
+        {t('university.sharedNote')}
       </p>
     </Sheet>
   )

@@ -29,20 +29,27 @@ func (s *Store) PurgeSeenUpdates(ctx context.Context, before time.Time) (int64, 
 
 // Draft — ответы онбординга до создания траектории.
 type Draft struct {
-	Name          string   `json:"name,omitempty"`
-	Grade         int      `json:"grade,omitempty"`
-	RegionCode    string   `json:"region_code,omitempty"`
-	SubjectCodes  []string `json:"subject_codes,omitempty"`
-	GoalStatus    string   `json:"goal_status,omitempty"` // known | suggested
-	DirectionID   string   `json:"direction_id,omitempty"`
-	Interests     []string `json:"interests,omitempty"` // ответы на вопросы F8 по порядку
+	Name         string   `json:"name,omitempty"`
+	Grade        int      `json:"grade,omitempty"`
+	RegionCode   string   `json:"region_code,omitempty"`
+	SubjectCodes []string `json:"subject_codes,omitempty"`
+	// DirectionIDs — выбранные направления в порядке выбора (F8).
+	DirectionIDs []string `json:"direction_ids,omitempty"`
+	// AllDirections — открыт полный список направлений, а не только
+	// подходящие под предметы.
+	AllDirections bool `json:"all_directions,omitempty"`
+	// Target — где ученик хочет учиться: код субъекта или TargetAny.
+	Target        string   `json:"target,omitempty"`
 	UniversityIDs []string `json:"university_ids,omitempty"`
 	// District — открытый федеральный округ в списке регионов.
 	District int `json:"district,omitempty"`
-	// Found — вузы, найденные поиском «Другой вуз»: их кнопки показываются
-	// рядом с основными.
-	Found []string `json:"found,omitempty"`
+	// Offered — вузы на кнопках шага вузов: предложенные по городу и
+	// направлениям и найденные поиском «Другой вуз».
+	Offered []string `json:"offered,omitempty"`
 }
+
+// TargetAny — «не важно, где учиться».
+const TargetAny = "any"
 
 // Dialog — состояние разговора с ботом.
 type Dialog struct {
@@ -263,9 +270,12 @@ func (s *Store) EnableAllReminders(ctx context.Context, memberID string) error {
 	return wrap(err)
 }
 
-// SetDirection — «Изменить цель» приглашённого (F42).
-func (s *Store) SetDirection(ctx context.Context, trajectoryID, memberID, directionID string) error {
-	return s.UpdateTrajectory(ctx, trajectoryID, memberID, TrajectoryPatch{DirectionID: &directionID})
+// SetDirections — «Изменить цель» приглашённого (F42).
+func (s *Store) SetDirections(ctx context.Context, trajectoryID, memberID string, directionIDs []string) error {
+	if directionIDs == nil {
+		directionIDs = []string{}
+	}
+	return s.UpdateTrajectory(ctx, trajectoryID, memberID, TrajectoryPatch{DirectionIDs: directionIDs})
 }
 
 // Кнопки в сообщениях бота несут id пункта трекера, предложения или

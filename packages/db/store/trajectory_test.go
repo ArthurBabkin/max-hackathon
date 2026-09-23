@@ -13,7 +13,7 @@ func ptr[T any](v T) *T { return &v }
 func demoTrajectory(userID string) NewTrajectory {
 	return NewTrajectory{
 		CreatorUserID: userID, Role: "kid", StudentName: "Артём", Grade: 9, RegionCode: "16",
-		TZ: "Europe/Moscow", DirectionID: ptr("napr-09-03-04"), GoalStatus: "known",
+		TZ: "Europe/Moscow", DirectionIDs: []string{"napr-09-03-04"},
 		SubjectCodes: []string{"inf", "math"}, UniversityIDs: []string{"innopolis", "hse", "kfu"},
 	}
 }

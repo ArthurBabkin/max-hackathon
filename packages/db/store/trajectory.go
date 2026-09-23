@@ -13,11 +13,21 @@ type NewTrajectory struct {
 	Grade         int
 	RegionCode    string
 	TZ            string
-	DirectionID   *string
-	GoalStatus    string // known | suggested
-	SourcePayload *string
-	SubjectCodes  []string
-	UniversityIDs []string
+	// DirectionIDs — направления в порядке выбора; пусто — «пока не решил».
+	DirectionIDs []string
+	// TargetRegionCode — где ученик хочет учиться; nil — не важно.
+	TargetRegionCode *string
+	SourcePayload    *string
+	SubjectCodes     []string
+	UniversityIDs    []string
+}
+
+// GoalStatusOf — known, если направления выбраны, иначе exploring.
+func GoalStatusOf(directionIDs []string) string {
+	if len(directionIDs) == 0 {
+		return "exploring"
+	}
+	return "known"
 }
 
 // CreateTrajectory создаёт траекторию целиком в одной транзакции: сама
@@ -28,9 +38,9 @@ func (s *Store) CreateTrajectory(ctx context.Context, n NewTrajectory) (Member, 
 	err := s.Tx(ctx, func(tx *Store) error {
 		var tid string
 		if err := tx.db.QueryRow(ctx, `
-			INSERT INTO trajectories (student_name, grade, region_code, tz, direction_id, goal_status, source_payload)
+			INSERT INTO trajectories (student_name, grade, region_code, tz, goal_status, target_region_code, source_payload)
 			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
-			n.StudentName, n.Grade, n.RegionCode, n.TZ, n.DirectionID, n.GoalStatus, n.SourcePayload,
+			n.StudentName, n.Grade, n.RegionCode, n.TZ, GoalStatusOf(n.DirectionIDs), n.TargetRegionCode, n.SourcePayload,
 		).Scan(&tid); err != nil {
 			return wrap(err)
 		}
@@ -39,6 +49,9 @@ func (s *Store) CreateTrajectory(ctx context.Context, n NewTrajectory) (Member, 
 			return err
 		}
 		if err := tx.ReplaceSubjects(ctx, tid, n.SubjectCodes); err != nil {
+			return err
+		}
+		if err := tx.ReplaceDirections(ctx, tid, n.DirectionIDs); err != nil {
 			return err
 		}
 		if err := tx.ReplaceUniversities(ctx, tid, n.UniversityIDs); err != nil {
@@ -84,6 +97,22 @@ func (s *Store) ReplaceSubjects(ctx context.Context, trajectoryID string, codes 
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO trajectory_subjects (trajectory_id, subject_code)
 		SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, trajectoryID, codes)
+	return wrap(err)
+}
+
+// ReplaceDirections заменяет направления траектории; порядок списка —
+// порядок выбора.
+func (s *Store) ReplaceDirections(ctx context.Context, trajectoryID string, ids []string) error {
+	if _, err := s.db.Exec(ctx, `DELETE FROM trajectory_directions WHERE trajectory_id = $1`, trajectoryID); err != nil {
+		return wrap(err)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO trajectory_directions (trajectory_id, direction_id, position)
+		SELECT $1, x.id, x.n - 1 FROM unnest($2::text[]) WITH ORDINALITY AS x(id, n)
+		ON CONFLICT DO NOTHING`, trajectoryID, ids)
 	return wrap(err)
 }
 

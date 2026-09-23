@@ -1030,6 +1030,7 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
+                        /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
                         university_ids: string[];
                     };
                 };
@@ -1376,11 +1377,14 @@ export interface components {
             region_code: string;
             /** @example Республика Татарстан */
             region_name: string;
-            direction_id: string | null;
-            /** @example Программная инженерия */
-            direction_name: string | null;
-            /** @enum {string} */
-            goal_status: "known" | "suggested";
+            /** @description Направления-цели в порядке выбора (F8). Пусто — ученик пока не решил. */
+            directions: components["schemas"]["Direction"][];
+            /**
+             * @description known — направления выбраны, exploring — пока не решил,
+             *     suggested — старые траектории, где цель предлагал опросник.
+             * @enum {string}
+             */
+            goal_status: "known" | "suggested" | "exploring";
             /**
              * @description Есть ли в траектории активный участник с ролью `kid`. От этого
              *     зависит, добавляет родитель олимпиаду сам или предлагает (ТЗ §3.2).
@@ -1699,10 +1703,17 @@ export interface components {
                 code: string;
                 name: string;
             }[];
-            direction_id: string | null;
-            direction_name: string | null;
+            directions: components["schemas"]["Direction"][];
             /** @enum {string} */
-            goal_status: "known" | "suggested";
+            goal_status: "known" | "suggested" | "exploring";
+            /**
+             * @description Где ученик хочет учиться — код субъекта РФ; null — не важно.
+             * @example 77
+             */
+            target_region_code: string | null;
+            /** @example Москва */
+            target_region_name: string | null;
+            /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
             universities: components["schemas"]["UniversityListItem"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
             other_member_names: string[];
@@ -1713,7 +1724,10 @@ export interface components {
             grade?: 8 | 9 | 10 | 11;
             region_code?: string;
             subject_codes?: string[];
-            direction_id?: string;
+            /** @description Направления в порядке выбора; пустой список — «пока не решил». */
+            direction_ids?: string[];
+            /** @description Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно. */
+            target_region_code?: string;
             university_ids?: string[];
         };
         /** @description Ссылка на карточку нашей базы — кнопка «Карточка «…»» под ответом (F35). */
