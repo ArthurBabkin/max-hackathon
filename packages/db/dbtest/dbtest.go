@@ -231,3 +231,23 @@ func redact(raw string) string {
 	}
 	return u.Redacted()
 }
+
+// Fictional накатывает вымышленные олимпиады вне перечня
+// (migrations-demo/0002): в основной сид они не входят, а блок F16 без них
+// не проверить. Повторный вызов ничего не меняет — вставки с ON CONFLICT.
+func Fictional(t testing.TB, p *pgxpool.Pool) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(MigrationsDir(), "..", "migrations-demo", "0002_fictional_olympiads.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	conn, err := p.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+	if _, err := conn.Conn().PgConn().Exec(ctx, UpSection(string(raw))).ReadAll(); err != nil {
+		t.Fatalf("вымышленные олимпиады: %v", err)
+	}
+}

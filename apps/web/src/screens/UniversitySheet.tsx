@@ -87,6 +87,31 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
         </>
       }
     >
+      {/* Что это за вуз, его сайт и правила приёма — первым делом. */}
+      <section className="block">
+        <h3 className="block-head">{t('university.aboutTitle')}</h3>
+        {university.description ? <p className="block-text">{university.description}</p> : null}
+        {university.site_url ? (
+          <button type="button" className="about-link" onClick={() => getWebApp().openLink(university.site_url!)}>
+            <Icon name="external" size={15} />
+            {t('university.site')}
+          </button>
+        ) : null}
+        {university.rules_url ? (
+          <button type="button" className="about-link" onClick={() => getWebApp().openLink(university.rules_url!)}>
+            <Icon name="doc" size={15} />
+            {t('university.rules')}
+            <span className="rules-date">
+              {university.rules_verified_at
+                ? t('university.verifiedAt', {
+                    date: formatShortDate(university.rules_verified_at) ?? university.rules_verified_at,
+                  })
+                : t('olympiad.benefitsUnknown')}
+            </span>
+          </button>
+        ) : null}
+      </section>
+
       <section className="block">
         <h3 className="block-head">{t('university.directions')}</h3>
         <div className="directions">
@@ -131,26 +156,6 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
           <h3 className="block-head">{t('university.egeTitle')}</h3>
           <p className="block-text">{t('university.egeText', { note: university.ege_note })}</p>
         </section>
-      ) : null}
-
-      {university.rules_url ? (
-        <button
-          type="button"
-          className="rules-row"
-          onClick={() => getWebApp().openLink(university.rules_url!)}
-        >
-          <span>
-            <Icon name="doc" size={15} />
-            {t('university.rules')}
-          </span>
-          <span className="rules-date">
-            {university.rules_verified_at
-              ? t('university.verifiedAt', {
-                  date: formatShortDate(university.rules_verified_at) ?? university.rules_verified_at,
-                })
-              : t('olympiad.benefitsUnknown')}
-          </span>
-        </button>
       ) : null}
 
       <div className="sheet-actions">
