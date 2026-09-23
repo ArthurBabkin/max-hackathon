@@ -46,6 +46,12 @@ jobs:
       TF_VAR_enable_workers: ${{ vars.ENABLE_WORKERS || 'false' }}
       TF_VAR_enable_database: ${{ vars.ENABLE_DATABASE || 'false' }}
       TF_VAR_enable_domain_https: ${{ vars.ENABLE_DOMAIN_HTTPS || 'false' }}
+      # Открытый ключ — не секрет, поэтому переменная, а не secret: так видно,
+      # чей он, и его можно сверить глазами на ревью.
+      TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+      # Списочная переменная приходит как JSON. По умолчанию пусто — SSH к базе
+      # закрыт всем, и открывается осознанно на время прогона Ansible.
+      TF_VAR_ssh_allowed_cidrs: ${{ vars.SSH_ALLOWED_CIDRS || '[]' }}
     steps:
       - uses: actions/checkout@v4
 

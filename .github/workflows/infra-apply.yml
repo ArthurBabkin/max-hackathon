@@ -45,6 +45,12 @@ jobs:
       TF_VAR_enable_workers: ${{ vars.ENABLE_WORKERS || 'false' }}
       TF_VAR_enable_database: ${{ vars.ENABLE_DATABASE || 'false' }}
       TF_VAR_enable_domain_https: ${{ vars.ENABLE_DOMAIN_HTTPS || 'false' }}
+      # Открытый ключ — не секрет, поэтому переменная, а не secret: так видно,
+      # чей он, и его можно сверить глазами на ревью.
+      TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+      # Списочная переменная приходит как JSON. По умолчанию пусто — SSH к базе
+      # закрыт всем, и открывается осознанно на время прогона Ansible.
+      TF_VAR_ssh_allowed_cidrs: ${{ vars.SSH_ALLOWED_CIDRS || '[]' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,8 +61,11 @@ jobs:
           for v in TF_VAR_max_bot_token TF_VAR_webhook_secret TF_VAR_jwt_secret; do
             [ -n "${!v}" ] || missing="$missing $(echo "${v#TF_VAR_}" | tr a-z A-Z)"
           done
-          if [ "$TF_VAR_enable_database" = "true" ] && [ -z "$TF_VAR_pg_password" ]; then
-            missing="$missing PG_PASSWORD"
+          if [ "$TF_VAR_enable_database" = "true" ]; then
+            [ -n "$TF_VAR_pg_password" ] || missing="$missing PG_PASSWORD"
+            # Без ключа ВМ поднимется, но войти в неё будет нечем, а значит
+            # Ansible не настроит СУБД и база останется пустой железкой.
+            [ -n "$TF_VAR_ssh_public_key" ] || missing="$missing SSH_PUBLIC_KEY(переменная)"
           fi
           if [ -n "$missing" ]; then
             echo "::error::Не заданы секреты репозитория:$missing (имена — в .github/workflows/README.md)"

@@ -18,17 +18,25 @@
 Пока база и функции не подняты, **Deploy functions** честно падает на проверке
 настроек и прод не трогает. Порядок один раз:
 
+0. **Settings → Environments → `production-infra`**, в нём Required reviewers.
+   Окружения с таким именем может не быть: GitHub тогда создаст его сам при
+   первом запуске — но **без единого правила защиты**, и apply пройдёт без
+   подтверждения. Ради чего и заводился гейт, в этом случае теряется.
 1. Завести секреты и переменные из раздела «Настройка» (кроме `DATABASE_URL`
    и `YC_API_URL` — их ещё неоткуда взять).
-2. Переменные `ENABLE_DATABASE=true`, `ENABLE_WORKERS=true`.
-3. **Actions → Infra apply**. Создаёт кластер (минут 10), Lockbox, функции с
-   настройками, шлюз и таймеры. Код в новые функции кладёт сам Terraform.
-4. `tofu output -raw database_url` → секрет `DATABASE_URL`,
+2. Переменные `ENABLE_DATABASE=true`, `ENABLE_WORKERS=true`, `SSH_PUBLIC_KEY`
+   и `SSH_ALLOWED_CIDRS` со своим адресом — Ansible пойдёт на ВМ оттуда.
+3. **Actions → Infra apply**. Поднимает ВМ с базой, диск, адрес, Lockbox,
+   функции с настройками, шлюз и таймеры. Код в новые функции кладёт Terraform.
+4. Настроить саму СУБД — [infra/ansible](../../infra/ansible/README.md).
+   До этого шага база не существует: ВМ есть, PostgreSQL на ней нет.
+5. `tofu output -raw database_url` → секрет `DATABASE_URL`,
    `tofu output -raw api_url` → переменная `YC_API_URL`.
-5. **Deploy functions → Run workflow**: миграции, код, проверки.
+6. **Deploy functions → Run workflow**: миграции, код, проверки.
    **Deploy web → Run workflow**: мини-приложение с адресом api.
-6. Вебхук MAX — один раз, командой из корневого README. Пока подписка есть,
+7. Вебхук MAX — один раз, командой из корневого README. Пока подписка есть,
    локальный long polling (`BOT_MODE=poll`) ничего не получает.
+8. Закрыть SSH обратно: `SSH_ALLOWED_CIDRS` в `[]` и ещё раз **Infra apply**.
 
 ## Процесс изменения инфраструктуры
 
@@ -74,7 +82,9 @@
 | `YC_FOLDER_ID` | `b1gsauq7gtvp76o9jil0` |
 | `YC_WEB_BUCKET` | `traektoria` |
 | `YC_API_URL` | `tofu output -raw api_url` — адрес API Gateway, вшивается в сборку фронта и проверяется после выкладки api |
-| `ENABLE_DATABASE` | `true`, когда нужен кластер PostgreSQL |
+| `ENABLE_DATABASE` | `true`, когда нужна ВМ с PostgreSQL |
+| `SSH_PUBLIC_KEY` | открытый ключ для пользователя `ubuntu` на ВМ с базой: им ходит Ansible. Обязателен при `ENABLE_DATABASE=true` — без него в ВМ будет не войти. Не секрет, поэтому переменная: видно, чей он |
+| `SSH_ALLOWED_CIDRS` | откуда разрешён SSH к базе, JSON-списком: `["1.2.3.4/32"]`. Пусто — порт закрыт всем; открывать на время прогона Ansible и закрывать обратно |
 | `ENABLE_WORKERS` | `true`, когда нужны api, воркеры, шлюз и таймеры |
 | `ENABLE_DOMAIN_HTTPS` | `true`, когда сертификат домена `ISSUED` |
 
@@ -122,7 +132,7 @@ tofu output -raw github_secret_yc_storage_secret_key
 | `WEBHOOK_SECRET` | секрет вебхука, `[a-zA-Z0-9_-]{5,256}` |
 | `JWT_SECRET` | `openssl rand -hex 32` — один раз; смена разлогинит всех |
 | `POLZA_AI_API_KEY` | ключ polza.ai; без него помощник отвечает шаблоном «данных нет» |
-| `PG_PASSWORD` | пароль пользователя БД |
+| `PG_PASSWORD` | пароль пользователя БД. Тот же пароль получает Ansible — разойдутся, и функции не подключатся |
 | `DATABASE_URL` | `tofu output -raw database_url` — только для миграций в Deploy functions |
 
 Секреты приложения `infra-apply` передаёт в Terraform, а тот кладёт их в Lockbox.
