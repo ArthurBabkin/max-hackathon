@@ -14,6 +14,7 @@ export default defineConfig({
       // и с ботом, поэтому копий внутри apps/web быть не должно.
       '@contract': here('../../packages/api-contract/index.ts'),
       '@texts': here('../../packages/shared/texts/texts.json'),
+      '@regions': here('../../packages/core/refdata/regions.json'),
       '@': here('./src'),
     },
   },

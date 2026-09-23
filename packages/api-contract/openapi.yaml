@@ -224,6 +224,25 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /directions:
+    get:
+      tags: [profile]
+      summary: Направления — справочник целей для правки профиля
+      x-tz: "F8, F49"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Direction" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /tracker:
     get:
       tags: [tracker]
@@ -1117,6 +1136,13 @@ components:
               type: array
               description: Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23).
               items: { $ref: "#/components/schemas/BenefitRow" }
+
+    Direction:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, examples: ["napr-09-03-04"] }
+        name: { type: string, examples: ["Программная инженерия"] }
 
     UniversityListItem:
       type: object
