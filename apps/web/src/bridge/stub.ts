@@ -56,6 +56,7 @@ export function createStub(): MaxWebApp {
 
     shareMaxContent(payload) {
       console.info('[bridge-stub] shareMaxContent', payload)
+      return Promise.resolve({ status: 'shared' })
     },
 
     BackButton: {

@@ -51,3 +51,20 @@ export function getWebApp(): MaxWebApp {
 export function isRealBridge(): boolean {
   return isWorkingBridge(typeof window !== 'undefined' ? window.WebApp : undefined)
 }
+
+/**
+ * Отправить ссылку в чат MAX. false — поделиться не вышло: метода нет в
+ * клиенте или MAX отказал. Промис никогда не отклоняется — отказ моста не
+ * должен долетать до пользователя баннером «Что-то сломалось».
+ */
+export async function shareLink(link: string): Promise<boolean> {
+  const bridge = getWebApp()
+  if (!bridge.shareMaxContent) return false
+  try {
+    await bridge.shareMaxContent({ link })
+    return true
+  } catch (error) {
+    console.warn('[bridge] shareMaxContent отказал', error)
+    return false
+  }
+}
