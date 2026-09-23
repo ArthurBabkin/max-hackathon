@@ -149,3 +149,23 @@ func TestUniversitiesCatalogAndCard(t *testing.T) {
 		t.Fatalf("неизвестный вуз — 404: %d %s", r.code, r.raw)
 	}
 }
+
+// Карточки рассказывают, что это за вуз и олимпиада, и ведут на их сайты.
+func TestCards_DescriptionAndSite(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+
+	u := e.do("GET", "/api/v1/universities/hse", token, nil).body
+	if u["site_url"] != "https://www.hse.ru/" {
+		t.Fatalf("сайт вуза: %v", u["site_url"])
+	}
+	if d, _ := u["description"].(string); len(d) < 40 {
+		t.Fatalf("описание вуза: %v", u["description"])
+	}
+
+	o := e.do("GET", "/api/v1/olympiads/p669-8-informatika", token, nil).body
+	if _, ok := o["description"]; !ok {
+		t.Fatalf("у карточки олимпиады нет поля description: %v", o)
+	}
+}
