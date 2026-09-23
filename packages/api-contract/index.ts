@@ -53,6 +53,8 @@ export type MemberBrief = S['MemberBrief']
 export type Invite = S['Invite']
 export type Profile = S['Profile']
 export type ProfilePatch = S['ProfilePatch']
+export type AiChat = S['AiChat']
+export type AiExchange = S['AiExchange']
 export type AiMessage = S['AiMessage']
 export type AiCardRef = S['AiCardRef']
 

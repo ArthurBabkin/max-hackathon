@@ -577,12 +577,85 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  /ai/messages:
+  /ai/chats:
     get:
       tags: [ai]
-      summary: История личного чата с помощником
-      description: История своя у каждого участника и другим не видна (ТЗ F37).
-      x-tz: "F37"
+      summary: Чаты с помощником
+      description: |
+        Свои чаты участника, свежие сверху — по времени последней реплики.
+        Другим участникам не видны (ТЗ F37). Пустых чатов не бывает: чат
+        появляется вместе с первым вопросом.
+      x-tz: "F37, F58"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AiChat" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [ai]
+      summary: Новый чат с первым вопросом
+      description: |
+        Создаёт чат и сразу отвечает на первый вопрос. Название — «Чат 23
+        сентября» по дню вопроса в часовом поясе траектории (ТЗ F59).
+      x-tz: "F35, F36, F58, F59"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiQuestion" }
+      responses:
+        "201":
+          description: Чат создан, ответ помощника
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiExchange" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /ai/chats/{id}:
+    patch:
+      tags: [ai]
+      summary: Переименовать чат
+      description: Пробелы по краям отбрасываются; остаётся от 1 до 60 символов (ТЗ F59).
+      x-tz: "F59"
+      parameters:
+        - $ref: "#/components/parameters/ChatId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 60 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiChat" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ai/chats/{id}/messages:
+    get:
+      tags: [ai]
+      summary: Реплики чата
+      description: 50 последних реплик, от старых к новым.
+      x-tz: "F37, F58"
+      parameters:
+        - $ref: "#/components/parameters/ChatId"
       responses:
         "200":
           description: OK
@@ -596,43 +669,33 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/AiMessage" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [ai]
-      summary: Вопрос помощнику
+      summary: Вопрос помощнику в чате
       description: |
-        RAG только по нашей базе. Если ответа в базе нет, приходит
+        RAG только по нашей базе. Карточки ищутся по тексту этого вопроса;
+        модель видит ещё 10 предыдущих реплик чата и карточки, на которые
+        ссылались ответы в них (ТЗ F60). Если ответа в базе нет, приходит
         `refused: true` и шаблон отказа со ссылкой на первоисточник (ТЗ F36).
-      x-tz: "F35, F36"
+      x-tz: "F35, F36, F60"
+      parameters:
+        - $ref: "#/components/parameters/ChatId"
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [text]
-              properties:
-                text:
-                  type: string
-                  minLength: 1
-                  maxLength: 500
+            schema: { $ref: "#/components/schemas/AiQuestion" }
       responses:
         "200":
           description: Ответ помощника
           content:
             application/json:
-              schema:
-                type: object
-                required: [question, answer]
-                properties:
-                  question: { $ref: "#/components/schemas/AiMessage" }
-                  answer: { $ref: "#/components/schemas/AiMessage" }
+              schema: { $ref: "#/components/schemas/AiExchange" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "429":
-          description: Слишком часто
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 
 components:
 
@@ -662,6 +725,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
       description: "`proposals.id`"
+    ChatId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: "`ai_chats.id`. Чужой чат для участника не существует — 404 (ТЗ F37)."
 
   responses:
     BadRequest:
@@ -681,6 +750,11 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
       description: Объект не найден
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Слишком часто
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -1440,3 +1514,37 @@ components:
           type: boolean
           description: "`true` — честное «данных нет» (F36). Клиент рисует жёлтым."
         created_at: { type: string, format: date-time }
+
+    AiChat:
+      type: object
+      required: [id, title, created_at, last_message_at]
+      properties:
+        id: { type: string, format: uuid }
+        title:
+          type: string
+          minLength: 1
+          maxLength: 60
+          examples: ["Чат 23 сентября", "Льготы в ИТМО"]
+        created_at: { type: string, format: date-time }
+        last_message_at:
+          type: string
+          format: date-time
+          description: Время последней реплики — по нему список идёт от свежих к старым.
+
+    AiQuestion:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    AiExchange:
+      type: object
+      description: Пара вопрос–ответ и чат, в котором она сохранена.
+      required: [chat, question, answer]
+      properties:
+        chat: { $ref: "#/components/schemas/AiChat" }
+        question: { $ref: "#/components/schemas/AiMessage" }
+        answer: { $ref: "#/components/schemas/AiMessage" }

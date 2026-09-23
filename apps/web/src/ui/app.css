@@ -1260,6 +1260,145 @@
 
 /* ---------- помощник ---------- */
 
+/* Полоса чата под шапкой: какой чат открыт, переименовать, новый (F58, F59). */
+.ai-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--gap-sm) 0 10px;
+  margin-bottom: var(--gap-sm);
+  border-bottom: 1px solid var(--ln);
+}
+
+.ai-current {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--tx);
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.ai-current svg {
+  flex: 0 0 auto;
+  color: var(--mu);
+}
+
+.ai-current-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.ai-bar-button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--tx-2);
+}
+
+.ai-bar-button-primary {
+  background: var(--p);
+  color: #fff;
+}
+
+.ai-bar-button:disabled {
+  opacity: 0.5;
+}
+
+.ai-title-field {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1.5px solid var(--p);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--tx);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 700;
+  outline: 0;
+}
+
+/* Список чатов: свежие сверху, под названием — день последней реплики. */
+.ai-new {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  width: 100%;
+  min-height: var(--tap);
+  border-bottom: 1px solid var(--ln);
+  color: var(--p);
+  font-size: var(--t-small);
+  font-weight: 700;
+  text-align: left;
+}
+
+.ai-chats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-chat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--gap-sm) 2px;
+  border-bottom: 1px solid var(--ln);
+  text-align: left;
+}
+
+.ai-chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-chat-main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-small);
+}
+
+.ai-chat-main small {
+  color: var(--mu);
+  font-size: var(--t-micro);
+}
+
+.ai-chat-on b,
+.ai-chat-on svg {
+  color: var(--p);
+}
+
+/* Вопрос не ушёл: сообщение сервера над полем, сам вопрос вернулся в поле. */
+.ai-error {
+  flex: 0 0 auto;
+  margin: 0 0 var(--gap-sm);
+  color: var(--pk-ink);
+  font-size: var(--t-micro);
+}
+
 .ai-log {
   /* Лист помощника высокий и не прокручивается целиком: прокручивается
      только переписка, а подсказки и поле ввода остаются на месте. */

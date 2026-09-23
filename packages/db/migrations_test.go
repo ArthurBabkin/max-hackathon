@@ -270,3 +270,61 @@ func TestDemoMigrations_HaveNoFictionalOlympiads(t *testing.T) {
 		}
 	}
 }
+
+// Несколько чатов с помощником (F58): прежняя история участника становится
+// его первым чатом. Название — день первой реплики в поясе траектории (F59):
+// 21:30 UTC 20 сентября — это уже 21 сентября в Москве.
+func TestMigration_AiChats_OldHistoryBecomesFirstChat(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0013_ai_chats.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Откат до схемы без чатов и история в старом виде: реплики только по участнику.
+	mustExec(t, tx.Exec, dbtest.DownSection(string(raw)))
+	mustExec(t, tx.Exec, `INSERT INTO users (id, max_user_id, first_name) VALUES
+		('00000000-0000-4000-8000-00000000c001', 900000001, 'Артём'),
+		('00000000-0000-4000-8000-00000000c002', 900000002, 'Ольга')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, tz, goal_status)
+		VALUES ('00000000-0000-4000-8000-00000000c010', 'Артём', 9, '16', 'Europe/Moscow', 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO members (id, trajectory_id, user_id, role, is_creator) VALUES
+		('00000000-0000-4000-8000-00000000c101', '00000000-0000-4000-8000-00000000c010', '00000000-0000-4000-8000-00000000c001', 'kid', true),
+		('00000000-0000-4000-8000-00000000c102', '00000000-0000-4000-8000-00000000c010', '00000000-0000-4000-8000-00000000c002', 'parent', false)`)
+	mustExec(t, tx.Exec, `INSERT INTO ai_messages (member_id, role, text, created_at) VALUES
+		('00000000-0000-4000-8000-00000000c101', 'user', 'первый', '2026-09-20 21:30:00+00'),
+		('00000000-0000-4000-8000-00000000c101', 'assistant', 'ответ', '2026-09-20 21:30:00+00'),
+		('00000000-0000-4000-8000-00000000c101', 'user', 'второй', '2026-09-22 08:00:00+00'),
+		('00000000-0000-4000-8000-00000000c101', 'assistant', 'ответ', '2026-09-22 08:00:00+00')`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	var chats int
+	var member, title, created, last string
+	err = tx.QueryRow(ctx, `SELECT count(*) OVER (), member_id::text, title,
+		to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'), to_char(last_message_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI')
+		FROM ai_chats`).Scan(&chats, &member, &title, &created, &last)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chats != 1 || member != "00000000-0000-4000-8000-00000000c101" {
+		t.Fatalf("чат должен появиться только у участника с историей: чатов %d, участник %s", chats, member)
+	}
+	if title != "Чат 21 сентября" || created != "2026-09-20 21:30" || last != "2026-09-22 08:00" {
+		t.Fatalf("название %q, создан %s, последняя реплика %s", title, created, last)
+	}
+	var orphans int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM ai_messages WHERE chat_id IS NULL`).Scan(&orphans); err != nil || orphans != 0 {
+		t.Fatalf("реплик без чата: %d (err=%v)", orphans, err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO ai_messages (member_id, role, text)
+		VALUES ('00000000-0000-4000-8000-00000000c102', 'user', 'без чата')`); err == nil {
+		t.Fatal("реплика без чата должна быть запрещена")
+	}
+}

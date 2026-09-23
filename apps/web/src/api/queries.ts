@@ -15,6 +15,8 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import type {
+  AiChat,
+  AiExchange,
   AiMessage,
   CalendarMonth,
   Direction,
@@ -51,7 +53,8 @@ export const keys = {
   family: ['family'] as const,
   profile: ['profile'] as const,
   directions: ['directions'] as const,
-  ai: ['ai'] as const,
+  aiChats: ['ai', 'chats'] as const,
+  aiChat: (id: string) => ['ai', 'chat', id] as const,
   health: ['health'] as const,
 }
 
@@ -310,23 +313,63 @@ export function useSetUniversities() {
 
 // --- Помощник ----------------------------------------------------------------
 
-export const useAiMessages = () =>
+type Items<T> = { items: T[] }
+
+export const useAiChats = () =>
   useQuery({
-    queryKey: keys.ai,
-    queryFn: () => api.get<{ items: AiMessage[] }>('/ai/messages'),
+    queryKey: keys.aiChats,
+    queryFn: () => api.get<Items<AiChat>>('/ai/chats'),
   })
 
+/** Реплики чата. `null` — чата ещё нет (новый, до первого вопроса). */
+export const useAiChatMessages = (id: string | null) =>
+  useQuery({
+    queryKey: keys.aiChat(id ?? ''),
+    queryFn: () => api.get<Items<AiMessage>>(`/ai/chats/${encodeURIComponent(id!)}/messages`),
+    enabled: id !== null,
+    // Чужой или исчезнувший чат не появится от повтора.
+    retry: false,
+  })
+
+/** Свежий чат — первым; остальные в прежнем порядке. */
+function putChatFirst(qc: QueryClient, chat: AiChat): void {
+  const list = qc.getQueryData<Items<AiChat>>(keys.aiChats)
+  if (list) qc.setQueryData(keys.aiChats, { items: [chat, ...list.items.filter((c) => c.id !== chat.id)] })
+  else void qc.invalidateQueries({ queryKey: keys.aiChats })
+}
+
+/** Вопрос помощнику. `chatId: null` — первый вопрос нового чата, он же создаёт чат. */
 export function useAskAi() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (text: string) =>
-      api.post<{ question: AiMessage; answer: AiMessage }>('/ai/messages', { text }),
-    onSuccess: ({ question, answer }) => {
+    mutationFn: ({ chatId, text }: { chatId: string | null; text: string }) =>
+      chatId === null
+        ? api.post<AiExchange>('/ai/chats', { text })
+        : api.post<AiExchange>(`/ai/chats/${encodeURIComponent(chatId)}/messages`, { text }),
+    onSuccess: ({ chat, question, answer }, { chatId }) => {
       // Дописываем пару в кеш вместо перезапроса: история чата только растёт,
-      // и лишний круг к серверу ничего не уточнит.
-      qc.setQueryData<{ items: AiMessage[] }>(keys.ai, (old) => ({
-        items: [...(old?.items ?? []), question, answer],
-      }))
+      // и лишний круг к серверу ничего не уточнит. У нового чата истории нет.
+      const log = qc.getQueryData<Items<AiMessage>>(keys.aiChat(chat.id))
+      if (log || chatId === null) {
+        qc.setQueryData(keys.aiChat(chat.id), { items: [...(log?.items ?? []), question, answer] })
+      } else {
+        void qc.invalidateQueries({ queryKey: keys.aiChat(chat.id) })
+      }
+      putChatFirst(qc, chat)
+    },
+  })
+}
+
+export function useRenameAiChat() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, title }: { id: string; title: string }) =>
+      api.patch<AiChat>(`/ai/chats/${encodeURIComponent(id)}`, { title }),
+    onSuccess: (chat) => {
+      // Переименование не новая реплика: место чата в списке не меняется.
+      qc.setQueryData<Items<AiChat>>(keys.aiChats, (old) =>
+        old ? { items: old.items.map((c) => (c.id === chat.id ? chat : c)) } : old,
+      )
     },
   })
 }

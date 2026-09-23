@@ -18,6 +18,7 @@ import { ApiError } from '../errors'
 import { regions as REGIONS } from '@regions'
 import { DIRECTIONS, OLYMPIADS, SOURCES, UNIVERSITIES, inDays } from './fixtures'
 import {
+  type DemoAiChat,
   findProfile,
   hasKid,
   nextId,
@@ -367,18 +368,27 @@ route('PUT', '/profile/universities', ({ body }) => {
 
 // --- Помощник ----------------------------------------------------------------
 
-route('GET', '/ai/messages', () => ({
-  items: state.ai.filter((m) => m.memberId === state.viewerId),
-}))
+const chatDay = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' })
 
-route('POST', '/ai/messages', ({ body }) => {
-  const question = String((body as { text?: string })?.text ?? '').trim()
-  if (!question) throw new ApiError(400, 'BAD_REQUEST', 'Вопрос пуст')
+/** Свой чат участника; чужой для него не существует — 404, как на сервере. */
+function ownChat(id: string | undefined) {
+  const chat = state.aiChats.find((c) => c.id === id && c.memberId === state.viewerId)
+  if (!chat) throw notFound()
+  return chat
+}
 
+function readQuestion(body: unknown): string {
+  const text = String((body as { text?: string })?.text ?? '').trim()
+  if (!text) throw new ApiError(400, 'BAD_REQUEST', 'Напишите вопрос.')
+  return text
+}
+
+/** Пара вопрос–ответ в чат; чат с новой репликой встаёт в начало списка. */
+function exchange(chat: DemoAiChat, question: string) {
   const now = new Date().toISOString()
   const asked = {
     id: nextId('ai'),
-    memberId: state.viewerId,
+    chatId: chat.id,
     role: 'user' as const,
     text: question,
     card_refs: [],
@@ -386,13 +396,57 @@ route('POST', '/ai/messages', ({ body }) => {
     refused: false,
     created_at: now,
   }
-  const answer = { ...composeAnswer(question), id: nextId('ai'), memberId: state.viewerId, created_at: now }
+  const answer = { ...composeAnswer(question), id: nextId('ai'), chatId: chat.id, created_at: now }
   state.ai.push(asked, answer)
-  return { question: strip(asked), answer: strip(answer) }
+  chat.last_message_at = now
+  state.aiChats = [chat, ...state.aiChats.filter((c) => c !== chat)]
+  return { chat: stripChat(chat), question: strip(asked), answer: strip(answer) }
+}
+
+route('GET', '/ai/chats', () => ({
+  items: state.aiChats.filter((c) => c.memberId === state.viewerId).map(stripChat),
+}))
+
+route('POST', '/ai/chats', ({ body }) => {
+  const question = readQuestion(body)
+  const now = new Date().toISOString()
+  const chat: DemoAiChat = {
+    id: nextId('chat'),
+    memberId: state.viewerId,
+    title: `Чат ${chatDay.format(new Date())}`,
+    created_at: now,
+    last_message_at: now,
+  }
+  state.aiChats.unshift(chat)
+  return exchange(chat, question)
+})
+
+route('PATCH', '/ai/chats/:id', ({ params, body }) => {
+  const chat = ownChat(params.id)
+  const title = String((body as { title?: string })?.title ?? '').trim()
+  if (!title) throw new ApiError(400, 'BAD_REQUEST', 'Напишите название чата.')
+  if ([...title].length > 60) throw new ApiError(400, 'BAD_REQUEST', 'Название длиннее 60 символов — сократите его.')
+  chat.title = title
+  return stripChat(chat)
+})
+
+route('GET', '/ai/chats/:id/messages', ({ params }) => {
+  const chat = ownChat(params.id)
+  return { items: state.ai.filter((m) => m.chatId === chat.id).map(strip) }
+})
+
+route('POST', '/ai/chats/:id/messages', ({ params, body }) => {
+  const chat = ownChat(params.id)
+  return exchange(chat, readQuestion(body))
 })
 
 function strip(m: (typeof state.ai)[number]) {
-  const { memberId: _memberId, ...rest } = m
+  const { chatId: _chatId, ...rest } = m
+  return rest
+}
+
+function stripChat(c: DemoAiChat) {
+  const { memberId: _memberId, ...rest } = c
   return rest
 }
 
