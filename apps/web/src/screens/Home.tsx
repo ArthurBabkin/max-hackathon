@@ -39,6 +39,7 @@ function ProgressRing({ percent }: { percent: number }) {
 /** «Олимпиады простыми словами» — блок для родителя (F47). */
 function Explainer() {
   const t = useVoice()
+  const navigate = useNavigate()
   return (
     <section className="block block-card">
       <h3 className="block-head">
@@ -52,6 +53,10 @@ function Explainer() {
         <li>{t('explainer.oneVuz')}</li>
       </ul>
       <SourceLine title={t('explainer.source')} />
+      <button type="button" className="link explainer-more" onClick={() => navigate('/faq')}>
+        {t('faq.explainerMore')}
+        <Icon name="chevron" size={14} />
+      </button>
     </section>
   )
 }
@@ -219,6 +224,17 @@ export function HomeScreen() {
           {t('home.quickFamily')}
         </button>
       </div>
+
+      <button type="button" className="faq-entry" onClick={() => navigate('/faq')}>
+        <span className="quick-icon">
+          <Icon name="doc" size={17} />
+        </span>
+        <span className="faq-entry-text">
+          <b>{t('faq.entryTitle')}</b>
+          <span>{t('faq.entryText')}</span>
+        </span>
+        <Icon name="chevron" size={16} />
+      </button>
 
       <Note>{t('home.disclaimer')}</Note>
     </div>
