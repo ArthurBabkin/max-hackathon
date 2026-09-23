@@ -48,7 +48,7 @@ func TestSend_TokenInHeaderAndKeyboardShape(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message":{"body":{"mid":"mid.1","text":"x"},"recipient":{"chat_id":1,"chat_type":"dialog"}}}`))
 	})
 	kb := Keyboard{Row(CallbackButton("Я школьник", "role:kid"), CallbackButton("Я родитель", "role:parent")),
-		Row(OpenAppButton("Открыть навигатор", "t356_hakaton_max_bot", 426643746, "home"))}
+		Row(OpenAppButton("Открыть мини-приложение", "t356_hakaton_max_bot", 426643746, "home"))}
 	mid, err := c.Send(context.Background(), 900000001, WithKeyboard("Кто ты?", kb))
 	if err != nil || mid != "mid.1" {
 		t.Fatalf("%q %v", mid, err)
