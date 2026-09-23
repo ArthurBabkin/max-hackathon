@@ -18,6 +18,7 @@ import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { CalendarView } from './Calendar'
+import { ErrorState } from '@/ui/ErrorState'
 
 const currentMonth = () => new Date().toISOString().slice(0, 7)
 
@@ -205,11 +206,7 @@ export function TrackerScreen() {
     return (
       <div className="screen">
         {segment}
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void tracker.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={tracker.error} onRetry={() => void tracker.refetch()} />
       </div>
     )
   }

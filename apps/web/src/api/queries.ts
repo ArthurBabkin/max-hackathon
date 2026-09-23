@@ -39,6 +39,7 @@ import type {
 } from '@contract'
 import { api, request, setReauth, setToken } from './client'
 import { getWebApp } from '@/bridge'
+import { retryOnce } from './queryClient'
 
 export const keys = {
   session: ['session'] as const,
@@ -104,7 +105,11 @@ export function useSession(): UseQueryResult<Session> {
     queryFn: openSession,
     // JWT живёт час, дёргать /session на каждом монтировании незачем.
     staleTime: 50 * 60 * 1000,
-    retry: 1,
+    retry: retryOnce,
+    // После ошибки вход повторяет только кнопка на экране ошибки. Иначе
+    // каждый новый подписчик — тот же экран ошибки через useVoice — заново
+    // запускал бы POST /session, и приложение крутилось бы в цикле.
+    retryOnMount: false,
   })
 }
 
@@ -346,6 +351,8 @@ export function useAskAi() {
       chatId === null
         ? api.post<AiExchange>('/ai/chats', { text })
         : api.post<AiExchange>(`/ai/chats/${encodeURIComponent(chatId)}/messages`, { text }),
+    // Неудачный вопрос показывается в самом чате, с кнопкой повтора.
+    meta: { silentError: true },
     onSuccess: ({ chat, question, answer }, { chatId }) => {
       // Дописываем пару в кеш вместо перезапроса: история чата только растёт,
       // и лишний круг к серверу ничего не уточнит. У нового чата истории нет.
@@ -365,6 +372,8 @@ export function useRenameAiChat() {
   return useMutation({
     mutationFn: ({ id, title }: { id: string; title: string }) =>
       api.patch<AiChat>(`/ai/chats/${encodeURIComponent(id)}`, { title }),
+    // Ошибка названия показывается под полем ввода.
+    meta: { silentError: true },
     onSuccess: (chat) => {
       // Переименование не новая реплика: место чата в списке не меняется.
       qc.setQueryData<Items<AiChat>>(keys.aiChats, (old) =>

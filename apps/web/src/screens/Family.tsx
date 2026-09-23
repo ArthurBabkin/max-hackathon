@@ -8,8 +8,9 @@ import { shareLink } from '@/bridge'
 import { copyText } from '@/lib/clipboard'
 import { canRemoveMember } from '@/lib/permissions'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Hint, SourceLine, StateBlock } from '@/ui/primitives'
+import { CardSkeletons, Hint, SourceLine } from '@/ui/primitives'
 import { useRole, useVoice } from '@/voice/useVoice'
+import { ErrorState } from '@/ui/ErrorState'
 
 export function FamilyScreen() {
   const t = useVoice()
@@ -34,11 +35,7 @@ export function FamilyScreen() {
   if (family.isError || !family.data) {
     return (
       <div className="screen">
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void family.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={family.error} onRetry={() => void family.refetch()} />
       </div>
     )
   }

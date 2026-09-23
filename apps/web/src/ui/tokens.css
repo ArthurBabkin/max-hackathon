@@ -68,6 +68,11 @@
   --fab-fill: var(--fab-bg);
   --fab-tx: #f4f4f9;
 
+  /* Всплывающее сообщение об ошибке действия: тёмная плашка поверх экрана. */
+  --toast-bg: #17142a;
+  --toast-tx: #f4f4f9;
+  --toast-icon: #ff7aae;
+
   --shadow-sheet: 0 -10px 30px rgba(20, 10, 50, 0.18);
   --shadow-fab: 0 8px 20px rgba(20, 10, 50, 0.3);
   --shadow-card: 0 1px 3px rgba(20, 10, 50, 0.06);
@@ -136,6 +141,12 @@
     --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
     --fab-tx: #ffffff;
 
+    /* Светлая плашка в тёмной теме выпадала бы, как «Спросить», —
+       приподнятая тёмная поверхность с тем же розовым сигналом. */
+    --toast-bg: #2c2642;
+    --toast-tx: #f1eefa;
+    --toast-icon: #ff7aae;
+
     --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
     --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -171,6 +182,10 @@
   --fab-bg: #3f4dff;
   --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
   --fab-tx: #ffffff;
+
+  --toast-bg: #2c2642;
+  --toast-tx: #f1eefa;
+  --toast-icon: #ff7aae;
 
   --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);
