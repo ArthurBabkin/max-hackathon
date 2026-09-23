@@ -1629,6 +1629,14 @@
   color: var(--mu);
 }
 
+.app-version {
+  margin: var(--gap-md) 2px 0;
+  font-size: var(--t-small);
+  color: var(--mu);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .members {
   background: var(--surface);
   border-radius: var(--r-lg);
