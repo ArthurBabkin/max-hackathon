@@ -207,3 +207,22 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 	writeJSON(w, http.StatusOK, out)
 	return nil
 }
+
+type directionItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// directions — справочник целей для правки профиля (F49).
+func (s *Server) directions(w http.ResponseWriter, r *http.Request) error {
+	ds, err := s.store.Directions(r.Context())
+	if err != nil {
+		return err
+	}
+	out := listResponse[directionItem]{Items: make([]directionItem, len(ds))}
+	for i, d := range ds {
+		out.Items[i] = directionItem{ID: d.ID, Name: d.Name}
+	}
+	writeJSON(w, http.StatusOK, out)
+	return nil
+}
