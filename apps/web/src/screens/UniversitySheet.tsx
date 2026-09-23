@@ -10,9 +10,10 @@ import { formatShortDate } from '@/lib/deadline'
 import { UniversityOlympiadRow } from '@/ui/BenefitRow'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
-import { CardSkeletons, SourceTag, StateBlock, Tile } from '@/ui/primitives'
+import { CardSkeletons, SourceTag, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
+import { ErrorState } from '@/ui/ErrorState'
 
 /** Сколько олимпиад вуза видно сразу: у Иннополиса их больше шестидесяти. */
 const PREVIEW = 8
@@ -37,11 +38,7 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
   if (query.isError || !query.data) {
     return (
       <Sheet label="Карточка вуза" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void query.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       </Sheet>
     )
   }

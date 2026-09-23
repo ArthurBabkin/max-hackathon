@@ -1,11 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import '@maxhub/max-ui/dist/styles.css'
 import './ui/tokens.css'
 import './ui/app.css'
 import { App } from './App'
+import { createQueryClient } from './api/queryClient'
 import { getWebApp } from './bridge'
 import { installCrashBanner } from './ui/crashBanner'
 import { ThemedMaxUI, applySavedTheme } from './ui/theme'
@@ -16,17 +17,7 @@ import { ThemedMaxUI, applySavedTheme } from './ui/theme'
 installCrashBanner()
 applySavedTheme()
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Мини-приложение живёт секунды-минуты, данные за это время не устаревают.
-      staleTime: 60_000,
-      // Мобильная сеть рвётся — один повтор оправдан, дальше показываем H4.
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-})
+const queryClient = createQueryClient()
 
 /** iOS и Android в MAX UI отличаются отступами и поведением нажатий. */
 function platform(): 'ios' | 'android' {

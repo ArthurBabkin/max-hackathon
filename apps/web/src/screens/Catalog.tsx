@@ -11,6 +11,7 @@ import { useSheetStack } from '@/ui/sheets'
 import type { TextKey } from '@/voice/texts'
 import { useVoice } from '@/voice/useVoice'
 import { plural } from '@/lib/deadline'
+import { ErrorState } from '@/ui/ErrorState'
 
 type Segment = 'olympiads' | 'universities'
 
@@ -84,11 +85,7 @@ export function CatalogScreen() {
 
     if (active.isError) {
       return (
-        <StateBlock icon="wifiOff" tone="error" title={t('state.errorTitle')} text={t('state.errorText')}>
-          <Button stretched onClick={() => void active.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={active.error} onRetry={() => void active.refetch()} />
       )
     }
 

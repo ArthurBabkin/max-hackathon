@@ -20,6 +20,12 @@
   background: var(--bg);
 }
 
+/* Экран без шапки и вкладок — вход не удался: блок по центру, как на H4. */
+.app-state {
+  justify-content: center;
+  padding-bottom: 12vh;
+}
+
 .app-top {
   flex: 0 0 auto;
   display: flex;
@@ -150,6 +156,69 @@
 
 .fab svg {
   color: #9ef2ff;
+}
+
+/* ---------- сообщение об ошибке действия ---------- */
+
+/* Над вкладками и над нижним листом (действие могло случиться в карточке),
+   но под обучением. */
+.toast {
+  position: fixed;
+  left: var(--gap-lg);
+  right: var(--gap-lg);
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 25;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 8px 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--toast-bg);
+  color: var(--toast-tx);
+  /* Нейтральная тень: фиолетовое свечение «Спросить» у ошибки не к месту. */
+  box-shadow: 0 8px 24px rgba(12, 10, 22, 0.35);
+  font-size: var(--t-small);
+  font-weight: 600;
+  line-height: 1.35;
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--toast-icon);
+}
+
+.toast-text {
+  flex: 1;
+  padding-top: 1px;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }
 
 /* ---------- сплэш ---------- */

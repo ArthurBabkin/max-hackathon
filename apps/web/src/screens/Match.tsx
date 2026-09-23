@@ -12,6 +12,7 @@ import { CardSkeletons, Chip, Section, StateBlock } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
+import { ErrorState } from '@/ui/ErrorState'
 
 const FILTER_LABELS: Record<MatchFilter, TextKey> = {
   all: 'match.filterAll',
@@ -87,16 +88,7 @@ export function MatchScreen() {
     return (
       <div className="screen">
         {header}
-        <StateBlock
-          icon="wifiOff"
-          tone="error"
-          title={t('state.matchErrorTitle')}
-          text={t('state.errorText')}
-        >
-          <Button stretched iconBefore={<Icon name="refresh" size={16} />} onClick={() => void recommendations.refetch()}>
-            {t('state.errorRetry')}
-          </Button>
-        </StateBlock>
+        <ErrorState error={recommendations.error} title={t('state.matchErrorTitle')} onRetry={() => void recommendations.refetch()} />
       </div>
     )
   }
