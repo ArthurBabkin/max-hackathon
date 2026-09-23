@@ -161,6 +161,20 @@ func UpSection(sql string) string {
 	if end := strings.Index(sql, "-- +goose Down"); end >= 0 {
 		sql = sql[:end]
 	}
+	return stripStatementMarks(sql)
+}
+
+// DownSection вырезает из файла goose секцию Down — чтобы тест миграции
+// откатил схему до неё и проверил перенос данных.
+func DownSection(sql string) string {
+	start := strings.Index(sql, "-- +goose Down")
+	if start < 0 {
+		return ""
+	}
+	return stripStatementMarks(sql[start+len("-- +goose Down"):])
+}
+
+func stripStatementMarks(sql string) string {
 	sql = strings.ReplaceAll(sql, "-- +goose StatementBegin", "")
 	return strings.ReplaceAll(sql, "-- +goose StatementEnd", "")
 }
