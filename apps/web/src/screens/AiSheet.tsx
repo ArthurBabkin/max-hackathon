@@ -47,6 +47,7 @@ export function AiSheet({ sheets }: { sheets: SheetStack }) {
   }
 
   const asked = new Set(items.filter((m) => m.role === 'user').map((m) => m.text))
+  if (ask.isPending) asked.add(ask.variables)
   const left = SUGGESTIONS[role].filter((q) => !asked.has(q))
 
   return (
@@ -114,6 +115,13 @@ export function AiSheet({ sheets }: { sheets: SheetStack }) {
           </div>
         ))}
 
+        {ask.isPending ? (
+          // Сервер возвращает вопрос вместе с ответом, а ответ идёт секунды —
+          // до тех пор показываем отправленный текст сами.
+          <div className="ai-message ai-message-user">
+            <p>{ask.variables}</p>
+          </div>
+        ) : null}
         {ask.isPending ? (
           <div className="ai-message ai-message-bot ai-dots" aria-label="Помощник печатает">
             <span />
