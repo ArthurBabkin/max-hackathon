@@ -176,3 +176,31 @@ func TestDemoSeed_AppliesOnTopOfContent(t *testing.T) {
 		t.Fatalf("трекер %d, ожидающих предложений %d", items, pending)
 	}
 }
+
+// Описания олимпиад: у всех ВсОШ и у главных олимпиад перечня под
+// IT и математику — они чаще всего попадают в подборку.
+func TestContent_OlympiadDescriptions(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	var vsoshWithout, described int
+	if err := pool.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM olympiads WHERE kind = 'vsosh' AND description IS NULL),
+		(SELECT count(*) FROM olympiads WHERE description IS NOT NULL)`).Scan(&vsoshWithout, &described); err != nil {
+		t.Fatal(err)
+	}
+	if vsoshWithout != 0 || described < 25 {
+		t.Fatalf("ВсОШ без описания: %d, всего с описанием: %d", vsoshWithout, described)
+	}
+	for _, id := range []string{"p669-8", "p669-50", "p669-54", "p669-22", "p669-57", "p669-5"} {
+		var d *string
+		if err := pool.QueryRow(ctx, `SELECT description FROM olympiads WHERE id = $1`, id).Scan(&d); err != nil || d == nil {
+			t.Fatalf("у %s нет описания (err=%v)", id, err)
+		}
+	}
+	// Раньше вела на «Урок цифры».
+	var url string
+	if err := pool.QueryRow(ctx, `SELECT official_url FROM olympiads WHERE id = 'p669-37'`).Scan(&url); err != nil ||
+		url != "https://mos.olimpiada.ru/" {
+		t.Fatalf("сайт Московской олимпиады: %q (err=%v)", url, err)
+	}
+}
