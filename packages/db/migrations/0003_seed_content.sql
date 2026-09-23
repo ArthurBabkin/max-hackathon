@@ -5,7 +5,7 @@
 -- поменяйте датасет или генератор и перегенерируйте.
 --
 -- Строк: предметы 9, направления 16, вузы 10,
--- источники 123, олимпиады 75, профили 195, этапы 562, льготы 1154.
+-- источники 123, олимпиады 72, профили 192, этапы 553, льготы 1149.
 --
 -- Демонстрационные данные помечены в самих строках: stages.is_demo, льготы и
 -- этапы без source_id, источники без verified_at. API по ним отдаёт
@@ -198,9 +198,6 @@ ON CONFLICT (id) DO UPDATE SET
   verified_at = EXCLUDED.verified_at;
 
 INSERT INTO olympiads (id, name, organizer, kind, official_url, format, final_city, final_region_code) VALUES
-  ('other-biznes-start', 'Олимпиада по экономике «Бизнес-старт»', 'Вымышленный пример для демонстрации', 'other', NULL, 'Онлайн-отбор, очный финал', 'Москва', '77'),
-  ('other-impuls', 'Городская олимпиада по физике «Импульс»', 'Вымышленный пример для демонстрации', 'other', NULL, 'Онлайн-отбор, очный финал', 'Казань', '16'),
-  ('other-tyk', 'Турнир юных программистов Казани', 'Вымышленный пример для демонстрации', 'other', NULL, 'Онлайн-отбор, очный финал', 'Казань', '16'),
   ('p669-1', '«Финатлон для старшеклассников»', 'Финансовый университет при Правительстве РФ', 'perechen', 'https://www.fin-olimp.ru', 'Онлайн-отбор, очный финал', 'Москва', '77'),
   ('p669-11', 'Всероссийская Сеченовская олимпиада школьников', 'Сеченовский Университет', 'perechen', 'https://www.sechenov.ru/univers/structure/facultie/dovuz/olimpiady/', 'Онлайн-отбор, очный финал', 'Москва', '77'),
   ('p669-12', 'Всероссийская Толстовская олимпиада школьников', 'ТГПУ им. Л.Н. Толстого', 'perechen', 'https://olymp.tsput.ru/', 'Онлайн-отбор, очный финал', 'Тула', '71'),
@@ -283,9 +280,6 @@ ON CONFLICT (id) DO UPDATE SET
   final_region_code = EXCLUDED.final_region_code;
 
 INSERT INTO olympiad_profiles (id, olympiad_id, subject_code, profile_slug, profile_name, level, school_year, grades_from, grades_to, source_id) VALUES
-  ('other-biznes-start-econ', 'other-biznes-start', 'econ', 'econ', NULL, NULL, '2026/27', 8, 11, NULL),
-  ('other-impuls-phys', 'other-impuls', 'phys', 'phys', NULL, NULL, '2026/27', 7, 11, NULL),
-  ('other-tyk-inf', 'other-tyk', 'inf', 'inf', NULL, NULL, '2026/27', 7, 11, NULL),
   ('p669-1-finansovaya-gramotnost', 'p669-1', 'soc', 'finansovaya-gramotnost', 'финансовая грамотность', 'III', '2026/27', 8, 11, 'src-cc212c88451d'),
   ('p669-11-biologiya', 'p669-11', 'bio', 'biologiya', 'биология', 'II', '2026/27', 8, 11, 'src-cc212c88451d'),
   ('p669-11-himiya', 'p669-11', 'chem', 'himiya', 'химия', 'II', '2026/27', 8, 11, 'src-cc212c88451d'),
@@ -490,15 +484,6 @@ ON CONFLICT (id) DO UPDATE SET
   source_id = EXCLUDED.source_id;
 
 INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
-  ('other-biznes-start-econ:registration:1', 'other-biznes-start-econ', 'registration', 'Регистрация', '2026-10-01 00:00:00+03'::timestamptz, '2026-10-21 23:59:59+03'::timestamptz, '2026-10-21 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-biznes-start-econ:qualifying:1', 'other-biznes-start-econ', 'qualifying', 'Отборочный этап', '2026-10-28 00:00:00+03'::timestamptz, '2026-11-10 23:59:59+03'::timestamptz, '2026-11-10 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-biznes-start-econ:final:1', 'other-biznes-start-econ', 'final', 'Заключительный этап', '2026-12-10 00:00:00+03'::timestamptz, '2026-12-12 23:59:59+03'::timestamptz, '2026-12-10 00:00:00+03'::timestamptz, false, true, NULL),
-  ('other-impuls-phys:registration:1', 'other-impuls-phys', 'registration', 'Регистрация', '2026-10-05 00:00:00+03'::timestamptz, '2026-10-25 23:59:59+03'::timestamptz, '2026-10-25 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-impuls-phys:qualifying:1', 'other-impuls-phys', 'qualifying', 'Отборочный этап', '2026-11-01 00:00:00+03'::timestamptz, '2026-11-14 23:59:59+03'::timestamptz, '2026-11-14 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-impuls-phys:final:1', 'other-impuls-phys', 'final', 'Заключительный этап', '2026-12-14 00:00:00+03'::timestamptz, '2026-12-16 23:59:59+03'::timestamptz, '2026-12-14 00:00:00+03'::timestamptz, false, true, NULL),
-  ('other-tyk-inf:registration:1', 'other-tyk-inf', 'registration', 'Регистрация', '2026-10-06 00:00:00+03'::timestamptz, '2026-10-26 23:59:59+03'::timestamptz, '2026-10-26 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-tyk-inf:qualifying:1', 'other-tyk-inf', 'qualifying', 'Отборочный этап', '2026-11-02 00:00:00+03'::timestamptz, '2026-11-15 23:59:59+03'::timestamptz, '2026-11-15 23:59:59+03'::timestamptz, true, true, NULL),
-  ('other-tyk-inf:final:1', 'other-tyk-inf', 'final', 'Заключительный этап', '2026-12-15 00:00:00+03'::timestamptz, '2026-12-17 23:59:59+03'::timestamptz, '2026-12-15 00:00:00+03'::timestamptz, false, true, NULL),
   ('p669-1-finansovaya-gramotnost:registration:1', 'p669-1-finansovaya-gramotnost', 'registration', 'Регистрация', '2026-10-01 00:00:00+03'::timestamptz, '2026-10-21 23:59:59+03'::timestamptz, '2026-10-21 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-1-finansovaya-gramotnost:qualifying:1', 'p669-1-finansovaya-gramotnost', 'qualifying', 'Отборочный этап', '2026-10-28 00:00:00+03'::timestamptz, '2026-11-10 23:59:59+03'::timestamptz, '2026-11-10 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-1-finansovaya-gramotnost:final:1', 'p669-1-finansovaya-gramotnost', 'final', 'Заключительный этап', '2026-12-10 00:00:00+03'::timestamptz, '2026-12-12 23:59:59+03'::timestamptz, '2026-12-10 00:00:00+03'::timestamptz, false, true, NULL),
@@ -1064,11 +1049,6 @@ ON CONFLICT (id) DO UPDATE SET
   source_id = EXCLUDED.source_id;
 
 INSERT INTO benefits (id, olympiad_profile_id, university_id, admission_year, benefit, extra_points, ege_min, diploma_grades, note, source_id) VALUES
-  ('other-biznes-start-econ__hse__2026__extra_points', 'other-biznes-start-econ', 'hse', 2026, 'extra_points', 2, NULL, NULL, 'Баллы за индивидуальные достижения, не больше 10 в сумме', NULL),
-  ('other-biznes-start-econ__kfu__2026__extra_points', 'other-biznes-start-econ', 'kfu', 2026, 'extra_points', 1, NULL, NULL, 'Баллы за индивидуальные достижения, не больше 10 в сумме', NULL),
-  ('other-impuls-phys__kfu__2026__extra_points', 'other-impuls-phys', 'kfu', 2026, 'extra_points', 2, NULL, NULL, 'Баллы за индивидуальные достижения, не больше 10 в сумме', NULL),
-  ('other-tyk-inf__innopolis__2026__extra_points', 'other-tyk-inf', 'innopolis', 2026, 'extra_points', 2, NULL, NULL, 'Баллы за индивидуальные достижения, не больше 10 в сумме', NULL),
-  ('other-tyk-inf__kfu__2026__extra_points', 'other-tyk-inf', 'kfu', 2026, 'extra_points', 3, NULL, NULL, 'Баллы за индивидуальные достижения, не больше 10 в сумме', NULL),
   ('p669-1-finansovaya-gramotnost__hse__2026__bvi', 'p669-1-finansovaya-gramotnost', 'hse', 2026, 'bvi', NULL, 75, ARRAY[9,10,11]::int[], 'Подтвердить ЕГЭ: Обществознание', 'src-bfbbb3555a79'),
   ('p669-1-finansovaya-gramotnost__kfu__2026__bvi', 'p669-1-finansovaya-gramotnost', 'kfu', 2026, 'bvi', NULL, 75, NULL, 'Подтвердить ЕГЭ: Математика', 'src-03efdddedffe'),
   ('p669-1-finansovaya-gramotnost__msu__2026__score100', 'p669-1-finansovaya-gramotnost', 'msu', 2026, 'score100', NULL, 75, ARRAY[11]::int[], 'Подтвердить ЕГЭ: Математика', 'src-abbf33a7eb41'),
