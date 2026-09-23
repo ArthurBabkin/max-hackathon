@@ -169,3 +169,30 @@ func TestCards_DescriptionAndSite(t *testing.T) {
 		t.Fatalf("у карточки олимпиады нет поля description: %v", o)
 	}
 }
+
+// Справочник целей для профиля (F49): цель меняется выбором из направлений.
+func TestDirections(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	r := e.do("GET", "/api/v1/directions", token, nil)
+	if r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	items := list(t, r.body["items"])
+	if len(items) != 16 {
+		t.Fatalf("направлений %d, ждали 16", len(items))
+	}
+	found := false
+	for _, it := range items {
+		if it["id"] == "napr-09-03-04" && it["name"] == "Программная инженерия" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("нет «Программной инженерии»: %v", items)
+	}
+	if r := e.do("GET", "/api/v1/directions", "", nil); r.code != 401 {
+		t.Fatalf("без токена — 401, получили %d", r.code)
+	}
+}

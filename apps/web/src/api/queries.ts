@@ -17,6 +17,7 @@ import {
 import type {
   AiMessage,
   CalendarMonth,
+  Direction,
   Family,
   Home,
   Invite,
@@ -49,6 +50,7 @@ export const keys = {
   calendar: (month: string) => ['calendar', month] as const,
   family: ['family'] as const,
   profile: ['profile'] as const,
+  directions: ['directions'] as const,
   ai: ['ai'] as const,
   health: ['health'] as const,
 }
@@ -168,6 +170,14 @@ export const useFamily = () =>
 
 export const useProfile = () =>
   useQuery({ queryKey: keys.profile, queryFn: () => api.get<Profile>('/profile') })
+
+/** Справочник целей для правки профиля (F49); меняется только с выкладкой. */
+export const useDirections = () =>
+  useQuery({
+    queryKey: keys.directions,
+    queryFn: () => api.get<{ items: Direction[] }>('/directions'),
+    staleTime: Infinity,
+  })
 
 /** Коммит, из которого собран сервер. Меняется только с выкладкой. */
 export const useServerVersion = () =>

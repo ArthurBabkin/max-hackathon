@@ -15,7 +15,8 @@
  */
 
 import { ApiError } from '../errors'
-import { OLYMPIADS, SOURCES, UNIVERSITIES, inDays } from './fixtures'
+import { regions as REGIONS } from '@regions'
+import { DIRECTIONS, OLYMPIADS, SOURCES, UNIVERSITIES, inDays } from './fixtures'
 import {
   findProfile,
   hasKid,
@@ -149,6 +150,8 @@ route('GET', '/universities', ({ query }) => {
 
   return { items }
 })
+
+route('GET', '/directions', () => ({ items: DIRECTIONS }))
 
 route('GET', '/universities/:id', ({ params }) => {
   const u = universityById(params.id!)
@@ -336,11 +339,17 @@ route('PATCH', '/profile', ({ body }) => {
     state.student_name = patch.student_name.trim()
   }
   if (typeof patch.grade === 'number') state.grade = patch.grade as 8 | 9 | 10 | 11
-  if (typeof patch.region_code === 'string') state.region_code = patch.region_code
+  if (typeof patch.region_code === 'string') {
+    state.region_code = patch.region_code
+    state.region_name = REGIONS.find((r) => r.code === patch.region_code)?.name ?? state.region_name
+  }
   if (Array.isArray(patch.subject_codes) && patch.subject_codes.length > 0) {
     state.subjects = patch.subject_codes as string[]
   }
-  if (typeof patch.direction_id === 'string') state.direction_id = patch.direction_id
+  if (typeof patch.direction_id === 'string') {
+    state.direction_id = patch.direction_id
+    state.direction_name = DIRECTIONS.find((d) => d.id === patch.direction_id)?.name ?? state.direction_name
+  }
   if (Array.isArray(patch.university_ids) && patch.university_ids.length > 0) {
     state.universities = patch.university_ids as string[]
   }
