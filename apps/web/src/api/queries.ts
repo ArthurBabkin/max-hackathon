@@ -148,10 +148,13 @@ export const useUniversity = (id: string | null) =>
     enabled: id !== null,
   })
 
-export const useTracker = () =>
+// enabled — для оболочки: бейдж вкладки нельзя запрашивать раньше сессии,
+// иначе запрос без токена получит 401 и откроет вторую сессию.
+export const useTracker = (enabled = true) =>
   useQuery({
     queryKey: keys.tracker,
     queryFn: () => api.get<{ items: TrackerItem[]; proposals: Proposal[] }>('/tracker'),
+    enabled,
   })
 
 export const useCalendar = (month: string) =>
