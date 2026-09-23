@@ -84,6 +84,7 @@ type stageDTO struct {
 type olympiadDetail struct {
 	olympiadCard
 	OfficialURL         *string        `json:"official_url"`
+	Description         *string        `json:"description"`
 	Profiles            []profileLevel `json:"profiles"`
 	ProfilesSource      *sourceDTO     `json:"profiles_source"`
 	Benefits            []benefitRow   `json:"benefits"`
@@ -146,7 +147,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	mine := cs.Benefits[p.ID]
 	st := cs.Stages[p.ID]
 	out := olympiadDetail{
-		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, ProfilesSource: sourceOf(p.Source),
+		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, Description: p.Description, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
 		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
 		Why: cs.why(p, res, mine, all), BenefitUniversities: make([]benefitRow, len(all)),
