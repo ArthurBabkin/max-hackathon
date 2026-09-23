@@ -71,12 +71,17 @@ resource "yandex_vpc_security_group" "db" {
   }
 
   # SSH нужен Ansible. Диапазон задаётся явно: по умолчанию не открыт никому,
-  # чтобы случайный apply не выставил порт в интернет.
-  ingress {
-    protocol       = "TCP"
-    port           = 22
-    v4_cidr_blocks = var.ssh_allowed_cidrs
-    description    = "SSH для Ansible"
+  # чтобы случайный apply не выставил порт в интернет. При пустом списке
+  # правила нет вовсе: правило без адресов API отклоняет («target: One of the
+  # options must be selected»).
+  dynamic "ingress" {
+    for_each = length(var.ssh_allowed_cidrs) > 0 ? [1] : []
+    content {
+      protocol       = "TCP"
+      port           = 22
+      v4_cidr_blocks = var.ssh_allowed_cidrs
+      description    = "SSH для Ansible"
+    }
   }
 
   egress {
