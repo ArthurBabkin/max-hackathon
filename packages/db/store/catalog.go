@@ -31,6 +31,7 @@ type Profile struct {
 	FinalCity       *string
 	FinalRegionCode *string
 	OfficialURL     *string
+	Description     *string
 	GradesFrom      int
 	GradesTo        int
 	Source          *Source
@@ -49,7 +50,7 @@ type ProfileQuery struct {
 func (s *Store) Profiles(ctx context.Context, q ProfileQuery) ([]Profile, error) {
 	sql := `
 		SELECT p.id, o.id, o.name, o.organizer, o.kind, p.level, p.subject_code, sub.name, p.profile_name,
-		       o.format, o.final_city, o.final_region_code, o.official_url, p.grades_from, p.grades_to,
+		       o.format, o.final_city, o.final_region_code, o.official_url, o.description, p.grades_from, p.grades_to,
 		       src.id, src.kind, src.title, src.url, src.verified_at
 		FROM olympiad_profiles p
 		JOIN olympiads o ON o.id = p.olympiad_id
@@ -93,7 +94,7 @@ func (s *Store) Profiles(ctx context.Context, q ProfileQuery) ([]Profile, error)
 		var src sourceCols
 		err := r.Scan(&p.ID, &p.OlympiadID, &p.OlympiadName, &p.Organizer, &p.Kind, &p.Level, &p.SubjectCode,
 			&p.SubjectName, &p.ProfileName, &p.Format, &p.FinalCity, &p.FinalRegionCode, &p.OfficialURL,
-			&p.GradesFrom, &p.GradesTo, &src.id, &src.kind, &src.title, &src.url, &src.verified)
+			&p.Description, &p.GradesFrom, &p.GradesTo, &src.id, &src.kind, &src.title, &src.url, &src.verified)
 		p.Source = src.source()
 		return p, err
 	})
@@ -219,6 +220,8 @@ type UniversityDetail struct {
 	EgeNote         *string
 	RulesURL        *string
 	RulesVerifiedAt *time.Time
+	Description     *string
+	SiteURL         *string
 }
 
 func (s *Store) University(ctx context.Context, trajectoryID, id string) (UniversityDetail, error) {
@@ -226,10 +229,10 @@ func (s *Store) University(ctx context.Context, trajectoryID, id string) (Univer
 	err := s.db.QueryRow(ctx, `
 		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`,
 		       EXISTS (SELECT 1 FROM trajectory_universities tu WHERE tu.trajectory_id = $1 AND tu.university_id = u.id),
-		       u.directions, u.ege_note, u.rules_url, u.rules_verified_at
+		       u.directions, u.ege_note, u.rules_url, u.rules_verified_at, u.description, u.site_url
 		FROM universities u WHERE u.id = $2`, trajectoryID, id).Scan(
 		&d.ID, &d.ShortName, &d.Name, &d.City, &d.BenefitOlympiads, &d.IsMine,
-		&d.Directions, &d.EgeNote, &d.RulesURL, &d.RulesVerifiedAt)
+		&d.Directions, &d.EgeNote, &d.RulesURL, &d.RulesVerifiedAt, &d.Description, &d.SiteURL)
 	return d, wrap(err)
 }
 
