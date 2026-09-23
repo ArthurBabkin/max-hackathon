@@ -67,11 +67,11 @@ jobs:
       - name: Проверка
         run: |
           curl -fsS "https://$BUCKET/" | grep -q 'Одна траектория'
-          for f in styles.css main.js; do
+          for f in styles.css tokens/tokens.css main.js; do
             type=$(curl -fsSI "https://$BUCKET/$f" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')
             echo "$f -> $type"
             case "$f:$type" in
-              styles.css:text/css*|main.js:*javascript*) ;;
+              *.css:text/css*|main.js:*javascript*) ;;
               *) echo "::error::$f отдаётся как $type"; exit 1 ;;
             esac
           done
