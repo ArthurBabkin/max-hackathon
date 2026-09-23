@@ -3,16 +3,18 @@
  * кнопка «Назад» MAX.
  */
 
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Button, IconButton } from '@maxhub/max-ui'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useSession, useTracker } from './api/queries'
 import { getWebApp } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
 import { useStartRoute } from './lib/startParam'
+import { tutorialSeen } from './lib/tutorial'
 import { Icon, Logo } from './ui/Icon'
 import { Tabbar } from './ui/Tabbar'
 import { StateBlock } from './ui/primitives'
+import { Tutorial } from './ui/Tutorial'
 import { useSheetStack } from './ui/sheets'
 import { useVoice } from './voice/useVoice'
 import { HomeScreen } from './screens/Home'
@@ -50,6 +52,16 @@ export function App() {
   const location = useLocation()
   const navigate = useNavigate()
   const t = useVoice()
+
+  // Туториал — новичку, который открыл приложение сам. Пришедшего по кнопке
+  // бота в конкретный раздел не перебиваем. ?tutorial=1 — пройти заново.
+  const [tutorial, setTutorial] = useState(() => !tutorialSeen() && !getWebApp().initDataUnsafe.start_param)
+  const replayTutorial = new URLSearchParams(location.search).has('tutorial')
+  useEffect(() => {
+    if (!replayTutorial) return
+    setTutorial(true)
+    navigate(location.pathname, { replace: true })
+  }, [replayTutorial, location.pathname, navigate])
 
   const hasSheet = sheets.stack.length > 0
   // Раздел из кнопки бота: «Трекер», «Семья», карточка олимпиады.
@@ -134,6 +146,8 @@ export function App() {
       <Tabbar trackerCount={badge} />
 
       <SheetHost sheets={sheets} />
+
+      {tutorial ? <Tutorial onDone={() => setTutorial(false)} /> : null}
     </div>
   )
 }

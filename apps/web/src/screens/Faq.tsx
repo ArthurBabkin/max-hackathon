@@ -28,6 +28,10 @@ export function FaqScreen() {
 
       <h1 className="family-title">{t('faq.title')}</h1>
       <p className="family-subtitle">{t('faq.subtitle')}</p>
+      <button type="button" className="link tutorial-replay" onClick={() => navigate('/?tutorial=1')}>
+        <Icon name="book" size={15} />
+        {t('tutorial.replay')}
+      </button>
 
       <Input
         type="search"
