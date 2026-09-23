@@ -119,12 +119,15 @@ var monthsGen = [...]string{"января", "февраля", "марта", "а�
 func Day(t time.Time) string { return fmt.Sprintf("%d %s", t.Day(), monthsGen[t.Month()-1]) }
 
 // Subtitle — подпись под этапом: «до 22 октября, онлайн» для окна с
-// последним днём, «20–22 февраля» для очного этапа. Даты — в зоне loc.
+// последним днём, «20–22 февраля» для очного этапа. Этап, у которого
+// организатор назвал только крайний день, тоже «до …». Даты — в зоне loc.
 func Subtitle(s Stage, loc *time.Location) string {
 	var text string
 	switch {
 	case (s.Kind == "registration" || s.Kind == "qualifying" || s.Kind == "school") && s.DeadlineAt != nil:
 		text = "до " + Day(s.DeadlineAt.In(loc))
+	case s.StartsAt == nil && s.EndsAt != nil:
+		text = "до " + Day(s.EndsAt.In(loc))
 	case s.StartsAt != nil:
 		start := s.StartsAt.In(loc)
 		end := start
