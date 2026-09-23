@@ -12,7 +12,7 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 # поэтому гонять тесты против базы с демо-данными нельзя.
 TEST_DATABASE_URL ?= postgres://traektoria:traektoria@localhost:5432/postgres?sslmode=disable
 
-.PHONY: help fmt fmt-check vet test test-db build check seed up down db-up web-dev bot-poll
+.PHONY: help fmt fmt-check vet test test-db build check seed up down db-up web-dev bot-poll emu
 
 help: ## список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -60,3 +60,6 @@ bot-poll: db-up ## бот в живом MAX через long polling (тольк�
 	set -a; . ./.env; set +a; \
 	DATABASE_URL="$${DATABASE_URL:-postgres://traektoria:traektoria@localhost:5432/traektoria?sslmode=disable}" \
 	BOT_MODE=poll $(GO) run ./apps/bot/cmd/local
+
+emu: ## эмулятор MAX с ботом: чат на http://localhost:9000, без аккаунта в MAX
+	GO='$(GO)' apps/bot/cmd/emu/run.sh
