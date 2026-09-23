@@ -344,7 +344,7 @@ h3.grp:before{content:"";width:14px;height:14px;background:var(--c,var(--violet)
 
 /* ai */
 .sheet.ai{height:90%;max-height:90%;display:flex;flex-direction:column;padding-bottom:12px;overflow:hidden}
-.ai-h{display:flex;gap:10px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--ln)}
+.ai-h{display:flex;gap:10px;align-items:center;padding-bottom:2px}
 .ai-b{flex:1;min-height:0;overflow-y:auto;padding:10px 0;display:flex;flex-direction:column;gap:7px;scrollbar-width:none}
 .am{max-width:90%;padding:8px 11px;border-radius:15px;font-size:12px;line-height:1.42}
 .am.b{background:var(--bgA);align-self:flex-start;border-bottom-left-radius:5px}
@@ -360,6 +360,21 @@ h3.grp:before{content:"";width:14px;height:14px;background:var(--c,var(--violet)
 .ai-q .chip{border-color:var(--p);color:var(--p)}
 .ai-in{flex:0 0 38px;display:flex;gap:6px;align-items:center;border-radius:19px;background:var(--bgA);padding:0 5px 0 12px;font-size:12px;color:var(--mu)}
 .snd{margin-left:auto;width:28px;height:28px;border-radius:50%;background:var(--p);color:#fff;display:grid;place-items:center}
+.ai-bar{display:flex;align-items:center;gap:6px;padding:8px 0 10px;border-bottom:1px solid var(--ln)}
+.ai-cur{flex:1;min-width:0;display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:10px;background:var(--bgA);font-weight:700;font-size:12px;color:var(--tx)}
+.ai-cur span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.ai-cur svg{flex:0 0 auto;color:var(--mu)}
+.ai-ib{border-radius:10px}
+.ai-ib.ok{background:var(--p);color:#fff}
+.ai-fld{flex:1;min-width:0;height:32px;border:1.5px solid var(--p);border-radius:10px;padding:0 10px;font:inherit;font-size:12px;font-weight:700;color:var(--tx);background:#fff;outline:0}
+.ai-list{gap:0}
+.ai-new{display:flex;align-items:center;gap:8px;width:100%;padding:11px 2px;border-bottom:1px solid var(--ln);font-weight:700;font-size:12.5px;color:var(--p);text-align:left}
+.ai-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 2px;border-bottom:1px solid var(--ln);text-align:left}
+.ai-row-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ai-row-m b{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-row-m small{font-size:10.5px;color:var(--mu)}
+.ai-row.on b{color:var(--p)}
+.ai-on{color:var(--p);display:flex}
 
 /* splash / launch */
 .spl{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:radial-gradient(80% 55% at 50% 38%,#ECE3FF,#fff 72%)}
@@ -557,7 +572,7 @@ nav.toc{top:env(safe-area-inset-top,0px)}
 </header>
 
 <nav class="toc" aria-label="Разделы"><div class="wrap">
-  <a href="#entry">Вход и онбординг</a><a href="#app">Мини-приложение</a><a href="#bot">Сообщения бота</a><a href="#cov">Функции 1–51</a><a href="#flow">User flow</a>
+  <a href="#entry">Вход и онбординг</a><a href="#app">Мини-приложение</a><a href="#bot">Сообщения бота</a><a href="#cov">Функции</a><a href="#flow">User flow</a>
 </div></nav>
 
 <main class="wrap">
@@ -600,7 +615,7 @@ nav.toc{top:env(safe-area-inset-top,0px)}
 
   <section id="cov">
     <h2>Где на макетах каждая функция</h2>
-    <p class="lead">Все 51 функция первой версии. Метки справа ведут к экранам, где функция показана.</p>
+    <p class="lead">Все 54 функции первой версии. Метки справа ведут к экранам, где функция показана.</p>
     <ul class="cov" id="cov-list"></ul>
   </section>
 
@@ -641,9 +656,15 @@ flowchart TD
   REM --> RG{"Зарегистрировались?"}
   RG -->|"Отметил любой участник"| DONE["Статус «зарегистрирован», новый следующий шаг"]
   RG -.->|"Напомнить завтра"| REM
-  H --> AI["ИИ-помощник: личный чат"]
-  AI --> AIQ{"Ответ есть в базе?"}
-  AIQ -->|"Да"| AIA["Ответ со ссылкой на карточку и источник"]
+  H -->|"Спросить"| AI["ИИ-помощник: последний чат, помнит 10 реплик"]
+  AI -->|"Чаты"| AIL["Список чатов: свежие сверху"]
+  AIL -->|"Выбрать"| AI
+  AIL -->|"Новый чат"| AIE["Пустой чат с подсказками"]
+  AIE -->|"Первый вопрос"| AIT["Чат назван по дню: «Чат 21 сентября»"]
+  AIT --> AI
+  AI -.->|"Переименовать"| AIR["Своё название чата"]
+  AI --> AIQ{"Есть карточки: по последнему вопросу или из прошлых ответов?"}
+  AIQ -->|"Да"| AIA["Ответ с учётом разговора: карточка и источник"]
   AIQ -.->|"Нет"| AIN["«Данных нет» и первоисточник"]
   INV["Одноразовая ссылка-приглашение"] --> J["Приглашённый: приветствие по имени, подтвердить имя и цель"]
   J --> SH["Общая траектория: те же олимпиады, сроки и статусы"]
@@ -657,7 +678,7 @@ flowchart TD
   classDef app fill:#EFE8FF,stroke:#6B2BFF,color:#17142A
   classDef fam fill:#FFE8F1,stroke:#E92E78,color:#17142A
   class B,N1,N2,Q,G1,G2,V,R,REM,PR,NT chat
-  class H,SEL,CAT,OC,VC,TR,DONE,AI,AIA,AIN app
+  class H,SEL,CAT,OC,VC,TR,DONE,AI,AIL,AIE,AIT,AIR,AIA,AIN app
   class INV,J,SH,DEL,OUT fam
 </pre>
     </div>
@@ -691,7 +712,8 @@ const P={
  link:'M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1', send:'M4 12l16-8-6 16-2-7z',
  refresh:'M20 11a8 8 0 10-2.3 5.7M20 4v7h-7', wifioff:'M3 3l18 18M8.5 16.5a5 5 0 017 0M5 12.9a10 10 0 015.2-2.8M19 12.9a10 10 0 00-2.4-1.7M2 8.8a15 15 0 014.2-2.7M22 8.8A15 15 0 0010.5 5.1M12 20h.01',
  book:'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 5v16M8 7h7', pin:'M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12zM12 7a2 2 0 100 4a2 2 0 000-4z',
- out:'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H4', inbox:'M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5'
+ out:'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H4', inbox:'M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5',
+ pencil:'M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16zM13.5 6.5l4 4', down:'M6 9l6 6 6-6'
 };
 const ic=(n,s=18,w=2)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${n==='dots'?3.2:w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n]}"/></svg>`;
 let LG=0;
@@ -769,7 +791,9 @@ function fresh(){return {view:'chat',as:'kid',tab:'home',sheet:[],sheetNew:false
  tracked:new Set(['hse','vsosh','inno']),reg:new Map(),proposals:['tk'],
  filter:'all',catSeg:'oly',q:'',catSubj:'all',catCity:'all',trView:'list',calM:9,
  members:[{n:PAR,r:'Родитель',c:true,col:'#E92E78'},{n:KID,r:'Ученик',col:'#FF8A3D'},{n:'Игорь',r:'Родитель',col:'#1A6DFF'}],
- links:[],ai:{kid:[],parent:[]},loading:false,error:false,empty:false,splash:false,anim:false,
+ links:[],ai:{kid:[],parent:[]},aiCur:'today',aiTitle:null,aiView:'chat',aiRename:null,aiBottom:false,
+ aiOther:AICHATS.map(c=>({...c,log:[...c.log]})),
+ loading:false,error:false,empty:false,splash:false,anim:false,
  kidOk:false,chatRemind:false,matchSeen:false,
  prof:{cls:9,subj:new Set(['inf','math']),vuz:new Set(['inno','kfu','hse'])}};}
 const isP=s=>s.as==='parent';
@@ -1103,17 +1127,49 @@ const AIQ=[
  {q:()=>'Можно ли поступить в ИТМО по Innopolis Open?',warn:true,
   a:s=>`<b>Данных нет.</b> В нашей базе нет правил ИТМО для Innopolis Open, поэтому гадать не буду. ${V(s,'Проверь','Проверьте')} правила приёма ИТМО.<button class="src" data-a="toast" data-v="Откроются правила приёма ИТМО">${ic('ext',12)} Правила приёма ИТМО</button>`},
  {q:()=>'Чем БВИ отличается от 100 баллов?',
-  a:()=>`<span class="tag fact">Факт</span><br><b>БВИ</b> — зачисление без вступительных испытаний. <b>100 баллов</b> — диплом засчитывается как 100 баллов ЕГЭ по профильному предмету.<button class="src" data-a="toast" data-v="Откроется Порядок приёма в вузы">${ic('doc',12)} Порядок приёма, приказ № 821</button>`}
+  a:()=>`<span class="tag fact">Факт</span><br><b>БВИ</b> — зачисление без вступительных испытаний. <b>100 баллов</b> — диплом засчитывается как 100 баллов ЕГЭ по профильному предмету.<button class="src" data-a="toast" data-v="Откроется Порядок приёма в вузы">${ic('doc',12)} Порядок приёма, приказ № 821</button>`},
+ // Уточнение без названия олимпиады: помощник помнит разговор и карточку из прошлого ответа.
+ {q:()=>'А когда у неё регистрация?',follow:true,
+  a:()=>`<span class="tag fact">Факт</span><br>Регистрация на «Высшую пробу» по информатике — до 25 сентября, осталось 4 дня. Отборочный этап пройдёт онлайн в октябре — ноябре.<button class="src" data-a="open" data-v="hse">${ic('doc',12)} Карточка «Высшая проба»</button>`}
 ];
+// Название нового чата — день первой реплики. «Сегодня» в прототипе — 21 сентября.
+const AITODAY='Чат 21 сентября';
+// Прошлые чаты участника: готовые разговоры других дней.
+const AICHATS=[
+ {id:'itmo',t:'Льготы в ИТМО',d:'18 сентября',log:[{i:1}]},
+ {id:'d14',t:'Чат 14 сентября',d:'14 сентября',log:[{i:2}]}
+];
+// Текущий чат: сегодняшний (в том числе новый, ещё без реплик) или один из прошлых.
+function aiChat(s){
+ if(s.aiCur!=='today'){const c=s.aiOther.find(x=>x.id===s.aiCur);return {id:c.id,t:c.t,log:c.log,saved:true};}
+ const log=s.ai[isP(s)?'parent':'kid'];
+ return {id:'today',t:s.aiTitle||(log.length?AITODAY:'Новый чат'),log,saved:log.length>0};
+}
+// Полоса под шапкой: текущий чат, переименование и новый чат.
+function aiBar(s,c){
+ if(s.aiView==='list') return `<div class="ai-bar"><button class="ai-cur" data-a="aichats" aria-label="Вернуться в чат">${ic('back',14)}<span>Чаты</span></button></div>`;
+ if(s.aiRename!==null) return `<div class="ai-bar"><input class="ai-fld" data-ren value="${s.aiRename}" maxlength="60" aria-label="Название чата"><button class="ib ai-ib ok" data-a="aisave" aria-label="Сохранить">${ic('check',15,2.6)}</button><button class="ib ai-ib" data-a="aicancel" aria-label="Отменить">${ic('close',14)}</button></div>`;
+ return `<div class="ai-bar"><button class="ai-cur" data-a="aichats" aria-label="Все чаты">${ic('list',14)}<span>${c.t}</span>${ic('down',13)}</button>${c.saved?`<button class="ib ai-ib" data-a="airename" aria-label="Переименовать чат">${ic('pencil',14)}</button>`:''}<button class="ib ai-ib" data-a="ainew" aria-label="Новый чат">${ic('plus',15)}</button></div>`;
+}
+// Список чатов: свежие сверху, под названием — день последней реплики.
+function aiList(s,c){
+ const today=s.ai[isP(s)?'parent':'kid'];
+ const rows=[...(today.length?[{id:'today',t:s.aiTitle||AITODAY,d:'сегодня'}]:[]),...s.aiOther];
+ return `<div class="ai-b ai-list"><div class="lock" style="justify-content:center;padding:0 0 4px">${ic('eyeoff',12)} ${V(s,'Эти чаты видишь только ты','Эти чаты видите только вы')}</div>
+ <button class="ai-new" data-a="ainew">${ic('plus',15)} Новый чат</button>
+ ${rows.map(r=>`<button class="ai-row ${r.id===c.id?'on':''}" data-a="aipick" data-v="${r.id}" ${r.id===c.id?'aria-current="true"':''}><span class="ai-row-m"><b>${r.t}</b><small>${r.d}</small></span>${r.id===c.id?`<span class="ai-on">${ic('check',14,2.6)}</span>`:''}</button>`).join('')}</div>`;
+}
 function scAI(s){
- const na=s.sheetNew?'':'na', log=s.ai[isP(s)?'parent':'kid'], asked=log.map(x=>x.i);
+ const na=s.sheetNew?'':'na', c=aiChat(s), log=c.log, asked=log.map(x=>x.i);
  const msgs=log.map(x=>`<div class="am u">${AIQ[x.i].q(s)}</div>`+(x.pending?`<div class="am b dots" aria-label="Помощник печатает"><span></span><span></span><span></span></div>`:`<div class="am b ${AIQ[x.i].warn?'warn':''}">${AIQ[x.i].a(s)}</div>`)).join('');
- const left=AIQ.map((q,i)=>i).filter(i=>!asked.includes(i));
+ // Уточнение имеет смысл только после первого вопроса про олимпиаду.
+ const left=AIQ.map((q,i)=>i).filter(i=>!asked.includes(i)&&(!AIQ[i].follow||asked.includes(0)));
+ const body=s.aiView==='list'?aiList(s,c):`<div class="ai-b" data-ai ${s.aiBottom?'data-bottom':''}><div class="lock" style="justify-content:center;padding:0 0 2px">${ic('eyeoff',12)} ${V(s,'Этот чат видишь только ты','Этот чат видите только вы')}</div><div class="am b">${V(s,'Спроси','Спросите')} про олимпиады, вузы и льготы. Если в базе нет ответа, скажу прямо и дам первоисточник.</div>${msgs}</div>
+ ${left.length?`<div class="ai-q">${left.map(i=>`<button class="chip" data-a="ask" data-v="${i}">${AIQ[i].q(s)}</button>`).join('')}</div>`:''}
+ <div class="ai-in">${V(s,'Напиши вопрос','Напишите вопрос')}<span class="snd">${ic('send',14)}</span></div>`;
  return `<div class="shb ${na}" data-a="close"></div><div class="sheet ai ${na}" role="dialog" aria-label="Помощник"><div class="grab"></div>
  <div class="ai-h">${logo(34)}<div><b style="font-size:14px">Помощник</b><div class="dl-s">Отвечает по карточкам олимпиад и вузов</div></div><button class="ib" data-a="close" style="margin-left:auto" aria-label="Закрыть">${ic('close',15)}</button></div>
- <div class="ai-b" data-ai><div class="lock" style="justify-content:center;padding:0 0 2px">${ic('eyeoff',12)} ${V(s,'Этот чат видишь только ты','Этот чат видите только вы')}</div><div class="am b">${V(s,'Спроси','Спросите')} про олимпиады, вузы и льготы. Если в базе нет ответа, скажу прямо и дам первоисточник.</div>${msgs}</div>
- ${left.length?`<div class="ai-q">${left.map(i=>`<button class="chip" data-a="ask" data-v="${i}">${AIQ[i].q(s)}</button>`).join('')}</div>`:''}
- <div class="ai-in">${V(s,'Напиши вопрос','Напишите вопрос')}<span class="snd">${ic('send',14)}</span></div></div>`;
+ ${aiBar(s,c)}${body}</div>`;
 }
 
 const TABS=[['home','Главная','home'],['match','Подбор','target'],['catalog','Каталог','book'],['tracker','Трекер','cal'],['family','Семья','users']];
@@ -1186,11 +1242,32 @@ ps.addEventListener('click',e=>{
   case 'invite': { const code='fam_'+Math.random().toString(36).slice(2,6).toUpperCase(); S.links.push(code); toast('Ссылка создана, она сработает для одного человека'); render(false); break; }
   case 'rmmem': S.members=S.members.filter(m=>m.n!==v); toast(v+' больше не участник траектории'); render(); break;
   case 'leave': toast('Вы вышли из траектории. Вернуться можно по новой ссылке'); break;
-  case 'ask': { const i=+v, key=isP(S)?'parent':'kid'; if(S.ai[key].some(x=>x.i===i)) break; S.ai[key].push({i,pending:true}); render(); setTimeout(()=>{const m=S.ai[key].find(x=>x.i===i); if(m) m.pending=false; render();},900); break; }
+  case 'ask': { const i=+v, log=aiChat(S).log; if(log.some(x=>x.i===i)) break; log.push({i,pending:true}); render(); setTimeout(()=>{const m=log.find(x=>x.i===i); if(m) m.pending=false; render();},900); break; }
+  case 'aichats': S.aiView=S.aiView==='list'?'chat':'list'; S.aiRename=null; S.sheetReset=true; render(); break;
+  case 'aipick': S.aiCur=v; S.aiView='chat'; S.sheetReset=true; render(); break;
+  case 'ainew': {
+   // Сегодняшний чат с репликами уходит в список, новый пуст до первого вопроса.
+   const key=isP(S)?'parent':'kid';
+   if(S.aiCur==='today'&&S.ai[key].length) S.aiOther.unshift({id:'t'+S.aiOther.length,t:S.aiTitle||AITODAY,d:'сегодня',log:S.ai[key]});
+   S.ai[key]=[]; S.aiCur='today'; S.aiTitle=null; S.aiView='chat'; S.aiRename=null; render(); break;
+  }
+  case 'airename': S.aiRename=aiChat(S).t; render(); pin.querySelector('[data-ren]')?.select(); break;
+  case 'aisave': {
+   const val=(pin.querySelector('[data-ren]')?.value||'').trim();
+   if(!val){toast('Название не может быть пустым');break;}
+   if(S.aiCur==='today') S.aiTitle=val; else S.aiOther.find(x=>x.id===S.aiCur).t=val;
+   S.aiRename=null; toast('Название сохранено'); render(); break;
+  }
+  case 'aicancel': S.aiRename=null; render(); break;
   case 'toast': toast(v); break;
  }
 });
 ps.addEventListener('input',e=>{ if(e.target.matches('[data-q]')){ S.q=e.target.value; const c=pin.querySelector('[data-catlist]'); if(c) c.innerHTML=catList(S); } });
+ps.addEventListener('keydown',e=>{
+ if(!e.target.matches('[data-ren]')) return;
+ if(e.key==='Enter') pin.querySelector('[data-a="aisave"]').click();
+ if(e.key==='Escape') pin.querySelector('[data-a="aicancel"]').click();
+});
 document.querySelectorAll('[data-role]').forEach(btn=>btn.addEventListener('click',()=>{
  S.as=btn.dataset.role; S.sheet=[];
  document.querySelectorAll('[data-role]').forEach(b=>{const on=b===btn;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
@@ -1247,7 +1324,10 @@ put('g-e',[
 ]);
 put('g-f',[
  {c:'F1',t:'Ответ с источником',d:'Помощник отвечает по карточкам базы и даёт ссылку на карточку и первоисточник. Чат личный.',f:'35, 37',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:0}],parent:[]}}))},
- {c:'F2',t:'Данных нет',d:'Если ответа в базе нет, помощник говорит об этом прямо и отправляет к первоисточнику.',f:'36, 37',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:1}],parent:[]}}))}
+ {c:'F2',t:'Данных нет',d:'Если ответа в базе нет, помощник говорит об этом прямо и отправляет к первоисточнику.',f:'36, 37',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:1}],parent:[]}}))},
+ {c:'F3',t:'Уточняющий вопрос',d:'Помощник помнит разговор: «А когда у неё регистрация?» понятно без названия олимпиады. Чат назван по дню первого вопроса.',f:'58, 60',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:0},{i:3}],parent:[]},aiBottom:true}))},
+ {c:'F4',t:'Переименование',d:'Название чата можно заменить своим — до 60 символов.',f:'59',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:0},{i:3}],parent:[]},aiRename:'Высшая проба',aiBottom:true}))},
+ {c:'F5',t:'Список чатов',d:'Новый чат начинается с чистого листа, к прошлым можно вернуться. Свежие сверху.',f:'37, 58, 59',html:appScreen(st({tab:'home',sheet:[{t:'ai'}],ai:{kid:[{i:0},{i:3}],parent:[]},aiTitle:'Высшая проба',aiView:'list'}))}
 ]);
 put('g-g',[
  {c:'G1',t:'Семья глазами создателя',d:'Ольга видит всех участников и может удалить любого приглашённого.',f:'38, 40, 41, 43, 44',html:appScreen(st({as:'parent',tab:'family'}))},
@@ -1279,11 +1359,12 @@ const FUNCS=[
  ['Карточка олимпиады'],[17,'Уровень профиля',['C5']],[18,'Льгота в вузах ученика',['C5']],[19,'Условия',['C5']],[20,'«Почему подходит»',['C6']],[21,'Этапы и даты',['C4']],[22,'Официальный сайт',['C6']],[23,'Вузы, где олимпиада даёт льготу',['C6']],
  ['Каталог'],[24,'Раздел «Олимпиады»',['D1']],[25,'Раздел «Вузы»',['D2','D3']],[26,'Олимпиады из карточки вуза',['D3']],[27,'Поиск и фильтры',['D1','D2']],
  ['Сроки'],[28,'Добавление в трекер',['C6','E1']],[29,'Напоминания за месяц, неделю, 3 дня и 1 день',['I1']],[30,'Кнопки в напоминании',['I1','I2']],[31,'Статусы в трекере',['E1']],[32,'Календарь',['E2']],[33,'Уведомления об изменениях',['I4']],[34,'Следующий шаг на главной',['C1']],
- ['ИИ-помощник'],[35,'Ответы по карточкам со ссылками',['F1']],[36,'«Данных нет» и первоисточник',['F2']],[37,'Личный чат у каждого',['F1','F2']],
+ ['ИИ-помощник'],[35,'Ответы по карточкам со ссылками',['F1']],[36,'«Данных нет» и первоисточник',['F2']],[37,'Личный чат у каждого',['F1','F2','F5']],
+ [58,'Несколько чатов: новый чат и переключение',['F5']],[59,'Название чата по дню первого вопроса, переименование',['F3','F4','F5']],[60,'Помощник помнит 10 последних реплик чата',['F3']],
  ['Семья'],[38,'Создатель траектории',['G1','G3']],[39,'Одноразовая ссылка',['B3','G2']],[40,'Сколько угодно приглашённых',['G1','G2']],[41,'Создатель удаляет приглашённых',['G1']],[42,'Приглашённого встречают по имени',['B4']],[43,'Общая траектория',['G1','G3']],[44,'Напоминания всем участникам',['E1','I2']],[45,'Родитель предлагает, ученик подтверждает',['E1','E3','I3']],[46,'Отметку ставит любой участник',['E1','I2']],[47,'Объяснение льгот для родителя',['C2']],[48,'Выход из траектории',['G3','I7']],
  ['Профиль и данные'],[49,'Правка профиля',['H1']],[50,'/delete только для создателя',['I6','I7']],[51,'Команды /start, /menu, /help, /settings',['I5']]
 ];
-document.querySelectorAll('.static .sheet[data-bottom]').forEach(el=>{el.scrollTop=el.scrollHeight;});
+document.querySelectorAll('.static .sheet[data-bottom], .static .ai-b[data-bottom]').forEach(el=>{el.scrollTop=el.scrollHeight;});
 document.getElementById('cov-list').innerHTML=FUNCS.map(f=>f.length===1?`<li class="h">${f[0]}</li>`:`<li><b>${f[0]}</b><span>${f[1]}</span><span class="refs">${f[2].map(c=>`<a href="#scr-${c}">${c}</a>`).join('')}</span></li>`).join('');
 })();
 
