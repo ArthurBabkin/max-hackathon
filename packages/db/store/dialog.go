@@ -41,7 +41,8 @@ type Draft struct {
 	// Target — где ученик хочет учиться: код субъекта или TargetAny.
 	Target        string   `json:"target,omitempty"`
 	UniversityIDs []string `json:"university_ids,omitempty"`
-	// District — открытый федеральный округ в списке регионов.
+	// District — открытый федеральный округ в списке регионов: на шаге
+	// региона или «Где хочешь учиться?».
 	District int `json:"district,omitempty"`
 	// Offered — вузы на кнопках шага вузов: предложенные по городу и
 	// направлениям и найденные поиском «Другой вуз».
