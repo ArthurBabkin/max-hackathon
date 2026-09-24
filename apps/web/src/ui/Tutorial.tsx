@@ -274,9 +274,13 @@ function measure(els: HTMLElement[], card: HTMLElement): Layout {
   const vh = window.innerHeight
 
   // Высокая цель — весь список: он и не должен уместиться. Подсвечиваем
-  // видимую часть с начала списка, карточка ложится поверх его низа.
+  // видимую часть с начала списка, карточка ложится поверх его низа. Если
+  // над карточкой от цели осталось бы мало — на низком экране она закрыла бы
+  // почти всё, — поднимаем цель к верху ленты.
   if (rect.height > vh * TALL) {
-    if (rect.top < 0 || rect.top > vh * TALL) {
+    const shown = vh - EDGE - card.offsetHeight - GAP - rect.top
+    const tooLittle = shown < Math.min(rect.height * 0.75, vh * 0.4)
+    if (rect.top < 0 || rect.top > vh * TALL || tooLittle) {
       first.scrollIntoView?.({ block: 'start' })
       rect = unionRect(els) ?? rect
     }

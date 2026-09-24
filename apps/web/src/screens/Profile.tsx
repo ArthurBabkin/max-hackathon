@@ -264,6 +264,7 @@ export function ProfileScreen() {
         loading={save.isPending}
         disabled={nameInvalid}
         iconBefore={<Icon name="spark" size={15} />}
+        innerClassNames={{ content: 'button-wrap' }}
         onClick={submit}
       >
         {t('profile.saveCta')}
