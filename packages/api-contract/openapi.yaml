@@ -1267,7 +1267,7 @@ components:
               description: Блок «Почему подходит», метка «Рекомендация» (F20).
             benefit_universities:
               type: array
-              description: Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23).
+              description: Вузы базы, где эта олимпиада даёт льготу, кроме вузов ученика (они в benefits), — блок «Где ещё даёт льготу» (F23).
               items: { $ref: "#/components/schemas/BenefitRow" }
 
     Direction:

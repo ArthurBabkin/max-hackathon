@@ -215,7 +215,8 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     stages: stages(o, registered),
     stages_are_demo: o.stages_are_demo,
     why: o.why[role()],
-    benefit_universities: UNIVERSITIES.filter((u) => u.benefits[o.id]).map((u) =>
+    // Вузы ученика уже в блоке льгот — здесь только остальные (F23).
+    benefit_universities: UNIVERSITIES.filter((u) => u.benefits[o.id] && !state.universities.includes(u.id)).map((u) =>
       benefitRow(u, o.id),
     ),
   }
