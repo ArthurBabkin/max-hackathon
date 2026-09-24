@@ -154,7 +154,7 @@ export const OLYMPIADS: DemoOlympiad[] = [
     ],
     conditions: [
       'Нужен диплом победителя или призёра',
-      'ЕГЭ по информатике от 75 баллов',
+      'Льготу подтверждает ЕГЭ по предмету «Информатика»',
       'БВИ можно использовать только в одном вузе',
     ],
     reason: 'Профиль совпадает с целью',
@@ -312,8 +312,15 @@ export interface DemoUniversity {
   rules_verified_at: string
   /** Льгота по олимпиаде: id олимпиады → вид льготы. */
   benefits: Record<string, BenefitKind>
-  /** Чем условия по олимпиаде отличаются от общих (F19): id олимпиады → строки. */
-  conditions?: Record<string, string[]>
+  /** Чем правила по олимпиаде отличаются от общих (F19): id олимпиады → оговорки. */
+  rules?: Record<string, DemoRule>
+}
+
+/** Оговорки вуза: что получит призёр, разброс порога, своё — строкой под вузом. */
+export interface DemoRule {
+  prizer?: 'score100' | 'none'
+  egeMax?: number
+  notes?: string[]
 }
 
 export const UNIVERSITIES: DemoUniversity[] = [
@@ -329,7 +336,7 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_url: 'https://innopolis.university/',
     rules_verified_at: '2026-09-15',
     benefits: { inno: 'bvi', hse: 'bvi', 'vsosh-inf': 'bvi', lomo: 'score100', tk: 'score100' },
-    conditions: { inno: ['ЕГЭ по двум другим предметам — от 60'] },
+    rules: { inno: { notes: ['ЕГЭ по двум другим предметам — от 60'] } },
   },
   {
     id: 'kfu',
@@ -356,7 +363,7 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_url: 'https://www.hse.ru/',
     rules_verified_at: '2026-09-15',
     benefits: { 'vsosh-inf': 'bvi', hse: 'bvi', lomo: 'bvi', tk: 'score100' },
-    conditions: { hse: ['Порог ЕГЭ от 75 до 90 — зависит от программы'] },
+    rules: { hse: { egeMax: 90 } },
   },
   {
     id: 'itmo',
@@ -383,7 +390,7 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_url: 'https://mipt.ru/',
     rules_verified_at: '2026-09-15',
     benefits: { 'vsosh-inf': 'bvi', tk: 'bvi_winners', lomo: 'bvi_winners' },
-    conditions: { tk: ['Призёру — 100 баллов вместо БВИ'], lomo: ['Призёру — 100 баллов вместо БВИ'] },
+    rules: { tk: { prizer: 'score100' }, lomo: { prizer: 'score100' } },
   },
 ]
 

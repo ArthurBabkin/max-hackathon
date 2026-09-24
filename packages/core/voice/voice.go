@@ -44,6 +44,7 @@ var KnownPlaceholders = []string{
 	"to",
 	"region",
 	"subject",
+	"common", // с чем сравнивают: «…«Физика», а не «Астрономия»»
 	"note",
 	"stage",
 	"title",

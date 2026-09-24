@@ -3,6 +3,8 @@
 import {
   BENEFIT_LABELS,
   NO_BENEFIT_LABEL,
+  type BenefitColumn,
+  type BenefitGrant,
   type BenefitRow,
   type Family,
   type Home,
@@ -25,7 +27,7 @@ import {
   type UniversityListItem,
 } from '@contract'
 import { regions as REGIONS } from '@regions'
-import { daysLeft, formatDay } from '@/lib/deadline'
+import { daysLeft, formatDay, plural } from '@/lib/deadline'
 import { dative, genitive } from '@/lib/declension'
 import { derivePermissions } from '@/lib/permissions'
 import { text } from '@/voice/texts'
@@ -73,22 +75,73 @@ const badge = (o: DemoOlympiad) => ({ short_name: o.short_name, color: o.color }
 
 // --- Льготы ------------------------------------------------------------------
 
+/** Сколько доп. баллов даёт диплом олимпиады вне перечня в демо-вузе. */
+const EXTRA_POINTS = 3
+
+const BVI: BenefitGrant = { kind: 'bvi', label: BENEFIT_LABELS.bvi }
+const SCORE100: BenefitGrant = { kind: 'score100', label: BENEFIT_LABELS.score100 }
+
+/** Что получат победитель и призёр — как на сервере (F18). */
+function grants(university: DemoUniversity, olympiadId: string): Pick<BenefitRow, 'winner' | 'prizer'> {
+  const benefit = university.benefits[olympiadId]
+  const rule = university.rules?.[olympiadId]
+  if (!benefit) return { winner: null, prizer: null }
+  if (benefit === 'extra_points') {
+    const extra: BenefitGrant = {
+      kind: 'extra_points',
+      label: `+${EXTRA_POINTS} ${plural(EXTRA_POINTS, 'балл', 'балла', 'баллов')}`,
+    }
+    return { winner: extra, prizer: extra }
+  }
+  const winner = benefit === 'score100' ? SCORE100 : BVI
+  if (rule?.prizer) return { winner, prizer: rule.prizer === 'score100' ? SCORE100 : null }
+  return { winner, prizer: benefit === 'bvi_winners' ? null : winner }
+}
+
 function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow {
   const benefit = university.benefits[olympiadId] ?? null
+  const kind = OLYMPIADS.find((o) => o.id === olympiadId)?.kind
   return {
     university_id: university.id,
     university_name: university.name,
     university_short_name: university.short_name,
+    university_nick: university.nick,
     city: university.city,
     color: university.color,
     benefit,
     benefit_label: benefit ? BENEFIT_LABELS[benefit] : NO_BENEFIT_LABEL,
-    extra_points: benefit === 'extra_points' ? 10 : null,
-    ege_min: benefit && benefit !== 'extra_points' ? DEFAULT_EGE_MIN : null,
+    ...grants(university, olympiadId),
+    extra_points: benefit === 'extra_points' ? EXTRA_POINTS : null,
+    // У ВсОШ льготу ЕГЭ не подтверждают — порога нет.
+    ege_min: benefit && benefit !== 'extra_points' && kind !== 'vsosh' ? DEFAULT_EGE_MIN : null,
+    ege_max: university.rules?.[olympiadId]?.egeMax ?? null,
     diploma_grades: benefit ? [9, 10, 11] : null,
     note: null,
     source: benefit ? (SOURCES.rules as Source) : null,
   }
+}
+
+const grantRank = (g: BenefitGrant | null) => (g ? { bvi: 0, score100: 1, extra_points: 2 }[g.kind] : 3)
+
+/** Порядок строк, как на сервере: самые выгодные первыми, дальше по алфавиту. */
+function sortBenefitRows(rows: BenefitRow[]): BenefitRow[] {
+  return rows.sort(
+    (a, b) =>
+      grantRank(a.winner) - grantRank(b.winner) ||
+      (b.extra_points ?? 0) - (a.extra_points ?? 0) ||
+      grantRank(a.prizer) - grantRank(b.prizer) ||
+      a.university_nick.toLowerCase().localeCompare(b.university_nick.toLowerCase(), 'ru'),
+  )
+}
+
+/** Столбцы таблицы льгот: порог — только если он в вузах разный. */
+function benefitColumns(o: DemoOlympiad, rows: BenefitRow[]): BenefitColumn[] {
+  if (o.kind === 'other') return ['extra_points']
+  const counted = rows.filter((r) => r.winner)
+  const thresholds = new Set(counted.map((r) => `${r.ege_min}–${r.ege_max}`))
+  return counted.some((r) => r.ege_max !== null) || thresholds.size > 1
+    ? ['winner', 'prizer', 'ege']
+    : ['winner', 'prizer']
 }
 
 /** Строка «Иннополис, ВШЭ: БВИ» под карточкой в подборе (F13). */
@@ -196,6 +249,15 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
   }))
 
   const registered = state.tracker.some((i) => i.profileId === profileId && i.registered_at)
+  const benefits = sortBenefitRows(
+    state.universities
+      .map(universityById)
+      .filter((u): u is DemoUniversity => u !== null)
+      .map((u) => {
+        const notes = u.rules?.[o.id]?.notes
+        return notes ? { ...benefitRow(u, o.id), conditions: notes } : benefitRow(u, o.id)
+      }),
+  )
 
   return {
     ...card,
@@ -203,19 +265,15 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     description: null,
     profiles: levels,
     profiles_source: o.kind === 'perechen' ? (SOURCES.perechen as Source) : null,
-    benefits: state.universities
-      .map(universityById)
-      .filter((u): u is DemoUniversity => u !== null)
-      .map((u) => {
-        const own = u.conditions?.[o.id]
-        return own ? { ...benefitRow(u, o.id), conditions: own } : benefitRow(u, o.id)
-      }),
+    benefits,
+    benefit_columns: benefitColumns(o, benefits),
     benefits_source: SOURCES.rules as Source,
     conditions: o.conditions,
     stages: stages(o, registered),
     stages_are_demo: o.stages_are_demo,
     why: o.why[role()],
-    benefit_universities: UNIVERSITIES.filter((u) => u.benefits[o.id]).map((u) =>
+    // Вузы ученика уже в блоке льгот — здесь только остальные (F23).
+    benefit_universities: UNIVERSITIES.filter((u) => u.benefits[o.id] && !state.universities.includes(u.id)).map((u) =>
       benefitRow(u, o.id),
     ),
   }
