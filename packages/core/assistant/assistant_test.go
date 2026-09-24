@@ -44,7 +44,7 @@ var kid = voice.New(voice.Kid, "Артём", "Артём")
 
 func TestAsk_AnswerFromCardsWithRefsAndSources(t *testing.T) {
 	st, tr := setup(t)
-	f := &fakeLLM{reply: "```json\n" + `{"answer": "**Да**: победителю и призёру «Высшей пробы» по информатике ВШЭ даёт БВИ.", "card_ids": ["olympiad:p669-8-informatika"], "no_data": false}` + "\n```"}
+	f := &fakeLLM{reply: "```json\n" + `{"answer": "**Да**: победителю и призёру «Высшей пробы» по информатике ВШЭ даёт БВИ.", "card_ids": ["olympiad:p669-8"], "no_data": false}` + "\n```"}
 	a := &Assistant{Store: st, LLM: f}
 	ans, err := a.Ask(context.Background(), kid, tr, nil, "Какие льготы даёт «Высшая проба» в моих вузах?")
 	if err != nil {
@@ -74,7 +74,7 @@ func TestAsk_AnswerFromCardsWithRefsAndSources(t *testing.T) {
 	if strings.Contains(sys.Content, "Артём") || strings.Contains(sys.Content, "900000001") {
 		t.Fatal("в модель не уходят имя и id пользователя")
 	}
-	for _, want := range []string{`"id":"olympiad:p669-8-informatika"`, `"university":"НИУ ВШЭ"`, "9 класс", "на «ты»"} {
+	for _, want := range []string{`"id":"olympiad:p669-8"`, "НИУ ВШЭ", "9 класс", "на «ты»", "Не называй дат"} {
 		if !strings.Contains(sys.Content, want) {
 			t.Fatalf("в контексте нет %s:\n%s", want, sys.Content)
 		}
@@ -83,7 +83,7 @@ func TestAsk_AnswerFromCardsWithRefsAndSources(t *testing.T) {
 
 func TestAsk_UniversityQuestion(t *testing.T) {
 	st, tr := setup(t)
-	f := &fakeLLM{reply: `{"answer": "В ИТМО по Innopolis Open дают льготу.", "card_ids": ["university:itmo", "olympiad:p669-22-informatika"], "no_data": false}`}
+	f := &fakeLLM{reply: `{"answer": "В ИТМО по Innopolis Open дают льготу.", "card_ids": ["university:itmo", "olympiad:p669-22"], "no_data": false}`}
 	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Можно ли поступить в ИТМО по Innopolis Open?")
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestAsk_Refusals(t *testing.T) {
 	}{
 		"вне базы — без модели":      {&fakeLLM{}, "Какая завтра погода в Казани?", "", 0},
 		"модель: данных нет":         {&fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}, "Сколько бюджетных мест в ВШЭ?", "rules-hse", 1},
-		"ссылка вне контекста":       {&fakeLLM{reply: `{"answer": "Да", "card_ids": ["olympiad:p669-50-matematika"], "no_data": false}`}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
+		"ссылка вне контекста":       {&fakeLLM{reply: `{"answer": "Да", "card_ids": ["olympiad:p669-50"], "no_data": false}`}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
 		"ответ без ссылок":           {&fakeLLM{reply: `{"answer": "Конечно!", "card_ids": [], "no_data": false}`}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
 		"не JSON":                    {&fakeLLM{reply: "Я не могу"}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
 		"модель недоступна":          {&fakeLLM{err: errors.New("timeout")}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
@@ -160,7 +160,7 @@ func uni(id string) store.AiCardRef { return store.AiCardRef{Type: "university",
 // новым вопросом, в исходном порядке и с исходными ролями.
 func TestAsk_HistoryGoesBetweenSystemAndQuestion(t *testing.T) {
 	st, tr := setup(t)
-	f := &fakeLLM{reply: `{"answer": "Регистрация до 25 сентября.", "card_ids": ["olympiad:p669-8-informatika"], "no_data": false}`}
+	f := &fakeLLM{reply: `{"answer": "Регистрация до 25 сентября.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
 	h := history("Какие льготы даёт «Высшая проба» в моих вузах?", "ВШЭ даёт БВИ.",
 		store.AiCardRef{Type: "olympiad", ID: "p669-8-informatika", Title: "Высшая проба"})
 	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, h, "А когда у неё регистрация?")
@@ -185,7 +185,7 @@ func TestAsk_HistoryGoesBetweenSystemAndQuestion(t *testing.T) {
 // прошлом вопросе без карточки в ответе контекста не даёт.
 func TestAsk_HistoryTextIsNotSearched(t *testing.T) {
 	st, tr := setup(t)
-	f := &fakeLLM{reply: `{"answer": "До 25 сентября.", "card_ids": ["olympiad:p669-8-informatika"], "no_data": false}`}
+	f := &fakeLLM{reply: `{"answer": "До 25 сентября.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
 	h := history("Что даёт «Высшая проба»?", "Данных нет.")
 	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, h, "А когда у неё регистрация?")
 	if err != nil {

@@ -27,6 +27,8 @@ type Mentions struct {
 	VSOSH bool
 	// Glossary — вопрос о терминах: БВИ, 100 баллов, уровни перечня.
 	Glossary bool
+	// MyUniversities — вопрос про вузы ученика: «в моих вузах».
+	MyUniversities bool
 }
 
 func (m Mentions) Empty() bool {
@@ -90,6 +92,9 @@ var glossaryStems = [][]string{
 	{"бви"}, {"без", "вступительн"}, {"100", "балл"}, {"сто", "балл"}, {"стобалльн"},
 	{"перечн"}, {"уровн"}, {"льгот"}, {"особ", "прав"}, {"призер"}, {"победител"}, {"подтвержд"}, {"егэ"},
 }
+
+// myWords — начала слов «мои вузы», «в моих вузах», «в выбранных вузах».
+var myWords = []string{"мой", "мои", "моем", "моег", "выбранн"}
 
 // vsoshWords — разговорные названия ВсОШ, словом целиком: «всерос»
 // префиксом поймал бы и «Всероссийскую олимпиаду «Высшая проба»».
@@ -179,6 +184,13 @@ func Find(question string, olympiads, universities []Named) Mentions {
 	for _, st := range glossaryStems {
 		if len(matchAt(free, st)) > 0 {
 			m.Glossary = true
+		}
+	}
+	for i := 0; i+1 < len(tokens); i++ {
+		next := tokens[i+1]
+		if slices.ContainsFunc(myWords, func(w string) bool { return strings.HasPrefix(tokens[i], w) }) &&
+			(strings.HasPrefix(next, "вуз") || strings.HasPrefix(next, "универс")) {
+			m.MyUniversities = true
 		}
 	}
 	return m
