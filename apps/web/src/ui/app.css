@@ -1168,11 +1168,18 @@
   border-bottom: 0;
 }
 
+/* Текст забирает всё свободное место: льгота и стрелка стоят у правого края
+   на одной линии во всех строках, какой бы длины ни было название. */
 .benefit-main {
+  flex: 1 1 auto;
   display: flex;
   gap: 10px;
   align-items: center;
   min-width: 0;
+}
+
+.benefit > svg {
+  flex: 0 0 auto;
 }
 
 .benefit-main .tile {
