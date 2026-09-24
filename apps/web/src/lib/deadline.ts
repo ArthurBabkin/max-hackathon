@@ -104,6 +104,35 @@ export function formatMonthTitle(month: string, grammaticalCase: 'title' | 'in' 
   return `${MONTHS_NOMINATIVE[index] as string} ${year}`
 }
 
+const moscowDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' })
+
+/** `YYYY-MM-DD` по Москве — в этом поясе сервер раскладывает сроки по дням календаря. */
+export function moscowDay(date: Date): string {
+  return moscowDayFormatter.format(date)
+}
+
+/**
+ * С какого месяца открыть календарь: там, где ближайший срок, чтобы его было
+ * видно сразу. У пункта трекера `deadline_at` — срок ближайшего этапа, так что
+ * ближайшая точка календаря — самый ранний из них. Будущих сроков нет —
+ * текущий месяц. Сегодняшний срок считается будущим до конца суток.
+ */
+export function nearestDeadlineMonth(
+  items: ReadonlyArray<{ deadline_at: string | null }>,
+  now: Date = new Date(),
+): string {
+  const today = moscowDay(now)
+  let nearest: string | null = null
+  for (const { deadline_at } of items) {
+    if (!deadline_at) continue
+    const parsed = new Date(deadline_at)
+    if (Number.isNaN(parsed.getTime())) continue
+    const day = moscowDay(parsed)
+    if (day >= today && (nearest === null || day < nearest)) nearest = day
+  }
+  return (nearest ?? today).slice(0, 7)
+}
+
 const todayFormatter = new Intl.DateTimeFormat('ru-RU', {
   weekday: 'long',
   day: 'numeric',

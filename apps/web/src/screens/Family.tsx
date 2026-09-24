@@ -132,6 +132,7 @@ export function FamilyScreen() {
         variant={invites.length > 0 ? 'secondary' : 'primary'}
         loading={createInvite.isPending}
         iconBefore={<Icon name="link" size={16} />}
+        data-tour="invite"
         onClick={() => createInvite.mutate(inviteRole)}
       >
         {invites.length > 0

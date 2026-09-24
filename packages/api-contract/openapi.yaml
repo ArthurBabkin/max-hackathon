@@ -356,6 +356,48 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /calendar/link:
+    get:
+      tags: [tracker]
+      summary: Ссылка на файл календаря со сроками
+      description: |
+        Файл .ics забирает браузер телефона или MAX, а не мини-приложение, —
+        заголовок Authorization им не передать. Поэтому сначала выдаётся
+        ссылка: путь относительно базового адреса API с подписанным токеном.
+        Ссылка живёт десять минут и открывает только календарь своей семьи.
+      x-tz: "F32"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalendarLink" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /calendar.ics:
+    get:
+      tags: [tracker]
+      summary: Файл календаря (.ics) со всеми будущими сроками трекера
+      description: |
+        Без сессии: доступ по токену из GET /calendar/link. Срок этапа —
+        событие на весь день по Москве с напоминанием накануне в 9:00. Этапы,
+        закрытые отметкой «зарегистрирован», не выгружаются. Просроченный,
+        чужой или испорченный токен и удалённый участник — 404.
+      x-tz: "F32"
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Календарь RFC 5545
+          content:
+            text/calendar:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /proposals:
     post:
       tags: [proposals]
@@ -1371,6 +1413,16 @@ components:
             Ученику — предложения, ждущие его ответа. Родителю — его же
             предложения со статусом «ждёт подтверждения» (ТЗ E1/E3).
           items: { $ref: "#/components/schemas/Proposal" }
+
+    CalendarLink:
+      type: object
+      required: [url, expires_at]
+      properties:
+        url:
+          type: string
+          description: Путь относительно базового адреса API, с токеном.
+          example: "/calendar.ics?token=eyJhbGciOiJIUzI1NiJ9…"
+        expires_at: { type: string, format: date-time }
 
     CalendarMonth:
       type: object

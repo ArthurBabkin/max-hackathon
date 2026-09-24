@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, Home, Tracker, TrackerItem } from '@contract'
+import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, Tracker, TrackerItem } from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -112,6 +112,27 @@ describe('трекер и предложения', () => {
     await handleMock('POST', '/proposals/pr-1/decline')
     const after = (await handleMock('GET', '/tracker')) as Tracker
     expect(after.proposals).toHaveLength(0)
+  })
+})
+
+describe('выгрузка календаря', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  // В разработке API нет: ссылка ведёт на файл, собранный прямо в браузере,
+  // чтобы кнопку можно было проверить руками.
+  it('ссылка открывает файл календаря со сроками трекера', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL')
+
+    const link = (await handleMock('GET', '/calendar/link')) as CalendarLink
+
+    expect(link.url).toMatch(/^blob:/)
+    expect(Date.parse(link.expires_at)).toBeGreaterThan(Date.now())
+    const file = createObjectURL.mock.calls[0]![0] as Blob
+    expect(file.type).toBe('text/calendar')
+    const text = await file.text()
+    expect(text).toMatch(/^BEGIN:VCALENDAR\r\n/)
+    expect(text).toMatch(/\r\nSUMMARY:Высшая проба: .+\r\n/)
+    expect(text).toMatch(/\r\nEND:VCALENDAR\r\n$/)
   })
 })
 
