@@ -1141,6 +1141,23 @@ components:
           type: boolean
           description: Профиль ученика — выделяется в интерфейсе.
 
+    BenefitGrant:
+      type: object
+      description: Что получит победитель или призёр в вузе.
+      required: [kind, label]
+      properties:
+        kind: { type: string, enum: [bvi, score100, extra_points] }
+        label:
+          type: string
+          description: Готовая подпись — «БВИ», «100 баллов», «+3 балла».
+
+    BenefitColumn:
+      type: string
+      enum: [winner, prizer, ege, extra_points]
+      description: |
+        Столбец таблицы льгот (F18, F19): `winner` и `prizer` — что получат победитель и призёр,
+        `ege` — порог ЕГЭ, `extra_points` — доп. баллы у олимпиад вне перечня.
+
     BenefitRow:
       type: object
       description: |
@@ -1151,16 +1168,23 @@ components:
           university_id,
           university_name,
           university_short_name,
+          university_nick,
           city,
           benefit,
           benefit_label,
+          winner,
+          prizer,
           ege_min,
+          ege_max,
           source,
         ]
       properties:
         university_id: { type: string }
         university_name: { type: string }
         university_short_name: { type: string }
+        university_nick:
+          type: string
+          description: Как вуз называют коротко в таблице и тексте — «ВШЭ», «Иннополис».
         city: { type: [string, "null"] }
         color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
         benefit:
@@ -1170,8 +1194,21 @@ components:
         benefit_label:
           type: [string, "null"]
           description: Готовая подпись — «БВИ», «100 баллов», «БВИ победителям», «доп. баллы».
+        winner:
+          description: Что получит победитель; `null` — вуз олимпиаду не учитывает.
+          oneOf:
+            - $ref: "#/components/schemas/BenefitGrant"
+            - type: "null"
+        prizer:
+          description: Что получит призёр; `null` — призёру льготы нет или вуз олимпиаду не учитывает.
+          oneOf:
+            - $ref: "#/components/schemas/BenefitGrant"
+            - type: "null"
         extra_points: { type: [integer, "null"] }
         ege_min: { type: [integer, "null"] }
+        ege_max:
+          type: [integer, "null"]
+          description: Верхняя граница порога, если он зависит от программы — «75–85».
         diploma_grades:
           type: [array, "null"]
           items: { type: integer }
@@ -1183,9 +1220,9 @@ components:
         conditions:
           type: array
           description: |
-            Чем условия в этом вузе отличаются от общих `OlympiadDetail.conditions` (F19):
-            что получит призёр, свой порог ЕГЭ, класс диплома — только если вуз не засчитает
-            диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
+            Чем условия в этом вузе отличаются от общих `OlympiadDetail.conditions`, кроме того, что
+            видно в столбцах таблицы (F19): другой предмет ЕГЭ, класс диплома — только если вуз не
+            засчитает диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
           items: { type: string }
           examples: [["Призёру — 100 баллов вместо БВИ", "Порог ЕГЭ от 75 до 80 — зависит от программы"]]
 
@@ -1227,6 +1264,7 @@ components:
               stages_are_demo,
               why,
               benefit_universities,
+              benefit_columns,
             ]
           properties:
             official_url: { type: [string, "null"], format: uri }
@@ -1243,8 +1281,16 @@ components:
                 - type: "null"
             benefits:
               type: array
-              description: По строке на каждый вуз ученика, включая «не учитывает» (F18).
+              description: |
+                По строке на каждый вуз ученика, включая «не учитывает» (F18). Сначала самые выгодные,
+                дальше по алфавиту `university_nick`; «не учитывает» — в конце.
               items: { $ref: "#/components/schemas/BenefitRow" }
+            benefit_columns:
+              type: array
+              description: |
+                Столбцы таблицы льгот. Вне перечня — только `extra_points`. `ege` — если порог в вузах
+                ученика разный или зависит от программы; одинаковый — в общих `conditions`.
+              items: { $ref: "#/components/schemas/BenefitColumn" }
             benefits_source:
               oneOf:
                 - $ref: "#/components/schemas/Source"
@@ -1252,8 +1298,8 @@ components:
             conditions:
               type: array
               description: |
-                Общие условия подтверждения льготы в вузах ученика — диплом, порог ЕГЭ, «БВИ в один вуз» (F19).
-                Своё у вуза — в `benefits[].conditions`. Если вузы ученика льготы не дают, условия
+                Общие условия подтверждения льготы в вузах ученика — диплом, ЕГЭ, «БВИ в один вуз» (F19).
+                Порог ЕГЭ здесь, только если его нет в `benefit_columns`. Своё у вуза — в `benefits[].conditions`. Если вузы ученика льготы не дают, условия
                 собраны по всем вузам базы и включают их особенности.
               items: { type: string }
             stages:

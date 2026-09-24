@@ -3,6 +3,7 @@ import type { OlympiadDetail } from '@contract'
 import { expect, it, vi } from 'vitest'
 import { keys } from '@/api/queries'
 import { olympiadDetail } from '@/api/mocks/build'
+import { spokenText } from '@/test/a11y'
 import { renderApp } from '@/test/render'
 import type { SheetStack } from '@/ui/sheets'
 import { OlympiadSheet } from './OlympiadSheet'
@@ -42,38 +43,50 @@ it('без описания и сайта блока «Об олимпиаде»
   expect(screen.queryByRole('heading', { name: 'Об олимпиаде' })).not.toBeInTheDocument()
 })
 
-// F18 и F19 в одном блоке: сначала общие условия, потом вузы, и под каждым —
-// что в нём не так, как у всех.
-it('условия — в блоке льгот: общие сверху, свои — под вузом', () => {
+// F18 и F19 в одном блоке: вузы — таблицей, своё у вуза — под его строкой,
+// общее для всех — после таблицы под подписью «Во всех вузах».
+it('льготы — таблицей, общие условия — после неё под «Во всех вузах»', async () => {
+  const { default: userEvent } = await import('@testing-library/user-event')
   const base = olympiadDetail('hse:inf')!
   const first = base.benefits[0]!
-  const second = base.benefits[1]!
   renderSheet({
     conditions: ['Нужен диплом победителя или призёра', 'БВИ можно использовать только в одном вузе'],
-    benefits: [
-      { ...first, conditions: ['Призёру — 100 баллов вместо БВИ', 'Порог ЕГЭ от 75 до 80 — зависит от программы'] },
-      second,
-    ],
+    benefits: [{ ...first, conditions: ['Засчитывает только диплом 11 класса'] }, ...base.benefits.slice(1)],
   })
 
   expect(screen.queryByRole('heading', { name: 'Условия' })).not.toBeInTheDocument()
   const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  const table = within(block).getByRole('table')
+  expect(within(table).getAllByRole('rowheader').map(spokenText)).toEqual(
+    base.benefits.filter((row) => row.winner || row.prizer).map((row) => row.university_nick),
+  )
+  expect(within(table).getByText('Засчитывает только диплом 11 класса')).toBeInTheDocument()
+
+  const everywhere = within(block).getByText('Во всех вузах')
   const general = within(block).getByRole('list')
   expect(within(general).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
     'Нужен диплом победителя или призёра',
     'БВИ можно использовать только в одном вузе',
   ])
+  expect(table.compareDocumentPosition(everywhere) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(everywhere.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
-  const rows = within(block).getAllByRole('button')
-  const firstRow = rows[0]!
-  const secondRow = rows[1]!
-  expect(firstRow).toHaveTextContent(first.university_name)
-  expect(within(firstRow).getByText('Призёру — 100 баллов вместо БВИ')).toBeInTheDocument()
-  expect(within(firstRow).getByText('Порог ЕГЭ от 75 до 80 — зависит от программы')).toBeInTheDocument()
-  expect(secondRow).toHaveTextContent(second.university_name)
-  expect(within(secondRow).queryByText(/Призёру|Порог/)).not.toBeInTheDocument()
-  // Общий список — над вузами.
-  expect(general.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  await userEvent.click(within(table).getByRole('button', { name: first.university_nick }))
+  expect(sheets.open).toHaveBeenCalledWith({ kind: 'vuz', id: first.university_id })
+})
+
+// Вузов в таблице нет — «во всех» сказать не о ком, условия идут без подписи.
+it('ни один вуз олимпиаду не учитывает — без таблицы и подписи «Во всех вузах»', () => {
+  const base = olympiadDetail('hse:inf')!
+  renderSheet({
+    benefits: base.benefits.map((row) => ({ ...row, benefit: null, benefit_label: null, winner: null, prizer: null })),
+    conditions: ['Вузы из базы льгот по этому профилю не дают'],
+  })
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  expect(within(block).queryByRole('table')).not.toBeInTheDocument()
+  expect(within(block).queryByText('Во всех вузах')).not.toBeInTheDocument()
+  expect(within(block).getByText('Вузы из базы льгот по этому профилю не дают')).toBeInTheDocument()
+  expect(within(block).getByText(/^Не учитыва/)).toBeInTheDocument()
 })
 
 const blockOrder = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)

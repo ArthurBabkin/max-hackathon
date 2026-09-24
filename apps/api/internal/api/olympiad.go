@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,30 +48,48 @@ type profileLevel struct {
 	IsMine            bool    `json:"is_mine"`
 }
 
+// benefitGrant — что получит победитель или призёр: вид льготы и подпись.
+type benefitGrant struct {
+	Kind  string `json:"kind"`
+	Label string `json:"label"`
+}
+
 type benefitRow struct {
-	UniversityID        string     `json:"university_id"`
-	UniversityName      string     `json:"university_name"`
-	UniversityShortName string     `json:"university_short_name"`
-	City                *string    `json:"city"`
-	Color               *string    `json:"color"`
-	Benefit             *string    `json:"benefit"`
-	BenefitLabel        *string    `json:"benefit_label"`
-	ExtraPoints         *int       `json:"extra_points"`
-	EgeMin              *int       `json:"ege_min"`
-	DiplomaGrades       []int32    `json:"diploma_grades"`
-	Note                *string    `json:"note"`
-	Source              *sourceDTO `json:"source"`
+	UniversityID        string        `json:"university_id"`
+	UniversityName      string        `json:"university_name"`
+	UniversityShortName string        `json:"university_short_name"`
+	City                *string       `json:"city"`
+	Color               *string       `json:"color"`
+	Benefit             *string       `json:"benefit"`
+	BenefitLabel        *string       `json:"benefit_label"`
+	ExtraPoints         *int          `json:"extra_points"`
+	EgeMin              *int          `json:"ege_min"`
+	DiplomaGrades       []int32       `json:"diploma_grades"`
+	Note                *string       `json:"note"`
+	Source              *sourceDTO    `json:"source"`
+	UniversityNick      string        `json:"university_nick"`
+	Winner              *benefitGrant `json:"winner"`
+	Prizer              *benefitGrant `json:"prizer"`
+	EgeMax              *int          `json:"ege_max"`
 	// Conditions — своё у вуза в карточке олимпиады (F19); в других списках пусто.
 	Conditions []string `json:"conditions,omitempty"`
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
 	benefit, label := b.Benefit, benefitLabels[b.Benefit]
-	return benefitRow{
+	winner, prizer := grants(b)
+	row := benefitRow{
 		UniversityID: b.UniversityID, UniversityName: b.UniversityName, UniversityShortName: b.UniversityShort,
 		City: b.City, Benefit: &benefit, BenefitLabel: &label, ExtraPoints: b.ExtraPoints, EgeMin: b.EgeMin,
 		DiplomaGrades: b.DiplomaGrades, Note: b.Note, Source: sourceOf(b.Source),
+		UniversityNick: nick(b.UniversityID, b.UniversityShort), Winner: winner, Prizer: prizer,
 	}
+	if _, to, ok := egeRange(b.Note); ok {
+		if n, err := strconv.Atoi(to); err == nil {
+			row.EgeMax = &n
+		}
+	}
+	return row
 }
 
 type stageDTO struct {
@@ -98,6 +117,7 @@ type olympiadDetail struct {
 	StagesAreDemo       bool           `json:"stages_are_demo"`
 	Why                 string         `json:"why"`
 	BenefitUniversities []benefitRow   `json:"benefit_universities"`
+	BenefitColumns      []string       `json:"benefit_columns"`
 }
 
 var levelOrder = map[string]int{"I": 0, "II": 1, "III": 2}
@@ -154,7 +174,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, Description: p.Description, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
 		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
-		Why: cs.why(p, res, mine, all), BenefitUniversities: []benefitRow{},
+		Why: cs.why(p, res, mine, all), BenefitUniversities: []benefitRow{}, BenefitColumns: benefitColumns(p, mine),
 	}
 	for _, x := range st {
 		out.StagesAreDemo = out.StagesAreDemo || x.IsDemo
@@ -189,23 +209,24 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, b := range mine {
 		byUni[b.UniversityID] = b
 	}
-	minEge, _ := egeBounds(mine)
 	for _, u := range cs.Universities {
 		if b, ok := byUni[u.ID]; ok {
 			row := benefitRowOf(b)
 			if p.Kind != "other" {
-				row.Conditions = cs.uniConditions(b, minEge)
+				row.Conditions = cs.uniConditions(b, egeSubject(mine))
 			}
 			out.Benefits = append(out.Benefits, row)
 			continue
 		}
 		out.Benefits = append(out.Benefits, benefitRow{
 			UniversityID: u.ID, UniversityName: u.Name, UniversityShortName: u.ShortName, City: u.City,
+			UniversityNick: nick(u.ID, u.ShortName),
 		})
 	}
 	if out.Benefits == nil {
 		out.Benefits = []benefitRow{}
 	}
+	sortBenefitRows(out.Benefits)
 	writeJSON(w, http.StatusOK, out)
 	return nil
 }
@@ -280,6 +301,11 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	minEge, maxEge := egeBounds(rows)
 	subject := egeSubject(rows)
 	switch {
+	case own && egeInTable(rows):
+		// Порог — в столбце таблицы, здесь только предмет.
+		if subject != "" {
+			out = append(out, v.T("cond.egeSubject", voice.Vars{"subject": subject}))
+		}
 	case minEge != nil && subject != "":
 		out = append(out, v.T("cond.ege", voice.Vars{"subject": subject, "count": *minEge}))
 	case minEge != nil:
@@ -309,24 +335,14 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	return out
 }
 
-// uniConditions — чем условия вуза отличаются от общих (F19): что получит
-// призёр, свой порог ЕГЭ и — только если мешает — за какой класс вуз
-// засчитывает диплом. minEge — общий порог по вузам ученика.
-func (cs cardSet) uniConditions(b store.BenefitRow, minEge *int) []string {
+// uniConditions — чем условия вуза отличаются от общих (F19), кроме того, что
+// видно в столбцах таблицы: другой предмет ЕГЭ и — только если мешает — за
+// какой класс вуз засчитывает диплом. subject — общий предмет ЕГЭ.
+func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	v := cs.voice
 	var out []string
-	for _, sentence := range noteSentences(b.Note) {
-		switch sentence {
-		case "Победителю — БВИ, призёру — 100 баллов":
-			out = append(out, v.T("cond.prizer100", nil))
-		case "БВИ только победителю", "100 баллов только победителю":
-			out = append(out, v.T("cond.prizerNone", nil))
-		}
-	}
-	if from, to, ok := egeRange(b.Note); ok {
-		out = append(out, v.T("cond.egeRange", voice.Vars{"from": from, "to": to}))
-	} else if b.EgeMin != nil && minEge != nil && *b.EgeMin > *minEge {
-		out = append(out, v.T("cond.egeUni", voice.Vars{"count": *b.EgeMin}))
+	if own := subjects(noteSubject(b.Note)); len(own) > 0 && !sameSubject(own, subjects(subject)) {
+		out = append(out, v.T("cond.egeSubjectUni", voice.Vars{"subject": strings.Join(own, " или "), "common": subject}))
 	}
 	grade := int32(cs.Trajectory.Grade)
 	if len(b.DiplomaGrades) > 0 && !slices.Contains(b.DiplomaGrades, grade) {
@@ -382,13 +398,11 @@ func egeSubject(rows []store.BenefitRow) string {
 	count := map[string]int{}
 	var order []string
 	for _, b := range rows {
-		for _, sentence := range noteSentences(b.Note) {
-			if subj, ok := strings.CutPrefix(sentence, "Подтвердить ЕГЭ: "); ok {
-				if count[subj] == 0 {
-					order = append(order, subj)
-				}
-				count[subj]++
+		if subj := noteSubject(b.Note); subj != "" {
+			if count[subj] == 0 {
+				order = append(order, subj)
 			}
+			count[subj]++
 		}
 	}
 	subject := ""
