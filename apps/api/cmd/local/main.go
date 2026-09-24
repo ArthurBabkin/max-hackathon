@@ -31,6 +31,7 @@ func main() {
 		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
 		Max:         api.Sender(cfg),
 		LLM:         api.Model(),
+		Classifier:  api.Classifier(),
 	})
 	addr := ":" + config.Get("PORT", "8081")
 	log.Printf("api слушает %s, %s", addr, cfg)

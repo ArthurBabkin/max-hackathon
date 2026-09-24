@@ -63,3 +63,23 @@ func TestFind_EmptyQuestion(t *testing.T) {
 		t.Fatal("пустой вопрос — ничего не найдено")
 	}
 }
+
+// «Мои вузы» названий не содержат: карточки берутся из списка вузов ученика.
+func TestFind_MyUniversities(t *testing.T) {
+	cases := []struct {
+		q  string
+		my bool
+	}{
+		{q: "Где в моих вузах дают БВИ?", my: true},
+		{q: "Что дают мои вузы призёрам?", my: true},
+		{q: "в выбранных вузах есть льготы?", my: true},
+		{q: "Какие олимпиады мне подходят?"},
+		{q: "Какие вузы у тебя в базе?"},
+		{q: "Что даёт «Высшая проба»?"},
+	}
+	for _, c := range cases {
+		if m := find(c.q); m.MyUniversities != c.my {
+			t.Errorf("%q: my=%v, ждали %v", c.q, m.MyUniversities, c.my)
+		}
+	}
+}

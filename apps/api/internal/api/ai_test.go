@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/jev"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/llm"
 )
 
@@ -25,7 +26,37 @@ func (f *recordLLM) JSON(_ context.Context, m []llm.Message) (string, error) {
 	return f.reply, nil
 }
 
-const hsePrizeReply = `{"answer": "Да, «Высшая проба» по информатике даёт БВИ в ВШЭ.", "card_ids": ["olympiad:p669-8-informatika"], "no_data": false}`
+const hsePrizeReply = `{"answer": "Да, «Высшая проба» по информатике даёт БВИ в ВШЭ.", "card_ids": ["olympiad:p669-8"], "no_data": false}`
+
+// chatJev — Jev, который считает любой вопрос разговором.
+type chatJev struct{}
+
+func (chatJev) Classify(context.Context, map[string]string, map[string]jev.Choice) (map[string]map[string]float64, error) {
+	return map[string]map[string]float64{"intent": {"chat": 1}, "olympiad": {"none": 1}, "university": {"none": 1}, "subject": {"none": 1}}, nil
+}
+
+// Jev и часы из Deps доходят до помощника.
+func TestNewServer_AssistantGetsClassifierAndClock(t *testing.T) {
+	s := newServer(Deps{Classifier: chatJev{}, Now: func() time.Time { return testNow }})
+	if s.assistant.Classifier != (chatJev{}) || s.assistant.Now == nil || !s.assistant.Now().Equal(testNow) {
+		t.Fatalf("помощник: %+v", s.assistant)
+	}
+	if s := newServer(Deps{}); s.assistant.Now == nil {
+		t.Fatal("часы по умолчанию — time.Now")
+	}
+}
+
+// Jev включается тем же ключом, что и модель.
+func TestClassifier_FromEnv(t *testing.T) {
+	t.Setenv("POLZA_AI_API_KEY", "")
+	if Classifier() != nil {
+		t.Fatal("без ключа — без Jev")
+	}
+	t.Setenv("POLZA_AI_API_KEY", "test-key")
+	if Classifier() == nil {
+		t.Fatal("с ключом — Jev")
+	}
+}
 
 // startChat — новый чат с первым вопросом; возвращает id чата.
 func (e *env) startChat(token, question string) string {
