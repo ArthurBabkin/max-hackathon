@@ -1199,21 +1199,6 @@
   color: var(--mu);
 }
 
-.benefit-text .benefit-condition {
-  margin-top: 2px;
-  line-height: 1.3;
-  color: var(--tx-2);
-}
-
-.benefit-tall,
-.benefit-tall .benefit-main {
-  align-items: flex-start;
-}
-
-.benefit-tall .benefit-value {
-  margin-top: 4px;
-}
-
 .benefit-value {
   flex: 0 0 auto;
   padding: 4px 9px;
@@ -1265,10 +1250,207 @@
   color: var(--gr-ink);
 }
 
-/* Общие условия над вузами в блоке льгот. */
-.conditions-general {
-  padding: 2px 0 10px;
-  border-bottom: 1px dashed var(--ln-strong);
+/* Таблица льгот в вузах ученика — F18, F19: вузы строками. */
+.benefit-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--t-micro);
+}
+
+.benefit-table-uni {
+  width: 116px;
+}
+
+.benefit-table thead th {
+  padding: 0 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--mu);
+  text-align: center;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.benefit-table thead th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+
+.benefit-table tbody tr {
+  border-top: 1px dashed var(--ln-strong);
+}
+
+.benefit-table tbody .benefit-table-note {
+  border-top: 0;
+}
+
+.benefit-table tbody th {
+  padding: 2px 4px 2px 0;
+  font-weight: 400;
+  text-align: left;
+}
+
+.benefit-table tbody th button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  color: var(--tx);
+  text-align: left;
+}
+
+.benefit-table tbody th button > span:last-child {
+  min-width: 0;
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.2;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.benefit-table .tile {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+
+.benefit-table .tile-long {
+  font-size: 8px;
+  letter-spacing: -0.2px;
+}
+
+.benefit-table td {
+  padding: 6px 2px;
+  text-align: center;
+}
+
+/* В узком столбце «100 баллов» переносится — плашка становится двухстрочной. */
+.benefit-table .benefit-value {
+  display: inline-block;
+  padding: 3px 5px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* «от 75–90» — одной строкой: на тире он рвался бы в «от 75–» и «90». */
+.benefit-table-ege {
+  color: var(--tx-2);
+  white-space: nowrap;
+}
+
+.benefit-table-ege-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--mu);
+  hyphens: auto;
+}
+
+.benefit-table-differs .benefit-table-ege-note {
+  color: var(--am-ink);
+}
+
+.benefit-table-differs {
+  background: var(--ams);
+}
+
+.benefit-table-differs .benefit-table-ege {
+  font-weight: 700;
+  color: var(--am-ink);
+}
+
+.benefit-table-note td {
+  padding: 0 0 8px;
+  text-align: left;
+}
+
+.benefit-table-note p {
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--ams);
+  color: var(--am-ink);
+  font-size: var(--t-micro);
+  line-height: 1.35;
+}
+
+.benefit-table-note p + p {
+  margin-top: 4px;
+}
+
+.benefit-table-skip {
+  margin: 0;
+  padding: 10px 0 2px;
+  font-size: var(--t-micro);
+  line-height: 1.35;
+  color: var(--mu);
+}
+
+.benefit-table + .benefit-table-skip {
+  border-top: 1px dashed var(--ln-strong);
+}
+
+.benefit-table-legend {
+  margin: 8px 0 0;
+  font-size: var(--t-micro);
+  line-height: 1.35;
+  color: var(--mu);
+}
+
+.benefit-table-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  background: var(--ams);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--am-ink) 35%, transparent);
+  vertical-align: -1px;
+}
+
+/* Самые узкие телефоны: без значков вузов, чтобы «100 баллов» влезали в
+   столбцы, а название вуза — в свой. */
+@media (max-width: 359px) {
+  .benefit-table-uni {
+    width: 88px;
+  }
+
+  .benefit-table tbody th .tile {
+    display: none;
+  }
+
+  .benefit-table-ege {
+    font-size: 11px;
+  }
+}
+
+/* «Во всех вузах» — общее для всех строк таблицы, после неё. */
+.benefit-everywhere {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln-strong);
+}
+
+/* Вузов нет вовсе — условия сразу под заголовком, разделять нечего. */
+.block-head + .benefit-everywhere {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.benefit-everywhere-head {
+  margin: 0 0 6px;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--mu);
 }
 
 /* Таймлайн этапов — F21 */

@@ -42,6 +42,7 @@ export const KNOWN_PLACEHOLDERS = [
   'to',
   'region',
   'subject',
+  'common', // с чем сравнивают: «…«Физика», а не «Астрономия»»
   'note',
   'stage',
   'title',

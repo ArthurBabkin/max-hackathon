@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, Tracker, TrackerItem } from '@contract'
+import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Tracker, TrackerItem } from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -133,6 +133,49 @@ describe('выгрузка календаря', () => {
     expect(text).toMatch(/^BEGIN:VCALENDAR\r\n/)
     expect(text).toMatch(/\r\nSUMMARY:Высшая проба: .+\r\n/)
     expect(text).toMatch(/\r\nEND:VCALENDAR\r\n$/)
+  })
+})
+
+describe('карточка олимпиады', () => {
+  it('«Где ещё даёт льготу» не повторяет вузы ученика из блока льгот', async () => {
+    const detail = (await handleMock('GET', '/olympiads/hse:inf')) as OlympiadDetail
+
+    const mine = detail.benefits.map((row) => row.university_id)
+    const elsewhere = detail.benefit_universities.map((row) => row.university_id)
+    expect(mine).toEqual(expect.arrayContaining(state.universities))
+    expect(elsewhere.length).toBeGreaterThan(0)
+    expect(elsewhere.filter((id) => mine.includes(id))).toEqual([])
+  })
+
+  // Таблица льгот, как на сервере: самые выгодные первыми, порог — столбцом,
+  // если он в вузах разный.
+  it('строки льгот — для таблицы: что получат победитель и призёр, порог, порядок', async () => {
+    const detail = (await handleMock('GET', '/olympiads/hse:inf')) as OlympiadDetail
+
+    expect(detail.benefit_columns).toEqual(['winner', 'prizer', 'ege'])
+    expect(
+      detail.benefits.map(
+        (r) => `${r.university_nick}: ${r.winner?.label} / ${r.prizer?.label} / ${r.ege_min}–${r.ege_max}`,
+      ),
+    ).toEqual(['ВШЭ: БВИ / БВИ / 75–90', 'Иннополис: БВИ / БВИ / 75–null', 'КФУ: 100 баллов / 100 баллов / 75–null'])
+    expect(detail.benefits.every((r) => r.conditions === undefined)).toBe(true)
+  })
+
+  it('БВИ только победителю — призёр получает 100 баллов, а не БВИ', async () => {
+    const detail = (await handleMock('GET', '/olympiads/tk:inf')) as OlympiadDetail
+    const mipt = detail.benefit_universities.find((r) => r.university_id === 'mipt')
+
+    expect(mipt?.winner).toEqual({ kind: 'bvi', label: 'БВИ' })
+    expect(mipt?.prizer).toEqual({ kind: 'score100', label: '100 баллов' })
+  })
+
+  it('вне перечня — один столбец доп. баллов', async () => {
+    const detail = (await handleMock('GET', '/olympiads/tyk:inf')) as OlympiadDetail
+    const kfu = detail.benefits.find((r) => r.university_id === 'kfu')
+
+    expect(detail.benefit_columns).toEqual(['extra_points'])
+    expect(kfu?.winner).toEqual({ kind: 'extra_points', label: '+3 балла' })
+    expect(detail.benefits.at(-1)?.winner).toBeNull()
   })
 })
 

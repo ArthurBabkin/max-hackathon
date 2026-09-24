@@ -1,8 +1,8 @@
 /**
  * Строка льготы: вуз слева, что он даёт — справа.
  *
- * Используется в карточке олимпиады дважды («Льгота в твоих вузах» и
- * «Где даёт льготу») и в карточке вуза, поэтому вынесена отдельно.
+ * Вузы в «Где ещё даёт льготу» карточки олимпиады (F23); свои вузы ученика
+ * там же — таблицей (BenefitTable). Зеркальная строка — в карточке вуза.
  */
 
 import type { BenefitRow as BenefitRowData } from '@contract'
@@ -37,24 +37,16 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
         <span className="benefit-text">
           <b>{data.university_name}</b>
           <span>{data.city}</span>
-          {/* Особенности вуза в карточке олимпиады (F19). */}
-          {data.conditions?.map((condition) => (
-            <span key={condition} className="benefit-condition">
-              {condition}
-            </span>
-          ))}
         </span>
       </span>
       <span className={benefitClass(data)}>{data.benefit_label ?? NO_BENEFIT_LABEL}</span>
     </>
   )
 
-  // С особенностями строка выше обычной: значок и льгота держатся верха.
-  const className = data.conditions?.length ? 'benefit benefit-tall' : 'benefit'
-  if (!onOpen) return <div className={className}>{body}</div>
+  if (!onOpen) return <div className="benefit">{body}</div>
 
   return (
-    <button type="button" className={className} onClick={() => onOpen(data.university_id)}>
+    <button type="button" className="benefit" onClick={() => onOpen(data.university_id)}>
       {body}
     </button>
   )
