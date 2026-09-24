@@ -386,6 +386,8 @@
   font-weight: 800;
   font-size: var(--t-small);
   color: var(--tile-hue);
+  /* color-mix — с iOS 16.2; на iOS 15 без запасного цвета плитка была бы прозрачной. */
+  background: var(--surface-2);
   background: color-mix(in srgb, var(--tile-hue) 14%, var(--surface));
 }
 
@@ -1862,6 +1864,7 @@
 }
 
 .calendar-day-event {
+  background: var(--ps);
   background: color-mix(in srgb, var(--day-hue) 16%, var(--surface));
   color: var(--day-hue);
   font-weight: 800;
