@@ -7,6 +7,7 @@ import { formatShortDate } from '@/lib/deadline'
 import { getWebApp } from '@/bridge'
 import { trackerAction } from '@/lib/permissions'
 import { BenefitRow } from '@/ui/BenefitRow'
+import { BenefitTable } from '@/ui/BenefitTable'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
 import { CardSkeletons, Pill, SourceLine, SourceTag, Tile } from '@/ui/primitives'
@@ -193,28 +194,34 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         </section>
       ) : null}
 
-      {/* Льгота и условия в вузах ученика — F18, F19: сначала общие
-          условия, потом вузы, и под каждым — его особенности. */}
+      {/* Льгота и условия в вузах ученика — F18, F19: вузы таблицей, своё у
+          вуза — под его строкой, общее для всех — после таблицы. */}
       <section className="block">
         <h3 className="block-head">
           {t('olympiad.benefitsTitle')}
           {detail.benefits_source ? <SourceTag kind="fact" /> : null}
         </h3>
-        <ul className="conditions conditions-general">
-          {detail.conditions.map((condition) => (
-            <li key={condition}>
-              <Icon name="check" size={13} strokeWidth={2.6} />
-              <span>{condition}</span>
-            </li>
-          ))}
-        </ul>
-        {detail.benefits.map((row) => (
-          <BenefitRow
-            key={row.university_id}
-            data={row}
-            onOpen={(universityId) => sheets.open({ kind: 'vuz', id: universityId })}
-          />
-        ))}
+        <BenefitTable
+          rows={detail.benefits}
+          columns={detail.benefit_columns}
+          onOpen={(universityId) => sheets.open({ kind: 'vuz', id: universityId })}
+        />
+        {detail.conditions.length > 0 ? (
+          <div className="benefit-everywhere">
+            {/* Подпись — только когда есть вузы, к которым «во всех» относится. */}
+            {detail.benefits.some((row) => row.winner || row.prizer) ? (
+              <p className="benefit-everywhere-head">{t('benefits.everywhere')}</p>
+            ) : null}
+            <ul className="conditions">
+              {detail.conditions.map((condition) => (
+                <li key={condition}>
+                  <Icon name="check" size={13} strokeWidth={2.6} />
+                  <span>{condition}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {detail.benefits_source ? (
           <SourceLine
             title={`${detail.benefits_source.title}${

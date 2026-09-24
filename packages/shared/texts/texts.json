@@ -291,6 +291,62 @@
     "kid": "Где ещё даёт льготу",
     "parent": "Где ещё даёт льготу"
   },
+  "benefits.colUniversity": {
+    "kid": "Вуз",
+    "parent": "Вуз"
+  },
+  "benefits.colWinner": {
+    "kid": "Победителю",
+    "parent": "Победителю"
+  },
+  "benefits.colPrizer": {
+    "kid": "Призёру",
+    "parent": "Призёру"
+  },
+  "benefits.colEge": {
+    "kid": "Порог ЕГЭ",
+    "parent": "Порог ЕГЭ"
+  },
+  "benefits.colExtra": {
+    "kid": "Доп. баллы за диплом",
+    "parent": "Доп. баллы за диплом"
+  },
+  "benefits.none": {
+    "kid": "нет",
+    "parent": "нет"
+  },
+  "benefits.egeFrom": {
+    "kid": "от {count}",
+    "parent": "от {count}"
+  },
+  "benefits.notCountedOne": {
+    "kid": "Не учитывает эту олимпиаду: {names}",
+    "parent": "Не учитывает эту олимпиаду: {names}"
+  },
+  "benefits.notCountedMany": {
+    "kid": "Не учитывают эту олимпиаду: {names}",
+    "parent": "Не учитывают эту олимпиаду: {names}"
+  },
+  "benefits.differs": {
+    "kid": "не как в большинстве",
+    "parent": "не как в большинстве"
+  },
+  "benefits.legendDiffers": {
+    "kid": "не как в большинстве твоих вузов.",
+    "parent": "не как в большинстве вузов {student_gen}."
+  },
+  "benefits.egeRange": {
+    "kid": "зависит от направления",
+    "parent": "зависит от направления"
+  },
+  "benefits.legendNoEge": {
+    "kid": "«—» — вуз порог не называет.",
+    "parent": "«—» — вуз порог не называет."
+  },
+  "benefits.everywhere": {
+    "kid": "Во всех вузах",
+    "parent": "Во всех вузах"
+  },
   "olympiad.addCta": {
     "kid": "Добавить в трекер",
     "parent": "Добавить в трекер"
@@ -391,21 +447,9 @@
     "kid": "{names}: {note}",
     "parent": "{names}: {note}"
   },
-  "cond.prizer100": {
-    "kid": "Призёру — 100 баллов вместо БВИ",
-    "parent": "Призёру — 100 баллов вместо БВИ"
-  },
-  "cond.prizerNone": {
-    "kid": "Призёру льготы нет",
-    "parent": "Призёру льготы нет"
-  },
-  "cond.egeRange": {
-    "kid": "Порог ЕГЭ от {from} до {to} — зависит от программы",
-    "parent": "Порог ЕГЭ от {from} до {to} — зависит от программы"
-  },
-  "cond.egeUni": {
-    "kid": "Порог ЕГЭ — не ниже {count}",
-    "parent": "Порог ЕГЭ — не ниже {count}"
+  "cond.egeSubjectUni": {
+    "kid": "Льготу подтверждает ЕГЭ по предмету «{subject}», а не «{common}»",
+    "parent": "Льготу подтверждает ЕГЭ по предмету «{subject}», а не «{common}»"
   },
   "cond.gradeMiss": {
     "kid": "Засчитывает только диплом {grades} класса — диплом за {grade} класс не подойдёт",
