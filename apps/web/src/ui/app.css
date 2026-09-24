@@ -355,12 +355,19 @@
   gap: 2px;
 }
 
+/* Название целиком важнее ровной строки: «Казанский федеральный университет»
+   в одну строку не влезал даже на больших телефонах, а на iPhone SE — и в
+   две. Три строки, дальше — многоточие. */
 .row-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-weight: 700;
   font-size: var(--t-base);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .row-subtitle {
@@ -2463,6 +2470,52 @@
 
 .tour-actions > *:active {
   transform: scale(0.97);
+}
+
+/* Низкий экран (iPhone SE, маленький Android, MAX со своей шапкой): карточка
+   шага занимала почти половину высоты и закрывала то, о чём шаг. Сжимаем
+   отступы и текст; «Пропустить» не раздвигает строку, но тач-цель полная. */
+@media (max-height: 700px) {
+  .tour-card {
+    padding: 10px var(--gap-md) var(--gap-md);
+  }
+
+  .tour-top {
+    margin-bottom: 2px;
+  }
+
+  .tour-skip {
+    margin-block: -10px;
+  }
+
+  .tour-path {
+    margin-bottom: 2px;
+    font-size: var(--t-micro);
+  }
+
+  .tour-title {
+    margin-bottom: 4px;
+    font-size: var(--t-base);
+  }
+
+  .tour-text {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+
+  .tour-actions {
+    margin-top: var(--gap-md);
+  }
+}
+
+/* Длинная подпись кнопки на узком экране переносится, а не обрывается
+   многоточием: «Сохранить и обновить под…» на iPhone SE. */
+.button-wrap.button-wrap {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .tutorial-replay {
