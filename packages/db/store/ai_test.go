@@ -147,10 +147,6 @@ func TestAiChatMessages_LastNOldestFirst(t *testing.T) {
 func TestAiLookups(t *testing.T) {
 	s := New(dbtest.Open(t))
 	ctx := context.Background()
-	names, err := s.OlympiadNames(ctx)
-	if err != nil || len(names) < 70 {
-		t.Fatalf("олимпиады: %d %v", len(names), err)
-	}
 	if src, err := s.OrderSource(ctx); err != nil || src.Kind != "order" {
 		t.Fatalf("приказ: %+v %v", src, err)
 	}

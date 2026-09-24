@@ -165,24 +165,6 @@ func scanAiMessage(r rowScanner) (AiMessage, error) {
 	return m, json.Unmarshal(sources, &m.Sources)
 }
 
-// Named — id и название для поиска упоминаний в вопросе помощнику.
-type Named struct {
-	ID   string
-	Name string
-}
-
-// OlympiadNames — все олимпиады базы: помощник ищет их в тексте вопроса.
-func (s *Store) OlympiadNames(ctx context.Context) ([]Named, error) {
-	rows, err := s.db.Query(ctx, `SELECT id, name FROM olympiads ORDER BY id`)
-	if err != nil {
-		return nil, wrap(err)
-	}
-	return collect(rows, func(r rowScanner) (Named, error) {
-		var n Named
-		return n, r.Scan(&n.ID, &n.Name)
-	})
-}
-
 // UniversityRules — источник «правила приёма» вуза для отказа помощника.
 func (s *Store) UniversityRules(ctx context.Context, universityID string) (*Source, error) {
 	var short string

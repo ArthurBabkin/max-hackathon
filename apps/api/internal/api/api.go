@@ -14,6 +14,7 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
+	"github.com/ArthurBabkin/max-hackathon/packages/shared/jev"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/llm"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/version"
@@ -34,6 +35,9 @@ type Deps struct {
 	// LLM — модель помощника. nil — помощник отвечает только шаблоном
 	// «данных нет» (нет POLZA_AI_API_KEY).
 	LLM llm.Completer
+	// Classifier — Jev: понимает, о какой олимпиаде и вузе вопрос. nil —
+	// помощник ищет только названия в тексте.
+	Classifier jev.Classifier
 	// Now подменяется в тестах; по умолчанию time.Now.
 	Now func() time.Time
 }
@@ -69,6 +73,16 @@ func Model() llm.Completer {
 		config.Get("LLM_MODEL", "GigaChat/GigaChat-3-Pro"))
 }
 
+// Classifier — Jev помощника: тот же шлюз и ключ, что у модели; без ключа —
+// nil.
+func Classifier() jev.Classifier {
+	key := config.Get("POLZA_AI_API_KEY", "")
+	if key == "" {
+		return nil
+	}
+	return jev.New(config.Get("LLM_BASE_URL", "https://polza.ai/api/v1"), key)
+}
+
 // New собирает обработчик со всеми middleware.
 func New(d Deps) http.Handler {
 	s := newServer(d)
@@ -88,13 +102,13 @@ func newServer(d Deps) *Server {
 		mux: http.NewServeMux(),
 		notify: &notify.Notifier{Store: d.Store, Max: d.Max, BotName: d.Config.MaxBotName,
 			BotID: d.Config.MaxBotID, ReminderHour: d.Config.ReminderHour},
-		assistant: &assistant.Assistant{Store: d.Store, LLM: d.LLM},
 		// Пять вопросов подряд, дальше один в 12 секунд — не больше пяти в минуту.
 		aiLimit: newLimiter(5, 12*time.Second),
 	}
 	if s.now == nil {
 		s.now = time.Now
 	}
+	s.assistant = &assistant.Assistant{Store: d.Store, LLM: d.LLM, Classifier: d.Classifier, Now: s.now}
 	s.routes()
 	return s
 }
