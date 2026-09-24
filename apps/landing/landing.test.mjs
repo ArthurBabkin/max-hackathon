@@ -11,13 +11,13 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { initFaq, initHeader, initMenu, initSwap, SWAP_MS } from './main.js'
+import { countUp, initCounters, initFaq, initHeader, initInView, initMenu, initMotion, initReveal, initSwap, SWAP_MS } from './main.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFileSync(join(here, p), 'utf8')
 
 const html = read('index.html')
-const CSS_FILES = ['tokens/tokens.css', 'styles.css']
+const CSS_FILES = ['tokens/tokens.css', 'styles.css', 'animations.css']
 const css = Object.fromEntries(CSS_FILES.map((f) => [f, read(f)]))
 const mockup = {
   desktop: read('../../docs/landing/html/desktop-1440.html'),
@@ -97,6 +97,94 @@ const attrs = (tag, src = html) =>
   [...src.matchAll(new RegExp(`<${tag}\\b((?:\\s+[\\w:-]+(?:\\s*=\\s*"[^"]*")?)*)\\s*/?>`, 'g'))].map(([, a]) => parseAttrs(a))
 
 const isLocal = (u) => u && !/^(https?:|mailto:|tel:|#|data:)/.test(u)
+
+// --- анимации: где стоят классы ---
+
+// Все открывающие теги с атрибутами и местом в разметке.
+const tags = [...html.matchAll(/<([\w-]+)((?:\s+[\w:-]+(?:\s*=\s*"[^"]*")?)*)\s*\/?>/g)].map((m) => ({
+  tag: m[1],
+  at: m.index,
+  ...parseAttrs(m[2]),
+}))
+const has = (t, c) => (t.class ?? '').split(/\s+/).includes(c)
+const within = (from, to) => tags.filter((t) => t.at >= html.indexOf(from) && t.at < html.indexOf(to))
+const withClass = (c, list = tags) => list.filter((t) => has(t, c))
+
+test('анимации: первый экран появляется лесенкой, телефоны выезжают, объекты парят', () => {
+  const hero = within('<section id="hero"', '<section id="problem"')
+  for (const c of ['pill', 'hero__title', 'hero__lead', 'hero__cta', 'stage']) {
+    const els = withClass(c, hero)
+    assert.ok(els.length > 0, `нет .${c}`)
+    for (const e of els) assert.ok(has(e, 'tr-hero'), `.${c} без tr-hero`)
+  }
+  // Лесенка: номер растёт сверху вниз, у двух вариантов одного элемента — общий.
+  const order = withClass('tr-hero', hero).map((e) => Number(/--i:\s*([\d.]+)/.exec(e.style ?? '')?.[1]))
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), `--i не по порядку: ${order}`)
+  assert.equal(order[0], 0)
+
+  for (const c of ['w-chat', 'w-home', 'n-chat']) assert.ok(has(withClass(c, hero)[0], 'tr-phone'), `.${c} без tr-phone`)
+  for (const c of ['w-medal', 'w-soon', 'w-cap', 'w-cal', 'w-perk', 'n-medal', 'n-perk', 'n-soon']) {
+    assert.ok(has(withClass(c, hero)[0], 'tr-float'), `.${c} без tr-float`)
+  }
+  // Колокольчик в «Через 3 дня» звенит — и на десктопе, и на телефоне.
+  for (const plate of ['w-soon', 'n-soon']) {
+    const start = withClass(plate, hero)[0].at
+    const bell = hero.find((t) => t.at > start && t.tag === 'svg')
+    assert.ok(has(bell, 'tr-ring'), `колокольчик в .${plate} без tr-ring`)
+  }
+})
+
+test('анимации: разделы ниже первого экрана проявляются при прокрутке, шапка, подвал и первый экран — сразу', () => {
+  const sections = [...html.matchAll(/<section id="([\w-]+)"/g)].map(([, id]) => id).filter((id) => id !== 'hero')
+  assert.ok(sections.length >= 8)
+  sections.forEach((id, i) => {
+    const next = sections[i + 1] ? `<section id="${sections[i + 1]}"` : '</main>'
+    const inside = within(`<section id="${id}"`, next)
+    assert.ok(withClass('tr-reveal', inside).length + withClass('tr-stagger', inside).length > 0, `#${id} без появления`)
+  })
+  for (const c of ['stats', 'steps', 'duo', 'roles', 'versus']) assert.ok(has(withClass(c)[0], 'tr-stagger'), `.${c} без tr-stagger`)
+  for (const [from, to] of [['<header', '</header>'], ['<section id="hero"', '<section id="problem"'], ['<footer', '</footer>']]) {
+    const els = within(from, to)
+    assert.equal(withClass('tr-reveal', els).length + withClass('tr-stagger', els).length, 0, `${from} должен быть виден сразу`)
+  }
+})
+
+test('анимации: у кнопок подъём при наведении, ответы на вопросы проявляются', () => {
+  for (const a of tags.filter((t) => t.tag === 'a' && has(t, 'btn'))) assert.ok(has(a, 'tr-btn'), `кнопка ${a.href} без tr-btn`)
+  const answers = withClass('faq-answer')
+  assert.equal(answers.length, 5)
+  for (const a of answers) assert.ok(has(a, 'tr-faq-answer'), `#${a.id} без tr-faq-answer`)
+})
+
+test('анимации подключены после основных стилей', () => {
+  const sheets = attrs('link').filter((l) => l.rel === 'stylesheet').map((l) => l.href)
+  assert.deepEqual(sheets, ['tokens/tokens.css', 'styles.css', 'animations.css'])
+})
+
+// Анимация может прятать элемент только сама: базовый стиль с opacity: 0
+// оставил бы текст невидимым, если скрипт не загрузился или анимация не пошла.
+test('анимации не прячут контент без скрипта', () => {
+  const rules = css['animations.css']
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '')
+    .replace(/@supports[^{]*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g, '')
+  const hiding = [...rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => /opacity:\s*0(?![.\d])/.test(body))
+  assert.ok(hiding.length > 0)
+  for (const [, selectors] of hiding) {
+    for (const sel of selectors.split(',').map((x) => x.trim())) {
+      assert.ok(sel.startsWith('.anim ') || sel === '.tr-io-hide', `«${sel}» прячет контент без скрипта`)
+    }
+  }
+})
+
+test('при reduced motion анимаций нет', () => {
+  const rm = css['animations.css'].match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/)
+  assert.ok(rm, 'нет блока prefers-reduced-motion')
+  for (const c of ['.tr-hero', '.tr-phone', '.tr-float', '.tr-ring', '.tr-reveal', '.tr-faq-answer']) {
+    assert.ok(rm[1].includes(c), `${c} не выключен`)
+  }
+  assert.match(rm[1], /animation:\s*none/)
+})
 
 // --- тексты и порядок разделов из макетов ---
 
@@ -330,6 +418,7 @@ class El {
     this.attrs = { ...attrs }
     this.hidden = 'hidden' in attrs
     this.classList = new ClassList()
+    this.style = {}
     this.children = []
     this.parent = null
     this.textContent = ''
@@ -338,6 +427,7 @@ class El {
   }
   append(c) { c.parent = this; this.children.push(c) }
   get lastElementChild() { return this.children.at(-1) ?? null }
+  get parentElement() { return this.parent }
   getAttribute(k) { return this.attrs[k] ?? null }
   setAttribute(k, v) { this.attrs[k] = String(v) }
   hasAttribute(k) { return k in this.attrs }
@@ -474,4 +564,138 @@ test('шапка получает разделитель, когда стран�
   w.scrollY = 0
   w.dispatch('scroll')
   assert.ok(!header.hasAttribute('data-scrolled'))
+})
+
+// --- анимации: поведение ---
+
+// IntersectionObserver на игрушечном DOM: show(el) — элемент вошёл в экран.
+function withObserver(w) {
+  w.observers = []
+  w.IntersectionObserver = class {
+    constructor(cb) {
+      this.cb = cb
+      this.els = new Set()
+      w.observers.push(this)
+    }
+    observe(el) { this.els.add(el) }
+    unobserve(el) { this.els.delete(el) }
+  }
+  w.show = (el) => w.observers.filter((o) => o.els.has(el)).forEach((o) => o.cb([{ target: el, isIntersecting: true }]))
+  w.watched = (el) => w.observers.some((o) => o.els.has(el))
+  return w
+}
+
+// Кадры анимации по требованию: frame(ms) — прошло столько от начала.
+function withFrames(w) {
+  let now = 0
+  let queue = []
+  w.performance = { now: () => now }
+  w.requestAnimationFrame = (fn) => queue.push(fn)
+  w.frame = (ms) => {
+    now = ms
+    const run = queue
+    queue = []
+    run.forEach((fn) => fn(now))
+  }
+  return w
+}
+
+test('движение включается классом anim, только когда оно есть', () => {
+  const root = new El('html')
+  assert.ok(initMotion(root, withObserver(fakeWindow())))
+  assert.ok(root.classList.contains('anim'))
+
+  const reduced = new El('html')
+  assert.ok(!initMotion(reduced, withObserver(fakeWindow({ reduced: true }))))
+  assert.ok(!reduced.classList.contains('anim'))
+
+  // Без IntersectionObserver блоки не узнали бы, что их показали, — лучше без движения.
+  const old = new El('html')
+  assert.ok(!initMotion(old, fakeWindow()))
+  assert.ok(!old.classList.contains('anim'))
+})
+
+test('вход в экран отмечает блок один раз', () => {
+  const w = withObserver(fakeWindow())
+  const block = new El('div')
+  const seen = []
+  initInView([block], w, (el) => seen.push(el))
+  assert.deepEqual(seen, [])
+  w.show(block)
+  assert.deepEqual(seen, [block])
+  assert.ok(!w.watched(block), 'после первого входа блок больше не отслеживается')
+})
+
+function revealDom() {
+  const grid = new El('div')
+  grid.classList.add('tr-stagger')
+  const cards = [0, 1, 2, 3, 4].map(() => new El('article'))
+  cards.forEach((c) => grid.append(c))
+  const title = new El('h2')
+  return { title, cards, items: [title, ...cards] }
+}
+
+// Без animation-timeline: view() (Firefox, Safari до 26) появление ведёт скрипт.
+test('появление при прокрутке без view(): прячет, проявляет при входе в экран, карточки — лесенкой', () => {
+  const w = withObserver(fakeWindow())
+  w.CSS = { supports: () => false }
+  const { title, cards, items } = revealDom()
+  initReveal(items, w)
+  for (const el of items) assert.ok(el.classList.contains('tr-io-hide') && !el.classList.contains('tr-io-in'))
+  assert.deepEqual(cards.map((c) => c.style.transitionDelay), ['0ms', '60ms', '120ms', '180ms', '180ms'])
+  assert.equal(title.style.transitionDelay, undefined)
+  w.show(cards[1])
+  assert.ok(cards[1].classList.contains('tr-io-in'))
+  assert.ok(!cards[0].classList.contains('tr-io-in'))
+  assert.ok(!w.watched(cards[1]))
+})
+
+test('появление при прокрутке: с view(), при reduced motion и без IntersectionObserver скрипт ничего не прячет', () => {
+  const cases = {
+    'есть view()': Object.assign(withObserver(fakeWindow()), { CSS: { supports: () => true } }),
+    'reduced motion': Object.assign(withObserver(fakeWindow({ reduced: true })), { CSS: { supports: () => false } }),
+    'нет IntersectionObserver': Object.assign(fakeWindow(), { CSS: { supports: () => false } }),
+  }
+  for (const [what, w] of Object.entries(cases)) {
+    const { items } = revealDom()
+    initReveal(items, w)
+    assert.ok(items.every((el) => !el.classList.contains('tr-io-hide')), what)
+  }
+})
+
+test('цифра досчитывает до своего значения и заканчивает ровно на нём', () => {
+  const w = withFrames(fakeWindow())
+  const num = new El('div', {}, '26%')
+  countUp(num, w)
+  w.frame(0)
+  assert.equal(num.textContent, '0%')
+  w.frame(600)
+  const mid = Number.parseInt(num.textContent)
+  assert.ok(mid > 0 && mid < 26, `на середине ${num.textContent}`)
+  w.frame(5000)
+  assert.equal(num.textContent, '26%')
+})
+
+// «50→35»: МФТИ сократил список — число идёт вниз от старого значения.
+test('цифра с началом отсчёта считает от него', () => {
+  const w = withFrames(fakeWindow())
+  const num = new El('div', { 'data-count-from': '50' }, '50→35')
+  countUp(num, w)
+  w.frame(0)
+  assert.equal(num.textContent, '50→50')
+  w.frame(5000)
+  assert.equal(num.textContent, '50→35')
+})
+
+// Без скрипта в карточке сразу итоговая цифра; со скриптом она стоит на
+// начале отсчёта и досчитывает, когда карточку показали, — без скачка 83 → 0.
+test('цифры в карточках: до показа — начало отсчёта, при показе досчитывают', () => {
+  const w = withFrames(withObserver(fakeWindow()))
+  const nums = [new El('div', {}, '83'), new El('div', { 'data-count-from': '50' }, '50→35')]
+  initCounters(nums, w)
+  assert.deepEqual(nums.map((n) => n.textContent), ['0', '50→50'])
+  w.show(nums[0])
+  w.frame(0)
+  w.frame(5000)
+  assert.deepEqual(nums.map((n) => n.textContent), ['83', '50→50'])
 })

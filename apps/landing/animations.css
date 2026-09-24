@@ -1,0 +1,200 @@
+/* =====================================================================
+   «Траектория» — анимации лендинга. Подключается после styles.css.
+
+   Разделы 1–6 — пакет анимаций к макету: классы tr-* в разметке. Смены
+   экранов в панелях «Трекер» и «Помощник» здесь нет: её уже делают
+   .swap-a / .swap-b из styles.css и один таймер в main.js.
+   Раздел 7 — наши анимации поверх пакета.
+
+   Правило: базовый стиль ничего не прячет. Прячет только сама анимация или
+   правило под .anim — этот класс на <html> ставит main.js, когда движение
+   разрешено. Нет скрипта или включено «уменьшить движение» — всё видно сразу.
+   Анимируются только opacity, translate, scale, rotate и transform.
+   ===================================================================== */
+
+:root { --tr-ease: cubic-bezier(.2, .7, .2, 1); }
+
+@keyframes tr-k-rise  { from { opacity: 0; translate: 0 32px; } to { opacity: 1; translate: 0 0; } }
+@keyframes tr-k-phone { from { opacity: 0; translate: 0 70px; } to { opacity: 1; translate: 0 0; } }
+@keyframes tr-k-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -12px; } }
+@keyframes tr-k-ring  { 0%, 78%, 100% { rotate: 0deg; } 82% { rotate: 16deg; } 86% { rotate: -14deg; } 90% { rotate: 9deg; } 94% { rotate: -5deg; } }
+@keyframes tr-k-fade  { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+
+/* 1. Первый экран: появление при загрузке.
+      --i — порядковый номер элемента (0, 1, 2…), шаг задержки 90 мс. */
+.tr-hero {
+  animation: tr-k-rise .8s var(--tr-ease) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+
+/* 1б. Телефоны на первом экране: выезжают снизу, потом медленно «дышат».
+       --i — номер телефона (0, 1), шаг задержки 150 мс. */
+.tr-phone {
+  animation: tr-k-phone 1s var(--tr-ease) both, tr-k-float 7s ease-in-out infinite;
+  animation-delay: calc(450ms + var(--i, 0) * 150ms), 1.4s;
+}
+
+/* 2. Парящие объекты и плашки. --float-dur — длительность цикла (5–7 с),
+      --float-delay — сдвиг фазы, чтобы не двигались синхронно. Двигает
+      свойство translate, поэтому собственный transform: rotate(...) цел. */
+.tr-float {
+  animation: tr-k-float var(--float-dur, 6s) ease-in-out var(--float-delay, 0s) infinite;
+}
+
+/* 2б. Колокольчик в плашке «Через 3 дня»: раз в 4 секунды коротко звенит. */
+.tr-ring {
+  animation: tr-k-ring 4s ease-in-out 1.5s infinite;
+  transform-origin: 50% 15%;
+}
+
+/* 3. Появление при прокрутке. .tr-reveal — отдельный блок, .tr-stagger —
+      сетка: карточки появляются лесенкой. В Chrome, Edge и Safari 26+ —
+      чистый CSS, в остальных — IntersectionObserver из main.js. */
+@supports (animation-timeline: view()) {
+  .tr-reveal,
+  .tr-stagger > * {
+    animation: tr-k-rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+  .tr-stagger > *:nth-child(2) { animation-range: entry 6%  entry 66%; }
+  .tr-stagger > *:nth-child(3) { animation-range: entry 12% entry 72%; }
+  .tr-stagger > *:nth-child(4) { animation-range: entry 18% entry 78%; }
+}
+/* Запасной вариант: классы ставит main.js. */
+.tr-io-hide { opacity: 0; translate: 0 32px; transition: opacity .7s ease, translate .7s var(--tr-ease); }
+.tr-io-hide.tr-io-in { opacity: 1; translate: 0 0; }
+
+/* 4. Наведение. У кнопок свои переходы цвета из styles.css — сохраняем их. */
+.tr-btn {
+  transition: transform .2s ease, box-shadow .2s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.tr-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -12px rgba(107, 43, 255, .6); }
+.tr-btn svg { transition: transform .2s ease; }
+.tr-btn:hover svg { transform: translateX(3px); }
+
+.tr-stagger > * { transition: transform .25s ease, box-shadow .25s ease; }
+.tr-stagger > *:hover { transform: translateY(-4px); box-shadow: 0 18px 36px -24px rgba(42, 26, 122, .35); }
+
+/* 6. Ответ в вопросах мягко проявляется при каждом открытии. */
+.tr-faq-answer { animation: tr-k-fade .35s ease both; }
+
+/* =====================================================================
+   7. Наши анимации поверх пакета
+   ===================================================================== */
+
+@keyframes tr-k-grow    { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes tr-k-pop     { from { opacity: 0; scale: .6; } 70% { scale: 1.08; } to { opacity: 1; scale: 1; } }
+@keyframes tr-k-twinkle { 0%, 100% { opacity: 1; scale: 1; } 50% { opacity: .35; scale: .6; } }
+@keyframes tr-k-slide   { from { opacity: 0; translate: -16px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes tr-k-bar     { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* 7а. Полоса прогресса под шапкой: сколько страницы уже прочитано. Только
+       там, где анимацию можно привязать к прокрутке. */
+@supports (animation-timeline: scroll()) {
+  .top::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--color-brand);
+    transform-origin: 0 50%;
+    animation: tr-k-bar linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+/* 7б. Сцена первого экрана: ступени вырастают снизу вслед за панелью,
+       цветные квадраты на них и в воздухе мерцают. */
+.stage__deco rect { transform-box: fill-box; transform-origin: 50% 100%; }
+.stage__deco rect:nth-child(-n+5) { animation: tr-k-grow .7s var(--tr-ease) both; }
+.stage__deco rect:nth-child(1), .stage__deco rect:nth-child(3) { animation-delay: .75s; }
+.stage__deco rect:nth-child(2), .stage__deco rect:nth-child(4) { animation-delay: .9s; }
+.stage__deco rect:nth-child(5) { animation-delay: 1.05s; }
+.stage__deco rect:nth-child(n+6) {
+  transform-origin: 50% 50%;
+  animation: tr-k-pop .5s var(--tr-ease) 1.15s both, tr-k-twinkle 3.2s ease-in-out 1.8s infinite;
+}
+.stage__deco rect:nth-child(7)  { animation-delay: 1.25s, 2.4s; }
+.stage__deco rect:nth-child(8)  { animation-delay: 1.35s, 3s; }
+.stage__deco rect:nth-child(9)  { animation-delay: 1.2s, 2.1s; }
+.stage__deco rect:nth-child(10) { animation-delay: 1.3s, 2.9s; }
+.stage__deco rect:nth-child(11) { animation-delay: 1.4s, 2.6s; }
+.stage__deco rect:nth-child(12) { animation-delay: 1.5s, 3.4s; }
+.stage__deco rect:nth-child(13) { animation-delay: 1.6s, 2.2s; }
+
+.n-steps-l, .n-steps-r { animation: tr-k-phone .9s var(--tr-ease) .6s both; }
+.n-steps-r { animation-delay: .75s; }
+.n-dot { animation: tr-k-twinkle 3s ease-in-out infinite; }
+.n-dot--brand { animation-delay: -1.5s; }
+
+/* 7в. Ступени в «Льготе именно в ваших вузах» и в финальном призыве
+       строятся снизу вверх, когда блок показался. */
+.anim .perk__steps rect,
+.anim .cta__steps rect { transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0); }
+.anim .is-in .perk__steps rect,
+.anim .is-in .cta__steps rect { animation: tr-k-grow .6s var(--tr-ease) both; }
+.anim .is-in .perk__steps rect:nth-child(2), .anim .is-in .cta__steps rect:nth-child(2) { animation-delay: .1s; }
+.anim .is-in .perk__steps rect:nth-child(3), .anim .is-in .cta__steps rect:nth-child(3) { animation-delay: .2s; }
+.anim .is-in .perk__steps rect:nth-child(4), .anim .is-in .cta__steps rect:nth-child(4) { animation-delay: .3s; }
+.anim .is-in .perk__steps rect:nth-child(5), .anim .is-in .cta__steps rect:nth-child(5) { animation-delay: .45s; }
+.anim .is-in .perk__steps rect:nth-child(6), .anim .is-in .cta__steps rect:nth-child(6) { animation-delay: .55s; }
+.anim .is-in .perk__steps rect:nth-child(7), .anim .is-in .cta__steps rect:nth-child(7) { animation-delay: .65s; }
+
+/* Пункты списка льгот выезжают по одному. */
+.anim .perk__list li { opacity: 0; }
+.anim .perk.is-in .perk__list li { animation: tr-k-slide .5s var(--tr-ease) both; }
+.anim .perk.is-in .perk__list li:nth-child(1) { animation-delay: .2s; }
+.anim .perk.is-in .perk__list li:nth-child(2) { animation-delay: .32s; }
+.anim .perk.is-in .perk__list li:nth-child(3) { animation-delay: .44s; }
+
+/* 7г. «Каталог олимпиад» против «Траектории»: крестики и галочки
+       проставляются по одной, у «Траектории» — после каталога. */
+.anim .vs__mark { opacity: 0; }
+.anim .versus.is-in .vs__mark { animation: tr-k-pop .45s var(--tr-ease) both; }
+.anim .versus.is-in .vs__list li:nth-child(1) .vs__mark { animation-delay: .25s; }
+.anim .versus.is-in .vs__list li:nth-child(2) .vs__mark { animation-delay: .37s; }
+.anim .versus.is-in .vs__list li:nth-child(3) .vs__mark { animation-delay: .49s; }
+.anim .versus.is-in .vs__list li:nth-child(4) .vs__mark { animation-delay: .61s; }
+.anim .versus.is-in .vs--ours .vs__list li:nth-child(1) .vs__mark { animation-delay: .8s; }
+.anim .versus.is-in .vs--ours .vs__list li:nth-child(2) .vs__mark { animation-delay: .92s; }
+.anim .versus.is-in .vs--ours .vs__list li:nth-child(3) .vs__mark { animation-delay: 1.04s; }
+.anim .versus.is-in .vs--ours .vs__list li:nth-child(4) .vs__mark { animation-delay: 1.16s; }
+
+/* 7д. Вузы в базе появляются волной. */
+.anim .uni { opacity: 0; }
+.anim .unis.is-in .uni { animation: tr-k-pop .5s var(--tr-ease) both; }
+.anim .unis.is-in .uni:nth-child(2)  { animation-delay: .05s; }
+.anim .unis.is-in .uni:nth-child(3)  { animation-delay: .1s; }
+.anim .unis.is-in .uni:nth-child(4)  { animation-delay: .15s; }
+.anim .unis.is-in .uni:nth-child(5)  { animation-delay: .2s; }
+.anim .unis.is-in .uni:nth-child(6)  { animation-delay: .25s; }
+.anim .unis.is-in .uni:nth-child(7)  { animation-delay: .3s; }
+.anim .unis.is-in .uni:nth-child(8)  { animation-delay: .35s; }
+.anim .unis.is-in .uni:nth-child(9)  { animation-delay: .4s; }
+.anim .unis.is-in .uni:nth-child(10) { animation-delay: .45s; }
+
+/* 7е. Наведение: экран в карточке шага приподнимается, значок роли
+       подпрыгивает, плашка вуза чуть поднимается. */
+.step__shot, .role__icon, .uni { transition: translate .3s var(--tr-ease), rotate .3s var(--tr-ease), scale .3s var(--tr-ease); }
+.step:hover .step__shot { translate: 0 -12px; }
+.role:hover .role__icon { translate: 0 -4px; rotate: -6deg; scale: 1.06; }
+.uni:hover { translate: 0 -3px; }
+
+/* Знак в вопросе поворачивается, когда ответ открывают. */
+.faq__sign { transition: rotate .3s var(--tr-ease), background-color .15s ease; }
+.faq__q[aria-expanded="true"] .faq__sign { rotate: 180deg; }
+
+/* Уменьшение движения: всё выключено, контент сразу виден. */
+@media (prefers-reduced-motion: reduce) {
+  .tr-hero, .tr-phone, .tr-float, .tr-ring, .tr-faq-answer,
+  .tr-reveal, .tr-stagger > *,
+  .stage__deco rect, .n-steps-l, .n-steps-r, .n-dot, .top::after { animation: none !important; }
+  .top::after { content: none; }
+  .tr-io-hide { opacity: 1; translate: none; transition: none; }
+  .tr-btn:hover, .tr-stagger > *:hover { transform: none; }
+  .step:hover .step__shot, .role:hover .role__icon, .uni:hover { translate: none; rotate: none; scale: none; }
+  .faq__sign { transition: none; }
+}
