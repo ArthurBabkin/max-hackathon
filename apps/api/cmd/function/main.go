@@ -40,6 +40,7 @@ func init() {
 		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
 		Max:         api.Sender(cfg),
 		LLM:         api.Model(),
+		Classifier:  api.Classifier(),
 	})
 }
 

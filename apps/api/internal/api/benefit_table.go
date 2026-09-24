@@ -2,12 +2,12 @@ package api
 
 import (
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
@@ -18,29 +18,20 @@ import (
 // (класс диплома, другой предмет ЕГЭ) — условием в строке своего вуза.
 
 // grants — что получат победитель и призёр: вид льготы плюс оговорки из
-// примечания вуза. Призёру без льготы и вузу без записи — nil.
+// примечания вуза (pick.Grants) с подписями. Призёру без льготы и вузу без
+// записи — nil.
 func grants(b store.BenefitRow) (winner, prizer *benefitGrant) {
-	note := noteSentences(b.Note)
-	switch b.Benefit {
-	case "bvi":
-		winner = &benefitGrant{Kind: "bvi", Label: benefitLabels["bvi"]}
-	case "bvi_winners":
-		winner = &benefitGrant{Kind: "bvi", Label: benefitLabels["bvi"]}
-		if slices.Contains(note, "Победителю — БВИ, призёру — 100 баллов") {
-			return winner, &benefitGrant{Kind: "score100", Label: benefitLabels["score100"]}
+	grant := func(kind string) *benefitGrant {
+		switch kind {
+		case "":
+			return nil
+		case "extra_points":
+			return &benefitGrant{Kind: kind, Label: extraPointsLabel(b.ExtraPoints)}
 		}
-		return winner, nil
-	case "score100":
-		winner = &benefitGrant{Kind: "score100", Label: benefitLabels["score100"]}
-	case "extra_points":
-		winner = &benefitGrant{Kind: "extra_points", Label: extraPointsLabel(b.ExtraPoints)}
-	default:
-		return nil, nil
+		return &benefitGrant{Kind: kind, Label: benefitLabels[kind]}
 	}
-	if slices.Contains(note, "БВИ только победителю") || slices.Contains(note, "100 баллов только победителю") {
-		return winner, nil
-	}
-	return winner, winner
+	w, p := pick.Grants(b)
+	return grant(w), grant(p)
 }
 
 // extraPointsLabel — «+3 балла»; без числа — «доп. баллы».
@@ -114,7 +105,7 @@ func egeInTable(rows []store.BenefitRow) bool {
 
 // noteSubject — предмет ЕГЭ из примечания «Подтвердить ЕГЭ: …».
 func noteSubject(note *string) string {
-	for _, sentence := range noteSentences(note) {
+	for _, sentence := range pick.NoteSentences(note) {
 		if subj, ok := strings.CutPrefix(sentence, "Подтвердить ЕГЭ: "); ok {
 			return subj
 		}

@@ -351,18 +351,6 @@ func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	return out
 }
 
-// noteSentences — предложения примечания к льготе без точек на концах.
-func noteSentences(note *string) []string {
-	if note == nil {
-		return nil
-	}
-	var out []string
-	for _, sentence := range strings.Split(*note, ". ") {
-		out = append(out, strings.TrimSuffix(strings.TrimSpace(sentence), "."))
-	}
-	return out
-}
-
 var egeRangeRe = regexp.MustCompile(`Порог ЕГЭ зависит от программы: (\d+)–(\d+)`)
 
 // egeRange — разброс порога ЕГЭ по программам вуза, если он есть.
@@ -421,7 +409,7 @@ func winnerNotes(rows []store.BenefitRow) []winnerNote {
 	var notes []winnerNote
 	at := map[string]int{}
 	for _, b := range rows {
-		for _, sentence := range noteSentences(b.Note) {
+		for _, sentence := range pick.NoteSentences(b.Note) {
 			if !strings.HasPrefix(sentence, "Победителю") && !strings.Contains(sentence, "только победителю") {
 				continue
 			}
