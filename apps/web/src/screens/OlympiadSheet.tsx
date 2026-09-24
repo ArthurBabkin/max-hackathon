@@ -251,7 +251,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         </section>
       ) : null}
 
-      <div className="sheet-actions">
+      <div className="sheet-actions" data-tour="track-action">
         {mainButton()}
       </div>
 

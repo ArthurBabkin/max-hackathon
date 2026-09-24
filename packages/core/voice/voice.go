@@ -34,6 +34,7 @@ var KnownPlaceholders = []string{
 	"creator",     // имя создателя траектории
 	"names",       // перечисление имён через запятую
 	"count",
+	"total", // сколько всего: «Шаг 2 из 9»
 	"date",
 	"month",
 	"direction",

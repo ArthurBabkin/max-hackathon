@@ -104,7 +104,7 @@ export function HomeScreen() {
         </button>
       </div>
 
-      <section className="goal">
+      <section className="goal" data-tour="goal">
         <span className="goal-pattern" aria-hidden="true">
           <svg viewBox="0 0 96 64">
             <rect x="64" y="0" width="32" height="16" fill="#8EF0FB" opacity=".9" />
@@ -139,7 +139,7 @@ export function HomeScreen() {
       </section>
 
       {next ? (
-        <div className="next-step">
+        <div className="next-step" data-tour="next-step">
           <span className="next-step-icon">
             <Icon name="clock" size={17} />
           </span>
@@ -157,7 +157,7 @@ export function HomeScreen() {
           </Button>
         </div>
       ) : data.tracker_count > 0 ? (
-        <div className="next-step next-step-done">
+        <div className="next-step next-step-done" data-tour="next-step">
           <span className="next-step-icon">
             <Icon name="check" size={17} />
           </span>
@@ -178,7 +178,7 @@ export function HomeScreen() {
       />
 
       {data.upcoming.length > 0 ? (
-        <div className="list" data-tour="upcoming">
+        <div className="list">
           {data.upcoming.map((item) => (
             <TrackerRow key={item.id} item={item} onOpen={openOlympiad} />
           ))}
