@@ -3,19 +3,23 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@maxhub/max-ui'
-import type { Proposal, TrackerItem } from '@contract'
+import type { CalendarLink, Proposal, TrackerItem } from '@contract'
+import { apiUrl } from '@/api/client'
 import {
   useCalendar,
+  useCalendarLink,
   useResolveProposal,
   useSession,
   useToggleRegistered,
   useTracker,
 } from '@/api/queries'
+import { getWebApp } from '@/bridge'
 import { formatDay, nearestDeadlineMonth } from '@/lib/deadline'
 import { groupTracker, sortByDeadline } from '@/lib/derive'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
+import { showErrorToast } from '@/ui/toast'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { CalendarView } from './Calendar'
 import { ErrorState } from '@/ui/ErrorState'
@@ -166,10 +170,25 @@ export function TrackerScreen() {
   const tracker = useTracker()
   const month = pickedMonth ?? nearestDeadlineMonth(tracker.data?.items ?? [])
   const calendar = useCalendar(month)
+  const link = useCalendarLink(view === 'calendar')
   const toggle = useToggleRegistered()
   const resolve = useResolveProposal()
 
   const openOlympiad = (id: string) => sheets.open({ kind: 'oly', id })
+
+  /**
+   * Файл календаря открывает браузер телефона: iPhone предложит добавить все
+   * сроки в «Календарь», Android — импортировать в Google Календарь. Пропуск
+   * берётся заранее, иначе MAX не откроет ссылку; устарел — берём новый.
+   */
+  const exportCalendar = () => {
+    const open = (l: CalendarLink) => getWebApp().openLink(apiUrl(l.url))
+    if (link.data && Date.parse(link.data.expires_at) - Date.now() > 60_000) return open(link.data)
+    link
+      .refetch({ throwOnError: true })
+      .then((r) => r.data && open(r.data))
+      .catch(showErrorToast)
+  }
   const canResolve = session?.permissions.resolve_proposals ?? false
 
   const segment = (
@@ -238,6 +257,10 @@ export function TrackerScreen() {
       <div className="screen">
         {segment}
         <Hint>{t('tracker.remindNote')}</Hint>
+        <button type="button" className="calendar-export" data-tour="calendar-export" onClick={exportCalendar}>
+          <Icon name="calendar" size={18} />
+          {t('calendar.export')}
+        </button>
         <CalendarView month={month} data={calendar.data} onMonthChange={setPickedMonth} onOpen={openOlympiad} />
       </div>
     )

@@ -30,7 +30,7 @@ import {
   viewer,
 } from './state'
 import * as build from './build'
-import { daysLeft, isSoon } from '@/lib/deadline'
+import { daysLeft, isSoon, moscowDay } from '@/lib/deadline'
 
 const LATENCY_MS = 200
 
@@ -246,6 +246,41 @@ route('GET', '/calendar', ({ query }) => {
       .map(([date, items]) => ({ date, items })),
   }
 })
+
+/**
+ * Выгрузка календаря. Живой API отдаёт путь к файлу со своим пропуском, а
+ * здесь API нет — файл со сроками трекера собирается в браузере, чтобы
+ * кнопку можно было проверить руками.
+ */
+route('GET', '/calendar/link', () => {
+  const file = new Blob([mockIcs()], { type: 'text/calendar' })
+  return { url: URL.createObjectURL(file), expires_at: new Date(Date.now() + 10 * 60_000).toISOString() }
+})
+
+function mockIcs(): string {
+  const text = (s: string) => s.replace(/[\\;,]/g, '\\$&')
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Traektoria//Mock//RU',
+    'X-WR-CALNAME:Траектория: сроки олимпиад',
+  ]
+  for (const item of state.tracker.map(build.trackerItem)) {
+    if (!item?.deadline_at) continue
+    const day = moscowDay(new Date(item.deadline_at)).replaceAll('-', '')
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${item.id}@traektoria`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${day}`,
+      `SUMMARY:${text(`${item.olympiad_name}: ${item.next_stage_title ?? ''}`)}`,
+      'END:VEVENT',
+    )
+  }
+  lines.push('END:VCALENDAR')
+  return `${lines.join('\r\n')}\r\n`
+}
 
 // --- Предложения -------------------------------------------------------------
 

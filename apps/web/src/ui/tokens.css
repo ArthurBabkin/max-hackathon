@@ -68,6 +68,12 @@
   --fab-fill: var(--fab-bg);
   --fab-tx: #f4f4f9;
 
+  /* Главное действие экрана — «Выгрузить в календарь»: фирменный градиент
+     в обеих темах, как у «Спросить» в тёмной. Контраст — по светлому концу. */
+  --cta-bg: #3f4dff;
+  --cta-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
+  --cta-tx: #ffffff;
+
   /* Всплывающее сообщение об ошибке действия: тёмная плашка поверх экрана. */
   --toast-bg: #17142a;
   --toast-tx: #f4f4f9;
@@ -140,6 +146,9 @@
     --fab-bg: #3f4dff;
     --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
     --fab-tx: #ffffff;
+    --cta-bg: #3f4dff;
+    --cta-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
+    --cta-tx: #ffffff;
 
     /* Светлая плашка в тёмной теме выпадала бы, как «Спросить», —
        приподнятая тёмная поверхность с тем же розовым сигналом. */
@@ -182,6 +191,9 @@
   --fab-bg: #3f4dff;
   --fab-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
   --fab-tx: #ffffff;
+  --cta-bg: #3f4dff;
+  --cta-fill: linear-gradient(135deg, #6b2bff, #3f4dff);
+  --cta-tx: #ffffff;
 
   --toast-bg: #2c2642;
   --toast-tx: #f1eefa;
