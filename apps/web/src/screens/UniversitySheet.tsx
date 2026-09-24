@@ -118,7 +118,7 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
       </section>
 
       {/* Олимпиады, дающие льготу в этом вузе, с переходом в карточку — F26. */}
-      <section className="block">
+      <section className="block" data-tour="university-olympiads">
         <h3 className="block-head">
           {t('university.olympiadsTitle')}
           <SourceTag kind="fact" />

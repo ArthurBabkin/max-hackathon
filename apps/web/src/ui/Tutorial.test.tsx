@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from '@/App'
@@ -57,47 +58,48 @@ const tab = (name: string) => within(screen.getByRole('navigation', { name: 'Р�
 const shown = () => taps.splice(0)
 
 describe('обзор приложения', () => {
-  it('ведёт по девяти шагам и показывает каждое нажатие по дороге', { timeout: 30_000 }, async () => {
+  it('восемь шагов, между карточками — одно показанное нажатие', { timeout: 30_000 }, async () => {
     renderTour()
 
     await step('Это главная')
     expect(screen.getByRole('dialog', { name: 'Как пользоваться «Траекторией»' })).toBeInTheDocument()
     expect(path()).toBe('Главная')
-    expect(screen.getByText('1 из 9')).toBeInTheDocument()
+    expect(screen.getByText('1 из 8')).toBeInTheDocument()
     shown()
 
     await next()
     await step('Все олимпиады')
-    // «Олимпиады» в каталоге открыты сразу — нажимать нечего.
     expect(shown()).toEqual(['Нажимаем «Каталог»'])
     expect(path()).toBe('Каталог → Олимпиады')
     expect(tab('Каталог')).toHaveAttribute('aria-current', 'page')
 
+    // Олимпиада открывается прямо из списка, без возврата к нему потом.
     await next()
-    await step('И вузы')
-    expect(shown()).toEqual(['Нажимаем «Вузы»'])
-    expect(path()).toBe('Каталог → Вузы')
-    expect(screen.getByRole('tab', { name: 'Вузы' })).toHaveAttribute('aria-selected', 'true')
-
-    await next()
-    await step('Добавляй в трекер')
-    const [olympiads, row] = shown()
-    expect(olympiads).toBe('Нажимаем «Олимпиады»')
+    await step('Карточка олимпиады')
+    const [row] = shown()
     expect(row).toMatch(/^Нажимаем «.+»$/)
-    const name = row!.slice('Нажимаем «'.length, -1)
-    expect(path()).toBe(`Каталог → Олимпиады → ${name}`)
+    const olympiad = row!.slice('Нажимаем «'.length, -1)
+    expect(path()).toBe(`Каталог → Олимпиады → ${olympiad}`)
     // Олимпиада выбрана такая, которую ещё можно добавить.
     expect(screen.getByRole('button', { name: 'Добавить в трекер' })).toBeInTheDocument()
 
+    // Карточку закрываем молча: показываем только переход в раздел.
     await next()
-    await step('Календарь сроков')
-    expect(shown()).toEqual(['Нажимаем «Закрыть»', 'Нажимаем «Трекер»', 'Нажимаем «Календарь»'])
-    expect(path()).toBe('Трекер → Календарь')
-    expect(document.querySelector('.calendar')).toBeInTheDocument()
+    await step('Все вузы')
+    expect(shown()).toEqual(['Нажимаем «Вузы»'])
+    expect(path()).toBe('Каталог → Вузы')
+    expect(screen.queryByRole('button', { name: 'Добавить в трекер' })).not.toBeInTheDocument()
 
     await next()
-    await step('Отметь регистрацию')
-    expect(shown()).toEqual(['Нажимаем «Список»'])
+    await step('Карточка вуза')
+    const [uni] = shown()
+    expect(uni).toMatch(/^Нажимаем «.+»$/)
+    expect(path()).toBe(`Каталог → Вузы → ${uni!.slice('Нажимаем «'.length, -1)}`)
+    expect(screen.getByRole('heading', { name: /Олимпиады с льготой/ })).toBeInTheDocument()
+
+    await next()
+    await step('Трекер')
+    expect(shown()).toEqual(['Нажимаем «Трекер»'])
     expect(path()).toBe('Трекер → Список')
 
     await next()
@@ -109,49 +111,30 @@ describe('обзор приложения', () => {
     await step('ИИ-помощник')
     expect(shown()).toEqual(['Нажимаем «Спросить»'])
     expect(path()).toBe('Подбор → Спросить')
-    expect(screen.getByRole('textbox', { name: /Спросите|Спроси|вопрос/i })).toBeInTheDocument()
-
-    await next()
-    await step('Позови родителей')
-    expect(shown()).toEqual(['Нажимаем «Закрыть»', 'Нажимаем «Семья»'])
-    expect(path()).toBe('Семья')
-    expect(screen.getByText('9 из 9')).toBeInTheDocument()
+    expect(screen.getByText('8 из 8')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Начать' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Как пользоваться «Траекторией»' })).not.toBeInTheDocument())
     expect(tutorialSeen()).toBe(true)
-    // После обзора — на главную, с неё и начинают.
+    // После обзора — на главную, с неё и начинают; лист помощника закрыт.
     expect(tab('Главная')).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('«Назад» возвращает на прошлый экран сразу, без показа нажатий', { timeout: 20_000 }, async () => {
     renderTour()
     await step('Это главная')
-    await next()
-    await step('Все олимпиады')
-    await next()
-    await step('И вузы')
-    shown()
-
-    await back()
-    await step('Все олимпиады')
-    expect(screen.getByRole('tab', { name: 'Олимпиады' })).toHaveAttribute('aria-selected', 'true')
-    expect(path()).toBe('Каталог → Олимпиады')
-    expect(shown()).toEqual([])
-  })
-
-  it('«Назад» из календаря снова открывает карточку олимпиады', { timeout: 20_000 }, async () => {
-    renderTour()
-    await step('Это главная')
-    for (const name of ['Все олимпиады', 'И вузы', 'Добавляй в трекер', 'Календарь сроков']) {
+    for (const name of ['Все олимпиады', 'Карточка олимпиады', 'Все вузы']) {
       await next()
       await step(name)
     }
+    shown()
 
     await back()
-    await step('Добавляй в трекер')
+    await step('Карточка олимпиады')
     expect(screen.getByRole('button', { name: 'Добавить в трекер' })).toBeInTheDocument()
     expect(path()).toMatch(/^Каталог → Олимпиады → .+/)
+    expect(shown()).toEqual([])
   })
 
   it('родителю — на «вы», а вместо добавления — «Предложить»', { timeout: 20_000 }, async () => {
@@ -159,12 +142,12 @@ describe('обзор приложения', () => {
     renderTour()
 
     await step('Это главная')
-    expect(screen.getByText(/Здесь цель Артёма/)).toBeInTheDocument()
-    for (const name of ['Все олимпиады', 'И вузы', 'Предлагайте олимпиады']) {
-      await next()
-      await step(name)
-    }
-    expect(screen.getByText(/нажмите «Предложить Артёму»/)).toBeInTheDocument()
+    expect(screen.getByText(/^Цель Артёма, прогресс и ближайший срок/)).toBeInTheDocument()
+    await next()
+    await step('Все олимпиады')
+    await next()
+    await step('Карточка олимпиады')
+    expect(screen.getByText(/Предложите Артёму/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Предложить Артёму' })).toBeInTheDocument()
   })
 
@@ -201,6 +184,51 @@ describe('Tutorial отдельно от приложения', () => {
     )
     await screen.findByRole('heading', { name: 'Это главная' })
     expect(screen.getByRole('dialog')).toHaveAttribute('data-anchored', 'false')
+  })
+
+  it('фильтр без списка олимпиад — ещё не цель: шаг ждёт список', async () => {
+    // Главная и каталог, где список олимпиад ещё грузится.
+    function Screens() {
+      const [here, setHere] = useState<'home' | 'catalog'>('home')
+      return (
+        <>
+          <button type="button" data-tour="home" aria-current={here === 'home' ? 'page' : undefined} onClick={() => setHere('home')}>
+            Главная
+          </button>
+          <button type="button" data-tour="catalog" aria-current={here === 'catalog' ? 'page' : undefined} onClick={() => setHere('catalog')}>
+            Каталог
+          </button>
+          {here === 'home' ? (
+            <section data-tour="goal">Цель</section>
+          ) : (
+            <>
+              <button type="button" role="tab" aria-selected="true" data-tour="catalog-olympiads">
+                Олимпиады
+              </button>
+              <div data-tour="catalog-subjects">Предмет</div>
+            </>
+          )}
+        </>
+      )
+    }
+    renderApp(
+      <TutorialPace.Provider value={{ point: 0, press: 0, wait: 3000 }}>
+        <Screens />
+        <Tutorial onDone={() => {}} />
+      </TutorialPace.Provider>,
+    )
+    await screen.findByRole('heading', { name: 'Это главная' })
+    await userEvent.click(screen.getByRole('button', { name: 'Дальше' }))
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Олимпиады' })).toBeInTheDocument())
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(screen.queryByRole('heading', { name: 'Все олимпиады' })).not.toBeInTheDocument()
+
+    const group = document.createElement('section')
+    group.dataset.tour = 'olympiad-group'
+    document.body.append(group)
+    expect(await screen.findByRole('heading', { name: 'Все олимпиады' })).toBeInTheDocument()
+    group.remove()
   })
 
   it('подсвечивает настоящий элемент интерфейса, о котором шаг', async () => {
