@@ -310,7 +310,7 @@ export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack
           </div>
 
           {left.length > 0 ? (
-            <div className="chips ai-suggestions">
+            <div className="chips ai-suggestions" data-tour="ai-suggest">
               {left.map((question) => (
                 <button key={question} type="button" className="chip chip-suggest" onClick={() => send(question)}>
                   {question}
@@ -328,7 +328,7 @@ export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack
           {/* Не <form>: IconButton из MAX UI принудительно ставит себе
               type="button", поэтому отправки по Enter через submit не случится.
               Enter обрабатывается на поле напрямую. */}
-          <div className="ai-input">
+          <div className="ai-input" data-tour="ai-compose">
             <Input
               value={draft}
               // Длина вопроса ограничена 500 символами — ТЗ §6.4.

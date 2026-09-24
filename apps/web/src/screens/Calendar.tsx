@@ -52,7 +52,7 @@ export function CalendarView({ month, data, onMonthChange, onOpen }: CalendarVie
 
   return (
     <>
-      <div className="calendar">
+      <div className="calendar" data-tour="calendar">
         <div className="calendar-head">
           <b>{formatMonthTitle(month)}</b>
           <span>

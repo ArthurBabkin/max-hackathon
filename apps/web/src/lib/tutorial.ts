@@ -5,7 +5,8 @@
  * просто покажется ещё раз.
  */
 
-const KEY = 'traektoria.tutorial.v1'
+// v2 — обзор из девяти шагов: видевшим прежний, из пяти, покажем новый.
+const KEY = 'traektoria.tutorial.v2'
 
 export function tutorialSeen(): boolean {
   try {
@@ -21,4 +22,13 @@ export function markTutorialSeen(): void {
   } catch {
     // Хранилища нет — покажем ещё раз, ничего страшного.
   }
+}
+
+/**
+ * Показывать ли туториал при запуске. Новичку — если он открыл приложение
+ * сам или общей кнопкой бота «Открыть» (параметр `home`). Пришедшего из бота
+ * в конкретный раздел — трекер, семью, карточку олимпиады — не перебиваем.
+ */
+export function shouldShowTutorial(startParam: string | null | undefined): boolean {
+  return !tutorialSeen() && (!startParam || startParam === 'home')
 }

@@ -46,7 +46,7 @@ function TrackerCard({
         : (item.next_stage_title ?? '')
 
   return (
-    <article className="tracker-card">
+    <article className="tracker-card" data-tour="tracker-item">
       <button type="button" className="tracker-card-top" onClick={() => onOpen(item.olympiad_profile_id)}>
         <Tile id={item.olympiad_id} name={item.olympiad_name} shortName={item.short_name} color={item.color} />
         <span className="row-main">
@@ -179,6 +179,7 @@ export function TrackerScreen() {
         role="tab"
         aria-selected={view === 'list'}
         className={view === 'list' ? 'segment-on' : ''}
+        data-tour="tracker-list"
         onClick={() => setView('list')}
       >
         {t('tracker.viewList')}
@@ -188,6 +189,7 @@ export function TrackerScreen() {
         role="tab"
         aria-selected={view === 'calendar'}
         className={view === 'calendar' ? 'segment-on' : ''}
+        data-tour="tracker-calendar"
         onClick={() => {
           setPickedMonth(null)
           setView('calendar')

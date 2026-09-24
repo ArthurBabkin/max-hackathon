@@ -1,26 +1,181 @@
 /**
- * Туториал для новичка: пять шагов, каждый подсвечивает настоящий элемент
- * интерфейса (вкладку, олимпиаду, кнопку «Спросить»), а карточка с
- * пояснением встаёт рядом с ним. Элементы помечены атрибутом `data-tour`.
- * Если элемента на экране нет, карточка встаёт по центру. «Пропустить»,
- * Esc и последний шаг закрывают туториал и запоминают, что его видели.
+ * Туториал для новичка: девять шагов по настоящим экранам — главная, каталог
+ * олимпиад и вузов, карточка олимпиады, календарь, отметка регистрации,
+ * подбор, помощник, семья.
+ *
+ * До каждого экрана туториал доходит сам и показывает каждое нажатие:
+ * подсвечивает вкладку или кнопку, подписывает «Нажимаем «Каталог»» и только
+ * потом нажимает. Так видно, как попасть туда самому, а в карточке шага
+ * написан путь: «Каталог → Вузы». «Назад» переходит сразу, без показа.
+ *
+ * Элементы помечены атрибутом `data-tour`. Нет цели на экране (пустой трекер)
+ * — подсвечивается запасная, нет и её — карточка встаёт по центру.
+ * «Пропустить», Esc и последний шаг закрывают туториал и запоминают, что его
+ * видели.
  */
 
-import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Button } from '@maxhub/max-ui'
+import { useNavigate } from 'react-router-dom'
+import { useSession } from '@/api/queries'
 import { markTutorialSeen } from '@/lib/tutorial'
 import type { TextKey } from '@/voice/texts'
 import { useVoice } from '@/voice/useVoice'
 
-/** Цели шагов: берётся первая, что нашлась на экране. */
-const STEPS: string[][] = [
-  ['[data-tour="match"]'],
-  // Пустой список сроков у новичка — обычное дело: тогда показываем «Каталог».
-  ['[data-tour="upcoming"] > :first-child', '[data-tour="catalog"]'],
-  ['[data-tour="tracker"]'],
-  ['[data-tour="family"]'],
-  ['[data-tour="ai"]'],
+/** Нажатие по дороге к шагу. */
+interface Tap {
+  /** Кнопка, которую нажимаем. */
+  find: () => HTMLElement | null
+  /** Нажимать не нужно: уже там, куда она ведёт. */
+  done: () => boolean
+  /** Подпись в подсказке «Нажимаем «…»» и в пути шага. */
+  label: (el: HTMLElement) => string
+  /** Не раздел, а действие — в путь шага не попадает. */
+  hidden?: boolean
+}
+
+interface Step {
+  /** Ключи текстов: `tutorial.<key>.title` и `.text`. */
+  key: string
+  /** Все нажатия от главной до экрана шага; уже сделанные пропускаются. */
+  path: Tap[]
+  /** Что подсвечиваем: все найденные элементы — одним окном. */
+  target: () => HTMLElement[]
+  /** Цели нет (пустой трекер, пустой подбор) — что подсветить вместо неё. */
+  fallback?: () => HTMLElement[]
+}
+
+const $ = (selector: string) => document.querySelector<HTMLElement>(selector)
+const $$ = (selector: string) => [...document.querySelectorAll<HTMLElement>(selector)]
+const text = (el: Element) => (el.textContent ?? '').trim()
+const found = (...els: (HTMLElement | null)[]) => els.filter((el): el is HTMLElement => el !== null)
+/** Экран ещё грузится: ленивый раздел или скелетоны вместо данных. */
+const loading = () => Boolean($('.screen-loading, [aria-busy="true"]'))
+
+const closeSheet: Tap = {
+  find: () => $('[data-tour="sheet-close"]'),
+  done: () => !$('[data-tour="sheet-close"]'),
+  label: text,
+  hidden: true,
+}
+
+const tab = (name: string): Tap => ({
+  find: () => $(`[data-tour="${name}"]`),
+  done: () => $(`[data-tour="${name}"]`)?.getAttribute('aria-current') === 'page',
+  // Без счётчика на «Трекере»: в подписи только название вкладки.
+  label: (el) => text(el.querySelector('.tab-label') ?? el),
+})
+
+const segment = (name: string): Tap => ({
+  find: () => $(`[data-tour="${name}"]`),
+  done: () => $(`[data-tour="${name}"]`)?.getAttribute('aria-selected') === 'true',
+  label: text,
+})
+
+const olympiadRow: Tap = {
+  // Олимпиада, которую ещё можно добавить или предложить: у той, что уже в
+  // трекере, вместо кнопки была бы отметка «В трекере».
+  find: () => $('[data-tour="olympiad-row"][data-free]') ?? $('[data-tour="olympiad-row"]'),
+  done: () => Boolean($('[data-tour="track-action"]')),
+  label: (el) => text(el.querySelector('.row-title') ?? el),
+}
+
+const askButton: Tap = {
+  find: () => $('[data-tour="ai"]'),
+  done: () => Boolean($('[data-tour="ai-compose"]')),
+  label: text,
+}
+
+const STEPS: Step[] = [
+  {
+    key: '1',
+    path: [closeSheet, tab('home')],
+    target: () => found($('[data-tour="goal"]'), $('[data-tour="next-step"]')),
+  },
+  {
+    key: '2',
+    path: [closeSheet, tab('catalog'), segment('catalog-olympiads')],
+    target: () => $$('[data-tour="olympiad-group"]').slice(0, 2),
+  },
+  {
+    key: '3',
+    path: [closeSheet, tab('catalog'), segment('catalog-universities')],
+    target: () => $$('[data-tour="university-row"]').slice(0, 3),
+  },
+  {
+    key: '4',
+    path: [closeSheet, tab('catalog'), segment('catalog-olympiads'), olympiadRow],
+    target: () => found($('[data-tour="track-action"]')),
+  },
+  {
+    key: '5',
+    path: [closeSheet, tab('tracker'), segment('tracker-calendar')],
+    target: () => found($('[data-tour="calendar"]')),
+    fallback: () => found($('[data-tour="tracker-calendar"]')),
+  },
+  {
+    key: '6',
+    path: [closeSheet, tab('tracker'), segment('tracker-list')],
+    target: () => found($('[data-tour="tracker-item"]')),
+    fallback: () => found($('[data-tour="tracker-list"]')),
+  },
+  {
+    key: '7',
+    path: [closeSheet, tab('match')],
+    target: () => found($('[data-tour="match-list"] .oly-card')),
+    fallback: () => found($('[data-tour="match"]')),
+  },
+  {
+    key: '8',
+    // «Спросить» есть и на подборе, где закончился прошлый шаг.
+    path: [closeSheet, tab('match'), askButton],
+    target: () => found($('[data-tour="ai-suggest"]'), $('[data-tour="ai-compose"]')),
+  },
+  {
+    key: '9',
+    path: [closeSheet, tab('family')],
+    target: () => found($('[data-tour="invite"]')),
+  },
 ]
+
+/** Цель шага, а если её нет — запасная. */
+function stepTargets(step: Step): HTMLElement[] {
+  const main = step.target()
+  return main.length > 0 ? main : (step.fallback?.() ?? [])
+}
+
+/**
+ * Паузы показа нажатий, мс: `point` — подсветка кнопки до нажатия, `press` —
+ * само нажатие, `wait` — сколько ждать экран или кнопку, пока они грузятся.
+ */
+export interface Pace {
+  point: number
+  press: number
+  wait: number
+}
+
+export const TutorialPace = createContext<Pace>({ point: 650, press: 300, wait: 4000 })
+
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+
+/** Ждёт, пока `find` что-то вернёт. Не дождались или тур отменён — null. */
+async function waitFor<T>(find: () => T | null, timeout: number, alive: () => boolean): Promise<T | null> {
+  const until = Date.now() + timeout
+  for (;;) {
+    const result = find()
+    if (result !== null || !alive() || Date.now() >= until) return result
+    await sleep(40)
+  }
+}
 
 /** Поле вокруг цели, зазор до карточки и отступ от краёв экрана. */
 const PAD = 6
@@ -30,6 +185,8 @@ const EDGE = 16
 const RING = 2
 /** Столько длится исчезновение, прежде чем туториал уйдёт из дерева. */
 const EXIT_MS = 160
+/** Перемеры после смены цели: лист выезжает, экран догружается. */
+const SETTLE_MS = [120, 300, 600]
 
 interface Layout {
   hole: { x: number; y: number; w: number; h: number; r: number }
@@ -38,13 +195,15 @@ interface Layout {
   caret: { side: 'top' | 'bottom'; x: number } | null
 }
 
-function findTarget(selectors: string[]): HTMLElement | null {
-  for (const selector of selectors) {
-    const el = document.querySelector<HTMLElement>(selector)
-    const rect = el?.getBoundingClientRect()
-    if (el && rect && rect.width > 0 && rect.height > 0) return el
-  }
-  return null
+/** Общий прямоугольник нескольких элементов; нулевые (скрытые) не в счёт. */
+function unionRect(els: HTMLElement[]): DOMRect | null {
+  const rects = els.map((el) => el.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0)
+  if (rects.length === 0) return null
+  const left = Math.min(...rects.map((r) => r.left))
+  const top = Math.min(...rects.map((r) => r.top))
+  const right = Math.max(...rects.map((r) => r.right))
+  const bottom = Math.max(...rects.map((r) => r.bottom))
+  return new DOMRect(left, top, right - left, bottom - top)
 }
 
 /** Окно над целью и место карточки: под целью, если влезает, иначе над ней. */
@@ -75,9 +234,9 @@ function place(rect: DOMRect, card: HTMLElement, radius: number): { layout: Layo
   return { layout: { hole, card: { top, left }, caret: { side, x: caretX } }, fits: fitsBelow || fitsAbove }
 }
 
-function measure(selectors: string[], card: HTMLElement): Layout {
-  const el = findTarget(selectors)
-  if (!el) {
+function measure(els: HTMLElement[], card: HTMLElement): Layout {
+  let rect = unionRect(els)
+  if (!rect) {
     // Без цели «окно» схлопывается в точку в центре: затемнение остаётся
     // сплошным, а к следующей цели окно раскроется оттуда.
     const vw = window.innerWidth
@@ -89,18 +248,18 @@ function measure(selectors: string[], card: HTMLElement): Layout {
     }
   }
 
-  const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 12
-  let rect = el.getBoundingClientRect()
+  const first = els[0]!
+  const radius = parseFloat(getComputedStyle(first).borderTopLeftRadius) || 12
   if (rect.top < 0 || rect.bottom > window.innerHeight) {
-    el.scrollIntoView?.({ block: 'center' })
-    rect = el.getBoundingClientRect()
+    first.scrollIntoView?.({ block: 'center' })
+    rect = unionRect(els) ?? rect
   }
   let placed = place(rect, card, radius)
   // Низкий экран: карточке нет места ни над, ни под целью — поднимаем цель
   // к верху ленты, тогда карточка встанет под ней.
   if (!placed.fits) {
-    el.scrollIntoView?.({ block: 'start' })
-    placed = place(el.getBoundingClientRect(), card, radius)
+    first.scrollIntoView?.({ block: 'start' })
+    placed = place(unionRect(els) ?? rect, card, radius)
   }
   return placed.layout
 }
@@ -114,19 +273,102 @@ function cardStyle(layout: Layout | null): CSSProperties {
   return { top: card.top, left: card.left, transformOrigin: origin }
 }
 
+/**
+ * Что сейчас на экране: карточка шага, показ нажатия по дороге к нему или
+ * мгновенный переход, пока экран не готов.
+ */
+type View =
+  | { mode: 'step'; step: number; path: string[] }
+  | { mode: 'tap'; step: number; el: HTMLElement; label: string; pressing: boolean }
+  | { mode: 'moving'; step: number }
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export function Tutorial({ onDone }: { onDone: () => void }) {
   const t = useVoice()
-  const [step, setStep] = useState(0)
+  const pace = useContext(TutorialPace)
+  const navigate = useNavigate()
+  const { data: session } = useSession()
+  const [view, setView] = useState<View>({ mode: 'moving', step: 0 })
   const [layout, setLayout] = useState<Layout | null>(null)
   const [closing, setClosing] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
-  const nextRef = useRef<HTMLButtonElement>(null)
+  /** Номер текущего прохода: новый проход или закрытие отменяют прежний. */
+  const runRef = useRef(0)
+  /** Подсказка о нажатии отрисована — можно выдерживать паузу. */
+  const shownRef = useRef<(() => void) | null>(null)
+
+  const step = view.step
   const last = step === STEPS.length - 1
 
   const finish = useCallback(() => {
+    runRef.current += 1
     markTutorialSeen()
     setClosing(true)
   }, [])
+
+  const go = useCallback(
+    async (to: number, show: boolean) => {
+      const run = ++runRef.current
+      const alive = () => runRef.current === run
+      const { point, press } = prefersReducedMotion() ? { ...pace, press: 0 } : pace
+      const path: string[] = []
+      setView({ mode: 'moving', step: to })
+
+      for (const tap of STEPS[to]!.path) {
+        let label: string | null = null
+        if (!tap.done()) {
+          const el = await waitFor(tap.find, pace.wait, alive)
+          if (!alive()) return
+          // Кнопка так и не появилась — дальше пути нет, показываем что есть.
+          if (!el) break
+          label = tap.label(el)
+          if (!tap.done()) {
+            if (show) {
+              await new Promise<void>((resolve) => {
+                shownRef.current = resolve
+                setView({ mode: 'tap', step: to, el, label: label!, pressing: false })
+              })
+              await sleep(point)
+              if (!alive()) return
+              setView({ mode: 'tap', step: to, el, label, pressing: true })
+              await sleep(press)
+              if (!alive()) return
+            }
+            el.click()
+            await waitFor(() => tap.done() || null, pace.wait, alive)
+            if (!alive()) return
+          }
+        }
+        // Уже сделанное нажатие — тоже часть пути: «Каталог» в «Каталог → Вузы».
+        if (!tap.hidden) {
+          const el = label === null ? tap.find() : null
+          if (el) label = tap.label(el)
+          if (label) path.push(label)
+        }
+      }
+
+      const target = STEPS[to]!
+      await waitFor(
+        () => (target.target().length > 0 || (!loading() && stepTargets(target).length > 0) ? true : null),
+        pace.wait,
+        alive,
+      )
+      if (!alive()) return
+      setView({ mode: 'step', step: to, path })
+    },
+    [pace],
+  )
+
+  // Первый шаг — с главной; повтор из профиля сначала туда и переходит.
+  useEffect(() => {
+    void go(0, false)
+    return () => {
+      runRef.current += 1
+    }
+  }, [go])
 
   useEffect(() => {
     if (!closing) return
@@ -134,15 +376,31 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
     return () => window.clearTimeout(timer)
   }, [closing, onDone])
 
-  // Замер до отрисовки: карточка сразу появляется на своём месте.
+  // Замер до отрисовки: карточка сразу появляется на своём месте. Пока идёт
+  // мгновенный переход, окно остаётся на прежнем месте.
   useLayoutEffect(() => {
+    if (view.mode === 'moving') return
     const update = () => {
-      if (cardRef.current) setLayout(measure(STEPS[step]!, cardRef.current))
+      if (!cardRef.current) return
+      const els = view.mode === 'tap' ? [view.el] : stepTargets(STEPS[view.step]!)
+      setLayout(measure(els, cardRef.current))
     }
     update()
+    const timers = SETTLE_MS.map((ms) => window.setTimeout(update, ms))
     window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [step])
+    window.addEventListener('scroll', update, true)
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [view])
+
+  useEffect(() => {
+    if (view.mode !== 'tap' || view.pressing) return
+    shownRef.current?.()
+    shownRef.current = null
+  }, [view])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -152,14 +410,16 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [finish])
 
-  const back = () => {
-    setStep(step - 1)
-    // На первом шаге «Назад» исчезает — фокус не должен пропасть вместе с ним.
-    if (step === 1) nextRef.current?.focus()
+  const start = () => {
+    finish()
+    navigate('/')
   }
 
   const n = step + 1
   const anchored = Boolean(layout?.caret)
+  const propose = STEPS[step]!.key === '4' && Boolean(session?.permissions.propose)
+  const titleKey = (propose ? 'tutorial.4.proposeTitle' : `tutorial.${n}.title`) as TextKey
+  const textKey = (propose ? 'tutorial.4.proposeText' : `tutorial.${n}.text`) as TextKey
 
   return (
     <div
@@ -168,12 +428,14 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
       aria-modal="true"
       aria-label={t('tutorial.title')}
       data-anchored={anchored}
+      data-mode={view.mode}
       data-closing={closing || undefined}
     >
       {layout ? (
         <span
           className="tour-spot"
           aria-hidden="true"
+          data-pressing={(view.mode === 'tap' && view.pressing) || undefined}
           style={{
             width: layout.hole.w,
             height: layout.hole.h,
@@ -192,33 +454,47 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
           />
         ) : null}
 
-        <div className="tour-top">
-          <span className="tour-dots" role="img" aria-label={t('tutorial.step', { count: n })}>
-            {STEPS.map((_, i) => (
-              <i key={i} className={i === step ? 'on' : i < step ? 'done' : undefined} />
-            ))}
-          </span>
-          <button type="button" className="link tour-skip" onClick={finish}>
-            {t('tutorial.skip')}
-          </button>
-        </div>
+        {view.mode === 'tap' ? (
+          <p className="tour-tap" role="status">
+            {t('tutorial.tap', { title: view.label })}
+          </p>
+        ) : null}
 
-        {/* key — чтобы текст нового шага проявлялся заново */}
-        <div key={step} className="tour-body" aria-live="polite">
-          <h2 className="tour-title">{t(`tutorial.${n}.title` as TextKey)}</h2>
-          <p className="tour-text">{t(`tutorial.${n}.text` as TextKey)}</p>
-        </div>
+        {view.mode === 'step' ? (
+          <>
+            <div className="tour-top">
+              <span className="tour-dots" role="img" aria-label={t('tutorial.step', { count: n, total: STEPS.length })}>
+                {STEPS.map((_, i) => (
+                  <i key={i} className={i === step ? 'on' : i < step ? 'done' : undefined} />
+                ))}
+              </span>
+              <span className="tour-count" aria-hidden="true">
+                {t('tutorial.count', { count: n, total: STEPS.length })}
+              </span>
+              <button type="button" className="link tour-skip" onClick={finish}>
+                {t('tutorial.skip')}
+              </button>
+            </div>
 
-        <div className="tour-actions">
-          {step > 0 ? (
-            <Button className="tour-back" variant="secondary" size="medium" onClick={back}>
-              {t('tutorial.back')}
-            </Button>
-          ) : null}
-          <Button ref={nextRef} size="medium" stretched autoFocus onClick={last ? finish : () => setStep(step + 1)}>
-            {last ? t('tutorial.start') : t('tutorial.next')}
-          </Button>
-        </div>
+            {/* key — чтобы текст нового шага проявлялся заново */}
+            <div key={step} className="tour-body" aria-live="polite">
+              {view.path.length > 0 ? <p className="tour-path">{view.path.join(' → ')}</p> : null}
+              <h2 className="tour-title">{t(titleKey)}</h2>
+              <p className="tour-text">{t(textKey)}</p>
+            </div>
+
+            <div className="tour-actions">
+              {step > 0 ? (
+                <Button className="tour-back" variant="secondary" size="medium" onClick={() => void go(step - 1, false)}>
+                  {t('tutorial.back')}
+                </Button>
+              ) : null}
+              <Button size="medium" stretched autoFocus onClick={last ? start : () => void go(step + 1, true)}>
+                {last ? t('tutorial.start') : t('tutorial.next')}
+              </Button>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   )

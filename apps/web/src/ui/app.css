@@ -2241,6 +2241,12 @@
 
 /* --- Туториал ----------------------------------------------------------------- */
 
+/* Обёртка подбора нужна туториалу как метка — карточки лежат в ленте экрана,
+   как и без неё. */
+.match-list {
+  display: contents;
+}
+
 /* Слой перехватывает касания: пока идёт тур, интерфейс под ним не нажимается.
    Кривые — «сильные»: встроенные ease слишком вялые для переезда. */
 .tour {
@@ -2279,6 +2285,16 @@
 /* Без цели окно схлопнуто в точку — обводка на ней выглядела бы соринкой. */
 .tour[data-anchored='false'] .tour-spot {
   box-shadow: 0 0 0 200vmax var(--tour-scrim);
+}
+
+/* Нажатие: обводка вспыхивает и расходится, как круг от пальца. */
+.tour-spot[data-pressing] {
+  animation: tour-press 300ms var(--tour-out);
+}
+
+/* Мгновенный переход «Назад»: окно ждёт на месте, карточки нет. */
+.tour[data-mode='moving'] .tour-card {
+  visibility: hidden;
 }
 
 .tour-card {
@@ -2345,6 +2361,39 @@
 .tour-dots i.on {
   width: 20px;
   background: var(--p);
+}
+
+.tour-count {
+  margin-right: auto;
+  margin-left: var(--gap-sm);
+  color: var(--mu);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Путь до экрана шага: «Каталог → Вузы» — чтобы потом пройти его самому. */
+.tour-path {
+  margin: 0 0 4px;
+  color: var(--p);
+  font-size: var(--t-small);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Подсказка о нажатии — короткая плашка вместо карточки шага. */
+.tour[data-mode='tap'] .tour-card {
+  width: auto;
+  max-width: min(calc(100vw - 2 * var(--gap-lg)), 360px);
+  padding: 10px var(--gap-md);
+}
+
+.tour-tap {
+  margin: 0;
+  font-size: var(--t-base);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Пропуск — второстепенное действие, поэтому приглушён, но тач-цель полная. */
@@ -2414,6 +2463,14 @@
   }
 }
 
+@keyframes tour-press {
+  50% {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--p) 55%, transparent),
+      0 0 0 200vmax var(--tour-scrim);
+  }
+}
+
 @keyframes tour-card-in {
   from {
     opacity: 0;
@@ -2435,6 +2492,10 @@
   .tour-card,
   .tour-dots i {
     transition: none;
+  }
+
+  .tour-spot[data-pressing] {
+    animation: none;
   }
 
   .tour-card {

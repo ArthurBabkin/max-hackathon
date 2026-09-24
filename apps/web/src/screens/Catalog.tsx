@@ -56,6 +56,9 @@ export function CatalogScreen() {
   const mySubject = profile.data?.subjects.map((s) => s.code).find((code) => SUBJECTS.some((s) => s.value === code))
   const subject = pickedSubject ?? mySubject ?? 'all'
   const tracked = new Set(tracker.data?.items.map((item) => item.olympiad_id))
+  // Уже в трекере или ждёт ответа на предложение — добавить её нельзя.
+  // Туториал открывает олимпиаду, у которой кнопка «Добавить» ещё есть.
+  const taken = new Set([...tracked, ...(tracker.data?.proposals.map((p) => p.olympiad_id) ?? [])])
   const [city, setCity] = useState('all')
 
   const debouncedQuery = useDebounced(query)
@@ -97,7 +100,7 @@ export function CatalogScreen() {
         const visible = open ? group.items : group.items.slice(0, GROUP_PREVIEW)
         const hidden = group.items.length - visible.length
         return (
-          <section key={group.key} className="catalog-group">
+          <section key={group.key} className="catalog-group" data-tour="olympiad-group">
             <h3 className="catalog-group-head">
               {t(`catalog.group.${group.key}` as TextKey)}
               <span className="catalog-group-count">{group.items.length}</span>
@@ -108,6 +111,8 @@ export function CatalogScreen() {
                   key={item.olympiad_id}
                   type="button"
                   className="row"
+                  data-tour="olympiad-row"
+                  data-free={taken.has(item.olympiad_id) ? undefined : ''}
                   onClick={() => sheets.open({ kind: 'oly', id: item.primary_profile.olympiad_profile_id })}
                 >
                   <Tile id={item.olympiad_id} name={item.name} shortName={item.short_name} color={item.color} />
@@ -152,6 +157,7 @@ export function CatalogScreen() {
             key={item.id}
             type="button"
             className="row"
+            data-tour="university-row"
             onClick={() => sheets.open({ kind: 'vuz', id: item.id })}
           >
             <Tile id={item.id} name={item.name} shortName={item.short_name} color={item.color} />
@@ -186,6 +192,7 @@ export function CatalogScreen() {
           role="tab"
           aria-selected={segment === 'olympiads'}
           className={segment === 'olympiads' ? 'segment-on' : ''}
+          data-tour="catalog-olympiads"
           onClick={() => switchSegment('olympiads')}
         >
           {t('catalog.segmentOlympiads')}
@@ -195,6 +202,7 @@ export function CatalogScreen() {
           role="tab"
           aria-selected={segment === 'universities'}
           className={segment === 'universities' ? 'segment-on' : ''}
+          data-tour="catalog-universities"
           onClick={() => switchSegment('universities')}
         >
           {t('catalog.segmentUniversities')}
