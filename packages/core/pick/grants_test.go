@@ -1,0 +1,46 @@
+package pick
+
+import (
+	"testing"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
+)
+
+func TestGrants_WinnerAndPrizerFromBenefitAndNote(t *testing.T) {
+	note := func(s string) *string { return &s }
+	for _, tc := range []struct {
+		name           string
+		row            store.BenefitRow
+		winner, prizer string
+	}{
+		{"БВИ обоим", store.BenefitRow{Benefit: "bvi"}, "bvi", "bvi"},
+		{"БВИ только победителю", store.BenefitRow{Benefit: "bvi", Note: note("БВИ только победителю. Подтвердить ЕГЭ: Физика")}, "bvi", ""},
+		{"победителю БВИ, призёру 100", store.BenefitRow{Benefit: "bvi_winners", Note: note("Победителю — БВИ, призёру — 100 баллов. Подтвердить ЕГЭ: Физика")}, "bvi", "score100"},
+		{"БВИ победителям без призёров", store.BenefitRow{Benefit: "bvi_winners"}, "bvi", ""},
+		{"100 баллов обоим", store.BenefitRow{Benefit: "score100"}, "score100", "score100"},
+		{"100 баллов только победителю", store.BenefitRow{Benefit: "score100", Note: note("100 баллов только победителю.")}, "score100", ""},
+		{"доп. баллы", store.BenefitRow{Benefit: "extra_points"}, "extra_points", "extra_points"},
+		{"неизвестная льгота", store.BenefitRow{Benefit: "x"}, "", ""},
+	} {
+		if w, p := Grants(tc.row); w != tc.winner || p != tc.prizer {
+			t.Errorf("%s: %q/%q, ждали %q/%q", tc.name, w, p, tc.winner, tc.prizer)
+		}
+	}
+}
+
+func TestNoteSentences(t *testing.T) {
+	s := "Победителю — БВИ, призёру — 100 баллов. Подтвердить ЕГЭ: Физика."
+	got := NoteSentences(&s)
+	if len(got) != 2 || got[0] != "Победителю — БВИ, призёру — 100 баллов" || got[1] != "Подтвердить ЕГЭ: Физика" {
+		t.Fatalf("%q", got)
+	}
+	if NoteSentences(nil) != nil {
+		t.Fatal("нет примечания — нет предложений")
+	}
+}
+
+func TestNick(t *testing.T) {
+	if Nick("innopolis", "УИ") != "Иннополис" || Nick("itmo", "ИТМО") != "ИТМО" {
+		t.Fatal("аббревиатуру, которая ничего не скажет школьнику, заменяем привычным названием")
+	}
+}

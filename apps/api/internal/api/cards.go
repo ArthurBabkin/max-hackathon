@@ -41,16 +41,7 @@ var benefitLabels = map[string]string{
 	"bvi": "БВИ", "score100": "100 баллов", "bvi_winners": "БВИ победителям", "extra_points": "доп. баллы",
 }
 
-// universityNicks — как вуз называют в строке льгот, если аббревиатура
-// из справочника ничего не скажет школьнику.
-var universityNicks = map[string]string{"innopolis": "Иннополис", "sechenov": "Сеченовский"}
-
-func nick(universityID, shortName string) string {
-	if n, ok := universityNicks[universityID]; ok {
-		return n
-	}
-	return shortName
-}
+func nick(universityID, shortName string) string { return pick.Nick(universityID, shortName) }
 
 // cardSet — набор профилей в контексте траектории (pick.Set) плюс голос
 // читающего: из этого собираются карточки.
