@@ -276,6 +276,48 @@ describe('Tutorial отдельно от приложения', () => {
     const spot = document.querySelector<HTMLElement>('.tour-spot')!
     expect(parseFloat(spot.style.borderRadius)).toBeLessThan(30)
   })
+
+  describe('высокая цель', () => {
+    const height = window.innerHeight
+    afterEach(() => {
+      window.innerHeight = height
+    })
+
+    /** Главная с целью и следующим шагом заданного размера, карточка высотой 210. */
+    async function renderHome(screenHeight: number, goal: DOMRect, nextStep: DOMRect) {
+      window.innerHeight = screenHeight
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('tour-card') ? 210 : 0
+      })
+      renderApp(
+        <TutorialPace.Provider value={NO_WAIT}>
+          <section data-tour="goal">Цель</section>
+          <section data-tour="next-step">Следующий шаг</section>
+          <Tutorial onDone={() => {}} />
+        </TutorialPace.Provider>,
+      )
+      const first = document.querySelector<HTMLElement>('[data-tour="goal"]')!
+      first.scrollIntoView = vi.fn()
+      vi.spyOn(first, 'getBoundingClientRect').mockReturnValue(goal)
+      vi.spyOn(document.querySelector<HTMLElement>('[data-tour="next-step"]')!, 'getBoundingClientRect').mockReturnValue(nextStep)
+      await screen.findByRole('heading', { name: 'Это главная' })
+      fireEvent(window, new Event('resize'))
+      return first.scrollIntoView as ReturnType<typeof vi.fn>
+    }
+
+    // iPhone SE: карточка закрыла бы почти всю цель — поднимаем её к верху ленты.
+    it('на низком экране поднимает цель к верху, чтобы карточка её не закрыла', async () => {
+      const scroll = await renderHome(568, new DOMRect(16, 123, 288, 180), new DOMRect(16, 311, 288, 140))
+      expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+    })
+
+    // На большом экране над карточкой видно больше половины списка — ленту не трогаем,
+    // иначе уехали бы поиск и переключатель над ним.
+    it('на большом экране высокую цель не прокручивает, если её и так видно', async () => {
+      const scroll = await renderHome(844, new DOMRect(16, 179, 358, 400), new DOMRect(16, 590, 358, 252))
+      expect(scroll).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('когда показывать', () => {
