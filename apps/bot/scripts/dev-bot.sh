@@ -7,8 +7,10 @@
 # Секреты берутся из Lockbox traektoria-app через yc (нужен доступ к облаку)
 # и не печатаются. Можно задать их в окружении: WEBHOOK_SECRET, MAX_BOT_TOKEN.
 #
+#   apps/bot/scripts/dev-bot.sh users
+#       последние пользователи бота из базы: user_id и имя — чтобы узнать свой
 #   apps/bot/scripts/dev-bot.sh dialogs
-#       диалоги бота: user_id и имя — чтобы узнать свой user_id
+#       то же из MAX API (GET /chats может не отдавать личные диалоги)
 #   apps/bot/scripts/dev-bot.sh start <user_id> <имя> [payload]
 #       как /start или «Начать»: бот пришлёт приветствие, дальше — кнопками
 #   apps/bot/scripts/dev-bot.sh text <user_id> <имя> <текст>
@@ -27,7 +29,7 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 CA="$ROOT/packages/shared/maxapi/russian_trusted_root_ca.pem"
 
 usage() {
-  sed -n '9,18p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '9,20p' "$0" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -70,10 +72,24 @@ now_ms() { echo $(($(date +%s) * 1000)); }
 
 cmd=${1:-}
 case "$cmd" in
+  users)
+    # Каждый, кто хоть раз нажал кнопку или начал диалог, есть в users.
+    psql "$(secret DATABASE_URL)" -X -A -F $'\t' -c \
+      "SELECT max_user_id, first_name, created_at::date FROM users ORDER BY created_at DESC LIMIT 20"
+    ;;
   dialogs)
-    curl -sS --cacert "$CA" -H "Authorization: $(secret MAX_BOT_TOKEN)" "$MAX_API/chats?count=100" |
-      jq -r '.chats[]? | select(.type == "dialog") | .dialog_with_user
-             | "\(.user_id)\t\(.first_name) \(.last_name // "")"'
+    resp=$(curl -sS --cacert "$CA" -H "Authorization: $(secret MAX_BOT_TOKEN)" "$MAX_API/chats?count=100")
+    if ! jq -e '.chats' >/dev/null 2>&1 <<<"$resp"; then
+      echo "MAX ответил не списком чатов: $resp" >&2
+      exit 1
+    fi
+    found=$(jq -r '.chats[] | select(.type == "dialog") | .dialog_with_user
+                   | "\(.user_id)\t\(.first_name) \(.last_name // "")"' <<<"$resp")
+    if [ -z "$found" ]; then
+      echo "В ответе $(jq '.chats | length' <<<"$resp") чатов, личных диалогов нет — попробуйте: $0 users" >&2
+      exit 1
+    fi
+    echo "$found"
     ;;
   start)
     [ $# -ge 3 ] || usage
