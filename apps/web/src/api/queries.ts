@@ -18,6 +18,7 @@ import type {
   AiChat,
   AiExchange,
   AiMessage,
+  CalendarLink,
   CalendarMonth,
   Direction,
   Family,
@@ -51,6 +52,7 @@ export const keys = {
   university: (id: string) => ['university', id] as const,
   tracker: ['tracker'] as const,
   calendar: (month: string) => ['calendar', month] as const,
+  calendarLink: ['calendar-link'] as const,
   family: ['family'] as const,
   profile: ['profile'] as const,
   directions: ['directions'] as const,
@@ -171,6 +173,19 @@ export const useCalendar = (month: string) =>
   useQuery({
     queryKey: keys.calendar(month),
     queryFn: () => api.get<CalendarMonth>('/calendar', { month }),
+  })
+
+/**
+ * Пропуск к файлу календаря (F32). Берётся заранее, пока открыт календарь:
+ * MAX открывает внешнюю ссылку только прямо в обработчике нажатия, ждать
+ * ответа сервера там нельзя. Пропуск живёт 10 минут — берём новый через пять.
+ */
+export const useCalendarLink = (enabled: boolean) =>
+  useQuery({
+    queryKey: keys.calendarLink,
+    queryFn: () => api.get<CalendarLink>('/calendar/link'),
+    enabled,
+    staleTime: 5 * 60_000,
   })
 
 export const useFamily = () =>

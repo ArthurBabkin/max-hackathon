@@ -58,13 +58,13 @@ const tab = (name: string) => within(screen.getByRole('navigation', { name: 'Р�
 const shown = () => taps.splice(0)
 
 describe('обзор приложения', () => {
-  it('восемь шагов, между карточками — одно показанное нажатие', { timeout: 30_000 }, async () => {
+  it('девять шагов, между карточками — одно показанное нажатие', { timeout: 30_000 }, async () => {
     renderTour()
 
     await step('Это главная')
     expect(screen.getByRole('dialog', { name: 'Как пользоваться «Траекторией»' })).toBeInTheDocument()
     expect(path()).toBe('Главная')
-    expect(screen.getByText('1 из 8')).toBeInTheDocument()
+    expect(screen.getByText('1 из 9')).toBeInTheDocument()
     shown()
 
     await next()
@@ -102,6 +102,13 @@ describe('обзор приложения', () => {
     expect(shown()).toEqual(['Нажимаем «Трекер»'])
     expect(path()).toBe('Трекер → Список')
 
+    // Календарь — на том же экране: одно нажатие, и видна кнопка выгрузки.
+    await next()
+    await step('Календарь')
+    expect(shown()).toEqual(['Нажимаем «Календарь»'])
+    expect(path()).toBe('Трекер → Календарь')
+    expect(screen.getByRole('button', { name: 'Выгрузить в календарь' })).toBeInTheDocument()
+
     await next()
     await step('Подбор под твою цель')
     expect(shown()).toEqual(['Нажимаем «Подбор»'])
@@ -111,7 +118,7 @@ describe('обзор приложения', () => {
     await step('ИИ-помощник')
     expect(shown()).toEqual(['Нажимаем «Спросить»'])
     expect(path()).toBe('Подбор → Спросить')
-    expect(screen.getByText('8 из 8')).toBeInTheDocument()
+    expect(screen.getByText('9 из 9')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Начать' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Как пользоваться «Траекторией»' })).not.toBeInTheDocument())
@@ -244,6 +251,30 @@ describe('Tutorial отдельно от приложения', () => {
     fireEvent(window, new Event('resize'))
 
     expect(screen.getByRole('dialog')).toHaveAttribute('data-anchored', 'true')
+  })
+
+  it('окно над группой элементов не круглое, даже если в группе кнопка-«таблетка»', async () => {
+    renderApp(
+      <TutorialPace.Provider value={NO_WAIT}>
+        <button type="button" data-tour="goal" style={{ borderTopLeftRadius: '999px' }}>
+          Выгрузить
+        </button>
+        <section data-tour="next-step" style={{ borderTopLeftRadius: '16px' }}>
+          Месяц
+        </section>
+        <Tutorial onDone={() => {}} />
+      </TutorialPace.Provider>,
+    )
+    const pill = document.querySelector<HTMLElement>('[data-tour="goal"]')!
+    const month = document.querySelector<HTMLElement>('[data-tour="next-step"]')!
+    vi.spyOn(pill, 'getBoundingClientRect').mockReturnValue(new DOMRect(16, 120, 358, 44))
+    vi.spyOn(month, 'getBoundingClientRect').mockReturnValue(new DOMRect(16, 180, 358, 300))
+    await screen.findByRole('heading', { name: 'Это главная' })
+    fireEvent(window, new Event('resize'))
+
+    // Скругление — как у месяца (16 + отступ окна), а не половина высоты группы.
+    const spot = document.querySelector<HTMLElement>('.tour-spot')!
+    expect(parseFloat(spot.style.borderRadius)).toBeLessThan(30)
   })
 })
 

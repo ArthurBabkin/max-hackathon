@@ -145,12 +145,19 @@ const STEPS: Step[] = [
   },
   {
     key: '7',
+    // Кнопка выгрузки и сетка месяца: срок видно, и понятно, как унести его в телефон.
+    path: [closeSheet, tab('tracker'), segment('tracker-calendar')],
+    target: () => found($('[data-tour="calendar-export"]'), $('[data-tour="calendar"]')),
+    fallback: () => found($('[data-tour="tracker-calendar"]')),
+  },
+  {
+    key: '8',
     path: [closeSheet, tab('match')],
     target: () => found($('[data-tour="match-list"] .oly-card')),
     fallback: () => found($('[data-tour="match"]')),
   },
   {
-    key: '8',
+    key: '9',
     // «Спросить» есть и на подборе, где закончился прошлый шаг.
     path: [closeSheet, tab('match'), askButton],
     target: () => found($('[data-tour="ai-suggest"]'), $('[data-tour="ai-compose"]')),
@@ -261,7 +268,9 @@ function measure(els: HTMLElement[], card: HTMLElement): Layout {
   }
 
   const first = els[0]!
-  const radius = parseFloat(getComputedStyle(first).borderTopLeftRadius) || 12
+  // Скругление окна — наименьшее у целей: у одной «таблетки» окно тоже
+  // таблеткой, а над группой с ней (кнопка над месяцем) — не круг.
+  const radius = Math.min(...els.map((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius) || 12))
   const vh = window.innerHeight
 
   // Высокая цель — весь список: он и не должен уместиться. Подсвечиваем

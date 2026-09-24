@@ -107,7 +107,7 @@ export function formatMonthTitle(month: string, grammaticalCase: 'title' | 'in' 
 const moscowDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' })
 
 /** `YYYY-MM-DD` по Москве — в этом поясе сервер раскладывает сроки по дням календаря. */
-function moscowDay(date: Date): string {
+export function moscowDay(date: Date): string {
   return moscowDayFormatter.format(date)
 }
 

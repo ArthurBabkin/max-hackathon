@@ -1,9 +1,14 @@
-import { screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { TrackerItem } from '@contract'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
+import { api } from '@/api/client'
+import { ApiError } from '@/api/errors'
 import { keys } from '@/api/queries'
+import { getWebApp } from '@/bridge'
 import { renderApp } from '@/test/render'
+import { Toaster } from '@/ui/Toaster'
+import { dismissToast } from '@/ui/toast'
 import { TrackerScreen } from './Tracker'
 
 const item = (id: string, deadline_at: string | null) =>
@@ -24,15 +29,30 @@ const item = (id: string, deadline_at: string | null) =>
     added_by: null,
   }) as TrackerItem
 
-function setup(items: TrackerItem[], months: string[]) {
-  return renderApp(<TrackerScreen />, {
-    route: '/tracker',
-    seed: (c) => {
-      c.setQueryData(keys.tracker, { items, proposals: [] })
-      for (const month of months) c.setQueryData(keys.calendar(month), { month, days: [] })
+const inTenMinutes = () => new Date(Date.now() + 10 * 60_000).toISOString()
+const expired = { url: '/calendar.ics?token=old', expires_at: new Date(Date.now() - 1000).toISOString() }
+
+function setup(items: TrackerItem[], months: string[], link = { url: '/calendar.ics?token=abc', expires_at: inTenMinutes() }) {
+  return renderApp(
+    <>
+      <TrackerScreen />
+      <Toaster />
+    </>,
+    {
+      route: '/tracker',
+      seed: (c) => {
+        c.setQueryData(keys.tracker, { items, proposals: [] })
+        for (const month of months) c.setQueryData(keys.calendar(month), { month, days: [] })
+        c.setQueryData(keys.calendarLink, link)
+      },
     },
-  })
+  )
 }
+
+afterEach(() => {
+  act(() => dismissToast())
+  vi.restoreAllMocks()
+})
 
 const monthTitle = () => document.querySelector('.calendar-head b')?.textContent
 
@@ -70,4 +90,40 @@ it('без будущих сроков календарь открывается
   await userEvent.click(screen.getByRole('tab', { name: 'Календарь' }))
 
   expect(monthTitle()).toBe(`${title.charAt(0).toUpperCase()}${title.slice(1)} ${year}`)
+})
+
+it('«Выгрузить в календарь» открывает файл со сроками в браузере телефона', async () => {
+  const openLink = vi.spyOn(getWebApp(), 'openLink').mockImplementation(() => {})
+  setup([item('near', '2030-03-15T20:59:00Z')], ['2030-03'])
+
+  expect(screen.queryByRole('button', { name: 'Выгрузить в календарь' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: 'Календарь' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Выгрузить в календарь' }))
+
+  // Ссылка — от базового адреса API, целиком: её открывает внешний браузер.
+  expect(openLink).toHaveBeenCalledWith(new URL('/api/v1/calendar.ics?token=abc', location.href).toString())
+})
+
+it('устаревшую ссылку на календарь сначала обновляет', async () => {
+  const openLink = vi.spyOn(getWebApp(), 'openLink').mockImplementation(() => {})
+  vi.spyOn(api, 'get').mockResolvedValue({ url: '/calendar.ics?token=new', expires_at: inTenMinutes() })
+  setup([item('near', '2030-03-15T20:59:00Z')], ['2030-03'], expired)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Календарь' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Выгрузить в календарь' }))
+
+  await vi.waitFor(() => expect(openLink).toHaveBeenCalledOnce())
+  expect(openLink).toHaveBeenCalledWith(new URL('/api/v1/calendar.ics?token=new', location.href).toString())
+})
+
+it('ссылку не выдали — объясняет, а не молчит', async () => {
+  const openLink = vi.spyOn(getWebApp(), 'openLink').mockImplementation(() => {})
+  vi.spyOn(api, 'get').mockRejectedValue(new ApiError(0, 'NETWORK', ''))
+  setup([item('near', '2030-03-15T20:59:00Z')], ['2030-03'], expired)
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Календарь' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Выгрузить в календарь' }))
+
+  expect(await screen.findByRole('alert')).toBeInTheDocument()
+  expect(openLink).not.toHaveBeenCalled()
 })

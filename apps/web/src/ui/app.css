@@ -158,6 +158,28 @@
   color: #9ef2ff;
 }
 
+/* Выгрузка календаря — главное действие экрана, на фирменном градиенте. */
+.calendar-export {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  margin-bottom: var(--gap-md);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--cta-fill);
+  color: var(--cta-tx);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.calendar-export:active {
+  opacity: 0.85;
+}
+
 /* ---------- сообщение об ошибке действия ---------- */
 
 /* Над вкладками и над нижним листом (действие могло случиться в карточке),
