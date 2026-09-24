@@ -1,12 +1,13 @@
 /**
- * Туториал для новичка: девять шагов по настоящим экранам — главная, каталог
- * олимпиад и вузов, карточка олимпиады, календарь, отметка регистрации,
- * подбор, помощник, семья.
+ * Туториал для новичка: восемь шагов по настоящим экранам — главная, список
+ * олимпиад и карточка олимпиады, список вузов и карточка вуза, трекер, подбор,
+ * помощник.
  *
- * До каждого экрана туториал доходит сам и показывает каждое нажатие:
- * подсвечивает вкладку или кнопку, подписывает «Нажимаем «Каталог»» и только
- * потом нажимает. Так видно, как попасть туда самому, а в карточке шага
- * написан путь: «Каталог → Вузы». «Назад» переходит сразу, без показа.
+ * До каждого экрана туториал доходит сам. Между карточками шагов — одно
+ * показанное нажатие: подсвечивается вкладка или строка с подписью «Нажимаем
+ * «Каталог»», потом нажимается. Так видно, как попасть туда самому, а в
+ * карточке шага написан путь: «Каталог → Вузы». Открытый лист закрывается
+ * молча — крестик объяснять не нужно. «Назад» переходит сразу, без показа.
  *
  * Элементы помечены атрибутом `data-tour`. Нет цели на экране (пустой трекер)
  * — подсвечивается запасная, нет и её — карточка встаёт по центру.
@@ -39,13 +40,15 @@ interface Tap {
   done: () => boolean
   /** Подпись в подсказке «Нажимаем «…»» и в пути шага. */
   label: (el: HTMLElement) => string
-  /** Не раздел, а действие — в путь шага не попадает. */
-  hidden?: boolean
+  /** Служебное нажатие (закрыть лист): не показывается и в путь не попадает. */
+  quiet?: boolean
 }
 
 interface Step {
   /** Ключи текстов: `tutorial.<key>.title` и `.text`. */
   key: string
+  /** Родителю с учеником — текст про «Предложить» вместо «Добавить». */
+  propose?: boolean
   /** Все нажатия от главной до экрана шага; уже сделанные пропускаются. */
   path: Tap[]
   /** Что подсвечиваем: все найденные элементы — одним окном. */
@@ -65,7 +68,7 @@ const closeSheet: Tap = {
   find: () => $('[data-tour="sheet-close"]'),
   done: () => !$('[data-tour="sheet-close"]'),
   label: text,
-  hidden: true,
+  quiet: true,
 }
 
 const tab = (name: string): Tap => ({
@@ -89,6 +92,12 @@ const olympiadRow: Tap = {
   label: (el) => text(el.querySelector('.row-title') ?? el),
 }
 
+const universityRow: Tap = {
+  find: () => $('[data-tour="university-row"]'),
+  done: () => Boolean($('[data-tour="university-olympiads"]')),
+  label: (el) => text(el.querySelector('.row-title') ?? el),
+}
+
 const askButton: Tap = {
   find: () => $('[data-tour="ai"]'),
   done: () => Boolean($('[data-tour="ai-compose"]')),
@@ -104,23 +113,29 @@ const STEPS: Step[] = [
   {
     key: '2',
     path: [closeSheet, tab('catalog'), segment('catalog-olympiads')],
-    target: () => $$('[data-tour="olympiad-group"]').slice(0, 2),
+    // Весь список вместе с фильтром по предмету: видно, что олимпиад много,
+    // а сейчас показаны по предмету ученика. Пока список грузится, цели нет:
+    // иначе окно обвело бы один фильтр, а потом выросло до списка.
+    target: () => {
+      const groups = $$('[data-tour="olympiad-group"]')
+      return groups.length > 0 ? found($('[data-tour="catalog-subjects"]'), ...groups) : []
+    },
   },
   {
     key: '3',
-    path: [closeSheet, tab('catalog'), segment('catalog-universities')],
-    target: () => $$('[data-tour="university-row"]').slice(0, 3),
-  },
-  {
-    key: '4',
+    propose: true,
     path: [closeSheet, tab('catalog'), segment('catalog-olympiads'), olympiadRow],
     target: () => found($('[data-tour="track-action"]')),
   },
   {
+    key: '4',
+    path: [closeSheet, tab('catalog'), segment('catalog-universities')],
+    target: () => found($('[data-tour="university-list"]')),
+  },
+  {
     key: '5',
-    path: [closeSheet, tab('tracker'), segment('tracker-calendar')],
-    target: () => found($('[data-tour="calendar"]')),
-    fallback: () => found($('[data-tour="tracker-calendar"]')),
+    path: [closeSheet, tab('catalog'), segment('catalog-universities'), universityRow],
+    target: () => found($('[data-tour="university-olympiads"]')),
   },
   {
     key: '6',
@@ -140,11 +155,6 @@ const STEPS: Step[] = [
     path: [closeSheet, tab('match'), askButton],
     target: () => found($('[data-tour="ai-suggest"]'), $('[data-tour="ai-compose"]')),
   },
-  {
-    key: '9',
-    path: [closeSheet, tab('family')],
-    target: () => found($('[data-tour="invite"]')),
-  },
 ]
 
 /** Цель шага, а если её нет — запасная. */
@@ -163,7 +173,7 @@ export interface Pace {
   wait: number
 }
 
-export const TutorialPace = createContext<Pace>({ point: 650, press: 300, wait: 4000 })
+export const TutorialPace = createContext<Pace>({ point: 600, press: 250, wait: 4000 })
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
 
@@ -187,6 +197,8 @@ const RING = 2
 const EXIT_MS = 160
 /** Перемеры после смены цели: лист выезжает, экран догружается. */
 const SETTLE_MS = [120, 300, 600]
+/** Цель выше этой доли экрана — список целиком, см. `measure`. */
+const TALL = 0.45
 
 interface Layout {
   hole: { x: number; y: number; w: number; h: number; r: number }
@@ -250,7 +262,21 @@ function measure(els: HTMLElement[], card: HTMLElement): Layout {
 
   const first = els[0]!
   const radius = parseFloat(getComputedStyle(first).borderTopLeftRadius) || 12
-  if (rect.top < 0 || rect.bottom > window.innerHeight) {
+  const vh = window.innerHeight
+
+  // Высокая цель — весь список: он и не должен уместиться. Подсвечиваем
+  // видимую часть с начала списка, карточка ложится поверх его низа.
+  if (rect.height > vh * TALL) {
+    if (rect.top < 0 || rect.top > vh * TALL) {
+      first.scrollIntoView?.({ block: 'start' })
+      rect = unionRect(els) ?? rect
+    }
+    const placed = place(rect, card, radius)
+    if (placed.fits) return placed.layout
+    return { ...placed.layout, card: { ...placed.layout.card, top: vh - EDGE - card.offsetHeight }, caret: null }
+  }
+
+  if (rect.top < 0 || rect.bottom > vh) {
     first.scrollIntoView?.({ block: 'center' })
     rect = unionRect(els) ?? rect
   }
@@ -326,7 +352,7 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
           if (!el) break
           label = tap.label(el)
           if (!tap.done()) {
-            if (show) {
+            if (show && !tap.quiet) {
               await new Promise<void>((resolve) => {
                 shownRef.current = resolve
                 setView({ mode: 'tap', step: to, el, label: label!, pressing: false })
@@ -343,7 +369,7 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
           }
         }
         // Уже сделанное нажатие — тоже часть пути: «Каталог» в «Каталог → Вузы».
-        if (!tap.hidden) {
+        if (!tap.quiet) {
           const el = label === null ? tap.find() : null
           if (el) label = tap.label(el)
           if (label) path.push(label)
@@ -417,9 +443,9 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
 
   const n = step + 1
   const anchored = Boolean(layout?.caret)
-  const propose = STEPS[step]!.key === '4' && Boolean(session?.permissions.propose)
-  const titleKey = (propose ? 'tutorial.4.proposeTitle' : `tutorial.${n}.title`) as TextKey
-  const textKey = (propose ? 'tutorial.4.proposeText' : `tutorial.${n}.text`) as TextKey
+  const { key, propose } = STEPS[step]!
+  const titleKey = `tutorial.${key}.title` as TextKey
+  const textKey = `tutorial.${key}.${propose && session?.permissions.propose ? 'proposeText' : 'text'}` as TextKey
 
   return (
     <div

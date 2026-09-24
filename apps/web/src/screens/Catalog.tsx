@@ -151,7 +151,7 @@ export function CatalogScreen() {
     const items = universities.data?.items ?? []
     if (items.length === 0) return empty
     return (
-      <div className="list">
+      <div className="list" data-tour="university-list">
         {items.map((item) => (
           <button
             key={item.id}
@@ -219,7 +219,7 @@ export function CatalogScreen() {
       />
 
       {segment === 'olympiads' ? (
-        <div className="filter-row">
+        <div className="filter-row" data-tour="catalog-subjects">
           <span className="filter-label">{t('catalog.filterSubject')}</span>
           <div className="chips">
             {SUBJECTS.map((item) => (
