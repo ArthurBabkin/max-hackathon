@@ -52,7 +52,7 @@ export function Sheet({ label, canGoBack, onBack, onClose, header, children, tal
         ) : null}
         <div className="sheet-head">
           {header}
-          <IconButton variant="secondary" size="small" className="sheet-close" onClick={onClose}>
+          <IconButton variant="secondary" size="small" className="sheet-close" data-tour="sheet-close" onClick={onClose}>
             <Icon name="close" size={15} title="Закрыть" />
           </IconButton>
         </div>

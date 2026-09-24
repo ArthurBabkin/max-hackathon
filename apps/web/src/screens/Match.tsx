@@ -122,16 +122,18 @@ export function MatchScreen() {
         {note}
       </p>
 
-      {items.map((card) => (
-        <OlympiadCard
-          key={card.olympiad_profile_id}
-          card={card}
-          action={action}
-          busy={busy}
-          onOpen={openOlympiad}
-          onTrack={onTrack}
-        />
-      ))}
+      <div className="match-list" data-tour="match-list">
+        {items.map((card) => (
+          <OlympiadCard
+            key={card.olympiad_profile_id}
+            card={card}
+            action={action}
+            busy={busy}
+            onOpen={openOlympiad}
+            onTrack={onTrack}
+          />
+        ))}
+      </div>
 
       {outside.length > 0 ? (
         <>

@@ -591,6 +591,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/calendar/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ссылка на файл календаря со сроками
+         * @description Файл .ics забирает браузер телефона или MAX, а не мини-приложение, —
+         *     заголовок Authorization им не передать. Поэтому сначала выдаётся
+         *     ссылка: путь относительно базового адреса API с подписанным токеном.
+         *     Ссылка живёт десять минут и открывает только календарь своей семьи.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CalendarLink"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/calendar.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Файл календаря (.ics) со всеми будущими сроками трекера
+         * @description Без сессии: доступ по токену из GET /calendar/link. Срок этапа —
+         *     событие на весь день по Москве с напоминанием накануне в 9:00. Этапы,
+         *     закрытые отметкой «зарегистрирован», не выгружаются. Просроченный,
+         *     чужой или испорченный токен и удалённый участник — 404.
+         */
+        get: {
+            parameters: {
+                query: {
+                    token: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Календарь RFC 5545 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/calendar": string;
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/proposals": {
         parameters: {
             query?: never;
@@ -1650,6 +1738,15 @@ export interface components {
              *     предложения со статусом «ждёт подтверждения» (ТЗ E1/E3).
              */
             proposals: components["schemas"]["Proposal"][];
+        };
+        CalendarLink: {
+            /**
+             * @description Путь относительно базового адреса API, с токеном.
+             * @example /calendar.ics?token=eyJhbGciOiJIUzI1NiJ9…
+             */
+            url: string;
+            /** Format: date-time */
+            expires_at: string;
         };
         CalendarMonth: {
             month: string;

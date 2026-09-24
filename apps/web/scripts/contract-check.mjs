@@ -112,11 +112,17 @@ function operation(method, template) {
   return op
 }
 
-function responseSchema(op, status) {
+function responseContent(op, status) {
   let r = op.responses[String(status)]
   if (!r) return undefined
   if (r.$ref) r = resolve(r)
-  return r.content?.['application/json']?.schema ?? null
+  return r.content ?? null
+}
+
+function responseSchema(op, status) {
+  const content = responseContent(op, status)
+  if (content === undefined) return undefined
+  return content?.['application/json']?.schema ?? null
 }
 
 /**
@@ -138,6 +144,14 @@ async function call(method, template, { params = {}, query, body, token, expect 
   const label = `${method} ${template}${qs ? ` ${qs}` : ''} → ${res.status}`
   covered.add(`${method} ${template}`)
   const text = await res.text()
+  // Файл календаря — не JSON: проверяем тип и начало файла.
+  const calendar = responseContent(op, res.status)?.['text/calendar']
+  if (calendar) {
+    if (expect !== undefined && res.status !== expect) failures.push(`${label}: ждали ${expect}; ${text.slice(0, 200)}`)
+    if (!res.headers.get('content-type')?.startsWith('text/calendar')) failures.push(`${label}: Content-Type ${res.headers.get('content-type')}`)
+    if (!text.startsWith('BEGIN:VCALENDAR\r\n')) failures.push(`${label}: не файл календаря`)
+    return { status: res.status, data: text }
+  }
   let data = null
   if (text) {
     try {
@@ -243,6 +257,13 @@ async function main() {
   const month = new Date().toISOString().slice(0, 7)
   await call('GET', '/calendar', { token: kid, query: { month }, expect: 200 })
   await call('GET', '/calendar', { token: kid, query: { month: '2026-13' }, expect: 400 })
+
+  // Выгрузка: ссылка своя у каждого, файл — по ней без сессии.
+  const { url: calendarUrl } = (await call('GET', '/calendar/link', { token: kid, expect: 200 })).data
+  const calendarToken = new URL(calendarUrl, 'http://x').searchParams.get('token')
+  await call('GET', '/calendar.ics', { query: { token: calendarToken }, expect: 200 })
+  await call('GET', '/calendar.ics', { query: { token: kid }, expect: 404 })
+  await call('GET', '/calendar/link', { expect: 401 })
 
   // Предложения: родитель предлагает, ученик отказывается — трекер не меняется.
   const after = new Set((await call('GET', '/tracker', { token: kid, expect: 200 })).data.items.map((i) => i.olympiad_profile_id))

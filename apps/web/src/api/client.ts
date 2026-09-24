@@ -109,6 +109,16 @@ export async function request<T>(
   return payload as T
 }
 
+/**
+ * Полный адрес ресурса API — для внешнего браузера (`openLink`): он не знает,
+ * где живёт API, а в проде BASE — другой домен. Уже полный адрес (Blob URL
+ * моков разработки) возвращается как есть.
+ */
+export function apiUrl(path: string): string {
+  if (/^[a-z][a-z\d+.-]*:/i.test(path)) return path
+  return new URL(`${BASE}${path}`, location.href).href
+}
+
 export const api = {
   get: <T>(path: string, query?: RequestOptions['query']) => request<T>('GET', path, { query }),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, { body }),

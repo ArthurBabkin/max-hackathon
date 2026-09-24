@@ -1,6 +1,9 @@
 /**
  * Нижнее меню (ТЗ §7.1). В MAX UI таббара нет, поэтому свой.
  *
+ * «Трекер» — второй: в него заходят каждый день, а «Подбор» нужен раз-другой,
+ * когда ищут новые олимпиады.
+ *
  * Счётчик на «Трекере» — незарегистрированные плюс предложения, ждущие
  * ответа ученика (F31). У родителя предложения в счёт не идут: ответить
  * на них он не может, и цифра была бы обещанием несуществующего действия.
@@ -19,9 +22,9 @@ interface Tab {
 
 const TABS: Tab[] = [
   { to: '/', labelKey: 'nav.home', icon: 'home' },
-  { to: '/match', labelKey: 'nav.match', icon: 'target' },
-  { to: '/catalog', labelKey: 'nav.catalog', icon: 'book' },
   { to: '/tracker', labelKey: 'nav.tracker', icon: 'calendar' },
+  { to: '/catalog', labelKey: 'nav.catalog', icon: 'book' },
+  { to: '/match', labelKey: 'nav.match', icon: 'target' },
   { to: '/family', labelKey: 'nav.family', icon: 'users' },
 ]
 

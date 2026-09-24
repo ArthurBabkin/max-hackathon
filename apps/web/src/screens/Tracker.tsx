@@ -3,24 +3,27 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@maxhub/max-ui'
-import type { Proposal, TrackerItem } from '@contract'
+import type { CalendarLink, Proposal, TrackerItem } from '@contract'
+import { apiUrl } from '@/api/client'
 import {
   useCalendar,
+  useCalendarLink,
   useResolveProposal,
   useSession,
   useToggleRegistered,
   useTracker,
 } from '@/api/queries'
-import { formatDay } from '@/lib/deadline'
+import { getWebApp } from '@/bridge'
+import { formatDay, nearestDeadlineMonth } from '@/lib/deadline'
 import { groupTracker, sortByDeadline } from '@/lib/derive'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
+import { showErrorToast } from '@/ui/toast'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { CalendarView } from './Calendar'
 import { ErrorState } from '@/ui/ErrorState'
 
-const currentMonth = () => new Date().toISOString().slice(0, 7)
 
 /** Карточка трекера с отметкой «зарегистрирован» — F46. */
 function TrackerCard({
@@ -47,7 +50,7 @@ function TrackerCard({
         : (item.next_stage_title ?? '')
 
   return (
-    <article className="tracker-card">
+    <article className="tracker-card" data-tour="tracker-item">
       <button type="button" className="tracker-card-top" onClick={() => onOpen(item.olympiad_profile_id)}>
         <Tile id={item.olympiad_id} name={item.olympiad_name} shortName={item.short_name} color={item.color} />
         <span className="row-main">
@@ -159,15 +162,33 @@ export function TrackerScreen() {
   const sheets = useSheetStack()
 
   const [view, setView] = useState<'list' | 'calendar'>('list')
-  const [month, setMonth] = useState(currentMonth)
+  // null — месяц ближайшего срока. Сбрасывается при каждом входе в календарь,
+  // чтобы следующий срок был виден сразу, а не через листание.
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null)
 
   const { data: session } = useSession()
   const tracker = useTracker()
+  const month = pickedMonth ?? nearestDeadlineMonth(tracker.data?.items ?? [])
   const calendar = useCalendar(month)
+  const link = useCalendarLink(view === 'calendar')
   const toggle = useToggleRegistered()
   const resolve = useResolveProposal()
 
   const openOlympiad = (id: string) => sheets.open({ kind: 'oly', id })
+
+  /**
+   * Файл календаря открывает браузер телефона: iPhone предложит добавить все
+   * сроки в «Календарь», Android — импортировать в Google Календарь. Пропуск
+   * берётся заранее, иначе MAX не откроет ссылку; устарел — берём новый.
+   */
+  const exportCalendar = () => {
+    const open = (l: CalendarLink) => getWebApp().openLink(apiUrl(l.url))
+    if (link.data && Date.parse(link.data.expires_at) - Date.now() > 60_000) return open(link.data)
+    link
+      .refetch({ throwOnError: true })
+      .then((r) => r.data && open(r.data))
+      .catch(showErrorToast)
+  }
   const canResolve = session?.permissions.resolve_proposals ?? false
 
   const segment = (
@@ -177,6 +198,7 @@ export function TrackerScreen() {
         role="tab"
         aria-selected={view === 'list'}
         className={view === 'list' ? 'segment-on' : ''}
+        data-tour="tracker-list"
         onClick={() => setView('list')}
       >
         {t('tracker.viewList')}
@@ -186,7 +208,11 @@ export function TrackerScreen() {
         role="tab"
         aria-selected={view === 'calendar'}
         className={view === 'calendar' ? 'segment-on' : ''}
-        onClick={() => setView('calendar')}
+        data-tour="tracker-calendar"
+        onClick={() => {
+          setPickedMonth(null)
+          setView('calendar')
+        }}
       >
         {t('tracker.viewCalendar')}
       </button>
@@ -231,7 +257,11 @@ export function TrackerScreen() {
       <div className="screen">
         {segment}
         <Hint>{t('tracker.remindNote')}</Hint>
-        <CalendarView month={month} data={calendar.data} onMonthChange={setMonth} onOpen={openOlympiad} />
+        <button type="button" className="calendar-export" data-tour="calendar-export" onClick={exportCalendar}>
+          <Icon name="calendar" size={18} />
+          {t('calendar.export')}
+        </button>
+        <CalendarView month={month} data={calendar.data} onMonthChange={setPickedMonth} onOpen={openOlympiad} />
       </div>
     )
   }

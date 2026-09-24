@@ -589,7 +589,7 @@ nav.toc{top:env(safe-area-inset-top,0px)}
 
   <section id="app">
     <h2>Мини-приложение</h2>
-    <p class="lead">Пять вкладок: «Главная», «Подбор», «Каталог», «Трекер» и «Семья». Профиль открывается по аватару, помощник — кнопкой «Спросить». Каждый экран подписан номерами функций из итогового списка.</p>
+    <p class="lead">Пять вкладок: «Главная», «Трекер», «Каталог», «Подбор» и «Семья». Профиль открывается по аватару, помощник — кнопкой «Спросить». Каждый экран подписан номерами функций из итогового списка.</p>
     <h3 class="grp" style="--c:var(--violet)">Главная и подбор</h3>
     <div class="phones static" id="g-c"></div>
     <h3 class="grp" style="--c:var(--blue)">Каталог олимпиад и вузов</h3>
@@ -1172,7 +1172,7 @@ function scAI(s){
  ${aiBar(s,c)}${body}</div>`;
 }
 
-const TABS=[['home','Главная','home'],['match','Подбор','target'],['catalog','Каталог','book'],['tracker','Трекер','cal'],['family','Семья','users']];
+const TABS=[['home','Главная','home'],['tracker','Трекер','cal'],['catalog','Каталог','book'],['match','Подбор','target'],['family','Семья','users']];
 function tabbar(s){const n=tracked(s).filter(o=>!s.reg.has(o.id)).length+(isP(s)?0:s.proposals.length);return `<nav class="tabs">${TABS.map(([k,l,i])=>`<button class="tab ${s.tab===k?'on':''}" data-a="tab" data-v="${k}" ${s.tab===k?'aria-current="page"':''}>${ic(i,21)}<span>${l}</span>${k==='tracker'&&n?`<i class="nb">${n}</i>`:''}</button>`).join('')}</nav>`;}
 function appScreen(s){
  const sub=V(s,'Артём, ученик','Ольга, родитель');

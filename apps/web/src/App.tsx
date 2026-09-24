@@ -10,7 +10,7 @@ import { useSession, useTracker } from './api/queries'
 import { getWebApp } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
 import { useStartRoute } from './lib/startParam'
-import { tutorialSeen } from './lib/tutorial'
+import { shouldShowTutorial } from './lib/tutorial'
 import { errorKind } from './api/errors'
 import { ErrorState } from './ui/ErrorState'
 import { Icon, Logo } from './ui/Icon'
@@ -56,9 +56,8 @@ export function App() {
   const navigate = useNavigate()
   const t = useVoice()
 
-  // Туториал — новичку, который открыл приложение сам. Пришедшего по кнопке
-  // бота в конкретный раздел не перебиваем. ?tutorial=1 — пройти заново.
-  const [tutorial, setTutorial] = useState(() => !tutorialSeen() && !getWebApp().initDataUnsafe.start_param)
+  // Туториал — новичку (правило в lib/tutorial). ?tutorial=1 — пройти заново.
+  const [tutorial, setTutorial] = useState(() => shouldShowTutorial(getWebApp().initDataUnsafe.start_param))
   const replayTutorial = new URLSearchParams(location.search).has('tutorial')
   useEffect(() => {
     if (!replayTutorial) return
