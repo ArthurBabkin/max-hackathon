@@ -11,7 +11,7 @@ import {
   useToggleRegistered,
   useTracker,
 } from '@/api/queries'
-import { formatDay } from '@/lib/deadline'
+import { formatDay, nearestDeadlineMonth } from '@/lib/deadline'
 import { groupTracker, sortByDeadline } from '@/lib/derive'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
@@ -20,7 +20,6 @@ import { useRole, useVoice } from '@/voice/useVoice'
 import { CalendarView } from './Calendar'
 import { ErrorState } from '@/ui/ErrorState'
 
-const currentMonth = () => new Date().toISOString().slice(0, 7)
 
 /** Карточка трекера с отметкой «зарегистрирован» — F46. */
 function TrackerCard({
@@ -159,10 +158,13 @@ export function TrackerScreen() {
   const sheets = useSheetStack()
 
   const [view, setView] = useState<'list' | 'calendar'>('list')
-  const [month, setMonth] = useState(currentMonth)
+  // null — месяц ближайшего срока. Сбрасывается при каждом входе в календарь,
+  // чтобы следующий срок был виден сразу, а не через листание.
+  const [pickedMonth, setPickedMonth] = useState<string | null>(null)
 
   const { data: session } = useSession()
   const tracker = useTracker()
+  const month = pickedMonth ?? nearestDeadlineMonth(tracker.data?.items ?? [])
   const calendar = useCalendar(month)
   const toggle = useToggleRegistered()
   const resolve = useResolveProposal()
@@ -186,7 +188,10 @@ export function TrackerScreen() {
         role="tab"
         aria-selected={view === 'calendar'}
         className={view === 'calendar' ? 'segment-on' : ''}
-        onClick={() => setView('calendar')}
+        onClick={() => {
+          setPickedMonth(null)
+          setView('calendar')
+        }}
       >
         {t('tracker.viewCalendar')}
       </button>
@@ -231,7 +236,7 @@ export function TrackerScreen() {
       <div className="screen">
         {segment}
         <Hint>{t('tracker.remindNote')}</Hint>
-        <CalendarView month={month} data={calendar.data} onMonthChange={setMonth} onOpen={openOlympiad} />
+        <CalendarView month={month} data={calendar.data} onMonthChange={setPickedMonth} onOpen={openOlympiad} />
       </div>
     )
   }

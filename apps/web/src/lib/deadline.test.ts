@@ -5,6 +5,7 @@ import {
   deadlineTone,
   formatDay,
   formatMonthTitle,
+  nearestDeadlineMonth,
   plural,
 } from './deadline'
 
@@ -105,5 +106,37 @@ describe('formatMonthTitle', () => {
 
   it('предложный падеж для строки «В октябре»', () => {
     expect(formatMonthTitle('2026-10', 'in')).toBe('октябре')
+  })
+})
+
+describe('nearestDeadlineMonth — с какого месяца открыть календарь', () => {
+  const now = new Date('2026-09-24T09:00:00Z')
+  const item = (deadline_at: string | null) => ({ deadline_at })
+
+  it('месяц ближайшего срока, а не первого в списке', () => {
+    const items = [item('2026-12-01T20:59:00Z'), item('2026-11-10T20:59:00Z'), item('2027-01-15T20:59:00Z')]
+    expect(nearestDeadlineMonth(items, now)).toBe('2026-11')
+  })
+
+  it('прошедшие сроки пропускает', () => {
+    expect(nearestDeadlineMonth([item('2026-09-01T20:59:00Z'), item('2026-10-05T20:59:00Z')], now)).toBe('2026-10')
+  })
+
+  it('срок сегодня — ближайший, даже если его час уже прошёл', () => {
+    expect(nearestDeadlineMonth([item('2026-09-24T06:00:00Z'), item('2026-10-05T20:59:00Z')], now)).toBe('2026-09')
+  })
+
+  it('месяц считает по Москве, как календарь на сервере', () => {
+    // 21:30 UTC 31 октября — это уже 00:30 1 ноября по Москве.
+    expect(nearestDeadlineMonth([item('2026-10-31T21:30:00Z')], now)).toBe('2026-11')
+  })
+
+  it('без будущих сроков — текущий месяц', () => {
+    expect(nearestDeadlineMonth([item(null), item('2026-08-01T20:59:00Z')], now)).toBe('2026-09')
+    expect(nearestDeadlineMonth([], now)).toBe('2026-09')
+  })
+
+  it('текущий месяц тоже по Москве', () => {
+    expect(nearestDeadlineMonth([], new Date('2026-09-30T21:30:00Z'))).toBe('2026-10')
   })
 })
