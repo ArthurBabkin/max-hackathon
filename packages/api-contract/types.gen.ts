@@ -1648,7 +1648,7 @@ export interface components {
             stages_are_demo: boolean;
             /** @description Блок «Почему подходит», метка «Рекомендация» (F20). */
             why: string;
-            /** @description Все вузы базы, где эта олимпиада даёт льготу, — блок «Где даёт льготу» (F23). */
+            /** @description Вузы базы, где эта олимпиада даёт льготу, кроме вузов ученика (они в benefits), — блок «Где ещё даёт льготу» (F23). */
             benefit_universities: components["schemas"]["BenefitRow"][];
         };
         Direction: {

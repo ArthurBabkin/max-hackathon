@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, Tracker, TrackerItem } from '@contract'
+import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Tracker, TrackerItem } from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -133,6 +133,18 @@ describe('выгрузка календаря', () => {
     expect(text).toMatch(/^BEGIN:VCALENDAR\r\n/)
     expect(text).toMatch(/\r\nSUMMARY:Высшая проба: .+\r\n/)
     expect(text).toMatch(/\r\nEND:VCALENDAR\r\n$/)
+  })
+})
+
+describe('карточка олимпиады', () => {
+  it('«Где ещё даёт льготу» не повторяет вузы ученика из блока льгот', async () => {
+    const detail = (await handleMock('GET', '/olympiads/hse:inf')) as OlympiadDetail
+
+    const mine = detail.benefits.map((row) => row.university_id)
+    const elsewhere = detail.benefit_universities.map((row) => row.university_id)
+    expect(mine).toEqual(expect.arrayContaining(state.universities))
+    expect(elsewhere.length).toBeGreaterThan(0)
+    expect(elsewhere.filter((id) => mine.includes(id))).toEqual([])
   })
 })
 

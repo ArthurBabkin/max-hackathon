@@ -181,6 +181,18 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         </section>
       )}
 
+      {/* Этапы и даты — F21, сразу под уровнем: когда регистрация, важно не
+          меньше льгот. У ВсОШ этапы уже показаны выше вместо уровней. */}
+      {detail.kind !== 'vsosh' ? (
+        <section className="block">
+          <h3 className="block-head">
+            {t('olympiad.stagesTitle')}
+            <SourceTag kind={detail.stages_are_demo ? 'demo' : 'fact'} />
+          </h3>
+          <Stages detail={detail} />
+        </section>
+      ) : null}
+
       {/* Льгота и условия в вузах ученика — F18, F19: сначала общие
           условия, потом вузы, и под каждым — его особенности. */}
       <section className="block">
@@ -226,18 +238,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         <p className="block-text">{detail.why}</p>
       </section>
 
-      {/* Этапы и даты — F21. У ВсОШ они уже показаны выше. */}
-      {detail.kind !== 'vsosh' ? (
-        <section className="block">
-          <h3 className="block-head">
-            {t('olympiad.stagesTitle')}
-            <SourceTag kind={detail.stages_are_demo ? 'demo' : 'fact'} />
-          </h3>
-          <Stages detail={detail} />
-        </section>
-      ) : null}
-
-      {/* Где даёт льготу — F23. */}
+      {/* Где ещё даёт льготу — F23: вузы базы, кроме вузов ученика. */}
       {detail.benefit_universities.length > 0 ? (
         <section className="block">
           <h3 className="block-head">{t('olympiad.whereTitle')}</h3>

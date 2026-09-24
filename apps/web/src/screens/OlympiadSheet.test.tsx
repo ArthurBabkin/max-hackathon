@@ -75,3 +75,23 @@ it('условия — в блоке льгот: общие сверху, сво
   // Общий список — над вузами.
   expect(general.compareDocumentPosition(firstRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 })
+
+const blockOrder = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+
+// Даты — сразу под уровнями: «когда» важно не меньше, чем «насколько сильная».
+// «Где ещё даёт льготу» — в конце, после своих вузов.
+it('этапы и даты — сразу под уровнем по профилям', () => {
+  renderSheet({ description: null, official_url: null })
+  expect(blockOrder()).toEqual([
+    expect.stringMatching(/^Уровень по профилям/),
+    expect.stringMatching(/^Этапы и даты/),
+    expect.stringMatching(/^Льгота и условия в твоих вузах/),
+    expect.stringMatching(/^Почему подходит/),
+    'Где ещё даёт льготу',
+  ])
+})
+
+it('вне перечня этапы и даты — сразу под «Не входит в перечень»', () => {
+  renderSheet({ kind: 'other', description: null, official_url: null })
+  expect(blockOrder().slice(0, 2)).toEqual(['Не входит в перечень', expect.stringMatching(/^Этапы и даты/)])
+})

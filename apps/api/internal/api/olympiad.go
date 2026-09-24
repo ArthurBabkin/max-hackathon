@@ -154,13 +154,20 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, Description: p.Description, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
 		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
-		Why: cs.why(p, res, mine, all), BenefitUniversities: make([]benefitRow, len(all)),
+		Why: cs.why(p, res, mine, all), BenefitUniversities: []benefitRow{},
 	}
 	for _, x := range st {
 		out.StagesAreDemo = out.StagesAreDemo || x.IsDemo
 	}
-	for i, b := range all {
-		out.BenefitUniversities[i] = benefitRowOf(b)
+	// «Где ещё даёт льготу» — без вузов ученика: они уже в блоке льгот (F23).
+	own := map[string]bool{}
+	for _, u := range cs.Universities {
+		own[u.ID] = true
+	}
+	for _, b := range all {
+		if !own[b.UniversityID] {
+			out.BenefitUniversities = append(out.BenefitUniversities, benefitRowOf(b))
+		}
 	}
 
 	sort.SliceStable(siblings, func(i, j int) bool {

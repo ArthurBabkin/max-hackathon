@@ -107,9 +107,16 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 		t.Fatalf("этапы: %v", stages)
 	}
 
+	// «Где ещё даёт льготу» — вузы базы, кроме вузов ученика: они уже в
+	// блоке льгот выше.
 	where := list(t, b["benefit_universities"])
-	if len(where) != 8 || where[len(where)-1]["benefit"] != "score100" {
-		t.Fatalf("где даёт льготу — все вузы, сильные льготы первыми: %v", where)
+	if len(where) != 5 || where[len(where)-1]["benefit"] != "score100" {
+		t.Fatalf("где ещё даёт льготу — остальные вузы, сильные льготы первыми: %v", where)
+	}
+	for _, row := range where {
+		if id := row["university_id"]; id == "kfu" || id == "hse" || id == "innopolis" {
+			t.Fatalf("вуз ученика повторён в «Где ещё даёт льготу»: %v", row)
+		}
 	}
 
 	// После отметки о регистрации она пройдена, текущий — отборочный.
