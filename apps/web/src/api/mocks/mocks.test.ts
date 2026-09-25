@@ -295,6 +295,12 @@ describe('карточка олимпиады', () => {
     await expect(
       handleMock('PUT', '/profile/universities/inno/directions', { direction_ids: ['dir-bio'] }),
     ).rejects.toMatchObject({ status: 400 })
+
+    // Сняли ПМИ с цели в настройках — ушло и из выбора в ВШЭ.
+    const after = (await handleMock('PATCH', '/profile', { direction_ids: ['dir-se'] })) as Profile
+    expect(after.universities.find((u) => u.id === 'hse')?.chosen_directions).toEqual([
+      { id: 'dir-se', name: 'Программная инженерия' },
+    ])
   })
 
   // «Ведут в мои вузы и на мои направления» (F66): только олимпиады с
