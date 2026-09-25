@@ -233,7 +233,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		found = append(found, o)
 	}
 	single := len(matches) == 1 && !matches[0].Fuzzy
-	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepTarget); err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		if matches[0].Kind == "region" {
 			place = refdata.Short(matches[0].RegionCode)
 		}
-		return b.sendPrompt(t, withBack(t, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place}))))
+		return b.sendPrompt(t, withBack(t, d, withStep(v, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place})))))
 	}
 	var kb maxapi.Keyboard
 	for i, o := range found {
