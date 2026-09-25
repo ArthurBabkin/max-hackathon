@@ -1,8 +1,9 @@
-/** Каталог — экраны D1 и D2. Функции F24, F25, F27. */
+/** Каталог — экраны D1, D2 и D5. Функции F24, F25, F27, F66. */
 
 import { useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
+import type { OlympiadListItem, Profile } from '@contract'
 import { useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
 import { groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
@@ -33,13 +34,36 @@ const SUBJECTS: { value: string; label: string }[] = [
 /** Сколько строк группы видно сразу: дальше — «Показать ещё». */
 const GROUP_PREVIEW = 5
 
-const OLYMPIAD_CITIES = ['all', 'Казань', 'Иннополис', 'Москва']
 const UNIVERSITY_CITIES = ['all', 'Казань', 'Иннополис', 'Москва', 'Санкт-Петербург', 'Долгопрудный']
 
 function levelLabel(level: string | null, kind: string, outside: string): string {
   if (kind === 'vsosh') return 'ВсОШ'
   if (kind === 'other') return outside
   return level ? `${level} уровень` : 'уровень уточняется'
+}
+
+/** Мои вузы и сколько направлений в них учитываются: «ВШЭ, КФУ · 2 направления». */
+function mineSummary(profile: Profile): string {
+  const names = profile.universities.map((u) => u.nick).join(', ')
+  const count = new Set(profile.universities.flatMap((u) => u.target_directions.map((d) => d.id))).size
+  return count > 0 ? `${names} · ${count} ${plural(count, 'направление', 'направления', 'направлений')}` : names
+}
+
+/** Льгота в моих вузах в строке каталога: метка сильнейшей, дальше — вузы. */
+function MyBenefitLine({ groups, allMine }: { groups: OlympiadListItem['my_benefits']; allMine: boolean }) {
+  const t = useVoice()
+  const [first, ...rest] = groups
+  if (!first) return null
+  const where = allMine && rest.length === 0 ? t('catalog.mineAll') : first.universities.join(', ')
+  return (
+    <span className="row-benefit">
+      <span className={`benefit-value ${first.benefit === 'score100' ? 'benefit-score' : 'benefit-bvi'}`}>
+        {first.benefit_label}
+      </span>{' '}
+      {where}
+      {rest.map((g) => ` · ${g.benefit_label}: ${g.universities.join(', ')}`).join('')}
+    </span>
+  )
 }
 
 export function CatalogScreen() {
@@ -63,10 +87,14 @@ export function CatalogScreen() {
   // Туториал открывает олимпиаду, у которой кнопка «Добавить» ещё есть.
   const taken = new Set([...tracked, ...(tracker.data?.proposals.map((p) => p.olympiad_id) ?? [])])
   const [city, setCity] = useState('all')
+  // «Ведут в мои вузы и на мои направления» (F66); без вузов не включить.
+  const [mineOn, setMine] = useState(false)
+  const myUniversities = profile.data?.universities ?? []
+  const mine = mineOn && myUniversities.length > 0
 
   const debouncedQuery = useDebounced(query)
 
-  const olympiads = useOlympiads(debouncedQuery, subject, city)
+  const olympiads = useOlympiads(debouncedQuery, subject, mine)
   const universities = useUniversities(debouncedQuery, city)
   const active = segment === 'olympiads' ? olympiads : universities
 
@@ -78,13 +106,8 @@ export function CatalogScreen() {
 
   const switchSegment = (next: Segment) => {
     setSegment(next)
-    // Города у олимпиад и вузов разные, общий фильтр после переключения
-    // показал бы пустой список без всякой причины.
-    setCity('all')
     setQuery('')
   }
-
-  const cities = segment === 'olympiads' ? OLYMPIAD_CITIES : UNIVERSITY_CITIES
 
   const content = () => {
     if (active.isPending) return <CardSkeletons count={4} />
@@ -97,7 +120,7 @@ export function CatalogScreen() {
 
     if (segment === 'olympiads') {
       const items = olympiads.data?.items ?? []
-      if (items.length === 0) return empty
+      if (items.length === 0) return mine && !query.trim() ? mineEmpty : empty
       return groupByLevel(items).map((group) => {
         const open = query.trim() !== '' || expanded.has(group.key)
         const visible = open ? group.items : group.items.slice(0, GROUP_PREVIEW)
@@ -122,6 +145,15 @@ export function CatalogScreen() {
                   <span className="row-main">
                     <span className="row-title">{item.name}</span>
                     <span className="row-subtitle">{item.organizer}</span>
+                    {mine ? (
+                      <MyBenefitLine
+                        groups={item.my_benefits}
+                        allMine={
+                          myUniversities.length > 1 &&
+                          item.my_benefits[0]?.universities.length === myUniversities.length
+                        }
+                      />
+                    ) : null}
                     {tracked.has(item.olympiad_id) ? (
                       <span className="row-tracked">
                         <Icon name="check" size={12} />
@@ -189,6 +221,23 @@ export function CatalogScreen() {
     </StateBlock>
   )
 
+  // Пусто с фильтром «мои»: по предмету — предложить все предметы, иначе —
+  // проверить направления в вузах.
+  const mineEmpty =
+    subject !== 'all' ? (
+      <StateBlock icon="search" title={t('catalog.mineEmptyTitle')} text={t('catalog.mineEmptySubject')}>
+        <Button stretched onClick={() => setSubject('all')}>
+          {t('catalog.mineAllSubjects')}
+        </Button>
+      </StateBlock>
+    ) : (
+      <StateBlock icon="search" title={t('catalog.mineEmptyTitle')} text={t('catalog.mineEmptyAll')}>
+        <Button stretched onClick={() => setMine(false)}>
+          {t('catalog.mineOff')}
+        </Button>
+      </StateBlock>
+    )
+
   return (
     <div className="screen">
       <div className="segment" role="tablist">
@@ -224,6 +273,30 @@ export function CatalogScreen() {
       />
 
       {segment === 'olympiads' ? (
+        <div className={`mine-switch${myUniversities.length === 0 ? ' mine-switch-off' : ''}`}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={mine}
+            disabled={myUniversities.length === 0}
+            onClick={() => setMine((on) => !on)}
+          >
+            <span className="mine-switch-text">
+              <b>{t('catalog.mineTitle')}</b>
+              {profile.data && myUniversities.length > 0 ? <span>{mineSummary(profile.data)}</span> : null}
+            </span>
+            <span className="switch" aria-hidden />
+          </button>
+          {profile.data && myUniversities.length === 0 ? (
+            <button type="button" className="link mine-switch-link" onClick={() => switchSegment('universities')}>
+              {t('catalog.mineNoUniversities')}
+              <Icon name="chevron" size={14} />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {segment === 'olympiads' ? (
         <div className="filter-row" data-tour="catalog-subjects">
           <span className="filter-label">{t('catalog.filterSubject')}</span>
           <div className="chips">
@@ -236,18 +309,18 @@ export function CatalogScreen() {
         </div>
       ) : null}
 
-      <div className="filter-row">
-        <span className="filter-label">
-          {segment === 'olympiads' ? t('catalog.filterFinal') : t('catalog.filterCity')}
-        </span>
-        <div className="chips">
-          {cities.map((value) => (
-            <Chip key={value} active={city === value} onClick={() => setCity(value)}>
-              {value === 'all' ? 'Все' : value}
-            </Chip>
-          ))}
+      {segment === 'universities' ? (
+        <div className="filter-row">
+          <span className="filter-label">{t('catalog.filterCity')}</span>
+          <div className="chips">
+            {UNIVERSITY_CITIES.map((value) => (
+              <Chip key={value} active={city === value} onClick={() => setCity(value)}>
+                {value === 'all' ? 'Все' : value}
+              </Chip>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {content()}
     </div>

@@ -269,7 +269,7 @@ describe('направления цели и в вузах (F65)', () => {
     expect(list.getByRole('button', { name: /ВШЭ/ })).toHaveTextContent(
       'Программная инженерия, Прикладная математика и информатика',
     )
-    expect(list.getByRole('button', { name: /Иннополис|УИ/ })).toHaveTextContent(
+    expect(list.getByRole('button', { name: /^Иннополис/ })).toHaveTextContent(
       'по цели: Информатика и вычислительная техника',
     )
   })

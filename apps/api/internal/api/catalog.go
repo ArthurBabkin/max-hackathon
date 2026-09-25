@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -42,6 +44,15 @@ type olympiadListItem struct {
 	ProfilesCount  int            `json:"profiles_count"`
 	// RegistrationClosed — по основному профилю: вступить в этом сезоне нельзя.
 	RegistrationClosed bool `json:"registration_closed"`
+	// MyBenefits — с mine=true: сильная льгота основного профиля в моих вузах
+	// на мои направления, от сильной к слабой. Без фильтра пусто.
+	MyBenefits []myBenefit `json:"my_benefits"`
+}
+
+type myBenefit struct {
+	Benefit      string   `json:"benefit"`
+	BenefitLabel string   `json:"benefit_label"`
+	Universities []string `json:"universities"`
 }
 
 type listResponse[T any] struct {
@@ -56,6 +67,12 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	subject, city := r.URL.Query().Get("subject"), r.URL.Query().Get("city")
+	mineOnly := false
+	if v := r.URL.Query().Get("mine"); v != "" {
+		if mineOnly, err = strconv.ParseBool(v); err != nil {
+			return badRequest("mine — true или false.")
+		}
+	}
 	ctx, m := r.Context(), me(r)
 	codes, err := pick.SubjectCodes(ctx, s.store, m.TrajectoryID)
 	if err != nil {
@@ -79,21 +96,24 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 		}
 		groups[p.OlympiadID] = append(groups[p.OlympiadID], p)
 	}
+	var leads map[string][]myBenefit
+	if mineOnly {
+		if leads, err = s.leadsToMine(ctx, m.TrajectoryID, profiles); err != nil {
+			return err
+		}
+	}
 	out := listResponse[olympiadListItem]{Items: []olympiadListItem{}}
 	var primaries []store.Profile
 	for _, id := range order {
 		ps := groups[id]
-		candidates := ps
-		if subject != "" {
-			candidates = nil
-			for _, p := range ps {
-				if p.SubjectCode == subject {
-					candidates = append(candidates, p)
-				}
+		var candidates []store.Profile
+		for _, p := range ps {
+			if (subject == "" || p.SubjectCode == subject) && (!mineOnly || leads[p.ID] != nil) {
+				candidates = append(candidates, p)
 			}
-			if len(candidates) == 0 {
-				continue
-			}
+		}
+		if len(candidates) == 0 {
+			continue
 		}
 		p := primaryOf(candidates, mine)
 		primaries = append(primaries, p)
@@ -101,7 +121,7 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 			OlympiadID: p.OlympiadID, Name: names.Olympiad(p.OlympiadName), Organizer: p.Organizer, Kind: p.Kind, FinalCity: p.FinalCity,
 			PrimaryProfile: primaryProfile{OlympiadProfileID: p.ID, SubjectCode: p.SubjectCode,
 				SubjectName: profileLabel(p.SubjectName, p.ProfileName), Level: p.Level},
-			ProfilesCount: len(ps),
+			ProfilesCount: len(ps), MyBenefits: orEmpty(leads[p.ID]),
 		})
 	}
 	ids := make([]string, len(primaries))
@@ -121,6 +141,46 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 	sort.SliceStable(out.Items, func(i, j int) bool { return names.Key(out.Items[i].Name) < names.Key(out.Items[j].Name) })
 	writeJSON(w, http.StatusOK, out)
 	return nil
+}
+
+// leadsToMine — по профилю: сильные льготы (БВИ, БВИ победителям, 100 баллов)
+// в моих вузах на мои направления по правилу целей, от сильной к слабой;
+// вузы — в порядке моих. Профиля без такой льготы в ответе нет.
+func (s *Server) leadsToMine(ctx context.Context, trajectoryID string, profiles []store.Profile) (map[string][]myBenefit, error) {
+	unis, err := s.store.TrajectoryUniversities(ctx, trajectoryID)
+	if err != nil || len(unis) == 0 {
+		return nil, err
+	}
+	ids, uniIDs := make([]string, len(profiles)), make([]string, len(unis))
+	for i, p := range profiles {
+		ids[i] = p.ID
+	}
+	for i, u := range unis {
+		uniIDs[i] = u.ID
+	}
+	rows, err := s.store.TargetBenefits(ctx, trajectoryID, ids, uniIDs)
+	if err != nil {
+		return nil, err
+	}
+	byPair := map[string]string{}
+	for _, b := range rows {
+		byPair[b.ProfileID+"/"+b.UniversityID] = b.Benefit
+	}
+	out := map[string][]myBenefit{}
+	for _, p := range profiles {
+		for _, kind := range []string{"bvi", "bvi_winners", "score100"} {
+			var names []string
+			for _, u := range unis {
+				if byPair[p.ID+"/"+u.ID] == kind {
+					names = append(names, nick(u.ID, u.ShortName))
+				}
+			}
+			if names != nil {
+				out[p.ID] = append(out[p.ID], myBenefit{Benefit: kind, BenefitLabel: benefitLabels[kind], Universities: names})
+			}
+		}
+	}
+	return out, nil
 }
 
 // primaryOf — профиль по предмету ученика, среди них — сильнейший по уровню.

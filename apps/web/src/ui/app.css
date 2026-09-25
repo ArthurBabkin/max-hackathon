@@ -1987,6 +1987,118 @@
   box-shadow: var(--shadow-card);
 }
 
+/* «Ведут в мои вузы и на мои направления» — D5 (F66): белая строка над
+   предметами, справа переключатель. */
+.mine-switch {
+  margin-top: var(--gap-md);
+  padding: 4px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.mine-switch > button[role='switch'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 6px 0;
+  text-align: left;
+}
+
+.mine-switch > button[role='switch']:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.mine-switch-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mine-switch-text b {
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.mine-switch-text span {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.mine-switch-off .mine-switch-text b {
+  color: var(--mu);
+}
+
+.mine-switch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  margin: -8px 0 4px;
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.switch {
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--ln-strong);
+  transition: background 0.2s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+[aria-checked='true'] > .switch {
+  background: var(--p);
+}
+
+[aria-checked='true'] > .switch::after {
+  transform: translateX(16px);
+}
+
+:disabled > .switch {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
+  }
+}
+
+/* Строка каталога с фильтром «мои»: метка льготы и серые вузы. */
+.row-benefit {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--t-micro);
+  line-height: 1.5;
+  color: var(--mu);
+}
+
+.row-benefit .benefit-value {
+  padding: 1px 7px;
+}
+
 .filter-row {
   display: flex;
   align-items: center;

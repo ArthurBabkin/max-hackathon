@@ -659,10 +659,6 @@
     "kid": "Предмет",
     "parent": "Предмет"
   },
-  "catalog.filterFinal": {
-    "kid": "Финал",
-    "parent": "Финал"
-  },
   "catalog.filterCity": {
     "kid": "Город",
     "parent": "Город"
@@ -690,6 +686,38 @@
   "catalog.outsidePerechen": {
     "kid": "вне перечня",
     "parent": "вне перечня"
+  },
+  "catalog.mineTitle": {
+    "kid": "Ведут в мои вузы и на мои направления",
+    "parent": "Ведут в вузы и на направления {student_gen}"
+  },
+  "catalog.mineNoUniversities": {
+    "kid": "Сначала выбери вузы",
+    "parent": "Сначала выберите вузы"
+  },
+  "catalog.mineAll": {
+    "kid": "во всех твоих вузах",
+    "parent": "во всех вузах {student_gen}"
+  },
+  "catalog.mineEmptyTitle": {
+    "kid": "Нет олимпиад с льготой в твоих вузах",
+    "parent": "Нет олимпиад с льготой в вузах {student_gen}"
+  },
+  "catalog.mineEmptySubject": {
+    "kid": "По этому предмету ни одна олимпиада не даёт БВИ или 100 баллов в твоих вузах на твои направления.",
+    "parent": "По этому предмету ни одна олимпиада не даёт БВИ или 100 баллов в вузах {student_gen} на выбранные направления."
+  },
+  "catalog.mineAllSubjects": {
+    "kid": "Все предметы",
+    "parent": "Все предметы"
+  },
+  "catalog.mineEmptyAll": {
+    "kid": "Проверь направления в карточках вузов — льготы считаются на них.",
+    "parent": "Проверьте направления в карточках вузов — льготы считаются на них."
+  },
+  "catalog.mineOff": {
+    "kid": "Показать все олимпиады",
+    "parent": "Показать все олимпиады"
   },
   "tracker.viewList": {
     "kid": "Список",

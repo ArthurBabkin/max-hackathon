@@ -133,7 +133,7 @@ paths:
     get:
       tags: [olympiads]
       summary: Каталог олимпиад
-      x-tz: "F24, F27"
+      x-tz: "F24, F27, F66"
       parameters:
         - name: q
           in: query
@@ -147,6 +147,14 @@ paths:
           in: query
           schema: { type: string }
           description: Город финала, `olympiads.final_city`.
+        - name: mine
+          in: query
+          schema: { type: boolean }
+          description: |
+            «Ведут в мои вузы и на мои направления»: только олимпиады с БВИ,
+            БВИ победителям или 100 баллами в вузах ученика — на его
+            направления по правилу целей (выбранные в вузе, иначе из цели,
+            иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
       responses:
         "200":
           description: OK
@@ -159,6 +167,7 @@ paths:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/OlympiadListItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /olympiads/{id}:
@@ -1241,7 +1250,7 @@ components:
         - $ref: "#/components/schemas/Badge"
         - type: object
           description: Строка каталога — одна на олимпиаду, а не на профиль.
-          required: [olympiad_id, name, kind, primary_profile, registration_closed]
+          required: [olympiad_id, name, kind, primary_profile, registration_closed, my_benefits]
           properties:
             olympiad_id: { type: string }
             name: { type: string }
@@ -1261,6 +1270,24 @@ components:
             registration_closed:
               type: boolean
               description: По основному профилю — срок первого этапа прошёл.
+            my_benefits:
+              type: array
+              description: |
+                С `mine=true` — льгота основного профиля в моих вузах на мои
+                направления, от сильной к слабой. Без фильтра — пустой массив.
+              items: { $ref: "#/components/schemas/MyBenefit" }
+
+    MyBenefit:
+      type: object
+      description: Льгота в моих вузах и вузы, где она даётся.
+      required: [benefit, benefit_label, universities]
+      properties:
+        benefit: { type: string, enum: [bvi, bvi_winners, score100] }
+        benefit_label: { type: string }
+        universities:
+          type: array
+          description: Короткие названия моих вузов, в их порядке в профиле.
+          items: { type: string }
 
     ProfileLevel:
       type: object
@@ -1544,10 +1571,13 @@ components:
 
     UniversityListItem:
       type: object
-      required: [id, short_name, name, city, benefit_olympiads_count, is_mine]
+      required: [id, short_name, nick, name, city, benefit_olympiads_count, is_mine]
       properties:
         id: { type: string }
         short_name: { type: string }
+        nick:
+          type: string
+          description: Название в тексте — «Иннополис», а не «УИ»; обычно совпадает с `short_name`.
         name: { type: string }
         city: { type: [string, "null"] }
         color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
