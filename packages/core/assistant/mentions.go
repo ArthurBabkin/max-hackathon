@@ -5,7 +5,9 @@
 package assistant
 
 import (
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -29,6 +31,8 @@ type Mentions struct {
 	Glossary bool
 	// MyUniversities — вопрос про вузы ученика: «в моих вузах».
 	MyUniversities bool
+	// Grade — класс из вопроса («для 7 класса»); 0 — не назван.
+	Grade int
 }
 
 func (m Mentions) Empty() bool {
@@ -93,13 +97,35 @@ var glossaryStems = [][]string{
 	{"перечн"}, {"уровн"}, {"льгот"}, {"особ", "прав"}, {"призер"}, {"победител"}, {"подтвержд"}, {"егэ"},
 }
 
-// myWords — начала слов «мои вузы», «в моих вузах», «в выбранных вузах».
-var myWords = []string{"мой", "мои", "моем", "моег", "выбранн"}
+// myWords — начала слов «мои вузы», «в моих вузах», «в выбранных вузах»;
+// родитель — «в его вузах», «её вузы».
+var myWords = []string{"мой", "мои", "моем", "моег", "выбранн", "его", "ее"}
+
+// childWords — «в вузах ребёнка», «вузы сына», «вузы дочери».
+var childWords = []string{"ребенк", "сын", "доч"}
 
 // vsoshWords — разговорные названия ВсОШ, словом целиком: «всерос»
 // префиксом поймал бы и «Всероссийскую олимпиаду «Высшая проба»».
 // «Всош» склоняется («на всоше») и префиксом ничего лишнего не ловит.
 var vsoshWords = []string{"всерос", "всероса", "всеросе", "всеросу", "всеросом", "всеросс"}
+
+// gradeRe — «7 класса», «10-м классе», «11 класс»; перед «класс» — один
+// номер или перечень: «7–11 классы», «8 и 9 класса».
+var gradeRe = regexp.MustCompile(`(\d{1,2}(?:\s*(?:,|и|или|–|-)\s*\d{1,2})*)(?:\s*-?\s*(?:й|го|му|м|ом))?\s*класс`)
+
+// grade — класс из вопроса. Перечень, два разных класса или класс вне 1–11 —
+// не класс ученика: 0.
+func grade(question string) int {
+	found := 0
+	for _, m := range gradeRe.FindAllStringSubmatch(question, -1) {
+		g, err := strconv.Atoi(m[1])
+		if err != nil || g < 1 || g > 11 || (found != 0 && found != g) {
+			return 0
+		}
+		found = g
+	}
+	return found
+}
 
 // Find ищет упоминания. Длинное совпадение побеждает короткое на тех же
 // словах: «высшая школа экономики» — вуз, а не «экономика» как предмет.
@@ -186,14 +212,40 @@ func Find(question string, olympiads, universities []Named) Mentions {
 			m.Glossary = true
 		}
 	}
+	m.Grade = grade(question)
 	for i := 0; i+1 < len(tokens); i++ {
 		next := tokens[i+1]
-		if slices.ContainsFunc(myWords, func(w string) bool { return strings.HasPrefix(tokens[i], w) }) &&
-			(strings.HasPrefix(next, "вуз") || strings.HasPrefix(next, "универс")) {
+		mine := slices.ContainsFunc(myWords, func(w string) bool { return strings.HasPrefix(tokens[i], w) }) && isUniversityWord(next)
+		child := isUniversityWord(tokens[i]) && slices.ContainsFunc(childWords, func(w string) bool { return strings.HasPrefix(next, w) })
+		if mine || child {
 			m.MyUniversities = true
 		}
 	}
 	return m
+}
+
+func isUniversityWord(w string) bool {
+	return strings.HasPrefix(w, "вуз") || strings.HasPrefix(w, "универс")
+}
+
+// studentsUniversities — «в вузах Артёма»: слово «вуз» и следом имя ученика
+// в любом падеже — основа имени без последней гласной.
+func studentsUniversities(question, name string) bool {
+	n := tokenize(name)
+	if len(n) == 0 {
+		return false
+	}
+	base := []rune(n[0])
+	if len(base) > 3 && strings.ContainsRune("аеиоуыэюяйь", base[len(base)-1]) {
+		base = base[:len(base)-1]
+	}
+	tokens := tokenize(question)
+	for i := 0; i+1 < len(tokens); i++ {
+		if isUniversityWord(tokens[i]) && strings.HasPrefix(tokens[i+1], string(base)) {
+			return true
+		}
+	}
+	return false
 }
 
 // olympiadNames — полное название и все названия в кавычках:

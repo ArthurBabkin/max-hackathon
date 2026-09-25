@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/jev"
@@ -65,6 +66,9 @@ func TestAsk_JevThresholds(t *testing.T) {
 		{"ВсОШ от Jev не берём", map[string]float64{"vsosh-informatika": 0.9, none: 0.1}, map[string]float64{none: 1}, "", false},
 		// ВсОШ отброшена — её вероятность делится между остальными: 0,12 / (1 − 0,3) ≈ 0,17.
 		{"без ВсОШ — перенормировка", map[string]float64{"p669-8": 0.12, "vsosh-informatika": 0.3, none: 0.58}, map[string]float64{none: 1}, `"id":"olympiad:p669-8"`, true},
+		// Вопрос про ВсОШ: соседи по 0,01 после деления стали бы по 0,5 — но
+		// случайная доля остаётся случайной.
+		{"почти наверняка ВсОШ — соседи не раздуваются", map[string]float64{"vsosh-matematika": 0.98, "p669-50": 0.01, "p669-52": 0.01}, map[string]float64{none: 1}, "", false},
 	}
 	for _, c := range cases {
 		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
@@ -242,5 +246,170 @@ func TestAsk_UniversityInQuestionBeatsCarriedHeader(t *testing.T) {
 	}
 	if sys := f.calls[0][0].Content; !strings.Contains(sys, "Innopolis Open") {
 		t.Fatalf("полная карточка ИТМО:\n%s", sys)
+	}
+}
+
+// Каталог сгруппирован по предмету и уровню: «олимпиады по физике I уровня»
+// — одна строка, а не поиск по 75 олимпиадам.
+func TestAsk_CatalogBySubjectAndLevel(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по физике I уровня есть в базе?"); err != nil {
+		t.Fatal(err)
+	}
+	var line string
+	for _, l := range strings.Split(f.calls[0][0].Content, `\n`) {
+		if strings.HasPrefix(strings.TrimSpace(l), "Физика, I уровень:") {
+			line = l
+		}
+	}
+	if !strings.Contains(line, "Физтех") || !strings.Contains(line, "Росатом") || strings.Contains(line, "Турнир городов") {
+		t.Fatalf("строка «Физика, I уровень»: %q", line)
+	}
+}
+
+// Под ответом — правила вузов из вопроса, а не первых попавшихся.
+func TestAsk_SourcesOfUniversitiesInQuestion(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Победителю — БВИ, призёру — 100 баллов.", "card_ids": ["olympiad:p669-57", "university:mipt"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Даёт ли МФТИ БВИ за Технокубок?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	mipt := false
+	for _, s := range ans.Sources {
+		if s.Kind == "site" || s.Kind == "order" {
+			continue
+		}
+		if !strings.HasPrefix(s.Title, "МФТИ") {
+			t.Errorf("источник не про МФТИ: %s", s.Title)
+		}
+		mipt = true
+	}
+	if !mipt {
+		t.Fatalf("нет правил МФТИ: %+v", ans.Sources)
+	}
+}
+
+// Кнопка вуза — привычное название, а не аббревиатура из справочника.
+func TestAsk_UniversityButtonUsesNick(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Иннополис — вуз в Татарстане.", "card_ids": ["university:innopolis"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Расскажи про Иннополис")
+	if err != nil || len(ans.CardRefs) != 1 || ans.CardRefs[0].Title != "Иннополис" {
+		t.Fatalf("кнопка: %+v %v", ans.CardRefs, err)
+	}
+}
+
+// Поиск по предмету — каталог только этого предмета, и у каждой олимпиады её
+// профили по нему с уровнем и классами. Иначе классы приходится сводить из
+// двух списков по всей базе, и модель ошибается: «Бельчонок» (8–11) назвала
+// олимпиадой для 7 класса, а ВсОШ (с 5 класса) пропустила.
+func TestAsk_CatalogOfAskedSubject(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по информатике есть?"); err != nil {
+		t.Fatal(err)
+	}
+	c := cardIn(t, f.calls[0][0].Content, "catalog")
+	line := func(prefix string) string {
+		for _, l := range strings.Split(c, `\n`) {
+			if strings.HasPrefix(strings.TrimSpace(l), prefix) {
+				return l
+			}
+		}
+		return ""
+	}
+	if l := line("Бельчонок —"); !strings.Contains(l, "информатика (II уровень, 8–11 классы)") || strings.Contains(l, "химия") {
+		t.Errorf("строка «Бельчонок» — только информатика с классами: %q", l)
+	}
+	if l := line("ВсОШ по информатике —"); !strings.Contains(l, "5–11 классы") {
+		t.Errorf("строка ВсОШ по информатике: %q", l)
+	}
+	if !strings.Contains(c, "Информатика, I уровень:") || strings.Contains(c, "Потомки Менделеева") || strings.Contains(c, "Химия, ") {
+		t.Errorf("каталог — только информатика:\n%s", c)
+	}
+}
+
+// Вопрос о сроках — под ответом сайт олимпиады, без правил приёма вузов:
+// даты и регистрация — на сайте, а правила здесь ни при чём.
+func TestAsk_DatesQuestionSourcesWithoutRules(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Регистрация идёт до 11.10.2026.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("olympiad_info", map[string]float64{"p669-8": 0.9, none: 0.1}, map[string]float64{none: 1})}
+	ans, err := a.Ask(context.Background(), kid, tr, nil, "Когда регистрация на «Высшую пробу»?")
+	if err != nil || ans.Refused || len(ans.Sources) == 0 || ans.Sources[0].Kind != "site" {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	for _, s := range ans.Sources {
+		if s.Kind == "rules" {
+			t.Errorf("правила вуза под ответом о сроках: %s", s.Title)
+		}
+	}
+}
+
+// Вопрос о трекере — под ответом сайты олимпиад трекера, ближайшие по
+// срокам первыми: там регистрация и даты.
+func TestAsk_TrackerQuestionSourcesAreOlympiadSites(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	fam, err := st.FamilyMembers(ctx, tr.ID)
+	if err != nil || len(fam) == 0 {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"vsosh-informatika", "p669-8-informatika"} {
+		if _, _, err := st.AddTrackerItem(ctx, tr.ID, p, fam[0].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := &fakeLLM{reply: `{"answer": "Ближайшее — «Высшая проба».", "card_ids": ["student"], "no_data": false}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("personal", map[string]float64{none: 1}, map[string]float64{none: 1}),
+		Now: func() time.Time { return time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC) }}
+	ans, err := a.Ask(ctx, kid, tr, nil, "Что у меня ближайшее в трекере?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if len(ans.Sources) != 2 || ans.Sources[0].Title != "Высшая проба: сайт олимпиады" || ans.Sources[1].Title != "ВсОШ по информатике: сайт олимпиады" {
+		t.Fatalf("сайты олимпиад трекера, «Высшая проба» (до 11.10) раньше ВсОШ (до 28.10): %+v", ans.Sources)
+	}
+}
+
+// Предмет из вопроса, которого у олимпиады нет (Jev ошибся: «а в ВШЭ?» после
+// Технокубка — биология), не отсекает оговорку об условиях вуза.
+func TestAsk_NoteIgnoresSubjectOlympiadLacks(t *testing.T) {
+	st, tr := setup(t)
+	j := &fakeJev{probs: map[string]map[string]float64{"intent": {"benefit": 1}, "olympiad": {"p669-57": 0.9, none: 0.1},
+		"university": {"hse": 0.9, none: 0.1}, "subject": {"bio": 1}}}
+	f := &fakeLLM{reply: `{"answer": "ВШЭ даёт БВИ победителям и призёрам ТехноКубка.", "card_ids": ["olympiad:p669-57"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f, Classifier: j}).Ask(context.Background(), kid, tr, nil, "а в ВШЭ?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if want := "ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; !strings.HasSuffix(ans.Text, want) {
+		t.Fatalf("оговорка об условиях ВШЭ: %q", ans.Text)
+	}
+}
+
+// Класс в вопросе — в каталоге только олимпиады, где есть профиль для этого
+// класса: отфильтровать список по классам модель не может сама.
+func TestAsk_CatalogForAskedGrade(t *testing.T) {
+	st, tr := setup(t)
+	for _, q := range []string{"Какие олимпиады по информатике есть для 7 класса?", "Какие олимпиады есть для 7 класса?"} {
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+		if _, err := a.Ask(context.Background(), kid, tr, nil, q); err != nil {
+			t.Fatal(err)
+		}
+		c := cardIn(t, f.calls[0][0].Content, "catalog")
+		for _, want := range []string{"для 7 класса", "Innopolis Open —", "Когнитивные технологии —"} {
+			if !strings.Contains(c, want) {
+				t.Errorf("%s: в каталоге нет %q", q, want)
+			}
+		}
+		if strings.Contains(c, "Бельчонок") || strings.Contains(c, "Высшая проба") {
+			t.Errorf("%s: олимпиады с 8 и 9 класса в каталоге для 7 класса:\n%s", q, c)
+		}
 	}
 }
