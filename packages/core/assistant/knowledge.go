@@ -100,7 +100,7 @@ var conditionsText = map[string]string{
 // по всем профилям и всем вузам базы. asked — вузы из вопроса: тогда условия
 // только их, остальные вузы с льготами — списком. Строки соседних вузов
 // модель путает с условиями того, о котором спросили.
-func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked []string, c clock) (string, []store.BenefitRow, error) {
+func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked []string, c clock) (string, []store.BenefitRow, dates, error) {
 	ps := slices.Clone(b.profiles[oid])
 	slices.SortStableFunc(ps, func(x, y store.Profile) int { return strings.Compare(profileTitle(x), profileTitle(y)) })
 	ids := make([]string, len(ps))
@@ -109,11 +109,11 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked 
 	}
 	byProfile, err := a.Store.StagesFor(ctx, ids)
 	if err != nil {
-		return "", nil, err
+		return "", nil, dates{}, err
 	}
 	benefits, err := a.Store.Benefits(ctx, ids, nil)
 	if err != nil {
-		return "", nil, err
+		return "", nil, dates{}, err
 	}
 	p := ps[0]
 	short := names.Olympiad(p.OlympiadName)
@@ -151,8 +151,10 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked 
 	lines = append(lines, "Профили: "+strings.Join(profiles, "; "))
 
 	var schedules []grouped
+	var d dates
 	for _, x := range ps {
 		schedules = group(schedules, c.dated(byProfile[x.ID]), profileTitle(x))
+		d.add(short, byProfile[x.ID])
 	}
 	lines = append(lines, "Этапы:")
 	for _, g := range schedules {
@@ -212,7 +214,7 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked 
 		lines = append(lines, "Льготы по ней есть и в других вузах базы (условия не показаны, вопрос не про них): "+strings.Join(others, ", "))
 	}
 	lines = append(lines, conditionsText[p.Kind])
-	return strings.Join(lines, "\n"), benefits, nil
+	return strings.Join(lines, "\n"), benefits, d, nil
 }
 
 // grouped — одинаковый текст у нескольких профилей: пишем его один раз.
@@ -244,7 +246,7 @@ func (c clock) dated(st []stages.Stage) string {
 	switch {
 	case len(st) == 0:
 		return "этапов нет"
-	case slices.ContainsFunc(st, func(s stages.Stage) bool { return s.IsDemo }):
+	case approximate(st):
 		return "даты примерные, по прошлому году: " + c.schedule(st)
 	}
 	return "даты фактические: " + c.schedule(st)
@@ -578,7 +580,7 @@ var goalText = map[string]string{
 // studentText — карточка ученика: класс, цель, предметы, вузы и трекер с
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
 // ответа.
-func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subjects, unis []string, c clock) (string, error) {
+func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subjects, unis []string, c clock) (string, dates, error) {
 	lines := []string{fmt.Sprintf("Класс: %d", t.Grade)}
 	goal := goalText[t.GoalStatus]
 	if len(t.Directions) > 0 {
@@ -591,10 +593,10 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(subjects, ", ")), "Вузы: "+orDash(strings.Join(unis, ", ")))
 	items, err := a.Store.TrackerItems(ctx, t.ID)
 	if err != nil {
-		return "", err
+		return "", dates{}, err
 	}
 	if len(items) == 0 {
-		return strings.Join(append(lines, "Трекер: пусто"), "\n"), nil
+		return strings.Join(append(lines, "Трекер: пусто"), "\n"), dates{}, nil
 	}
 	ids := make([]string, len(items))
 	for i, x := range items {
@@ -602,8 +604,9 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 	}
 	byProfile, err := a.Store.StagesFor(ctx, ids)
 	if err != nil {
-		return "", err
+		return "", dates{}, err
 	}
+	var d dates
 	lines = append(lines, "Трекер:")
 	for _, x := range items {
 		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName})
@@ -613,10 +616,11 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 		st := byProfile[x.ProfileID]
 		if i := slices.IndexFunc(stages.States(st, x.RegisteredAt != nil, c.now), func(s string) bool { return s != "past" }); i >= 0 {
 			line += "; ближайший этап — " + c.dated(st[i:i+1])
+			d.add(names.Olympiad(x.OlympiadName), st[i:i+1])
 		}
 		lines = append(lines, line)
 	}
-	return strings.Join(lines, "\n"), nil
+	return strings.Join(lines, "\n"), d, nil
 }
 
 // profileTitle — «Информатика», «Промышленное программирование»: название

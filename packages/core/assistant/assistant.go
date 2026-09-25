@@ -92,6 +92,10 @@ type card struct {
 	text    string
 	ref     *store.AiCardRef
 	sources []store.Source
+	// Для оговорок, которые модель пропускает (notes.go): какие в карточке
+	// даты и чьи условия льгот без источника.
+	dates      dates
+	unverified []uniName
 }
 
 type collected struct {
@@ -219,11 +223,11 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		c.cards = append(c.cards, card{id: "catalog", text: b.catalogText(m.Subjects), sources: []store.Source{*order}})
 	}
 	if c.intent == intentPersonal {
-		text, err := a.studentText(ctx, t, c.subjects, c.universities, c.clock)
+		text, d, err := a.studentText(ctx, t, c.subjects, c.universities, c.clock)
 		if err != nil {
 			return c, err
 		}
-		c.cards = append(c.cards, card{id: "student", text: text})
+		c.cards = append(c.cards, card{id: "student", text: text, dates: d})
 	}
 	return c, nil
 }
@@ -388,9 +392,21 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if c.has("olympiad:" + oid) {
 		return nil
 	}
-	text, benefits, err := a.olympiadText(ctx, b, oid, c.asked, c.clock)
+	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.asked, c.clock)
 	if err != nil {
 		return err
+	}
+	// Условия без источника — у вузов из вопроса (в карточке только они) и
+	// по предметам из вопроса, если их назвали.
+	var unverified []uniName
+	for _, bn := range benefits {
+		if bn.Source != nil || (len(c.asked) > 0 && !slices.Contains(c.asked, bn.UniversityID)) ||
+			(len(c.mentions.Subjects) > 0 && !slices.Contains(c.mentions.Subjects, b.profile[bn.ProfileID].SubjectCode)) {
+			continue
+		}
+		if n := (uniName{pick.Nick(bn.UniversityID, bn.UniversityShort), bn.UniversityShort}); !slices.Contains(unverified, n) {
+			unverified = append(unverified, n)
+		}
 	}
 	// Сайт олимпиады — первым: на нём даты и регистрация; дальше правила
 	// о льготах по этому профилю в вузах, о которых речь, и приказ о перечне.
@@ -407,7 +423,7 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if len(b.profiles[oid]) > 1 {
 		title += ", " + profileLabel(p)
 	}
-	c.cards = append(c.cards, card{id: "olympiad:" + oid, text: text, sources: sources,
+	c.cards = append(c.cards, card{id: "olympiad:" + oid, text: text, sources: sources, dates: d, unverified: unverified,
 		ref: &store.AiCardRef{Type: "olympiad", ID: p.ID, Title: title}})
 	return nil
 }
@@ -597,9 +613,10 @@ func (c collected) check(raw string) (Answer, bool) {
 	if out.NoData || text == "" || (len(out.CardIDs) == 0 && c.intent != intentChat) {
 		return Answer{}, false
 	}
-	ans := Answer{Text: text, CardRefs: []store.AiCardRef{}, Sources: []store.Source{}}
+	ans := Answer{CardRefs: []store.AiCardRef{}, Sources: []store.Source{}}
 	// Разные страницы одного документа — один источник для читателя.
 	seen := map[string]bool{}
+	var used []card
 	for _, id := range out.CardIDs {
 		i := slices.IndexFunc(c.cards, func(cd card) bool { return cd.id == id })
 		if i < 0 {
@@ -608,6 +625,7 @@ func (c collected) check(raw string) (Answer, bool) {
 			return Answer{}, false
 		}
 		cd := c.cards[i]
+		used = append(used, cd)
 		if cd.ref != nil && !slices.ContainsFunc(ans.CardRefs, func(r store.AiCardRef) bool { return r.ID == cd.ref.ID }) {
 			ans.CardRefs = append(ans.CardRefs, *cd.ref)
 		}
@@ -618,6 +636,7 @@ func (c collected) check(raw string) (Answer, bool) {
 			}
 		}
 	}
+	ans.Text = withNotes(text, used)
 	return ans, true
 }
 
