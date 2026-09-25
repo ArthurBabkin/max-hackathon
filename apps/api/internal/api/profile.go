@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -32,17 +33,29 @@ func universityItemOf(u store.University) universityItem {
 }
 
 type profileResponse struct {
-	StudentName      string           `json:"student_name"`
-	Grade            int              `json:"grade"`
-	RegionCode       string           `json:"region_code"`
-	RegionName       string           `json:"region_name"`
-	Subjects         []subjectDTO     `json:"subjects"`
-	Directions       []directionItem  `json:"directions"`
-	GoalStatus       string           `json:"goal_status"`
+	StudentName string          `json:"student_name"`
+	Grade       int             `json:"grade"`
+	RegionCode  string          `json:"region_code"`
+	RegionName  string          `json:"region_name"`
+	Subjects    []subjectDTO    `json:"subjects"`
+	Directions  []directionItem `json:"directions"`
+	GoalStatus  string          `json:"goal_status"`
+	// TargetRegionCode — первое место «Где учиться»; устарело, оставлено
+	// для мини-приложения до раскатки places.
 	TargetRegionCode *string          `json:"target_region_code"`
 	TargetRegionName *string          `json:"target_region_name"`
+	Experience       *string          `json:"experience"`
+	HomeCity         *string          `json:"home_city"`
+	Places           []placeDTO       `json:"places"`
 	Universities     []universityItem `json:"universities"`
 	OtherMemberNames []string         `json:"other_member_names"`
+}
+
+// placeDTO — место «Где учиться»: регион целиком (city = null) или город.
+type placeDTO struct {
+	RegionCode string  `json:"region_code"`
+	RegionName string  `json:"region_name"`
+	City       *string `json:"city"`
 }
 
 func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse, error) {
@@ -65,14 +78,24 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 	sum := summaryOf(t)
 	out := profileResponse{
 		StudentName: t.StudentName, Grade: t.Grade, RegionCode: t.RegionCode, RegionName: sum.RegionName,
-		Directions: sum.Directions, GoalStatus: t.GoalStatus, TargetRegionCode: t.TargetRegionCode,
+		Directions: sum.Directions, GoalStatus: t.GoalStatus, HomeCity: t.HomeCity,
 		Subjects: make([]subjectDTO, len(subs)), Universities: make([]universityItem, len(unis)),
-		OtherMemberNames: others,
+		Places: make([]placeDTO, len(t.Places)), OtherMemberNames: others,
 	}
-	if t.TargetRegionCode != nil {
-		if reg, ok := refdata.ByCode(*t.TargetRegionCode); ok {
-			out.TargetRegionName = &reg.Name
+	if t.Experience != "" {
+		out.Experience = &t.Experience
+	}
+	for i, p := range t.Places {
+		out.Places[i] = placeDTO{RegionCode: p.RegionCode, RegionName: p.RegionCode}
+		if reg, ok := refdata.ByCode(p.RegionCode); ok {
+			out.Places[i].RegionName = reg.Name
 		}
+		if p.City != "" {
+			out.Places[i].City = &t.Places[i].City
+		}
+	}
+	if len(t.Places) > 0 {
+		out.TargetRegionCode, out.TargetRegionName = &out.Places[0].RegionCode, &out.Places[0].RegionName
 	}
 	for i, x := range subs {
 		out.Subjects[i] = subjectDTO{Code: x.Code, Name: x.Name}
@@ -100,10 +123,21 @@ type profilePatch struct {
 	SubjectCodes []string `json:"subject_codes"`
 	// DirectionIDs: пустой список — «пока не решил», отсутствие — не менять.
 	DirectionIDs []string `json:"direction_ids"`
-	// TargetRegionCode: "" — «не важно».
-	TargetRegionCode *string  `json:"target_region_code"`
-	UniversityIDs    []string `json:"university_ids"`
+	// TargetRegionCode: "" — «не важно». Устарело: вместо него places.
+	TargetRegionCode *string `json:"target_region_code"`
+	// Places: пустой список — «не важно», отсутствие — не менять.
+	Places        []placePatch `json:"places"`
+	Experience    *string      `json:"experience"`
+	UniversityIDs []string     `json:"university_ids"`
 }
+
+type placePatch struct {
+	RegionCode string  `json:"region_code"`
+	City       *string `json:"city"`
+}
+
+// maxPlaces — сколько мест «Где учиться» можно сохранить.
+const maxPlaces = 10
 
 // patchProfile — PATCH /profile (F49): только переданные поля.
 func (s *Server) patchProfile(w http.ResponseWriter, r *http.Request) error {
@@ -167,7 +201,8 @@ func (s *Server) applyPatch(w http.ResponseWriter, r *http.Request, patch store.
 func validatePatch(req profilePatch) (store.TrajectoryPatch, error) {
 	var p store.TrajectoryPatch
 	if req.StudentName == nil && req.Grade == nil && req.RegionCode == nil && req.SubjectCodes == nil &&
-		req.DirectionIDs == nil && req.TargetRegionCode == nil && req.UniversityIDs == nil {
+		req.DirectionIDs == nil && req.TargetRegionCode == nil && req.UniversityIDs == nil &&
+		req.Places == nil && req.Experience == nil {
 		return p, badRequest("Нечего менять.")
 	}
 	if req.StudentName != nil {
@@ -197,12 +232,42 @@ func validatePatch(req profilePatch) (store.TrajectoryPatch, error) {
 		p.SubjectCodes = req.SubjectCodes
 	}
 	p.DirectionIDs = req.DirectionIDs
-	if req.TargetRegionCode != nil && *req.TargetRegionCode != "" {
-		if _, ok := refdata.ByCode(*req.TargetRegionCode); !ok {
-			return p, badRequest("Неизвестный регион, где учиться.")
+	if req.Experience != nil {
+		if !slices.Contains([]string{"none", "school", "region"}, *req.Experience) {
+			return p, badRequest("Опыт — none, school или region.")
+		}
+		p.Experience = req.Experience
+	}
+	switch {
+	case req.Places != nil:
+		if len(req.Places) > maxPlaces {
+			return p, badRequest("Слишком много мест, где учиться.")
+		}
+		p.Places = []store.Place{}
+		for _, x := range req.Places {
+			if _, ok := refdata.ByCode(x.RegionCode); !ok {
+				return p, badRequest("Неизвестный регион, где учиться.")
+			}
+			place := store.Place{RegionCode: x.RegionCode}
+			if x.City != nil {
+				place.City = strings.TrimSpace(*x.City)
+				if n := utf8.RuneCountInString(place.City); n > 80 {
+					return p, badRequest("Слишком длинное название города.")
+				}
+			}
+			if !slices.Contains(p.Places, place) {
+				p.Places = append(p.Places, place)
+			}
+		}
+	case req.TargetRegionCode != nil:
+		p.Places = []store.Place{}
+		if *req.TargetRegionCode != "" {
+			if _, ok := refdata.ByCode(*req.TargetRegionCode); !ok {
+				return p, badRequest("Неизвестный регион, где учиться.")
+			}
+			p.Places = []store.Place{{RegionCode: *req.TargetRegionCode}}
 		}
 	}
-	p.TargetRegionCode = req.TargetRegionCode
 	p.UniversityIDs = req.UniversityIDs
 	return p, nil
 }

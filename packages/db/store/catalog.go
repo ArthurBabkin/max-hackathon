@@ -202,7 +202,7 @@ func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerS
 // Universities — каталог вузов с отметкой «мой».
 func (s *Store) Universities(ctx context.Context, trajectoryID, search, city string) ([]University, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`,
+		SELECT `+universityColumns+`,
 		       EXISTS (SELECT 1 FROM trajectory_universities tu WHERE tu.trajectory_id = $1 AND tu.university_id = u.id)
 		FROM universities u
 		WHERE ($2 = '' OR u.name ILIKE $4 OR u.short_name ILIKE $4) AND ($3 = '' OR u.city = $3)
@@ -227,11 +227,11 @@ type UniversityDetail struct {
 func (s *Store) University(ctx context.Context, trajectoryID, id string) (UniversityDetail, error) {
 	var d UniversityDetail
 	err := s.db.QueryRow(ctx, `
-		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`,
+		SELECT `+universityColumns+`,
 		       EXISTS (SELECT 1 FROM trajectory_universities tu WHERE tu.trajectory_id = $1 AND tu.university_id = u.id),
 		       u.directions, u.ege_note, u.rules_url, u.rules_verified_at, u.description, u.site_url
 		FROM universities u WHERE u.id = $2`, trajectoryID, id).Scan(
-		&d.ID, &d.ShortName, &d.Name, &d.City, &d.BenefitOlympiads, &d.IsMine,
+		&d.ID, &d.ShortName, &d.Name, &d.City, &d.RegionCode, &d.BenefitOlympiads, &d.IsMine,
 		&d.Directions, &d.EgeNote, &d.RulesURL, &d.RulesVerifiedAt, &d.Description, &d.SiteURL)
 	return d, wrap(err)
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
-import { GRADES, type Grade } from '@contract'
+import { GRADES, type Grade, type ProfilePatch } from '@contract'
 import { districts, regions } from '@regions'
 import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
@@ -17,6 +17,16 @@ import { ErrorState } from '@/ui/ErrorState'
 const WEB_VERSION = ((import.meta.env.VITE_APP_VERSION as string | undefined) || 'dev').slice(0, 7)
 
 /** Предметы онбординга (ТЗ F7). Придут справочником с сервера — разметка та же. */
+/** Опыт в олимпиадах (онбординг v2, SPEC 6): от него зависит вес уровня олимпиады. */
+const EXPERIENCES = ['none', 'school', 'region'] as const
+type Experience = (typeof EXPERIENCES)[number]
+
+type PlacePatch = NonNullable<ProfilePatch['places']>[number]
+
+/** Одно место «Где учиться»: регион целиком (city = null) или город в нём. */
+const samePlace = (a: PlacePatch, b: PlacePatch) =>
+  a.region_code === b.region_code && (a.city ?? null) === (b.city ?? null)
+
 const SUBJECTS = [
   { code: 'inf', name: 'Информатика' },
   { code: 'math', name: 'Математика' },
@@ -39,8 +49,9 @@ export function ProfileScreen() {
   const [grade, setGrade] = useState<Grade>(9)
   const [region, setRegion] = useState('')
   const [selectedDirections, setSelectedDirections] = useState<string[]>([])
-  /** Где учиться: код субъекта, '' — не важно. */
-  const [target, setTarget] = useState('')
+  /** Где учиться, в порядке выбора; пусто — не важно. */
+  const [places, setPlaces] = useState<PlacePatch[]>([])
+  const [experience, setExperience] = useState<Experience | null>(null)
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>([])
   const [warning, setWarning] = useState<string | null>(null)
@@ -54,7 +65,8 @@ export function ProfileScreen() {
     setGrade(profile.data.grade as Grade)
     setRegion(profile.data.region_code)
     setSelectedDirections(profile.data.directions.map((d) => d.id))
-    setTarget(profile.data.target_region_code ?? '')
+    setPlaces(profile.data.places.map((p) => ({ region_code: p.region_code, city: p.city })))
+    setExperience(profile.data.experience ?? null)
     setSubjects(profile.data.subjects.map((s) => s.code))
     setSelectedUniversities(profile.data.universities.map((u) => u.id))
   }, [profile.data])
@@ -104,12 +116,23 @@ export function ProfileScreen() {
         grade,
         region_code: region,
         direction_ids: selectedDirections,
-        target_region_code: target,
+        places,
+        ...(experience ? { experience } : {}),
         subject_codes: subjects,
         university_ids: selectedUniversities,
       },
       { onSuccess: () => navigate('/match') },
     )
+  }
+
+  /** Подпись места: город или название региона. */
+  const placeName = (place: PlacePatch) =>
+    place.city ?? regions.find((r) => r.code === place.region_code)?.name ?? place.region_code
+
+  const addRegion = (code: string) => {
+    if (!code) return
+    const place = { region_code: code, city: null }
+    setPlaces((list) => (list.some((p) => samePlace(p, place)) ? list : [...list, place]))
   }
 
   const nameInvalid = name.trim().length === 0 || name.trim().length > 40
@@ -216,10 +239,47 @@ export function ProfileScreen() {
         <p className="field-note">{t('profile.goalHint')}</p>
       </div>
 
-      <label className="field">
-        <span className="field-label">{t('profile.targetLabel')}</span>
-        <select className="field-select" value={target} onChange={(event) => setTarget(event.target.value)}>
-          <option value="">{t('profile.targetAny')}</option>
+      <div className="field">
+        <p className="field-label">{t('profile.experienceLabel')}</p>
+        <div className="wrap-chips" role="group" aria-label={t('profile.experienceLabel')}>
+          {EXPERIENCES.map((value) => (
+            <Chip key={value} active={experience === value} onClick={() => setExperience(value)}>
+              {experience === value ? '✓ ' : ''}
+              {t(`profile.experience.${value}`)}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <p className="field-label">
+          <span>{t('profile.targetLabel')}</span>
+          <span>{t('profile.selectedCount', { count: places.length })}</span>
+        </p>
+        <div className="wrap-chips" role="group" aria-label={t('profile.targetLabel')}>
+          <Chip active={places.length === 0} onClick={() => setPlaces([])}>
+            {places.length === 0 ? '✓ ' : ''}
+            {t('profile.targetAny')}
+          </Chip>
+          {places.map((place) => (
+            <Chip
+              key={`${place.region_code}:${place.city ?? ''}`}
+              active
+              aria-label={t('profile.placeRemove', { place: placeName(place) })}
+              onClick={() => setPlaces((list) => list.filter((p) => !samePlace(p, place)))}
+            >
+              {placeName(place)} ✕
+            </Chip>
+          ))}
+        </div>
+        {/* Нативный список: выбор добавляет регион целиком и сбрасывается. */}
+        <select
+          className="field-select"
+          value=""
+          aria-label={t('profile.placesAdd')}
+          onChange={(event) => addRegion(event.target.value)}
+        >
+          <option value="">{t('profile.placesAdd')}</option>
           {districts.map((district) => (
             <optgroup key={district.n} label={`${district.name} округ`}>
               {regions
@@ -232,7 +292,8 @@ export function ProfileScreen() {
             </optgroup>
           ))}
         </select>
-      </label>
+        <p className="field-note">{t('profile.placesHint')}</p>
+      </div>
 
       <div className="field">
         <p className="field-label">
