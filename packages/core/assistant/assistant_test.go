@@ -304,3 +304,14 @@ func TestAsk_NotesForMixedTrackerDates(t *testing.T) {
 		t.Fatalf("оговорка о датах трекера:\n%s", ans.Text)
 	}
 }
+
+// id карточки в тексте ответа — служебное («Карточка: olympiad:p669-22»):
+// предложение с ним убираем, даты в остальных не трогаем.
+func TestAsk_CardIDsNotInText(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Innopolis Open — для 7–11 классов. Карточка: olympiad:p669-22. Подробнее — в university:itmo и catalog.", "card_ids": ["olympiad:p669-22"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Для каких классов Innopolis Open?")
+	if err != nil || ans.Refused || ans.Text != "Innopolis Open — для 7–11 классов." {
+		t.Fatalf("%q %v", ans.Text, err)
+	}
+}

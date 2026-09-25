@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -562,7 +563,7 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 	b.WriteString("6. Если у условия пометка «(данные уточняются)» — скажи, что данные по этому вузу уточняются.\n")
 	b.WriteString("7. Если вуз засчитывает диплом только за определённые классы («диплом за 11 класс»), а ученик сейчас в другом классе — предупреди об этом.\n")
 	b.WriteString("8. Льготы в карточках — только по вузам из базы сервиса. Если вуза из базы нет в строках льгот олимпиады, в этом вузе льготы по ней нет.\n")
-	b.WriteString("9. В card_ids перечисли id карточек, на которых основан ответ.\n")
+	b.WriteString("9. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
 	b.WriteString("10. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	if c.intent == intentChat {
 		b.WriteString("11. Это приветствие, благодарность, вопрос о том, что ты умеешь, или о прошлых репликах разговора: ответь по разговору, card_ids может быть пустым.\n")
@@ -607,7 +608,7 @@ func (c collected) check(raw string) (Answer, bool) {
 		slog.Warn("помощник: ответ модели не JSON", "err", err)
 		return Answer{}, false
 	}
-	text := cleanText(out.Answer)
+	text := withoutCardIDs(cleanText(out.Answer))
 	// Без ссылок на карточки принимается только разговор: приветствие,
 	// «что ты умеешь», «что я спрашивал».
 	if out.NoData || text == "" || (len(out.CardIDs) == 0 && c.intent != intentChat) {
@@ -638,6 +639,30 @@ func (c collected) check(raw string) (Answer, bool) {
 	}
 	ans.Text = withNotes(text, used)
 	return ans, true
+}
+
+var (
+	cardIDRe    = regexp.MustCompile(`(?:olympiad|university):[\w-]+|\b(?:catalog|glossary|student)\b`)
+	sentenceEnd = regexp.MustCompile(`[.!?…]+(?:\s+|$)`)
+)
+
+// withoutCardIDs убирает предложения с id карточек: «Карточка:
+// olympiad:p669-22» — служебное, ссылки на карточки клиент показывает
+// кнопками. Конец предложения — знак и пробел, чтобы не резать даты.
+func withoutCardIDs(s string) string {
+	if !cardIDRe.MatchString(s) {
+		return s
+	}
+	var kept []string
+	start := 0
+	for _, loc := range append(sentenceEnd.FindAllStringIndex(s, -1), []int{len(s), len(s)}) {
+		sentence := strings.TrimSpace(s[start:loc[1]])
+		start = loc[1]
+		if sentence != "" && !cardIDRe.MatchString(sentence) {
+			kept = append(kept, sentence)
+		}
+	}
+	return strings.Join(kept, " ")
 }
 
 // cleanText убирает разметку, которую клиент показал бы звёздочками, и
