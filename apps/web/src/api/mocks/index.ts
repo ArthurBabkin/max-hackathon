@@ -24,12 +24,16 @@ import {
   nextId,
   primaryProfile,
   profileKey,
+  splitProfileId,
   role,
   state,
   universityById,
   viewer,
 } from './state'
 import * as build from './build'
+import { mockStages, progressOf } from './build'
+import { MarkError, apply, hasResults } from './progress'
+import type { CatalogUniversity, StageResult } from '@contract'
 import { daysLeft, isSoon, moscowDay } from '@/lib/deadline'
 
 const LATENCY_MS = 200
@@ -99,18 +103,44 @@ route('GET', '/recommendations', ({ query }) => {
     return true
   }
 
-  const items = wantsEmpty()
+  // Как на сервере: уже добавленное и предложенное прячется, их места
+  // занимают следующие; когда добавлено всё — state = all_tracked (C7).
+  const olympiadOf = (profileId: string) => splitProfileId(profileId)?.olympiadId
+  const tracked = new Set(state.tracker.map((t) => olympiadOf(t.profileId)))
+  const proposed = new Set(state.proposals.filter((p) => p.status === 'pending').map((p) => olympiadOf(p.profileId)))
+
+  const suitable = wantsEmpty()
     ? []
     : mine
         .filter((c) => c.kind !== 'other')
         .filter(matchesFilter)
-        // Сортировка по близости срока — как требует ТЗ §6.1 п. 5.
-        .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
+  const hiddenTracked = suitable.filter((c) => tracked.has(c.olympiad_id))
+  const hiddenProposed = suitable.filter((c) => !tracked.has(c.olympiad_id) && proposed.has(c.olympiad_id))
+  const visible = suitable.filter((c) => !tracked.has(c.olympiad_id) && !proposed.has(c.olympiad_id))
+  const vsosh = visible.filter((c) => c.kind === 'vsosh')
+  const perechen = visible.filter((c) => c.kind === 'perechen')
+  const items = [...vsosh, ...perechen.slice(0, 3)]
+    // Сортировка по близости срока — как требует ТЗ §6.1 п. 5.
+    .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
+  const state_ =
+    items.length > 0
+      ? 'ok'
+      : hiddenProposed.length > 0
+        ? 'all_proposed'
+        : hiddenTracked.length > 0
+          ? 'all_tracked'
+          : 'none_suitable'
 
   return {
     items,
-    outside: wantsEmpty() ? [] : mine.filter((c) => c.kind === 'other'),
+    more: perechen.slice(3),
+    outside: wantsEmpty()
+      ? []
+      : mine.filter((c) => c.kind === 'other' && !tracked.has(c.olympiad_id) && !proposed.has(c.olympiad_id)),
     note: 'Сначала ближайшие сроки и точное совпадение профиля',
+    tracked_count: hiddenTracked.length,
+    proposed_count: hiddenProposed.length,
+    state: state_,
   }
 })
 
@@ -123,13 +153,15 @@ route('GET', '/olympiads', ({ query }) => {
   const q = query.get('q')?.trim() ?? ''
   const subject = query.get('subject')
   const city = query.get('city')
+  const mine = query.get('mine') === 'true'
 
   const items = (wantsEmpty() ? [] : OLYMPIADS)
     .filter((o) => !q || matches(o.name, q) || matches(o.organizer, q))
     .filter((o) => !subject || o.profiles.some((p) => p.subject_code === subject))
     .filter((o) => !city || o.final_city === city)
-    .map(build.olympiadListItem)
+    .map((o) => build.olympiadListItem(o, mine))
     .filter((i): i is NonNullable<typeof i> => i !== null)
+    .filter((i) => !mine || i.my_benefits.length > 0)
 
   return { items }
 })
@@ -143,11 +175,25 @@ route('GET', '/olympiads/:id', ({ params }) => {
 route('GET', '/universities', ({ query }) => {
   const q = query.get('q')?.trim() ?? ''
   const city = query.get('city')
+  const direction = query.get('direction')
+  if (direction && !DIRECTIONS.some((d) => d.id === direction)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Нет такого направления.')
+  }
 
   const items = (wantsEmpty() ? [] : UNIVERSITIES)
     .filter((u) => !q || matches(u.name, q) || matches(u.short_name, q))
     .filter((u) => !city || u.city === city)
-    .map(build.universityListItem)
+    .map((u) => {
+      const item: CatalogUniversity = build.universityListItem(u)
+      if (!direction) return item
+      const match = build.directionMatch(u, direction)
+      return match ? { ...item, direction_match: match } : null
+    })
+    .filter((u): u is CatalogUniversity => u !== null)
+  if (direction) {
+    const rank = (u: CatalogUniversity) => (u.direction_match?.status === 'to_check' ? 1 : 0)
+    items.sort((a, b) => rank(a) - rank(b) || b.direction_match!.olympiads_count - a.direction_match!.olympiads_count)
+  }
 
   return { items }
 })
@@ -220,8 +266,35 @@ route('PUT', '/tracker/:id/registered', ({ params }) => {
 route('DELETE', '/tracker/:id/registered', ({ params }) => {
   const item = state.tracker.find((i) => i.id === params.id)
   if (!item) throw notFound()
+  if (hasResults(progressOf(item))) {
+    throw new ApiError(409, 'CONFLICT', 'На регистрации держатся итоги этапов — сначала снимите их')
+  }
   item.registered_at = null
   item.registered_by = null
+  return build.trackerItem(item)
+})
+
+route('PUT', '/tracker/:id/stages/:stage_id', ({ params, body }) => {
+  const item = state.tracker.find((i) => i.id === params.id)
+  const found = item && findProfile(item.profileId)
+  if (!item || !found) throw notFound()
+  const mark = body as { registered?: boolean; result?: StageResult | null }
+  try {
+    const next = apply(mockStages(found.olympiad), progressOf(item), decodeURIComponent(params.stage_id!), {
+      registered: Boolean(mark?.registered),
+      result: mark?.result ?? null,
+    }, Date.now())
+    if (next.registered !== Boolean(item.registered_at)) {
+      item.registered_at = next.registered ? new Date().toISOString() : null
+      item.registered_by = next.registered ? state.viewerId : null
+    }
+    item.marks = next.marks
+  } catch (e) {
+    if (!(e instanceof MarkError)) throw e
+    if (e.status === 404) throw notFound()
+    if (e.status === 400) throw new ApiError(400, 'BAD_REQUEST', 'Такой итог у этапа поставить нельзя')
+    throw new ApiError(409, 'CONFLICT', 'Отметка противоречит другим отметкам')
+  }
   return build.trackerItem(item)
 })
 
@@ -385,8 +458,10 @@ route('PATCH', '/profile', ({ body }) => {
   }
   if (Array.isArray(patch.direction_ids)) {
     const ids = patch.direction_ids as string[]
-    state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id))
+    state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id)).map(({ id, name }) => ({ id, name }))
     state.goal_status = state.directions.length > 0 ? 'known' : 'exploring'
+    // Снятое с цели уходит и из выбора в вузах — как в сторе.
+    for (const [uni, chosen] of Object.entries(state.chosen)) state.chosen[uni] = chosen.filter((id) => ids.includes(id))
   }
   if (Array.isArray(patch.places)) {
     const places = patch.places as { region_code: string; city?: string | null }[]
@@ -409,6 +484,30 @@ route('PUT', '/profile/universities', ({ body }) => {
     throw new ApiError(400, 'BAD_REQUEST', 'Не передан список вузов')
   }
   state.universities = ids
+  // Как на сервере: выбор направлений уходит вместе с вузом.
+  for (const id of Object.keys(state.chosen)) if (!ids.includes(id)) delete state.chosen[id]
+  return build.profile()
+})
+
+// Направления в вузе (F65): вуз — в мои, новые направления — в цель.
+route('PUT', '/profile/universities/:id/directions', ({ params, body }) => {
+  const u = UNIVERSITIES.find((x) => x.id === params.id)
+  if (!u) throw new ApiError(404, 'NOT_FOUND', 'Вуз не найден.')
+  const ids = (body as { direction_ids?: string[] })?.direction_ids
+  if (!Array.isArray(ids)) throw new ApiError(400, 'BAD_REQUEST', 'Не передан список направлений.')
+  if (ids.some((id) => !u.offered.some((o) => o.id === id))) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Такого направления в вузе нет.')
+  }
+  if (!state.universities.includes(u.id)) state.universities = [...state.universities, u.id]
+  state.chosen[u.id] = [...new Set(ids)]
+  const added = ids.filter((id) => !state.directions.some((d) => d.id === id))
+  if (added.length > 0) {
+    state.directions = [
+      ...state.directions,
+      ...added.flatMap((id) => DIRECTIONS.filter((d) => d.id === id)).map(({ id, name }) => ({ id, name })),
+    ]
+    state.goal_status = 'known'
+  }
   return build.profile()
 })
 

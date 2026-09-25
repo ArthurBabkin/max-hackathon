@@ -1,5 +1,6 @@
 """Инварианты генератора сида. Запуск: make test-db или
 python3 -m unittest discover -s datasets/parser -p 'test_*.py'."""
+import re
 import unittest
 from collections import Counter
 
@@ -264,6 +265,197 @@ class BuildTest(unittest.TestCase):
     def test_committed_sql_is_up_to_date(self):
         self.assertEqual(bs.OUT.read_text(encoding="utf-8"), bs.render(self.seed),
                          "0003_seed_content.sql устарел — выполните make seed")
+
+
+class ProgramGrantTest(unittest.TestCase):
+    """Что программа даёт победителю и призёру: 2 — БВИ, 1 — 100 баллов, 0 — ничего."""
+
+    def test_grant_per_diploma_status(self):
+        self.assertEqual(bs.program_grant([rec("pobeditel", "БВИ"), rec("prizyor", "БВИ")]), (2, 2))
+        self.assertEqual(bs.program_grant([rec("pobeditel", "БВИ"), rec("prizyor", "100_ballov")]), (2, 1))
+        self.assertEqual(bs.program_grant([rec("pobeditel", "100_ballov")]), (1, 0))
+        self.assertEqual(bs.program_grant([]), (0, 0))
+
+    def test_winner_gets_at_least_what_prize_winner_gets(self):
+        # Как в aggregate_key: неполная выгрузка не понижает победителя.
+        self.assertEqual(bs.program_grant([rec("prizyor", "БВИ")]), (2, 2))
+
+
+class ProgramLabelTest(unittest.TestCase):
+    def test_title_drops_unbalanced_paren_and_extra_spaces(self):
+        self.assertEqual(bs.program_title("Менеджмент — Менеджмент в культуре)"),
+                         "Менеджмент — Менеджмент в культуре")
+        self.assertEqual(bs.program_title("Управление инновациями (сетевая программа МШУ «СКОЛКОВО» )"),
+                         "Управление инновациями (сетевая программа МШУ «СКОЛКОВО»)")
+        self.assertEqual(bs.program_title("Биотехнология (ФБМФ)"), "Биотехнология (ФБМФ)")
+
+    def test_same_name_in_pair_is_told_apart_by_faculty(self):
+        labels = bs.program_labels([
+            {"program_id": "a", "program_name": "Физика", "faculty": "НИУ ВШЭ — Москва"},
+            {"program_id": "b", "program_name": "Физика", "faculty": "НИУ ВШЭ — Санкт-Петербург"},
+            {"program_id": "c", "program_name": "Прикладная физика", "faculty": "Физический факультет"},
+        ])
+        self.assertEqual(labels, {"a": ("Физика", "НИУ ВШЭ — Москва"),
+                                  "b": ("Физика", "НИУ ВШЭ — Санкт-Петербург"),
+                                  "c": ("Прикладная физика", None)})
+
+    def test_faculty_made_of_codes_is_not_a_label(self):
+        # У КФУ в поле факультета — перечень укрупнённых групп.
+        labels = bs.program_labels([
+            {"program_id": "a", "program_name": "ПМИ", "faculty": "01.02.02 Прикладная математика"},
+            {"program_id": "b", "program_name": "ПМИ", "faculty": "09.00.00 Информатика"},
+        ])
+        self.assertEqual(labels, {"a": ("ПМИ", None), "b": ("ПМИ", None)})
+
+
+class VariesNoteTest(unittest.TestCase):
+    """Пояснение «Зависит от программы» у льготы по направлению."""
+
+    def test_same_grant_everywhere_is_not_varies(self):
+        self.assertIsNone(bs.varies_note([(("A", None), (2, 2)), (("B", None), (2, 2))]))
+
+    def test_program_without_benefit(self):
+        self.assertEqual(bs.varies_note([(("A", None), (2, 2)), (("B", None), (0, 0))]),
+                         "Зависит от программы: на «B» льготы нет")
+
+    def test_few_programs_with_benefit_are_named_instead(self):
+        note = bs.varies_note([(("A", None), (2, 2)), (("B", None), (0, 0)),
+                               (("C", None), (0, 0))])
+        self.assertEqual(note, "Зависит от программы: льгота только на «A»")
+
+    def test_other_kind_of_benefit(self):
+        self.assertEqual(bs.varies_note([(("A", None), (2, 2)), (("B", None), (1, 1))]),
+                         "Зависит от программы: на «B» — 100 баллов")
+
+    def test_all_programs_listed_when_none_matches_headline(self):
+        # Сводная льгота — БВИ победителю и 100 баллов призёру — не совпадает
+        # ни с одной программой.
+        note = bs.varies_note([(("A", None), (2, 0)), (("B", None), (1, 1)), (("C", None), (0, 0))])
+        self.assertEqual(note, "Зависит от программы: на «A» — БВИ только победителю, "
+                               "на «B» — 100 баллов, на «C» льготы нет")
+
+    def test_prize_winner_difference_counts(self):
+        self.assertEqual(bs.varies_note([(("A", None), (1, 1)), (("B", None), (1, 0))]),
+                         "Зависит от программы: на «B» — 100 баллов только победителю")
+
+    def test_long_lists_are_cut(self):
+        grants = [(("A", None), (2, 2)), (("B", None), (2, 2)), (("C", None), (2, 2)),
+                  (("D", None), (2, 2)), (("E", None), (2, 2)), (("F", None), (0, 0)),
+                  (("G", None), (0, 0)), (("H", None), (0, 0)), (("I", None), (0, 0))]
+        self.assertEqual(bs.varies_note(grants),
+                         "Зависит от программы: на «F», «G» и ещё 2 программах льготы нет")
+        self.assertEqual(bs.varies_note(grants[:3] + grants[5:]),
+                         "Зависит от программы: льгота только на «A», «B» и «C»")
+
+    def test_faculty_and_nested_quotes(self):
+        note = bs.varies_note([
+            (("Физика", "НИУ ВШЭ — Москва"), (2, 2)),
+            (("Физика (с дополнительной квалификацией «Программист»)", "НИУ ВШЭ — Пермь"), (0, 0)),
+        ])
+        self.assertEqual(note, "Зависит от программы: на «Физика (с дополнительной "
+                               "квалификацией „Программист“)» (НИУ ВШЭ — Пермь) льготы нет")
+
+
+class UniversityDirectionsTest(unittest.TestCase):
+    """Сид 0021 по настоящим датасетам: направления вузов и льготы по ним."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.seed = bs.build()
+        cls.ud = bs.build_university_directions(cls.seed)
+        cls.dirs = {d["id"]: d for d in cls.ud.directions}
+        cls.pairs = {(p["university_id"], p["direction_id"]): p for p in cls.ud.pairs}
+
+    def test_every_code_of_pairs_is_a_direction(self):
+        self.assertEqual(len(self.ud.directions), 72)
+        self.assertEqual({p["direction_id"] for p in self.ud.pairs}, set(self.dirs))
+        self.assertEqual(sum(d["onboarding"] for d in self.ud.directions), 16)
+
+    def test_onboarding_directions_keep_seed_name_and_subjects(self):
+        for d in self.seed.directions:
+            got = self.dirs[d["id"]]
+            self.assertTrue(got["onboarding"], d["id"])
+            self.assertEqual((got["name"], got["subject_codes"]), (d["name"], d["subject_codes"]))
+        self.assertEqual(self.dirs["napr-09-03-04"]["groups"], ["Биомед", "ИТ", "Экономика"])
+
+    def test_new_directions_get_group_subjects(self):
+        d = self.dirs["napr-01-03-01"]
+        self.assertEqual((d["name"], d["groups"], d["subject_codes"], d["onboarding"]),
+                         ("Математика", ["ИТ", "Экономика"], ["inf", "math", "econ", "soc"], False))
+        innopolis = self.dirs["napr-09-00-00"]
+        self.assertEqual((innopolis["name"], innopolis["groups"]),
+                         ("Информатика и вычислительная техника", ["ИТ"]))
+        codes = {c for c, _ in bs.SUBJECTS}
+        for d in self.ud.directions:
+            self.assertTrue(d["groups"], d["id"])
+            self.assertEqual(d["groups"], sorted(d["groups"]), d["id"])
+            self.assertTrue(set(d["subject_codes"]) <= codes, d["id"])
+
+    def test_pairs_and_statuses(self):
+        self.assertEqual(len(self.ud.pairs), 174)
+        to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
+        self.assertEqual(to_check, [("nsu", "napr-01-03-01"), ("nsu", "napr-01-03-02"),
+                                    ("nsu", "napr-01-03-03"), ("spbu", "napr-06-03-01")])
+
+    def test_program_in_two_groups_is_counted_once(self):
+        # В A программа повторяется на каждую профильную группу.
+        kfu = self.pairs[("kfu", "napr-38-03-05")]
+        self.assertEqual((kfu["programs"], kfu["budget_places"], kfu["program_names"]),
+                         (2, 23, ["Бизнес-информатика", "Цифровое предприятие"]))
+
+    def test_programs_to_check_count_but_places_unknown_stay_null(self):
+        hse = self.pairs[("hse", "napr-38-03-01")]
+        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 11, None))
+        self.assertIn("Экономика и бизнес", hse["program_names"])
+
+    def test_branches_are_named_by_faculty(self):
+        msu = self.pairs[("msu", "napr-01-03-02")]
+        self.assertEqual((msu["programs"], msu["budget_places"]), (4, 367))
+        self.assertIn("Прикладная математика и информатика (Филиал МГУ в г. Грозном)",
+                      msu["program_names"])
+
+    def test_direction_benefits_refine_university_benefits(self):
+        self.assertEqual(len(self.ud.benefits), 9466)
+        keys = {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
+                for b in self.ud.benefits}
+        self.assertEqual(keys, {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
+                                for b in self.seed.benefits})
+        for b in self.ud.benefits:
+            self.assertIn(b["benefit"], ("bvi", "bvi_winners", "score100"))
+            self.assertIn((b["university_id"], b["direction_id"]), self.pairs)
+            if b["source_id"]:
+                self.assertIn(b["source_id"], self.ud.sources)
+
+    def test_varies_rows_explain_themselves(self):
+        varies = [b for b in self.ud.benefits if b["varies"]]
+        self.assertEqual(len(varies), 1146)
+        for b in self.ud.benefits:
+            self.assertEqual(b["varies"], (b["note"] or "").startswith("Зависит от программы: "),
+                             (b["olympiad_profile_id"], b["university_id"], b["direction_id"]))
+        # ВШЭ, 01.03.01: «Высшая проба» по физике — 100 баллов победителю
+        # только на «Математике».
+        b = next(b for b in self.ud.benefits if (b["olympiad_profile_id"], b["university_id"],
+                                                  b["direction_id"]) ==
+                 ("p669-14-fizika", "hse", "napr-01-03-01"))
+        self.assertEqual(b["benefit"], "score100")
+        self.assertTrue(b["note"].startswith(
+            "Зависит от программы: на «Фундаментальная и прикладная математика» льготы нет. "
+            "100 баллов только победителю"), b["note"])
+
+    def test_down_removes_only_sources_of_its_own(self):
+        own = {k for k in self.ud.sources if k not in self.seed.sources}
+        self.assertTrue(own)
+        down = bs.render_university_directions(self.ud).split("-- +goose Down")[1]
+        self.assertEqual(set(re.findall(r"src-[0-9a-f]{12}", down)), own)
+
+    def test_render_is_deterministic(self):
+        self.assertEqual(bs.render_university_directions(self.ud),
+                         bs.render_university_directions(bs.build_university_directions(bs.build())))
+
+    def test_committed_sql_is_up_to_date(self):
+        self.assertEqual(bs.UD_OUT.read_text(encoding="utf-8"),
+                         bs.render_university_directions(self.ud),
+                         "0021_university_directions_content.sql устарел — выполните make seed")
 
 
 class SqlLiteralTest(unittest.TestCase):

@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
 // Source — источник факта. VerifiedAt пуст — показывать без метки «Факт».
@@ -130,6 +132,20 @@ type BenefitRow struct {
 	Note            *string
 	AdmissionYear   int
 	Source          *Source
+	// Цели ученика (TargetBenefits): на каких направлениях вуза льгота —
+	// chosen (выбрал сам), goal (цель), university (вуз целиком).
+	Basis          string
+	DirectionNames []string
+	Varies         bool // льгота разная у программ направления
+	Unverified     bool // льготы на направления цели в вузе ещё уточняются
+	// OtherDirections — более слабые льготы на остальных направлениях цели.
+	OtherDirections []DirectionBenefit
+}
+
+// DirectionBenefit — льгота и направления вуза, на которые она даётся.
+type DirectionBenefit struct {
+	Benefit string
+	Names   []string
 }
 
 // Benefits — по одной строке на пару (профиль, вуз): последний год приёма и
@@ -165,38 +181,72 @@ func (s *Store) Benefits(ctx context.Context, profileIDs, universityIDs []string
 }
 
 // TrackerState — что из профилей уже в трекере (и отмечено ли) и по чему
-// ждёт ответа предложение: для кнопок карточки.
+// ждёт ответа предложение: для кнопок карточки. TrackedOlympiads и
+// PendingOlympiads — то же по олимпиадам: «Подбор» прячет их целиком.
 type TrackerState struct {
-	InTracker  map[string]bool // профиль → отмечена регистрация
-	Pending    map[string]bool
-	Registered map[string]bool
+	InTracker        map[string]bool // профиль → отмечена регистрация
+	Pending          map[string]bool
+	Registered       map[string]bool
+	TrackedOlympiads map[string]bool
+	PendingOlympiads map[string]bool
+	// Progress — отметки этапов по профилям в трекере.
+	Progress map[string]stages.Progress
 }
 
 func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerState, error) {
-	st := TrackerState{InTracker: map[string]bool{}, Pending: map[string]bool{}, Registered: map[string]bool{}}
+	st := TrackerState{InTracker: map[string]bool{}, Pending: map[string]bool{}, Registered: map[string]bool{},
+		TrackedOlympiads: map[string]bool{}, PendingOlympiads: map[string]bool{}, Progress: map[string]stages.Progress{}}
 	rows, err := s.db.Query(ctx, `
-		SELECT olympiad_profile_id, registered_at IS NOT NULL, false FROM tracker_items WHERE trajectory_id = $1
+		SELECT ti.olympiad_profile_id, p.olympiad_id, ti.registered_at IS NOT NULL, false
+		FROM tracker_items ti JOIN olympiad_profiles p ON p.id = ti.olympiad_profile_id
+		WHERE ti.trajectory_id = $1
 		UNION ALL
-		SELECT olympiad_profile_id, false, true FROM proposals WHERE trajectory_id = $1 AND status = 'pending'`,
+		SELECT pr.olympiad_profile_id, p.olympiad_id, false, true
+		FROM proposals pr JOIN olympiad_profiles p ON p.id = pr.olympiad_profile_id
+		WHERE pr.trajectory_id = $1 AND pr.status = 'pending'`,
 		trajectoryID)
 	if err != nil {
 		return st, wrap(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var pid string
+		var pid, oid string
 		var registered, pending bool
-		if err := rows.Scan(&pid, &registered, &pending); err != nil {
+		if err := rows.Scan(&pid, &oid, &registered, &pending); err != nil {
 			return st, wrap(err)
 		}
 		if pending {
 			st.Pending[pid] = true
+			st.PendingOlympiads[oid] = true
 			continue
 		}
 		st.InTracker[pid] = true
 		st.Registered[pid] = registered
+		st.TrackedOlympiads[oid] = true
+		st.Progress[pid] = stages.Progress{Registered: registered, Marks: map[string]stages.Mark{}}
 	}
-	return st, wrap(rows.Err())
+	if err := rows.Err(); err != nil {
+		return st, wrap(err)
+	}
+	marks, err := s.db.Query(ctx, `
+		SELECT ti.olympiad_profile_id, r.stage_id, r.registered, COALESCE(r.result, '')
+		FROM tracker_stage_results r JOIN tracker_items ti ON ti.id = r.tracker_item_id
+		WHERE ti.trajectory_id = $1`, trajectoryID)
+	if err != nil {
+		return st, wrap(err)
+	}
+	defer marks.Close()
+	for marks.Next() {
+		var pid, stage string
+		var m stages.Mark
+		if err := marks.Scan(&pid, &stage, &m.Registered, &m.Result); err != nil {
+			return st, wrap(err)
+		}
+		if p, ok := st.Progress[pid]; ok {
+			p.Marks[stage] = m
+		}
+	}
+	return st, wrap(marks.Err())
 }
 
 // Universities — каталог вузов с отметкой «мой».

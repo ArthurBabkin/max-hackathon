@@ -2,7 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Profile, Tracker, TrackerItem } from '@contract'
+import type {
+  AiChat,
+  AiExchange,
+  AiMessage,
+  CalendarLink,
+  CatalogUniversity,
+  Home,
+  OlympiadDetail,
+  OlympiadListItem,
+  Profile,
+  Tracker,
+  TrackerItem,
+  UniversityDetail,
+} from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -25,6 +38,9 @@ beforeEach(() => {
   ]
   state.aiChats = []
   state.ai = []
+  state.universities = ['inno', 'kfu', 'hse']
+  state.directions = [{ id: 'dir-se', name: 'Программная инженерия' }]
+  state.chosen = {}
 })
 
 describe('диспетчер маршрутов', () => {
@@ -115,6 +131,74 @@ describe('трекер и предложения', () => {
   })
 })
 
+describe('этапы в трекере (F63)', () => {
+  const put = (id: string, stage: string, body: unknown) =>
+    handleMock('PUT', `/tracker/${id}/stages/${stage}`, body) as Promise<TrackerItem>
+  const stage = (item: TrackerItem, id: string) => item.stages.find((s) => s.id === id)!
+  // ВсОШ: школьный этап уже прошёл, отметка о нём ждёт итога.
+  const vsosh = () =>
+    state.tracker.push({
+      id: 'tr-2',
+      profileId: 'vsosh-inf:inf',
+      added_by: 'mem-artem',
+      created_at: '',
+      registered_at: '2026-09-01T00:00:00Z',
+      registered_by: 'mem-artem',
+    })
+
+  it('до регистрации — «нужно зарегистрироваться», итогов у регистрации нет', async () => {
+    const { items } = (await handleMock('GET', '/tracker')) as Tracker
+    const hse = items[0]!
+    expect(hse.status).toBe('open')
+    expect(hse.action).toEqual({ type: 'register', stage_id: 'hse-registration-0' })
+    expect(hse.stages.map((s) => s.results)).toEqual([[], ['passed', 'failed'], ['winner', 'prizer', 'participant']])
+    expect(stage(hse, 'hse-qualifying-1').results_allowed).toEqual([])
+  })
+
+  it('регистрация на этап — участвует, отборочный впереди', async () => {
+    const item = await put('tr-1', 'hse-registration-0', { registered: true, result: null })
+    expect(item.status).toBe('active')
+    expect(item.registered_at).not.toBeNull()
+    expect(stage(item, 'hse-registration-0').registered).toBe(true)
+    expect(stage(item, 'hse-qualifying-1').state).toBe('current')
+  })
+
+  it('итог этапа, который ещё не начался, — 400', async () => {
+    await expect(put('tr-1', 'hse-qualifying-1', { registered: false, result: 'passed' })).rejects.toMatchObject({
+      status: 400,
+    })
+  })
+
+  it('прошедший этап спрашивает итог; «не прошёл» закрывает олимпиаду, снятие возвращает', async () => {
+    vsosh()
+    const { items } = (await handleMock('GET', '/tracker')) as Tracker
+    const asking = items.find((i) => i.id === 'tr-2')!
+    expect(asking.action).toEqual({ type: 'result', stage_id: 'vsosh-inf-school-0' })
+    expect(stage(asking, 'vsosh-inf-school-0').asking).toBe(true)
+
+    const failed = await put('tr-2', 'vsosh-inf-school-0', { registered: true, result: 'failed' })
+    expect(failed.status).toBe('finished')
+    expect(failed.outcome).toBe('failed')
+    expect(failed.action).toBeNull()
+    expect(stage(failed, 'vsosh-inf-municipal-1').state).toBe('locked')
+    // Этап после закрывающего итога не отметить: он серый.
+    await expect(put('tr-2', 'vsosh-inf-municipal-1', { registered: true, result: null })).rejects.toMatchObject({
+      status: 409,
+    })
+    await expect(handleMock('DELETE', '/tracker/tr-2/registered')).rejects.toMatchObject({ status: 409 })
+
+    const back = await put('tr-2', 'vsosh-inf-school-0', { registered: true, result: null })
+    expect(back.status).toBe('active')
+    expect(back.outcome).toBeNull()
+  })
+
+  it('этап чужой олимпиады — 404', async () => {
+    await expect(put('tr-1', 'inno-registration-0', { registered: true, result: null })).rejects.toMatchObject({
+      status: 404,
+    })
+  })
+})
+
 describe('выгрузка календаря', () => {
   afterEach(() => vi.restoreAllMocks())
 
@@ -157,8 +241,108 @@ describe('карточка олимпиады', () => {
       detail.benefits.map(
         (r) => `${r.university_nick}: ${r.winner?.label} / ${r.prizer?.label} / ${r.ege_min}–${r.ege_max}`,
       ),
-    ).toEqual(['ВШЭ: БВИ / БВИ / 75–90', 'Иннополис: БВИ / БВИ / 75–null', 'КФУ: 100 баллов / 100 баллов / 75–null'])
-    expect(detail.benefits.every((r) => r.conditions === undefined)).toBe(true)
+    ).toEqual([
+      'Иннополис: БВИ / БВИ / 75–null',
+      'ВШЭ: 100 баллов / 100 баллов / 75–90',
+      'КФУ: 100 баллов / 100 баллов / 75–null',
+    ])
+    // Своё у вуза — только то, что льгота ВШЭ на ПИ не на всех программах.
+    expect(detail.benefits.map((r) => r.conditions)).toEqual([
+      undefined,
+      ['Зависит от программы: на части программ направления льготы нет'],
+      undefined,
+    ])
+  })
+
+  // Льгота в моих вузах — на мои направления (F65): ВШЭ целиком даёт БВИ,
+  // а на Программную инженерию — 100 баллов, и это зависит от программы.
+  it('льгота в моём вузе — на направления цели, выбор в вузе важнее цели', async () => {
+    const row = async () =>
+      ((await handleMock('GET', '/olympiads/hse:inf')) as OlympiadDetail).benefits.find((r) => r.university_id === 'hse')!
+
+    expect(await row()).toMatchObject({ benefit: 'score100', directions: ['Программная инженерия'], varies: true })
+
+    const profile = (await handleMock('PUT', '/profile/universities/hse/directions', {
+      direction_ids: ['dir-se', 'dir-ami'],
+    })) as Profile
+    expect(profile.directions.map((d) => d.id)).toEqual(['dir-se', 'dir-ami'])
+    expect(profile.universities.find((u) => u.id === 'hse')).toMatchObject({
+      target_basis: 'chosen',
+      chosen_directions: [
+        { id: 'dir-se', name: 'Программная инженерия' },
+        { id: 'dir-ami', name: 'Прикладная математика и информатика' },
+      ],
+    })
+    expect(await row()).toMatchObject({
+      benefit: 'bvi',
+      directions: ['Прикладная математика и информатика'],
+      other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+    })
+
+    const uni = (await handleMock('GET', '/universities/hse')) as UniversityDetail
+    expect(uni.offered_directions.slice(0, 2).map((d) => [d.id, d.is_mine])).toEqual([
+      ['dir-ami', true],
+      ['dir-se', true],
+    ])
+    // Технокубок на ПИ не учитывается, на ПМИ — 100 баллов; всего 4 из 8 направлений.
+    expect(uni.olympiads.find((o) => o.olympiad_id === 'tk')).toMatchObject({
+      my_benefit: 'score100',
+      my_directions: ['Прикладная математика и информатика'],
+      directions_count: 4,
+      directions_total: 8,
+    })
+
+    await expect(
+      handleMock('PUT', '/profile/universities/inno/directions', { direction_ids: ['dir-bio'] }),
+    ).rejects.toMatchObject({ status: 400 })
+
+    // Сняли ПМИ с цели в настройках — ушло и из выбора в ВШЭ.
+    const after = (await handleMock('PATCH', '/profile', { direction_ids: ['dir-se'] })) as Profile
+    expect(after.universities.find((u) => u.id === 'hse')?.chosen_directions).toEqual([
+      { id: 'dir-se', name: 'Программная инженерия' },
+    ])
+  })
+
+  // «Ведут в мои вузы и на мои направления» (F66): только олимпиады с
+  // сильной льготой в моих вузах на мои направления, льгота — в строке.
+  it('каталог «мои» — олимпиады с льготой на мои направления', async () => {
+    const list = async (query: string) =>
+      ((await handleMock('GET', `/olympiads${query}`)) as { items: OlympiadListItem[] }).items
+
+    expect((await list('')).every((o) => o.my_benefits.length === 0)).toBe(true)
+    expect((await list('?mine=true')).find((o) => o.olympiad_id === 'hse')?.my_benefits).toEqual([
+      { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'], partial_universities: [] },
+      // На Программную инженерию в ВШЭ — не на все программы.
+      { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: ['ВШЭ'] },
+    ])
+
+    // Только ВШЭ: Технокубок даёт там льготу, но не на Программную инженерию.
+    state.universities = ['hse']
+    const hseOnly = await list('?mine=true')
+    expect(hseOnly.map((o) => o.olympiad_id)).toContain('hse')
+    expect(hseOnly.map((o) => o.olympiad_id)).not.toContain('tk')
+
+    state.universities = []
+    expect(await list('?mine=true')).toEqual([])
+  })
+
+  // Каталог вузов по направлению (F67): с укрупнёнными группами, сначала
+  // где больше олимпиад, непроверенные льготы — в конце.
+  it('каталог вузов по направлению', async () => {
+    const list = async (query: string) =>
+      ((await handleMock('GET', `/universities${query}`)) as { items: CatalogUniversity[] }).items
+
+    const se = await list('?direction=dir-se')
+    expect(se.map((u) => u.id)).not.toContain('mipt')
+    expect(se.find((u) => u.id === 'inno')?.direction_match).toMatchObject({ direction_ids: ['dir-it'], status: 'offered' })
+    const counts = se.map((u) => u.direction_match!.olympiads_count)
+    expect(counts).toEqual([...counts].sort((a, b) => b - a))
+
+    const is = await list('?direction=dir-is')
+    expect(is.at(-1)).toMatchObject({ id: 'kfu', direction_match: { status: 'to_check', olympiads_count: 0 } })
+
+    expect((await list('')).every((u) => u.direction_match === undefined)).toBe(true)
+    await expect(handleMock('GET', '/universities?direction=нет')).rejects.toMatchObject({ status: 400 })
   })
 
   it('БВИ только победителю — призёр получает 100 баллов, а не БВИ', async () => {

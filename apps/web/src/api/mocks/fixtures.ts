@@ -108,11 +108,13 @@ export const OLYMPIADS: DemoOlympiad[] = [
     final_city: null,
     format: 'Первый этап в школе',
     is_online: false,
-    deadlineIn: 10,
+    // Школьный этап уже прошёл — в трекере он ждёт итога, а срок
+    // олимпиады — муниципальный этап.
+    deadlineIn: 45,
     profiles: [{ subject_code: 'inf', level: null }],
     stages: [
-      { kind: 'school', title: 'Школьный этап', subtitle: 'в школе', offset: 10, is_online: false },
-      { kind: 'municipal', title: 'Муниципальный этап', subtitle: 'ноябрь — декабрь', offset: null, is_online: false },
+      { kind: 'school', title: 'Школьный этап', subtitle: 'в школе', offset: -4, is_online: false },
+      { kind: 'municipal', title: 'Муниципальный этап', subtitle: 'ноябрь — декабрь', offset: 45, is_online: false },
       { kind: 'regional', title: 'Региональный этап', subtitle: 'январь — февраль', offset: null, is_online: false },
       { kind: 'final', title: 'Заключительный этап', subtitle: 'март — апрель', offset: null, is_online: false },
     ],
@@ -306,7 +308,8 @@ export interface DemoUniversity {
   name: string
   city: string
   color: string
-  directions: string[]
+  /** Направления вуза (F65): id из DIRECTIONS. */
+  offered: DemoOffered[]
   ege_note: string
   rules_url: string
   rules_verified_at: string
@@ -314,6 +317,22 @@ export interface DemoUniversity {
   benefits: Record<string, BenefitKind>
   /** Чем правила по олимпиаде отличаются от общих (F19): id олимпиады → оговорки. */
   rules?: Record<string, DemoRule>
+  /**
+   * Льгота на отдельных направлениях, если она не такая, как у вуза целиком:
+   * id олимпиады → id направления → льгота (null — на направлении льготы нет).
+   * На остальных направлениях (кроме to_check) — льгота вуза.
+   */
+  byDirection?: Record<string, Record<string, BenefitKind | null>>
+  /** Где льгота зависит от программы: id олимпиады → id направлений. */
+  varies?: Record<string, string[]>
+}
+
+export interface DemoOffered {
+  id: string
+  /** to_check — льготы на направлении ещё уточняются. */
+  status?: 'to_check'
+  programs: number
+  budget_places: number | null
 }
 
 /** Оговорки вуза: что получит призёр, разброс порога, своё — строкой под вузом. */
@@ -331,7 +350,8 @@ export const UNIVERSITIES: DemoUniversity[] = [
     name: 'Университет Иннополис',
     city: 'Иннополис',
     color: '#1A6DFF',
-    directions: ['Программная инженерия', 'Искусственный интеллект', 'Кибербезопасность'],
+    // Иннополис даёт укрупнённую группу 09.00.00 — она покрывает цель 09.03.04.
+    offered: [{ id: 'dir-it', programs: 6, budget_places: 250 }],
     ege_note: 'от 75 баллов по профильному предмету и от 60 по двум другим',
     rules_url: 'https://innopolis.university/',
     rules_verified_at: '2026-09-15',
@@ -345,7 +365,13 @@ export const UNIVERSITIES: DemoUniversity[] = [
     name: 'Казанский федеральный университет',
     city: 'Казань',
     color: '#0C8F62',
-    directions: ['Программная инженерия', 'Прикладная информатика', 'Математика'],
+    offered: [
+      { id: 'dir-se', programs: 2, budget_places: 75 },
+      { id: 'dir-ivt', programs: 3, budget_places: 120 },
+      { id: 'dir-pi', programs: 2, budget_places: 50 },
+      { id: 'dir-math', programs: 1, budget_places: 60 },
+      { id: 'dir-is', status: 'to_check', programs: 1, budget_places: 25 },
+    ],
     ege_note: 'от 75 баллов по профильному предмету',
     rules_url: 'https://kpfu.ru/',
     rules_verified_at: '2026-09-15',
@@ -358,12 +384,29 @@ export const UNIVERSITIES: DemoUniversity[] = [
     name: 'НИУ ВШЭ',
     city: 'Москва',
     color: '#6B2BFF',
-    directions: ['Программная инженерия', 'Прикладная математика и информатика', 'Компьютерные науки'],
+    offered: [
+      { id: 'dir-se', programs: 3, budget_places: 90 },
+      { id: 'dir-ami', programs: 2, budget_places: 140 },
+      { id: 'dir-ivt', programs: 2, budget_places: 80 },
+      { id: 'dir-is', programs: 1, budget_places: 40 },
+      { id: 'dir-math', programs: 1, budget_places: 70 },
+      { id: 'dir-econ', programs: 2, budget_places: 160 },
+      { id: 'dir-bi', programs: 2, budget_places: 60 },
+      { id: 'dir-mgmt', programs: 3, budget_places: 50 },
+    ],
     ege_note: 'от 75 до 80 баллов по профильному предмету',
     rules_url: 'https://www.hse.ru/',
     rules_verified_at: '2026-09-15',
     benefits: { 'vsosh-inf': 'bvi', hse: 'bvi', lomo: 'bvi', tk: 'score100' },
     rules: { hse: { egeMax: 90 } },
+    // На Программную инженерию «Высшая проба» даёт 100 баллов, а не БВИ, а
+    // Технокубок её не учитывает — демо льготы по направлениям (F65).
+    byDirection: {
+      hse: { 'dir-se': 'score100', 'dir-mgmt': null },
+      tk: { 'dir-se': null, 'dir-econ': null, 'dir-mgmt': null, 'dir-bi': null },
+      lomo: { 'dir-econ': 'score100', 'dir-mgmt': null },
+    },
+    varies: { hse: ['dir-se'] },
   },
   {
     id: 'itmo',
@@ -372,7 +415,12 @@ export const UNIVERSITIES: DemoUniversity[] = [
     name: 'Университет ИТМО',
     city: 'Санкт-Петербург',
     color: '#E92E78',
-    directions: ['Программная инженерия', 'Информатика и вычислительная техника'],
+    offered: [
+      { id: 'dir-se', programs: 4, budget_places: 200 },
+      { id: 'dir-ivt', programs: 5, budget_places: 260 },
+      { id: 'dir-is', programs: 2, budget_places: 90 },
+      { id: 'dir-infosys', programs: 3, budget_places: 150 },
+    ],
     ege_note: 'от 75 баллов по профильному предмету',
     rules_url: 'https://itmo.ru/',
     rules_verified_at: '2026-09-15',
@@ -385,7 +433,11 @@ export const UNIVERSITIES: DemoUniversity[] = [
     name: 'МФТИ',
     city: 'Долгопрудный',
     color: '#D48806',
-    directions: ['Прикладная математика и информатика', 'Информатика и вычислительная техника'],
+    offered: [
+      { id: 'dir-ami', programs: 4, budget_places: 300 },
+      { id: 'dir-ivt', programs: 2, budget_places: 120 },
+      { id: 'dir-phys', programs: 3, budget_places: 250 },
+    ],
     ege_note: 'от 75 баллов по профильному предмету',
     rules_url: 'https://mipt.ru/',
     rules_verified_at: '2026-09-15',
@@ -399,10 +451,30 @@ export const DEFAULT_EGE_MIN = 75
 
 export { dayStart }
 
-/** Цели для правки профиля; id «dir-se» — у демо-траектории. */
-export const DIRECTIONS = [
-  { id: 'dir-se', name: 'Программная инженерия' },
-  { id: 'dir-ai', name: 'Искусственный интеллект' },
-  { id: 'dir-math', name: 'Математика' },
-  { id: 'dir-phys', name: 'Физика' },
+export interface DemoDirection {
+  id: string
+  name: string
+  code: string
+  groups: string[]
+  /** Основное — чипом в профиле, как в онбординге бота. */
+  popular: boolean
+}
+
+/** Направления для цели и вузов; id «dir-se» — у демо-траектории. */
+export const DIRECTIONS: DemoDirection[] = [
+  { id: 'dir-ami', name: 'Прикладная математика и информатика', code: '01.03.02', groups: ['ИТ'], popular: true },
+  { id: 'dir-phys', name: 'Физика', code: '03.03.02', groups: ['Физика'], popular: true },
+  { id: 'dir-bio', name: 'Биология', code: '06.03.01', groups: ['Биомед'], popular: true },
+  { id: 'dir-ivt', name: 'Информатика и вычислительная техника', code: '09.03.01', groups: ['ИТ'], popular: true },
+  { id: 'dir-se', name: 'Программная инженерия', code: '09.03.04', groups: ['ИТ'], popular: true },
+  { id: 'dir-is', name: 'Информационная безопасность', code: '10.03.01', groups: ['ИТ'], popular: true },
+  { id: 'dir-econ', name: 'Экономика', code: '38.03.01', groups: ['Экономика'], popular: true },
+  { id: 'dir-mgmt', name: 'Менеджмент', code: '38.03.02', groups: ['Экономика'], popular: true },
+  { id: 'dir-bi', name: 'Бизнес-информатика', code: '38.03.05', groups: ['ИТ', 'Экономика'], popular: true },
+  { id: 'dir-math', name: 'Математика', code: '01.03.01', groups: [], popular: false },
+  { id: 'dir-it', name: 'Информатика и вычислительная техника', code: '09.00.00', groups: ['ИТ'], popular: false },
+  { id: 'dir-infosys', name: 'Информационные системы и технологии', code: '09.03.02', groups: ['ИТ'], popular: false },
+  { id: 'dir-pi', name: 'Прикладная информатика', code: '09.03.03', groups: ['ИТ', 'Экономика'], popular: false },
+  { id: 'dir-chem', name: 'Химия', code: '04.03.01', groups: [], popular: false },
+  { id: 'dir-med', name: 'Лечебное дело', code: '31.05.01', groups: ['Биомед'], popular: true },
 ]

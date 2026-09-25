@@ -232,4 +232,10 @@ func TestDirectionsIn(t *testing.T) {
 	if !slices.Contains(spb, "napr-19-03-01") || !slices.Contains(spb, "napr-03-03-02") {
 		t.Fatalf("направления Петербурга: %v", spb)
 	}
+	// Подсказка бота — только из основных направлений клавиатуры.
+	anywhere, _ := s.DirectionsIn(ctx, nil)
+	popular, _ := s.Directions(ctx)
+	if len(anywhere) > len(popular) {
+		t.Fatalf("подсказка шире клавиатуры: %d из %d", len(anywhere), len(popular))
+	}
 }

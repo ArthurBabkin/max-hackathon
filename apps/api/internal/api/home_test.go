@@ -149,3 +149,16 @@ func TestProfile_GetAndPatch(t *testing.T) {
 		t.Fatalf("PUT universities: %d %s", r.code, r.raw)
 	}
 }
+
+// Регистрация закрылась без отметки — это не «следующий шаг»: подсказывать
+// отборочный, на который ученик не записан, бессмысленно.
+func TestHome_NextStepSkipsMissedRegistration(t *testing.T) {
+	e := newEnv(t)
+	e.now = testNow.AddDate(0, 0, 40) // 01.11: регистрация на биологию закрылась 30.10
+	f := e.withParent(e.kidCreator())
+	token := e.login(artemMax, "Артём")
+	e.track(f, bioProfile, false)
+	if r := e.do("GET", "/api/v1/home", token, nil); r.body["next_step"] != nil {
+		t.Fatalf("пропущенная регистрация — не следующий шаг: %v", r.body["next_step"])
+	}
+}

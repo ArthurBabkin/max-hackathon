@@ -27,7 +27,9 @@ func RegistrationLike(kind string) bool {
 	return kind == "registration" || kind == "school"
 }
 
-// Sort упорядочивает этапы по началу, затем по сроку. Этапы без дат — в конце.
+// Sort упорядочивает этапы по началу, затем по сроку. Этапы без дат — в
+// конце. При равных датах регистрация идёт первой, дальше — по id, чтобы
+// порядок не зависел от порядка строк в базе.
 func Sort(st []Stage) {
 	key := func(s Stage) (time.Time, bool) {
 		if s.StartsAt != nil {
@@ -47,7 +49,13 @@ func Sort(st []Stage) {
 		if !a.Equal(b) {
 			return a.Before(b)
 		}
-		return deadlineOrZero(st[i]).Before(deadlineOrZero(st[j]))
+		if da, db := deadlineOrZero(st[i]), deadlineOrZero(st[j]); !da.Equal(db) {
+			return da.Before(db)
+		}
+		if ra, rb := RegistrationLike(st[i].Kind), RegistrationLike(st[j].Kind); ra != rb {
+			return ra
+		}
+		return st[i].ID < st[j].ID
 	})
 }
 
@@ -64,13 +72,17 @@ func passed(s Stage, now time.Time) bool {
 	return s.DeadlineAt != nil && s.DeadlineAt.Before(now)
 }
 
-// Current — индекс текущего этапа: первого, срок которого ещё не прошёл.
-// После отметки «зарегистрирован» этапы-регистрации пропускаются — иначе
-// карточка писала бы «Дальше: Регистрация» уже после регистрации.
-// -1 — впереди ничего нет. Этапы должны быть отсортированы (Sort).
-func Current(st []Stage, registered bool, now time.Time) int {
+// Current — индекс текущего этапа: первого, срок которого ещё не прошёл и
+// который ещё не отмечен. Отмеченная регистрация пропускается — иначе
+// карточка писала бы «Дальше: Регистрация» уже после регистрации; после
+// закрывающего итога текущего этапа нет. -1 — впереди ничего нет. Этапы
+// должны быть отсортированы (Sort).
+func Current(st []Stage, p Progress, now time.Time) int {
+	if ClosedAt(st, p) >= 0 {
+		return -1
+	}
 	for i, s := range st {
-		if registered && RegistrationLike(s.Kind) {
+		if done(st, p, i) {
 			continue
 		}
 		if !passed(s, now) {
@@ -82,8 +94,8 @@ func Current(st []Stage, registered bool, now time.Time) int {
 
 // States — состояние каждого этапа для таймлайна (F21): до текущего — past,
 // текущий — current, после — future. Если текущего нет, всё past.
-func States(st []Stage, registered bool, now time.Time) []string {
-	cur := Current(st, registered, now)
+func States(st []Stage, p Progress, now time.Time) []string {
+	cur := Current(st, p, now)
 	out := make([]string, len(st))
 	for i := range st {
 		switch {
@@ -110,6 +122,19 @@ func AllPassed(st []Stage, now time.Time) bool {
 		}
 	}
 	return true
+}
+
+// Joinable — вступить в олимпиаду ещё можно: срок первого по датам этапа
+// (регистрации, а без неё — отборочного или школьного) не прошёл. Закрытая
+// регистрация не рекомендуется в подборе, даже если отборочный ещё идёт.
+// Профиль без этапов вступаемый: о сроках ничего не известно.
+func Joinable(st []Stage, now time.Time) bool {
+	if len(st) == 0 {
+		return true
+	}
+	sorted := append([]Stage(nil), st...)
+	Sort(sorted)
+	return !passed(sorted[0], now)
 }
 
 var monthsGen = [...]string{"января", "февраля", "марта", "апреля", "мая", "июня",

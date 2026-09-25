@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -82,13 +84,24 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	}
 
 	// У ВШЭ порог зависит от программы — он в столбце «Порог ЕГЭ», а не в
-	// условиях строки; у других вузов верхней границы нет.
-	if benefits[0]["ege_max"] != float64(90) || benefits[1]["ege_max"] != nil || benefits[2]["ege_max"] != nil {
+	// условиях строки; у других вузов верхней границы нет. Порог — на
+	// направление цели (Программная инженерия), а не по вузу целиком.
+	if benefits[0]["ege_max"] != float64(85) || benefits[1]["ege_max"] != nil || benefits[2]["ege_max"] != nil {
 		t.Fatalf("разброс порога ВШЭ: %v", benefits)
 	}
-	for _, row := range benefits {
+	// Столбцы показали всё, кроме того, что льгота ВШЭ на Программную
+	// инженерию есть не на всех программах (F65).
+	for i, row := range benefits {
+		var want []string
+		if i == 0 {
+			want = []string{"Зависит от программы: на «Программирование и инжиниринг компьютерных игр» и «Разработка информационных систем для бизнеса» льготы нет"}
+		}
+		var got []string
 		if row["conditions"] != nil {
-			t.Fatalf("столбцы всё показали, своих условий нет: %v", row)
+			got = strs(row["conditions"])
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("свои условия вуза: %v", row)
 		}
 	}
 	if fmt.Sprint(b["benefit_columns"]) != "[winner prizer ege]" {
@@ -160,8 +173,10 @@ func rowConditions(t *testing.T, row map[string]any) string {
 	return strings.Join(out, " | ")
 }
 
-// У МГУ и МФТИ по «Высшей пробе» свои правила: призёру — 100 баллов, у МФТИ
-// порог зависит от программы, а МГУ засчитывает только диплом 11 класса.
+// У МГУ и МФТИ по «Высшей пробе» свои правила: у МГУ призёру — 100 баллов и
+// засчитывается только диплом 11 класса. МФТИ на Программную инженерию (цель
+// Артёма) даёт 100 баллов, а не БВИ, как по вузу целиком. В МГУ этого
+// направления нет — там льгота вуза.
 func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	e := newEnv(t)
 	f := e.kidCreator()
@@ -180,7 +195,7 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	want := []string{
 		"КФУ: bvi БВИ / bvi БВИ / 75–<nil> / ",
 		"МГУ: bvi БВИ / score100 100 баллов / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"МФТИ: bvi БВИ / score100 100 баллов / 75–80 / ",
+		"МФТИ: score100 100 баллов / score100 100 баллов / 75–<nil> / ",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("строки таблицы:\n%s", strings.Join(got, "\n"))
@@ -355,4 +370,26 @@ func grantOf(g *benefitGrant) string {
 		return ""
 	}
 	return g.Kind + " " + g.Label
+}
+
+// Регистрация закрылась, а отборочный ещё идёт: срок в карточке — уже про
+// отборочный, и без пометки казалось бы, что вступить ещё можно.
+func TestOlympiad_RegistrationClosed(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	for id, want := range map[string]bool{"p669-54-informatika-i-programmirovanie": true, "p669-8-informatika": false} {
+		r := e.do("GET", "/api/v1/olympiads/"+id, token, nil)
+		if r.code != 200 || r.body["registration_closed"] != want {
+			t.Fatalf("%s: registration_closed = %v, ждали %v", id, r.body["registration_closed"], want)
+		}
+	}
+	items := list(t, e.do("GET", "/api/v1/olympiads?q="+url.QueryEscape("Физтех"), token, nil).body["items"])
+	if len(items) == 0 || items[0]["registration_closed"] != true {
+		t.Fatalf("в каталоге — та же пометка: %v", items)
+	}
+	hse := list(t, e.do("GET", "/api/v1/olympiads?q="+url.QueryEscape("Высшая проба"), token, nil).body["items"])
+	if len(hse) == 0 || hse[0]["registration_closed"] != false {
+		t.Fatalf("открытая регистрация: %v", hse)
+	}
 }

@@ -36,6 +36,17 @@ export function Toaster() {
   }, [toast])
 
   if (!toast) return null
+  if (toast.info) {
+    return (
+      <div className="toast toast-info" role="status">
+        <Icon name="check" size={18} className="toast-icon" />
+        <span className="toast-text">{toast.info}</span>
+        <button type="button" className="toast-close" aria-label={t('toast.dismiss')} onClick={() => dismissToast(toast.id)}>
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+    )
+  }
   const offline = errorKind(toast.error) === 'offline'
   return (
     <div className="toast" role="alert">

@@ -8,6 +8,10 @@ import "time"
 // Offsets — плановые пороги в днях, от дальнего к ближнему.
 var Offsets = []int{30, 7, 3, 1}
 
+// AskOffsets — вопросы об итоге этапа: на следующий день после окончания и
+// через неделю. Смещение отрицательное — после, а не до.
+var AskOffsets = []int{-1, -8}
+
 type Threshold struct {
 	Offset int
 	FireAt time.Time
@@ -25,6 +29,17 @@ func Thresholds(deadline time.Time, loc *time.Location, hour int) []Threshold {
 	day := localHour(deadline, loc, hour)
 	out := make([]Threshold, len(Offsets))
 	for i, d := range Offsets {
+		out[i] = Threshold{Offset: d, FireAt: day.AddDate(0, 0, -d)}
+	}
+	return out
+}
+
+// After — когда спрашивать итог этапа, закончившегося в end: hour:00 по
+// зоне ученика через день и через восемь дней после дня окончания.
+func After(end time.Time, loc *time.Location, hour int) []Threshold {
+	day := localHour(end, loc, hour)
+	out := make([]Threshold, len(AskOffsets))
+	for i, d := range AskOffsets {
 		out[i] = Threshold{Offset: d, FireAt: day.AddDate(0, 0, -d)}
 	}
 	return out

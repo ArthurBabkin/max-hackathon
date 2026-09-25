@@ -5,7 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/errors'
 import { renderApp } from '@/test/render'
 import { Toaster } from './Toaster'
-import { dismissToast } from './toast'
+import { dismissToast, showInfoToast } from './toast'
 
 afterEach(() => {
   act(() => dismissToast())
@@ -58,4 +58,12 @@ it('молчит, если ошибку показывает сам экран',
 
   await act(() => Promise.resolve())
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
+// Добавленная из «Подбора» карточка исчезает — без подтверждения это похоже на сбой.
+it('подтверждение действия — статусом, не тревогой', async () => {
+  renderApp(<Toaster />)
+  act(() => showInfoToast('Добавлено в трекер'))
+  expect(await screen.findByRole('status')).toHaveTextContent('Добавлено в трекер')
+  expect(screen.queryByRole('alert')).toBeNull()
 })

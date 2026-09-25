@@ -20,7 +20,8 @@ import type {
   AiMessage,
   CalendarLink,
   CalendarMonth,
-  Direction,
+  CatalogUniversity,
+  DirectionOption,
   Family,
   Home,
   Invite,
@@ -34,9 +35,9 @@ import type {
   Role,
   Session,
   SessionResponse,
+  StageResult,
   TrackerItem,
   UniversityDetail,
-  UniversityListItem,
 } from '@contract'
 import { api, request, setReauth, setToken } from './client'
 import { getWebApp } from '@/bridge'
@@ -46,9 +47,9 @@ export const keys = {
   session: ['session'] as const,
   home: ['home'] as const,
   recommendations: (filter: MatchFilter) => ['recommendations', filter] as const,
-  olympiads: (q: string, subject: string, city: string) => ['olympiads', q, subject, city] as const,
+  olympiads: (q: string, subject: string, mine: boolean) => ['olympiads', q, subject, mine] as const,
   olympiad: (id: string) => ['olympiad', id] as const,
-  universities: (q: string, city: string) => ['universities', q, city] as const,
+  universities: (q: string, city: string, direction = '') => ['universities', q, city, direction] as const,
   university: (id: string) => ['university', id] as const,
   tracker: ['tracker'] as const,
   calendar: (month: string) => ['calendar', month] as const,
@@ -76,6 +77,8 @@ function invalidateProfile(qc: QueryClient): void {
   void qc.invalidateQueries({ queryKey: keys.session })
   void qc.invalidateQueries({ queryKey: keys.home })
   void qc.invalidateQueries({ queryKey: ['recommendations'] })
+  // Каталог «Ведут в мои вузы» и предмет по умолчанию — от профиля.
+  void qc.invalidateQueries({ queryKey: ['olympiads'] })
   void qc.invalidateQueries({ queryKey: ['olympiad'] })
   void qc.invalidateQueries({ queryKey: ['universities'] })
   void qc.invalidateQueries({ queryKey: ['university'] })
@@ -125,14 +128,14 @@ export const useRecommendations = (filter: MatchFilter) =>
     queryFn: () => api.get<Recommendations>('/recommendations', { filter }),
   })
 
-export const useOlympiads = (q: string, subject: string, city: string) =>
+export const useOlympiads = (q: string, subject: string, mine: boolean) =>
   useQuery({
-    queryKey: keys.olympiads(q, subject, city),
+    queryKey: keys.olympiads(q, subject, mine),
     queryFn: () =>
       api.get<{ items: OlympiadListItem[] }>('/olympiads', {
         q,
         subject: subject === 'all' ? undefined : subject,
-        city: city === 'all' ? undefined : city,
+        mine: mine ? 'true' : undefined,
       }),
   })
 
@@ -143,13 +146,14 @@ export const useOlympiad = (id: string | null) =>
     enabled: id !== null,
   })
 
-export const useUniversities = (q: string, city: string) =>
+export const useUniversities = (q: string, city: string, direction = '') =>
   useQuery({
-    queryKey: keys.universities(q, city),
+    queryKey: keys.universities(q, city, direction),
     queryFn: () =>
-      api.get<{ items: UniversityListItem[] }>('/universities', {
+      api.get<{ items: CatalogUniversity[] }>('/universities', {
         q,
         city: city === 'all' ? undefined : city,
+        direction: direction || undefined,
       }),
   })
 
@@ -198,7 +202,7 @@ export const useProfile = () =>
 export const useDirections = () =>
   useQuery({
     queryKey: keys.directions,
-    queryFn: () => api.get<{ items: Direction[] }>('/directions'),
+    queryFn: () => api.get<{ items: DirectionOption[] }>('/directions'),
     staleTime: Infinity,
   })
 
@@ -232,34 +236,57 @@ export function useRemoveFromTracker() {
   })
 }
 
-export function useToggleRegistered() {
+/** Отметка этапа: регистрация или итог. Без этапа — «участвую» (F46). */
+export interface StageMark {
+  item: TrackerItem
+  stageId: string | null
+  registered: boolean
+  result: StageResult | null
+}
+
+type TrackerCache = { items: TrackerItem[]; proposals: Proposal[] }
+
+/** Пункт с отметкой, какой она станет, — до ответа сервера. */
+function withMark(item: TrackerItem, { stageId, registered, result }: StageMark): TrackerItem {
+  if (stageId === null) return { ...item, registered_at: registered ? new Date().toISOString() : null }
+  return {
+    ...item,
+    stages: item.stages.map((s) => (s.id === stageId ? { ...s, registered, result } : s)),
+  }
+}
+
+/**
+ * Отметить этап (F63). Как и галочка регистрации — оптимистично: отметку
+ * видно сразу, а ответ сервера приносит всё, что из неё следует (статус,
+ * серые этапы, следующее действие). Отказ (409 — отметка противоречит
+ * другим) откатывает карточку, текст сервера показывает всплывашка.
+ */
+export function useSetStageMark() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, registered }: { id: string; registered: boolean }) =>
-      registered
-        ? api.put<TrackerItem>(`/tracker/${encodeURIComponent(id)}/registered`)
-        : api.delete<TrackerItem>(`/tracker/${encodeURIComponent(id)}/registered`),
-
-    // Оптимистично: это кнопка, которую жмут на демонстрации, и ждать ответа
-    // ради галочки незачем. При ошибке состояние откатывается.
-    onMutate: async ({ id, registered }) => {
+    mutationFn: ({ item, stageId, registered, result }: StageMark) => {
+      const id = encodeURIComponent(item.id)
+      if (stageId === null) {
+        return registered
+          ? api.put<TrackerItem>(`/tracker/${id}/registered`)
+          : api.delete<TrackerItem>(`/tracker/${id}/registered`)
+      }
+      return api.put<TrackerItem>(`/tracker/${id}/stages/${encodeURIComponent(stageId)}`, { registered, result })
+    },
+    onMutate: async (mark) => {
       await qc.cancelQueries({ queryKey: keys.tracker })
-      const previous = qc.getQueryData(keys.tracker)
-      qc.setQueryData<{ items: TrackerItem[]; proposals: Proposal[] }>(keys.tracker, (old) =>
-        old
-          ? {
-              ...old,
-              items: old.items.map((item) =>
-                item.id === id
-                  ? { ...item, registered_at: registered ? new Date().toISOString() : null }
-                  : item,
-              ),
-            }
-          : old,
+      const previous = qc.getQueryData<TrackerCache>(keys.tracker)
+      qc.setQueryData<TrackerCache>(keys.tracker, (old) =>
+        old ? { ...old, items: old.items.map((i) => (i.id === mark.item.id ? withMark(i, mark) : i)) } : old,
       )
       return { previous }
     },
-    onError: (_error, _vars, context) => {
+    onSuccess: (updated) => {
+      qc.setQueryData<TrackerCache>(keys.tracker, (old) =>
+        old ? { ...old, items: old.items.map((i) => (i.id === updated.id ? updated : i)) } : old,
+      )
+    },
+    onError: (_error, _mark, context) => {
       if (context?.previous) qc.setQueryData(keys.tracker, context.previous)
     },
     onSettled: () => invalidateTracker(qc),
@@ -328,6 +355,38 @@ export function useSetUniversities() {
     mutationFn: (universityIds: string[]) =>
       api.put<Profile>('/profile/universities', { university_ids: universityIds }),
     onSuccess: () => invalidateProfile(qc),
+  })
+}
+
+/**
+ * Направления в вузе (F65): вуз становится моим, новые направления — в цель.
+ * Галочка ставится сразу; ошибка откатывает её.
+ */
+export function useSetUniversityDirections(universityId: string) {
+  const qc = useQueryClient()
+  const key = keys.university(universityId)
+  return useMutation({
+    mutationFn: (directionIds: string[]) =>
+      api.put<Profile>(`/profile/universities/${encodeURIComponent(universityId)}/directions`, {
+        direction_ids: directionIds,
+      }),
+    onMutate: async (directionIds) => {
+      await qc.cancelQueries({ queryKey: key })
+      const before = qc.getQueryData<UniversityDetail>(key)
+      if (before) {
+        qc.setQueryData<UniversityDetail>(key, {
+          ...before,
+          is_mine: true,
+          offered_directions: before.offered_directions.map((d) => ({ ...d, is_mine: directionIds.includes(d.id) })),
+        })
+      }
+      return { before }
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.before) qc.setQueryData(key, context.before)
+    },
+    onSuccess: (profile) => qc.setQueryData(keys.profile, profile),
+    onSettled: () => invalidateProfile(qc),
   })
 }
 

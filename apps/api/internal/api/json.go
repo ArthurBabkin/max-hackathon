@@ -23,6 +23,14 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
+// orEmpty — пустой срез вместо nil: в JSON массив, а не null.
+func orEmpty[T any](xs []T) []T {
+	if xs == nil {
+		return []T{}
+	}
+	return xs
+}
+
 func decodeJSON(r *http.Request, dst any) error {
 	dec := json.NewDecoder(io.LimitReader(r.Body, maxBody))
 	if err := dec.Decode(dst); err != nil {

@@ -114,13 +114,17 @@ type collected struct {
 	clock        clock
 	subjects     []string // названия предметов ученика
 	universities []string // короткие названия вузов ученика
+	// Для льгот на направления ученика в карточках олимпиад (F65).
+	trajectoryID string
+	myUnis       []string // id вузов ученика
+	myCodes      []string // коды предметов ученика
 	cards        []card
 	// Для отказа: правила упомянутых вузов и сайты упомянутых олимпиад.
 	fallback []store.Source
 }
 
-// noData — вопрос, ответа на который в базе нет (бюджетные места,
-// проходные баллы), или не по теме: отказ сразу, без модели.
+// noData — вопрос, ответа на который в базе нет (проходные баллы,
+// общежитие), или не по теме: отказ сразу, без модели.
 func (c collected) noData() bool { return c.intent == intentUnsupported || c.intent == intentOffTopic }
 
 func (c collected) has(id string) bool {
@@ -132,7 +136,7 @@ func (c collected) has(id string) bool {
 // Текст прошлых реплик не ищется: его видит только Jev, чтобы понять
 // уточнение «а когда у неё регистрация?».
 func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []store.AiMessage, question string) (collected, error) {
-	c := collected{clock: a.clock(t)}
+	c := collected{clock: a.clock(t), trajectoryID: t.ID}
 	b, err := a.loadBase(ctx)
 	if err != nil {
 		return c, err
@@ -140,6 +144,11 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	olympiads, unis := b.named()
 	c.mentions = Find(question, olympiads, unis)
 	c.mentions.MyUniversities = c.mentions.MyUniversities || studentsUniversities(question, t.StudentName)
+	goal := make([]string, len(t.Directions))
+	for i, d := range t.Directions {
+		goal[i] = d.ID
+	}
+	c.mentions.Directions = FindDirections(question, b.directions, goal)
 	a.understand(ctx, b, &c, history, question)
 	m := &c.mentions
 
@@ -156,8 +165,10 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	if err != nil {
 		return c, err
 	}
+	c.myCodes = myCodes
 	for _, u := range myUnis {
-		c.universities = append(c.universities, u.ShortName)
+		c.universities = append(c.universities, pick.Nick(u.ID, u.ShortName))
+		c.myUnis = append(c.myUnis, u.ID)
 		c.focus = append(c.focus, u.ID)
 		if m.MyUniversities && !slices.Contains(m.Universities, u.ID) {
 			m.Universities = append(m.Universities, u.ID)
@@ -213,6 +224,13 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 			return c, err
 		}
 	}
+	for _, id := range m.Directions {
+		text, err := a.directionText(ctx, b, t, c.myUnis, id)
+		if err != nil {
+			return c, err
+		}
+		c.cards = append(c.cards, card{id: "direction:" + id, text: text})
+	}
 	if m.Glossary || c.intent == intentGlossary {
 		order, err := a.Store.OrderSource(ctx)
 		if err != nil {
@@ -220,7 +238,8 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		}
 		c.cards = append(c.cards, card{id: "glossary", text: strings.Join(glossary, "\n"), sources: []store.Source{*order}})
 	}
-	if c.intent == intentOverview || c.intent == intentSearch {
+	// Обзор про направление — его карточка: каталог о направлениях не знает.
+	if (c.intent == intentOverview && len(m.Directions) == 0) || c.intent == intentSearch {
 		order, err := a.Store.OrderSource(ctx)
 		if err != nil {
 			return c, err
@@ -231,6 +250,14 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		if err := a.studentCard(ctx, b, t, &c); err != nil {
 			return c, err
 		}
+	}
+	// «Что мне подходит, что ещё добавить» — как экран «Подбор».
+	if c.intent == intentPersonal || c.intent == intentSearch {
+		res, err := pick.Pick(ctx, a.Store, t, c.clock.now, pick.Options{HideTracked: true})
+		if err != nil {
+			return c, err
+		}
+		c.cards = append(c.cards, card{id: "pick", text: strings.Join(pickText(b, res, c.clock), "\n")})
 	}
 	return c, nil
 }
@@ -413,6 +440,39 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if err != nil {
 		return err
 	}
+	mine := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+		return !slices.Contains(c.myCodes, x.SubjectCode)
+	})
+	// Направление в вопросе — льготы на него, а не на цель ученика.
+	var targets []string
+	if asked := c.mentions.Directions; len(asked) > 0 {
+		// Профили — по предмету из вопроса, иначе по предметам ученика.
+		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+			return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
+		})
+		if len(ps) == 0 {
+			ps = mine
+		}
+		if len(ps) == 0 {
+			ps = b.profiles[oid]
+		}
+		targets, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
+	} else {
+		targets, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+	}
+	if err != nil {
+		return err
+	}
+	if len(targets) > 0 {
+		text += "\n" + strings.Join(targets, "\n")
+	}
+	tracked, err := a.trackerText(ctx, b, c.trajectoryID, oid, c.clock.now)
+	if err != nil {
+		return err
+	}
+	if len(tracked) > 0 {
+		text += "\n" + strings.Join(tracked, "\n")
+	}
 	// Условия без источника — в охвате карточки и по предметам из вопроса,
 	// если они у олимпиады есть: Jev ошибается с предметом («а в ВШЭ?» после
 	// Технокубка — биология).
@@ -455,7 +515,7 @@ func (a *Assistant) universityCard(ctx context.Context, b base, c *collected, tr
 	if c.has("university:" + id) {
 		return nil
 	}
-	text, err := a.universityText(ctx, b, trajectoryID, id, full, c.clock)
+	text, err := a.universityText(ctx, b, trajectoryID, id, c.mentions.Directions, full, c.clock)
 	if err != nil {
 		return err
 	}
@@ -583,15 +643,25 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 		"Без Markdown и без ссылок в тексте. Обращайся " + address + ".\n")
 	b.WriteString("5. Называя даты этапов, всегда говори, какие они. «Даты фактические» — скажи, что даты фактические, с сайта олимпиады. " +
 		"«Даты примерные, по прошлому году» — скажи, что даты примерные, по прошлому году, и их стоит проверить на сайте олимпиады. " +
-		"«Идёт сейчас» — этап открыт; «сейчас не идёт» — этап ещё не начался: не пиши, что он идёт, скажи, когда начнётся.\n")
+		"«Идёт сейчас» — этап открыт; «сейчас не идёт» — этап ещё не начался: не пиши, что он идёт, скажи, когда начнётся. " +
+		"«Регистрация закрыта» — в этом сезоне в олимпиаду уже не вступить: не советуй её на этот год, скажи, что можно готовиться к следующему. " +
+		"«Участие завершено» — не предлагай ученику следующие этапы этой олимпиады. " +
+		"«Регистрация закрылась без отметки» в трекере — напомни проверить, успел ли ученик зарегистрироваться, и отметить это в трекере.\n")
 	b.WriteString("6. Если у условия пометка «(данные уточняются)» — скажи, что данные по этому вузу уточняются.\n")
 	b.WriteString("7. Если вуз засчитывает диплом только за определённые классы («диплом за 11 класс»), а ученик сейчас в другом классе — предупреди об этом.\n")
 	b.WriteString("8. Льготы в карточках — только по вузам из базы сервиса. Если вуза из базы нет в строках льгот олимпиады, в этом вузе льготы по ней нет. " +
-		"Про льготы вуза по уровням олимпиад отвечай по строкам «Льготы по уровню олимпиады» в карточке вуза и не обобщай по отдельным олимпиадам.\n")
-	b.WriteString("9. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
-	b.WriteString("10. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
+		"Про льготы вуза по уровням олимпиад отвечай по строкам «Льготы по уровню олимпиады» в карточке вуза и не обобщай по отдельным олимпиадам. " +
+		"Если в карточке вуза льготы считаются на направления ученика — отвечай про них и называй направления; " +
+		"олимпиады из строки «Только на другие направления вуза» на направления ученика льготы не дают. " +
+		"«Льготы уточняются» у направления — скажи, что льготы на нём ещё проверяются. " +
+		"Если в вопросе названо направление — отвечай про льготы на него (строки «на направление из вопроса»), а не на цель ученика; " +
+		"если этого направления в вузе нет — так и скажи.\n")
+	b.WriteString("9. На вопрос, что ещё добавить или что ученику подходит — предлагай олимпиады из карточки «Подбор» в её порядке: " +
+		"их ещё нет в трекере; то, что уже в трекере, не предлагай заново.\n")
+	b.WriteString("10. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
+	b.WriteString("11. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	if c.intent == intentChat {
-		b.WriteString("11. Это приветствие, благодарность, вопрос о том, что ты умеешь, или о прошлых репликах разговора: ответь по разговору, card_ids может быть пустым.\n")
+		b.WriteString("12. Это приветствие, благодарность, вопрос о том, что ты умеешь, или о прошлых репликах разговора: ответь по разговору, card_ids может быть пустым.\n")
 	}
 	b.WriteString(`Ответ — только JSON-объект: {"answer": "текст", "card_ids": ["id"], "no_data": false}` + "\n")
 	directions := make([]string, len(t.Directions))

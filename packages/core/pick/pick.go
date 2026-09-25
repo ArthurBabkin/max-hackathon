@@ -34,7 +34,11 @@ type Set struct {
 	Subjects     map[string]bool // предметы ученика
 	Universities []store.University
 	Stages       map[string][]stages.Stage
-	Benefits     map[string][]store.BenefitRow // только вузы ученика, в порядке списка вузов
+	// Benefits — льготы в вузах ученика на его направления (store.TargetBenefits),
+	// в порядке списка вузов.
+	Benefits map[string][]store.BenefitRow
+	// Targets — на какие направления ученик смотрит в каждом своём вузе.
+	Targets map[string]store.UniversityTarget
 	// Potential — льготы профилей в вузах с направлениями ученика в
 	// выбранных местах; заполняется, только если вузы не выбраны (SPEC 2.3).
 	Potential map[string][]store.BenefitRow
@@ -70,7 +74,10 @@ func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []s
 	for i, u := range s.Universities {
 		uniIDs[i] = u.ID
 	}
-	rows, err := st.Benefits(ctx, ids, uniIDs)
+	if s.Targets, err = st.TargetsOf(ctx, t.ID, uniIDs); err != nil {
+		return s, err
+	}
+	rows, err := st.TargetBenefits(ctx, t.ID, ids, uniIDs)
 	if err != nil {
 		return s, err
 	}
@@ -95,7 +102,8 @@ func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []s
 
 // potential — лучшая льгота каждого профиля в вузах, где есть хотя бы одно
 // направление траектории (у exploring — в любых), в выбранных местах (нет
-// мест — везде). Так без выбранных вузов фактор Benefit не обнуляется.
+// мест — везде), на направления цели. Так без выбранных вузов фактор
+// Benefit не обнуляется.
 func potential(ctx context.Context, st *store.Store, t store.Trajectory, profileIDs []string) (map[string][]store.BenefitRow, error) {
 	dirIDs := make([]string, len(t.Directions))
 	for i, d := range t.Directions {
@@ -109,7 +117,7 @@ func potential(ctx context.Context, st *store.Store, t store.Trajectory, profile
 	for i, u := range unis {
 		uniIDs[i] = u.ID
 	}
-	rows, err := st.Benefits(ctx, profileIDs, uniIDs)
+	rows, err := st.TargetBenefits(ctx, t.ID, profileIDs, uniIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +137,7 @@ func (s Set) Student() match.Student {
 func (s Set) Candidate(p store.Profile) match.Candidate {
 	c := match.Candidate{
 		ProfileID: p.ID, OlympiadID: p.OlympiadID, Kind: p.Kind, SubjectCode: p.SubjectCode, Level: p.Level,
-		BestBenefit: BestBenefit(s.Benefits[p.ID]), Stages: s.Stages[p.ID], Registered: s.Tracker.Registered[p.ID],
+		BestBenefit: BestBenefit(s.Benefits[p.ID]), Stages: s.Stages[p.ID], Progress: s.Tracker.Progress[p.ID],
 		FinalRegionCode: p.FinalRegionCode,
 	}
 	if best := BestBenefit(s.Potential[p.ID]); c.BestBenefit == "" && best != "" {
@@ -152,17 +160,36 @@ func SubjectCodes(ctx context.Context, st *store.Store, trajectoryID string) ([]
 	return codes, nil
 }
 
-// Result — подбор: перечень и ВсОШ, «вне перечня» отдельно.
+// Result — подбор: перечень и ВсОШ, «вне перечня» отдельно. More,
+// Tracked, Proposed и State — для экрана C3/C7 (см. match.Picked).
 type Result struct {
 	Items    []match.Result
+	More     []match.Result
 	Outside  []match.Result
+	Tracked  int
+	Proposed int
+	State    string
 	Profiles map[string]store.Profile
 	Set      Set
 }
 
-// Recommend — подбор F13–F16: кандидаты — профили по предметам ученика, в
-// которых участвует его класс; скоринг и отбор — в core/match.
+// Options — фильтр подбора и HideTracked: спрятать олимпиады, которые уже
+// в трекере или ждут ответа на предложение (только в приложении; бот
+// показывает подбор целиком).
+type Options struct {
+	Filter      string
+	HideTracked bool
+}
+
+// Recommend — подбор F13–F16 без сокрытия добавленного: итог онбординга и
+// «Напоминать о сроках» в боте.
 func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now time.Time, filter string) (Result, error) {
+	return Pick(ctx, st, t, now, Options{Filter: filter})
+}
+
+// Pick — подбор: кандидаты — профили по предметам ученика, в которых
+// участвует его класс; что подходит и в каком порядке — в core/match.
+func Pick(ctx context.Context, st *store.Store, t store.Trajectory, now time.Time, o Options) (Result, error) {
 	codes, err := SubjectCodes(ctx, st, t.ID)
 	if err != nil {
 		return Result{}, err
@@ -181,7 +208,13 @@ func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now tim
 		res.Profiles[p.ID] = p
 		cands[i] = set.Candidate(p)
 	}
-	res.Items, res.Outside = match.Recommend(cands, set.Student(), match.DefaultWeights, now, filter)
+	mo := match.Options{Filter: o.Filter}
+	if o.HideTracked {
+		mo.Tracked, mo.Proposed = set.Tracker.TrackedOlympiads, set.Tracker.PendingOlympiads
+	}
+	p := match.Pick(cands, set.Student(), match.DefaultWeights, now, mo)
+	res.Items, res.More, res.Outside, res.Tracked, res.Proposed, res.State =
+		p.Items, p.More, p.Outside, p.Tracked, p.Proposed, p.State()
 	return res, nil
 }
 

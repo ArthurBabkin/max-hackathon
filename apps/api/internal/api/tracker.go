@@ -38,7 +38,11 @@ func (s *Server) trackerItem(ctx context.Context, trajectoryID, id string) (trac
 	if err != nil {
 		return trackerItem{}, err
 	}
-	return trackerItemOf(row, st[row.ProfileID], s.now()), nil
+	progress, err := s.progressOf(ctx, []store.TrackerRow{row})
+	if err != nil {
+		return trackerItem{}, err
+	}
+	return trackerItemOf(row, st[row.ProfileID], progress[row.ID], s.now()), nil
 }
 
 type proposalDTO struct {
@@ -74,7 +78,7 @@ func (s *Server) proposalsOf(ctx context.Context, rows []store.ProposalRow) ([]p
 			ID: p.ID, OlympiadProfileID: p.ProfileID, OlympiadID: p.OlympiadID, OlympiadName: names.Olympiad(p.OlympiadName),
 			Status: p.Status, ProposedBy: *briefOf(p.ProposedBy), CreatedAt: p.CreatedAt.UTC(), ResolvedAt: utc(p.ResolvedAt),
 		}
-		if cur := stages.Current(st[p.ProfileID], false, now); cur >= 0 {
+		if cur := stages.Current(st[p.ProfileID], stages.Progress{}, now); cur >= 0 {
 			d.DeadlineAt = utc(st[p.ProfileID][cur].DeadlineAt)
 		}
 		out = append(out, d)
@@ -184,6 +188,9 @@ func (s *Server) setRegistered(on bool) handlerFunc {
 		if errors.Is(err, store.ErrNotFound) {
 			return errNoTrackerItem
 		}
+		if errors.Is(err, store.ErrConflict) {
+			return errMarksDependOnRegistration
+		}
 		if err != nil {
 			return err
 		}
@@ -200,4 +207,81 @@ func (s *Server) setRegistered(on bool) handlerFunc {
 		writeJSON(w, http.StatusOK, item)
 		return nil
 	}
+}
+
+// newOnStage — что у этапа появилось: регистрация, которой не было, или
+// новый итог. Снятая отметка — не новость: семье о ней не пишем.
+func newOnStage(before, after trackerItem, stageID string) stages.Mark {
+	find := func(it trackerItem) trackerStage {
+		for _, st := range it.Stages {
+			if st.ID == stageID {
+				return st
+			}
+		}
+		return trackerStage{}
+	}
+	was, now := find(before), find(after)
+	var news stages.Mark
+	news.Registered = now.Registered && !was.Registered
+	if now.Result != nil && (was.Result == nil || *was.Result != *now.Result) {
+		news.Result = *now.Result
+	}
+	return news
+}
+
+var errMarksDependOnRegistration = conflict("Сначала снимите итоги этапов: без регистрации их не бывает.")
+
+// setStageMark — PUT /tracker/{id}/stages/{stage_id}: регистрация на этап
+// или его итог. Отмечать может любой участник, как и регистрацию (F46).
+// Пустая отметка снимает прежнюю. Остальным уходит сообщение об отметке.
+func (s *Server) setStageMark(w http.ResponseWriter, r *http.Request) error {
+	ctx, m := r.Context(), me(r)
+	if !permissionsOf(m).ToggleRegistered {
+		return forbidden("Отмечать этапы нельзя.")
+	}
+	id, err := trackerItemID(r)
+	if err != nil {
+		return err
+	}
+	var body struct {
+		Registered bool    `json:"registered"`
+		Result     *string `json:"result"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		return err
+	}
+	mark := stages.Mark{Registered: body.Registered}
+	if body.Result != nil {
+		mark.Result = *body.Result
+	}
+	stageID := r.PathValue("stage_id")
+	before, err := s.trackerItem(ctx, m.TrajectoryID, id)
+	if err != nil {
+		return err
+	}
+	changed, err := s.store.SetStageMark(ctx, m.TrajectoryID, id, stageID, m.MemberID, mark, s.now())
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		return errNoTrackerItem
+	case errors.Is(err, stages.ErrUnknownStage):
+		return notFound("Такого этапа у олимпиады нет.")
+	case errors.Is(err, stages.ErrNotAllowed):
+		return badRequest("Такую отметку у этого этапа поставить нельзя.")
+	case errors.Is(err, stages.ErrConflict):
+		return conflict("Отметка противоречит другим отметкам этапов — сначала снимите их.")
+	case err != nil:
+		return err
+	}
+	item, err := s.trackerItem(ctx, m.TrajectoryID, id)
+	if err != nil {
+		return err
+	}
+	if changed {
+		s.replan(r, m.TrajectoryID)
+		if news := newOnStage(before, item, stageID); news != (stages.Mark{}) {
+			s.tell(r, func(ctx context.Context) { s.notify.StageMarked(ctx, m.TrajectoryID, id, stageID, news, m) })
+		}
+	}
+	writeJSON(w, http.StatusOK, item)
+	return nil
 }

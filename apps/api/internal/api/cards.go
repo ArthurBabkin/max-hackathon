@@ -34,6 +34,9 @@ type olympiadCard struct {
 	Reason            string     `json:"reason"`
 	InTracker         bool       `json:"in_tracker"`
 	ProposalStatus    *string    `json:"proposal_status"`
+	// RegistrationClosed — срок первого этапа прошёл: вступить в этом сезоне
+	// нельзя, хотя следующий этап ещё впереди.
+	RegistrationClosed bool `json:"registration_closed"`
 }
 
 // benefitLabels — подписи льгот, те же, что BENEFIT_LABELS во фронте.
@@ -73,6 +76,7 @@ func (cs cardSet) card(p store.Profile, r match.Result) olympiadCard {
 		Kind: p.Kind, Level: p.Level, SubjectCode: p.SubjectCode, SubjectName: profileLabel(p.SubjectName, p.ProfileName),
 		Format: p.Format, IsOnline: r.Online, FinalCity: p.FinalCity, DeadlineAt: utc(r.Deadline),
 		BenefitsSummary: cs.benefitsSummary(p.ID), Reason: cs.reason(r), InTracker: cs.Tracker.InTracker[p.ID],
+		RegistrationClosed: !stages.Joinable(cs.Stages[p.ID], cs.Now),
 	}
 	if r.Stage != nil {
 		title := r.Stage.Title

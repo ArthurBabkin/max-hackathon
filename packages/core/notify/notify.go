@@ -7,8 +7,11 @@ package notify
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/schedule"
@@ -136,13 +139,55 @@ func (n *Notifier) Reminder(d store.DueReminder, r store.Recipient, t store.Traj
 		}
 		kb = append(kb, maxapi.Row(maxapi.LinkButton(label, *d.OfficialURL)))
 	}
-	if registration && !d.Registered {
-		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.remind.markRegistered", nil), "rem:done:"+d.TrackerItemID)))
+	// Напоминание о регистрации стоит, только пока она не отмечена, — кнопка
+	// отмечает регистрацию именно на этот этап: их у олимпиады бывает две.
+	if registration {
+		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.remind.markRegistered", nil), "rem:reg:"+d.ID)))
 	}
 	if _, ok := schedule.Tomorrow(d.Deadline, loc, n.ReminderHour, now); ok {
 		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.remind.snooze", nil), "rem:snooze:"+d.ID)))
 	}
 	return maxapi.WithKeyboard(text, kb)
+}
+
+// resultCodes — итог этапа в payload кнопки: «res:<напоминание>:<код>».
+// Коды короткие — payload ограничен по длине.
+var resultCodes = []struct{ result, code string }{
+	{stages.Passed, "p"}, {stages.Failed, "f"}, {stages.Winner, "w"}, {stages.Prizer, "z"}, {stages.Participant, "u"},
+}
+
+// ResultNotYet — код кнопки «Итогов ещё нет».
+const ResultNotYet = "n"
+
+// ResultByCode — итог по коду кнопки.
+func ResultByCode(code string) (string, bool) {
+	for _, c := range resultCodes {
+		if c.code == code {
+			return c.result, true
+		}
+	}
+	return "", false
+}
+
+func resultCode(result string) string {
+	for _, c := range resultCodes {
+		if c.result == result {
+			return c.code
+		}
+	}
+	return ""
+}
+
+// ResultAsk — вопрос об итоге этапа на следующий день после него и через
+// неделю: кнопки — возможные итоги этапа и «Итогов ещё нет».
+func (n *Notifier) ResultAsk(d store.DueReminder, r store.Recipient, t store.Trajectory, results []string) maxapi.NewMessage {
+	v := Voice(r, t)
+	var kb maxapi.Keyboard
+	for _, res := range results {
+		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.stageResult."+res, nil), "res:"+d.ID+":"+resultCode(res))))
+	}
+	kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.stageResult.notYet", nil), "res:"+d.ID+":"+ResultNotYet)))
+	return maxapi.WithKeyboard(v.T("bot.stageResult.ask", voice.Vars{"stage": StagePhrase(v, d.StageKind, d.OlympiadName)}), kb)
 }
 
 // recipients — активные участники, кроме автора действия, и траектория
@@ -180,6 +225,61 @@ func (n *Notifier) Registered(ctx context.Context, trajectoryID, itemID string, 
 			v.T("notify.registered", voice.Vars{"name": by.FirstName, "title": Short(item.OlympiadName)}),
 			maxapi.Keyboard{maxapi.Row(n.App(v.T("bot.menu.tracker", nil), "tracker"))}))
 	}
+}
+
+// StageMarked — отметка этапа остальным: «🎉 Артём отмечает в трекере
+// «…»: отборочный этап — пройден». Первая регистрация — тот же текст, что
+// у галочки (Registered). Снятие отметки не рассылается.
+func (n *Notifier) StageMarked(ctx context.Context, trajectoryID, itemID, stageID string, m stages.Mark, by store.Member) {
+	if n.Max == nil || m == (stages.Mark{}) {
+		return
+	}
+	item, err := n.Store.TrackerItem(ctx, trajectoryID, itemID)
+	if err != nil {
+		return
+	}
+	byProfile, err := n.Store.StagesFor(ctx, []string{item.ProfileID})
+	if err != nil {
+		return
+	}
+	st := byProfile[item.ProfileID]
+	i := slices.IndexFunc(st, func(s stages.Stage) bool { return s.ID == stageID })
+	if i < 0 {
+		return
+	}
+	if i == stages.FirstRegistration(st) && m.Result == "" {
+		n.Registered(ctx, trajectoryID, itemID, by)
+		return
+	}
+	key := "notify.stage." + m.Result
+	if m.Result == "" {
+		key = "notify.stage.registered"
+	}
+	rs, t, ok := n.recipients(ctx, trajectoryID, by.MemberID)
+	if !ok {
+		return
+	}
+	for _, r := range rs {
+		v := Voice(r, t)
+		stage := lowerFirst(st[i].Title)
+		if stage == "" {
+			stage = v.T("notify.stage.untitled", nil)
+		}
+		n.Send(ctx, r.MaxUserID, maxapi.WithKeyboard(
+			v.T(key, voice.Vars{"name": by.FirstName, "title": Short(item.OlympiadName), "stage": stage}),
+			maxapi.Keyboard{maxapi.Row(n.App(v.T("bot.menu.tracker", nil), "tracker"))}))
+	}
+}
+
+// lowerFirst — «Отборочный этап» внутри фразы: «…: отборочный этап — пройден».
+// «II (заключительный) этап» и аббревиатуры остаются как есть.
+func lowerFirst(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	next, _ := utf8.DecodeRuneInString(s[size:])
+	if r == utf8.RuneError || !unicode.IsLower(next) {
+		return s
+	}
+	return string(unicode.ToLower(r)) + s[size:]
 }
 
 // ProposalMessage — предложение ученику с кнопками ответа (F45).

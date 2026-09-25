@@ -132,6 +132,15 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         {detail.format ? <span className="pill pill-ok">{detail.format}</span> : null}
         <Pill deadlineAt={detail.deadline_at} doneLabel={t('pill.done')} />
       </div>
+      {detail.registration_closed ? (
+        <div className="closed-note" role="note">
+          <Icon name="clock" size={15} />
+          <p>
+            <b>{t('olympiad.registrationClosedTitle')}</b>
+            {t('olympiad.registrationClosedText')}
+          </p>
+        </div>
+      ) : null}
 
       {/* Что это за олимпиада и где её сайт (F22) — первым делом, до льгот. */}
       {detail.description || detail.official_url ? (

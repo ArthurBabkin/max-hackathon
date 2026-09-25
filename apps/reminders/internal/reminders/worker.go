@@ -10,9 +10,11 @@ package reminders
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/config"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
@@ -118,6 +120,19 @@ func (w *Worker) deliver(ctx context.Context, now time.Time, res *Result) error 
 			}
 			trajectories[d.TrajectoryID] = t
 		}
+		var results []string
+		if d.Ask() {
+			var ok bool
+			if results, ok, err = w.askResults(ctx, d); err != nil {
+				return err
+			}
+			if !ok {
+				if err := w.store.CancelReminder(ctx, d.ID); err != nil {
+					return err
+				}
+				continue
+			}
+		}
 		recipients, err := w.store.ReminderRecipients(ctx, d)
 		if err != nil {
 			return err
@@ -125,7 +140,11 @@ func (w *Worker) deliver(ctx context.Context, now time.Time, res *Result) error 
 		res.Processed++
 		complete := true
 		for _, r := range recipients {
-			ok, err := w.send(ctx, d, r, t, now, res)
+			msg := w.notify.Reminder(d, r, t, now)
+			if d.Ask() {
+				msg = w.notify.ResultAsk(d, r, t, results)
+			}
+			ok, err := w.send(ctx, d, r, msg, res)
 			if err != nil {
 				return err
 			}
@@ -145,7 +164,7 @@ func (w *Worker) deliver(ctx context.Context, now time.Time, res *Result) error 
 // send — одно напоминание одному получателю. Первый результат — обслужен
 // ли получатель: false означает «повторить следующим запуском», и по нему
 // напоминание остаётся в плане. Ошибка — сбой базы, запуск прерывается.
-func (w *Worker) send(ctx context.Context, d store.DueReminder, r store.Recipient, t store.Trajectory, now time.Time, res *Result) (bool, error) {
+func (w *Worker) send(ctx context.Context, d store.DueReminder, r store.Recipient, msg maxapi.NewMessage, res *Result) (bool, error) {
 	claimed, done, err := w.store.ClaimDelivery(ctx, d.ID, r.MemberID)
 	if err != nil {
 		return false, err
@@ -157,7 +176,7 @@ func (w *Worker) send(ctx context.Context, d store.DueReminder, r store.Recipien
 		// planned навсегда.
 		return done, nil
 	}
-	mid, err := w.max.Send(ctx, r.MaxUserID, w.notify.Reminder(d, r, t, now))
+	mid, err := w.max.Send(ctx, r.MaxUserID, msg)
 	// Итог отправки записываем контекстом, переживающим таймаут запуска:
 	// сообщение уже ушло (или уже понятно, что не уйдёт), и потерять этот
 	// факт нельзя — захват остался бы незакрытым.
@@ -174,4 +193,24 @@ func (w *Worker) send(ctx context.Context, d store.DueReminder, r store.Recipien
 	}
 	res.Sent++
 	return true, w.store.SetDeliveryMessage(rctx, d.ID, r.MemberID, mid)
+}
+
+// askResults — какие итоги предложить в вопросе об этапе. ok = false — итог
+// уже не нужен: отмечен, олимпиада закрыта или этапа больше нет.
+func (w *Worker) askResults(ctx context.Context, d store.DueReminder) (results []string, ok bool, err error) {
+	byProfile, err := w.store.StagesFor(ctx, []string{d.ProfileID})
+	if err != nil {
+		return nil, false, err
+	}
+	marks, err := w.store.StageMarks(ctx, []string{d.TrackerItemID})
+	if err != nil {
+		return nil, false, err
+	}
+	st := byProfile[d.ProfileID]
+	p := stages.Progress{Registered: d.Registered, Marks: marks[d.TrackerItemID]}
+	i := slices.IndexFunc(st, func(s stages.Stage) bool { return s.ID == d.StageID })
+	if i < 0 || !stages.NeedsResult(st, p, i) {
+		return nil, false, nil
+	}
+	return stages.Results(st, i), true, nil
 }

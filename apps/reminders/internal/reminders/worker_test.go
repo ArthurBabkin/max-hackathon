@@ -406,3 +406,64 @@ func TestRun_FreshClaimIsNotReaped(t *testing.T) {
 		t.Fatalf("доставка не завершена, статус %q", got)
 	}
 }
+
+// Итог этапа бот спрашивает у ученика на следующий день после этапа, а не
+// у всей семьи.
+func TestRun_AsksStageResult(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	if _, err := e.st.SetRegistered(ctx, e.kid.TrajectoryID, e.item, e.kid.MemberID, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.st.SyncReminders(ctx, e.kid.TrajectoryID, 10, e.w.now()); err != nil {
+		t.Fatal(err)
+	}
+	// Первый отборочный закончился 11.10 — вопрос 12.10 в 10:00.
+	e.w.now = func() time.Time { return time.Date(2026, 10, 12, 10, 5, 0, 0, msk) }
+	e.fake.Reset()
+	e.run(t)
+	var ask *maxapi.NewMessage
+	for _, s := range e.fake.To(kidMax) {
+		if strings.HasPrefix(s.Msg.Text, "📝 Как прошёл отборочный этап") {
+			ask = &s.Msg
+		}
+	}
+	if ask == nil {
+		t.Fatalf("ученику — вопрос об итоге: %v", e.fake.To(kidMax))
+	}
+	if p := maxtest.Payloads(*ask); len(p) != 3 || !strings.HasPrefix(p[0], "res:") || !strings.HasSuffix(p[0], ":p") {
+		t.Fatalf("кнопки итога: %v", p)
+	}
+	for _, s := range e.fake.To(parentMax) {
+		if strings.HasPrefix(s.Msg.Text, "📝") {
+			t.Fatalf("родителю при ученике итог не спрашиваем: %q", s.Msg.Text)
+		}
+	}
+}
+
+// Итог уже известен — вопрос отменяется, не доходя до чата, даже если
+// пересчёт плана его не снял.
+func TestRun_AskCancelledWhenResultKnown(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	_, _ = e.st.SetRegistered(ctx, e.kid.TrajectoryID, e.item, e.kid.MemberID, true)
+	_ = e.st.SyncReminders(ctx, e.kid.TrajectoryID, 10, e.w.now())
+	if _, err := e.db.Exec(ctx, `INSERT INTO tracker_stage_results (tracker_item_id, stage_id, result)
+		VALUES ($1, 'p669-8-informatika:qualifying:1', 'passed')`, e.item); err != nil {
+		t.Fatal(err)
+	}
+	e.w.now = func() time.Time { return time.Date(2026, 10, 12, 10, 5, 0, 0, msk) }
+	e.fake.Reset()
+	e.run(t)
+	for _, s := range e.fake.To(kidMax) {
+		if strings.HasPrefix(s.Msg.Text, "📝") {
+			t.Fatalf("итог известен — не спрашиваем: %q", s.Msg.Text)
+		}
+	}
+	var status string
+	_ = e.db.QueryRow(ctx, `SELECT status FROM reminders WHERE tracker_item_id = $1
+		AND stage_id = 'p669-8-informatika:qualifying:1' AND offset_days = -1`, e.item).Scan(&status)
+	if status != "cancelled" {
+		t.Fatalf("вопрос отменён: %q", status)
+	}
+}

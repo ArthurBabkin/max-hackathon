@@ -20,6 +20,7 @@ type subjectDTO struct {
 type universityItem struct {
 	ID                    string  `json:"id"`
 	ShortName             string  `json:"short_name"`
+	Nick                  string  `json:"nick"`
 	Name                  string  `json:"name"`
 	City                  *string `json:"city"`
 	Color                 *string `json:"color"`
@@ -28,7 +29,7 @@ type universityItem struct {
 }
 
 func universityItemOf(u store.University) universityItem {
-	return universityItem{ID: u.ID, ShortName: u.ShortName, Name: u.Name, City: u.City,
+	return universityItem{ID: u.ID, ShortName: u.ShortName, Nick: nick(u.ID, u.ShortName), Name: u.Name, City: u.City,
 		BenefitOlympiadsCount: u.BenefitOlympiads, IsMine: u.IsMine}
 }
 
@@ -42,13 +43,23 @@ type profileResponse struct {
 	GoalStatus  string          `json:"goal_status"`
 	// TargetRegionCode — первое место «Где учиться»; устарело, оставлено
 	// для мини-приложения до раскатки places.
-	TargetRegionCode *string          `json:"target_region_code"`
-	TargetRegionName *string          `json:"target_region_name"`
-	Experience       *string          `json:"experience"`
-	HomeCity         *string          `json:"home_city"`
-	Places           []placeDTO       `json:"places"`
-	Universities     []universityItem `json:"universities"`
-	OtherMemberNames []string         `json:"other_member_names"`
+	TargetRegionCode *string             `json:"target_region_code"`
+	TargetRegionName *string             `json:"target_region_name"`
+	Experience       *string             `json:"experience"`
+	HomeCity         *string             `json:"home_city"`
+	Places           []placeDTO          `json:"places"`
+	Universities     []profileUniversity `json:"universities"`
+	OtherMemberNames []string            `json:"other_member_names"`
+}
+
+// profileUniversity — мой вуз и на какие его направления я смотрю (F65):
+// выбранные у вуза (chosen), иначе покрывающие цель (goal), иначе вуз
+// целиком (university, направлений нет).
+type profileUniversity struct {
+	universityItem
+	ChosenDirections []directionItem `json:"chosen_directions"`
+	TargetBasis      string          `json:"target_basis"`
+	TargetDirections []directionItem `json:"target_directions"`
 }
 
 // placeDTO — место «Где учиться»: регион целиком (city = null) или город.
@@ -75,11 +86,19 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 	if err != nil {
 		return profileResponse{}, err
 	}
+	uniIDs := make([]string, len(unis))
+	for i, u := range unis {
+		uniIDs[i] = u.ID
+	}
+	tg, err := s.store.TargetsOf(ctx, m.TrajectoryID, uniIDs)
+	if err != nil {
+		return profileResponse{}, err
+	}
 	sum := summaryOf(t)
 	out := profileResponse{
 		StudentName: t.StudentName, Grade: t.Grade, RegionCode: t.RegionCode, RegionName: sum.RegionName,
 		Directions: sum.Directions, GoalStatus: t.GoalStatus, HomeCity: t.HomeCity,
-		Subjects: make([]subjectDTO, len(subs)), Universities: make([]universityItem, len(unis)),
+		Subjects: make([]subjectDTO, len(subs)), Universities: make([]profileUniversity, len(unis)),
 		Places: make([]placeDTO, len(t.Places)), OtherMemberNames: others,
 	}
 	if t.Experience != "" {
@@ -101,7 +120,16 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 		out.Subjects[i] = subjectDTO{Code: x.Code, Name: x.Name}
 	}
 	for i, u := range unis {
-		out.Universities[i] = universityItemOf(u)
+		x := tg[u.ID]
+		pu := profileUniversity{universityItem: universityItemOf(u), ChosenDirections: []directionItem{},
+			TargetBasis: x.Basis, TargetDirections: make([]directionItem, len(x.DirectionIDs))}
+		for j, id := range x.DirectionIDs {
+			pu.TargetDirections[j] = directionItem{ID: id, Name: x.DirectionNames[j]}
+		}
+		if x.Basis == "chosen" {
+			pu.ChosenDirections = pu.TargetDirections
+		}
+		out.Universities[i] = pu
 	}
 	return out, nil
 }
@@ -174,6 +202,42 @@ func (s *Server) putUniversities(w http.ResponseWriter, r *http.Request) error {
 		return badRequest("Не передан список вузов.")
 	}
 	return s.applyPatch(w, r, store.TrajectoryPatch{UniversityIDs: req.UniversityIDs})
+}
+
+type universityDirectionsRequest struct {
+	DirectionIDs []string `json:"direction_ids"`
+}
+
+// putUniversityDirections — PUT /profile/universities/{id}/directions (F65):
+// направления в вузе. Вуз становится моим, новые направления — в цель;
+// пустой список снимает выбор, цель не трогает.
+func (s *Server) putUniversityDirections(w http.ResponseWriter, r *http.Request) error {
+	ctx, m := r.Context(), me(r)
+	if !permissionsOf(m).EditProfile {
+		return forbidden("Править профиль нельзя.")
+	}
+	var req universityDirectionsRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	if req.DirectionIDs == nil {
+		return badRequest("Не передан список направлений.")
+	}
+	err := s.store.SetUniversityDirections(ctx, m.TrajectoryID, r.PathValue("id"), m.MemberID, req.DirectionIDs)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		return notFound("Вуз не найден.")
+	case errors.Is(err, store.ErrNotAllowed):
+		return badRequest("Такого направления в вузе нет.")
+	case err != nil:
+		return err
+	}
+	p, err := s.profileOf(ctx, m)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, p)
+	return nil
 }
 
 func (s *Server) applyPatch(w http.ResponseWriter, r *http.Request, patch store.TrajectoryPatch) error {

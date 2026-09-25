@@ -168,6 +168,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /profile", s.authed(s.getProfile))
 	s.mux.HandleFunc("PATCH /profile", s.authed(s.patchProfile))
 	s.mux.HandleFunc("PUT /profile/universities", s.authed(s.putUniversities))
+	s.mux.HandleFunc("PUT /profile/universities/{id}/directions", s.authed(s.putUniversityDirections))
 	s.mux.HandleFunc("GET /recommendations", s.authed(s.recommendations))
 	s.mux.HandleFunc("GET /olympiads", s.authed(s.olympiads))
 	s.mux.HandleFunc("GET /olympiads/{id}", s.authed(s.olympiad))
@@ -179,6 +180,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /tracker/{id}", s.authed(s.removeFromTracker))
 	s.mux.HandleFunc("PUT /tracker/{id}/registered", s.authed(s.setRegistered(true)))
 	s.mux.HandleFunc("DELETE /tracker/{id}/registered", s.authed(s.setRegistered(false)))
+	s.mux.HandleFunc("PUT /tracker/{id}/stages/{stage_id}", s.authed(s.setStageMark))
 	s.mux.HandleFunc("GET /calendar", s.authed(s.calendar))
 	s.mux.HandleFunc("GET /calendar/link", s.authed(s.calendarLink))
 	// Без сессии: файл забирает браузер телефона по ссылке из /calendar/link.

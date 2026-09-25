@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/schedule"
@@ -50,46 +51,71 @@ func (s *Store) SyncReminders(ctx context.Context, trajectoryID string, hour int
 	if err != nil {
 		return err
 	}
-
-	var keep, add struct {
-		items, stages []string
-		offsets       []int16
-		fireAt        []time.Time
+	marks, err := s.StageMarks(ctx, itemIDs)
+	if err != nil {
+		return err
 	}
+
+	var keep, add planRows
 	for _, it := range items {
-		for _, st := range byProfile[it.profileID] {
-			if st.DeadlineAt == nil || !st.DeadlineAt.After(now) || (it.registered && stages.RegistrationLike(st.Kind)) {
-				continue
+		st := byProfile[it.profileID]
+		p := stages.Progress{Registered: it.registered, Marks: marks[it.id]}
+		for i, x := range st {
+			if x.DeadlineAt != nil && x.DeadlineAt.After(now) && !stages.Settled(st, p, i) {
+				for _, t := range schedule.Thresholds(*x.DeadlineAt, loc, hour) {
+					keep.put(it.id, x.ID, t)
+				}
+				for _, t := range schedule.Upcoming(*x.DeadlineAt, loc, hour, now) {
+					add.put(it.id, x.ID, t)
+				}
 			}
-			for _, t := range schedule.Thresholds(*st.DeadlineAt, loc, hour) {
-				keep.items, keep.stages = append(keep.items, it.id), append(keep.stages, st.ID)
-				keep.offsets = append(keep.offsets, int16(t.Offset))
-			}
-			for _, t := range schedule.Upcoming(*st.DeadlineAt, loc, hour, now) {
-				add.items, add.stages = append(add.items, it.id), append(add.stages, st.ID)
-				add.offsets, add.fireAt = append(add.offsets, int16(t.Offset)), append(add.fireAt, t.FireAt)
+			// Вопрос об итоге ставится, только пока его время впереди:
+			// о давно прошедших этапах бот не спрашивает — иначе после
+			// выкладки пришла бы лавина вопросов.
+			if end := stages.End(x); end != nil && stages.NeedsResult(st, p, i) {
+				for _, t := range schedule.After(*end, loc, hour) {
+					keep.put(it.id, x.ID, t)
+					if t.FireAt.After(now) {
+						add.put(it.id, x.ID, t)
+					}
+				}
 			}
 		}
 	}
 	return s.Tx(ctx, func(tx *Store) error {
-		if _, err := tx.db.Exec(ctx, `
-			INSERT INTO reminders (tracker_item_id, stage_id, offset_days, fire_at)
-			SELECT * FROM unnest($1::uuid[], $2::text[], $3::smallint[], $4::timestamptz[])
-			ON CONFLICT (tracker_item_id, stage_id, offset_days) WHERE offset_days > 0
-			DO UPDATE SET fire_at = EXCLUDED.fire_at, status = 'planned'
-			WHERE reminders.status = 'cancelled'
-			   OR (reminders.status = 'planned' AND reminders.fire_at > $5 AND reminders.fire_at <> EXCLUDED.fire_at)`,
-			add.items, add.stages, add.offsets, add.fireAt, now); err != nil {
-			return wrap(err)
+		for _, cond := range []string{"offset_days > 0", "offset_days < 0"} {
+			if _, err := tx.db.Exec(ctx, `
+				INSERT INTO reminders (tracker_item_id, stage_id, offset_days, fire_at)
+				SELECT * FROM unnest($1::uuid[], $2::text[], $3::smallint[], $4::timestamptz[]) AS a(i, s, o, f)
+				WHERE `+strings.Replace(cond, "offset_days", "o", 1)+`
+				ON CONFLICT (tracker_item_id, stage_id, offset_days) WHERE `+cond+`
+				DO UPDATE SET fire_at = EXCLUDED.fire_at, status = 'planned'
+				WHERE reminders.status = 'cancelled'
+				   OR (reminders.status = 'planned' AND reminders.fire_at > $5 AND reminders.fire_at <> EXCLUDED.fire_at)`,
+				add.items, add.stages, add.offsets, add.fireAt, now); err != nil {
+				return wrap(err)
+			}
 		}
 		_, err := tx.db.Exec(ctx, `
 			UPDATE reminders SET status = 'cancelled'
-			WHERE tracker_item_id = ANY($1::uuid[]) AND status = 'planned' AND offset_days > 0
+			WHERE tracker_item_id = ANY($1::uuid[]) AND status = 'planned' AND offset_days <> 0
 			  AND (tracker_item_id, stage_id, offset_days) NOT IN (
 			      SELECT * FROM unnest($2::uuid[], $3::text[], $4::smallint[]))`,
 			itemIDs, keep.items, keep.stages, keep.offsets)
 		return wrap(err)
 	})
+}
+
+// planRows — напоминания столбцами для unnest.
+type planRows struct {
+	items, stages []string
+	offsets       []int16
+	fireAt        []time.Time
+}
+
+func (r *planRows) put(item, stage string, t schedule.Threshold) {
+	r.items, r.stages = append(r.items, item), append(r.stages, stage)
+	r.offsets, r.fireAt = append(r.offsets, int16(t.Offset)), append(r.fireAt, t.FireAt)
 }
 
 // SyncAllReminders — страховка воркера: пересчитать план у всех живых
@@ -117,13 +143,16 @@ func (s *Store) SyncAllReminders(ctx context.Context, hour int, now time.Time) e
 }
 
 // RemindTomorrow — разовое напоминание тому, кто нажал «Напомнить завтра»
-// (F30). Повторное нажатие, пока первое не отправлено, ничего не добавляет.
+// (F30). Повторное нажатие, пока первое не отправлено, ничего не добавляет;
+// по закрытой итогом олимпиаде напоминать не о чем.
 func (s *Store) RemindTomorrow(ctx context.Context, trackerItemID, stageID, memberID string, fireAt time.Time) (created bool, err error) {
 	tag, err := s.db.Exec(ctx, `
 		INSERT INTO reminders (tracker_item_id, stage_id, offset_days, fire_at, requested_by_member_id)
 		SELECT $1, $2, 0, $4, $3
 		WHERE NOT EXISTS (SELECT 1 FROM reminders WHERE tracker_item_id = $1 AND stage_id = $2 AND offset_days = 0
-		                  AND requested_by_member_id = $3 AND status = 'planned')`,
+		                  AND requested_by_member_id = $3 AND status = 'planned')
+		  AND NOT EXISTS (SELECT 1 FROM tracker_stage_results WHERE tracker_item_id = $1
+		                  AND result IN ('failed', 'winner', 'prizer', 'participant'))`,
 		trackerItemID, stageID, memberID, fireAt)
 	if err != nil {
 		return false, wrap(err)
@@ -134,23 +163,29 @@ func (s *Store) RemindTomorrow(ctx context.Context, trackerItemID, stageID, memb
 // ExpireReminders отменяет устаревшие запланированные напоминания: срок уже
 // прошёл — напоминать поздно; наступил более близкий порог того же этапа —
 // прошлый не нужен (воркер простаивал, и слать пачку «за неделю», «за три
-// дня» и «за день» разом бессмысленно).
+// дня» и «за день» разом бессмысленно). Вопрос об итоге этапа задаётся
+// после срока и устаревает через askTTL.
 func (s *Store) ExpireReminders(ctx context.Context, now time.Time) (int64, error) {
 	tag, err := s.db.Exec(ctx, `
 		UPDATE reminders r SET status = 'cancelled'
 		FROM stages st
 		WHERE st.id = r.stage_id AND r.status = 'planned'
-		  AND (st.deadline_at <= $1
+		  AND ((r.offset_days >= 0 AND st.deadline_at <= $1)
+		       OR (r.offset_days < 0 AND r.fire_at <= $2)
 		       OR (r.offset_days > 0 AND EXISTS (
 		           SELECT 1 FROM reminders n
 		           WHERE n.tracker_item_id = r.tracker_item_id AND n.stage_id = r.stage_id
 		             AND n.offset_days > 0 AND n.offset_days < r.offset_days
-		             AND n.fire_at <= $1 AND n.status IN ('planned', 'sent'))))`, now)
+		             AND n.fire_at <= $1 AND n.status IN ('planned', 'sent'))))`, now, now.Add(-askTTL))
 	if err != nil {
 		return 0, wrap(err)
 	}
 	return tag.RowsAffected(), nil
 }
+
+// askTTL — сколько вопрос об итоге ждёт отправки: воркер простаивал дольше —
+// спрашивать поздно, повтор через неделю уже в плане.
+const askTTL = 3 * 24 * time.Hour
 
 // DueReminder — напоминание, которое пора отправить, со всем для текста.
 type DueReminder struct {
@@ -171,8 +206,12 @@ type DueReminder struct {
 	RequestedBy   *string
 }
 
+// Ask — вопрос об итоге этапа, а не напоминание о сроке.
+func (d DueReminder) Ask() bool { return d.Offset < 0 }
+
 const dueSelect = `
-	SELECT r.id::text, ti.id::text, t.id::text, st.id, st.kind, COALESCE(st.title, ''), st.deadline_at,
+	SELECT r.id::text, ti.id::text, t.id::text, st.id, st.kind, COALESCE(st.title, ''),
+	       COALESCE(st.deadline_at, st.ends_at, st.starts_at, r.fire_at),
 	       r.offset_days, p.id, o.name, o.official_url, t.student_name, t.tz, ti.registered_at IS NOT NULL,
 	       r.requested_by_member_id::text
 	FROM reminders r
@@ -192,9 +231,10 @@ func scanDue(r rowScanner) (DueReminder, error) {
 
 func (s *Store) DueReminders(ctx context.Context, now time.Time, limit int) ([]DueReminder, error) {
 	rows, err := s.db.Query(ctx, dueSelect+`
-		WHERE r.status = 'planned' AND r.fire_at <= $1 AND st.deadline_at > $1
+		WHERE r.status = 'planned' AND r.fire_at <= $1
+		  AND (st.deadline_at > $1 OR (r.offset_days < 0 AND r.fire_at > $3))
 		ORDER BY r.fire_at
-		LIMIT $2`, now, limit)
+		LIMIT $2`, now, limit, now.Add(-askTTL))
 	if err != nil {
 		return nil, wrap(err)
 	}
@@ -210,13 +250,18 @@ type Recipient struct {
 }
 
 // ReminderRecipients — активные участники с включённым порогом (F44, F51);
-// разовое напоминание — только тому, кто его попросил.
+// разовое напоминание — только тому, кто его попросил. Итог этапа знает
+// ученик — его и спрашиваем, а без ученика в семье — родителей; кто
+// выключил напоминания, того не спрашиваем.
 func (s *Store) ReminderRecipients(ctx context.Context, d DueReminder) ([]Recipient, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT m.id::text, u.max_user_id, u.first_name, m.role
 		FROM members m JOIN users u ON u.id = m.user_id
 		WHERE m.trajectory_id = $1 AND m.left_at IS NULL AND m.removed_at IS NULL
-		  AND (($2 = 0 AND m.id::text = $3) OR ($2 > 0 AND $2 = ANY(m.reminder_offsets)))
+		  AND (($2 = 0 AND m.id::text = $3) OR ($2 > 0 AND $2 = ANY(m.reminder_offsets))
+		       OR ($2 < 0 AND m.reminder_offsets <> '{}' AND (m.role = 'kid' OR NOT EXISTS (
+		           SELECT 1 FROM members k WHERE k.trajectory_id = $1 AND k.role = 'kid'
+		             AND k.left_at IS NULL AND k.removed_at IS NULL))))
 		ORDER BY m.joined_at`, d.TrajectoryID, d.Offset, d.RequestedBy)
 	if err != nil {
 		return nil, wrap(err)
@@ -299,6 +344,12 @@ func (s *Store) MarkDeliveryDone(ctx context.Context, reminderID, memberID strin
 		UPDATE reminder_deliveries SET done_at = now()
 		WHERE reminder_id = $1 AND member_id = $2`,
 		reminderID, memberID)
+	return wrap(err)
+}
+
+// CancelReminder снимает запланированное напоминание, которое уже не нужно.
+func (s *Store) CancelReminder(ctx context.Context, reminderID string) error {
+	_, err := s.db.Exec(ctx, `UPDATE reminders SET status = 'cancelled' WHERE id = $1 AND status = 'planned'`, reminderID)
 	return wrap(err)
 }
 

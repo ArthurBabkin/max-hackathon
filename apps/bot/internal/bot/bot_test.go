@@ -1322,3 +1322,93 @@ func TestSummary_StaleDone(t *testing.T) {
 		t.Fatalf("траекторий: %d", n)
 	}
 }
+
+// bioAsk — Всесибирская по биологии в трекере Артёма, регистрация
+// отмечена, 02.11 в 10:05 — время вопроса об итоге отборочного.
+func (h *harness) bioAsk(m store.Member) (item, reminderID string) {
+	h.t.Helper()
+	ctx := context.Background()
+	item, _, _ = h.st.AddTrackerItem(ctx, m.TrajectoryID, "p669-14-biologiya", m.MemberID)
+	if _, err := h.st.SetRegistered(ctx, m.TrajectoryID, item, m.MemberID, true); err != nil {
+		h.t.Fatal(err)
+	}
+	_ = h.st.SyncReminders(ctx, m.TrajectoryID, 10, time.Date(2026, 10, 1, 12, 0, 0, 0, msk))
+	now := time.Date(2026, 11, 2, 10, 5, 0, 0, msk)
+	due, _ := h.st.DueReminders(ctx, now, 50)
+	for _, d := range due {
+		if d.Ask() && d.StageID == "p669-14-biologiya:qualifying:1" && d.Offset == -1 {
+			reminderID = d.ID
+		}
+	}
+	if reminderID == "" {
+		h.t.Fatalf("нет вопроса об итоге: %+v", due)
+	}
+	h.bot.now = func() time.Time { return now }
+	return item, reminderID
+}
+
+// Ответ на вопрос об итоге — отметка этапа и сообщение семье. Кнопка из
+// старого сообщения итог не меняет.
+func TestResultButtons_MarkStage(t *testing.T) {
+	h := newHarness(t)
+	m := h.kidOnboarding()
+	uid, _ := h.st.UpsertUser(context.Background(), olga.UserID, olga.FirstName)
+	_, _ = h.st.AddMember(context.Background(), m.TrajectoryID, uid, "parent")
+	item, rid := h.bioAsk(m)
+
+	if a := h.answered(h.pressAny(artem, "res:"+rid+":n", "📝")); a.Notification != "Хорошо, спрошу ещё раз через неделю." {
+		t.Fatalf("итогов ещё нет: %+v", a)
+	}
+	if a := h.answered(h.pressAny(artem, "res:"+rid+":p", "📝")); a.Notification != "✅ Записал в трекер." {
+		t.Fatalf("итог записан: %+v", a)
+	}
+	marks, _ := h.st.StageMarks(context.Background(), []string{item})
+	if marks[item]["p669-14-biologiya:qualifying:1"].Result != "passed" {
+		t.Fatalf("отметка этапа: %+v", marks[item])
+	}
+	h.mustContain(olga, "🎉 Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: отборочный этап — пройден.")
+
+	if a := h.answered(h.pressAny(artem, "res:"+rid+":f", "📝")); a.Notification != "Уже отмечено в трекере — изменить можно там." {
+		t.Fatalf("старая кнопка: %+v", a)
+	}
+	marks, _ = h.st.StageMarks(context.Background(), []string{item})
+	if marks[item]["p669-14-biologiya:qualifying:1"].Result != "passed" {
+		t.Fatalf("старая кнопка ничего не меняет: %+v", marks[item])
+	}
+	if a := h.answered(h.pressAny(igor, "res:"+rid+":p", "📝")); a.Notification != "Этой олимпиады уже нет в трекере." {
+		t.Fatalf("чужая кнопка: %+v", a)
+	}
+	if a := h.answered(h.pressAny(artem, "res:"+rid+":x", "📝")); a.Notification == "✅ Записал в трекер." {
+		t.Fatalf("неизвестный код: %+v", a)
+	}
+}
+
+// Кнопка в напоминании о регистрации на заключительный этап отмечает
+// именно эту регистрацию — первая уже отмечена.
+func TestReminderButtons_SecondRegistration(t *testing.T) {
+	h := newHarness(t)
+	m := h.kidOnboarding()
+	uid, _ := h.st.UpsertUser(context.Background(), olga.UserID, olga.FirstName)
+	_, _ = h.st.AddMember(context.Background(), m.TrajectoryID, uid, "parent")
+	item, _ := h.bioAsk(m)
+	now := time.Date(2027, 2, 26, 10, 5, 0, 0, msk)
+	due, _ := h.st.DueReminders(context.Background(), now, 50)
+	var rid string
+	for _, d := range due {
+		if d.StageID == "p669-14-biologiya:registration:2" && d.Offset == 7 {
+			rid = d.ID
+		}
+	}
+	if rid == "" {
+		t.Fatalf("нет напоминания о регистрации на финал: %+v", due)
+	}
+	h.bot.now = func() time.Time { return now }
+	if a := h.answered(h.pressAny(artem, "rem:reg:"+rid, "📅")); !strings.HasPrefix(a.Notification, "✅ Отмечено: регистрация на «Всесибирская") {
+		t.Fatalf("отметка: %+v", a)
+	}
+	marks, _ := h.st.StageMarks(context.Background(), []string{item})
+	if !marks[item]["p669-14-biologiya:registration:2"].Registered {
+		t.Fatalf("регистрация на финал отмечена: %+v", marks[item])
+	}
+	h.mustContain(olga, "регистрация на заключительный этап — пройдена.")
+}
