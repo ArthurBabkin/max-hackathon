@@ -74,7 +74,7 @@ func TestAsk_AnswerFromCardsWithRefsAndSources(t *testing.T) {
 	if strings.Contains(sys.Content, "Артём") || strings.Contains(sys.Content, "900000001") {
 		t.Fatal("в модель не уходят имя и id пользователя")
 	}
-	for _, want := range []string{`"id":"olympiad:p669-8"`, "НИУ ВШЭ", "9 класс", "на «ты»", "Не называй дат"} {
+	for _, want := range []string{`"id":"olympiad:p669-8"`, "НИУ ВШЭ", "9 класс", "на «ты»", "Не выдумывай"} {
 		if !strings.Contains(sys.Content, want) {
 			t.Fatalf("в контексте нет %s:\n%s", want, sys.Content)
 		}

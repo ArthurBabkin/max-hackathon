@@ -244,3 +244,56 @@ func TestAsk_UniversityInQuestionBeatsCarriedHeader(t *testing.T) {
 		t.Fatalf("полная карточка ИТМО:\n%s", sys)
 	}
 }
+
+// Каталог сгруппирован по предмету и уровню: «олимпиады по физике I уровня»
+// — одна строка, а не поиск по 75 олимпиадам.
+func TestAsk_CatalogBySubjectAndLevel(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по физике I уровня есть в базе?"); err != nil {
+		t.Fatal(err)
+	}
+	var line string
+	for _, l := range strings.Split(f.calls[0][0].Content, `\n`) {
+		if strings.HasPrefix(strings.TrimSpace(l), "Физика, I уровень:") {
+			line = l
+		}
+	}
+	if !strings.Contains(line, "Физтех") || !strings.Contains(line, "Росатом") || strings.Contains(line, "Турнир городов") {
+		t.Fatalf("строка «Физика, I уровень»: %q", line)
+	}
+}
+
+// Под ответом — правила вузов из вопроса, а не первых попавшихся.
+func TestAsk_SourcesOfUniversitiesInQuestion(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Победителю — БВИ, призёру — 100 баллов.", "card_ids": ["olympiad:p669-57", "university:mipt"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Даёт ли МФТИ БВИ за Технокубок?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	mipt := false
+	for _, s := range ans.Sources {
+		if s.Kind == "site" || s.Kind == "order" {
+			continue
+		}
+		if !strings.HasPrefix(s.Title, "МФТИ") {
+			t.Errorf("источник не про МФТИ: %s", s.Title)
+		}
+		mipt = true
+	}
+	if !mipt {
+		t.Fatalf("нет правил МФТИ: %+v", ans.Sources)
+	}
+}
+
+// Кнопка вуза — привычное название, а не аббревиатура из справочника.
+func TestAsk_UniversityButtonUsesNick(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Иннополис — вуз в Татарстане.", "card_ids": ["university:innopolis"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Расскажи про Иннополис")
+	if err != nil || len(ans.CardRefs) != 1 || ans.CardRefs[0].Title != "Иннополис" {
+		t.Fatalf("кнопка: %+v %v", ans.CardRefs, err)
+	}
+}

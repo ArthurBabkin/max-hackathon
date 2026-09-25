@@ -76,3 +76,55 @@ func TestKnowledge_TodayAndStageStates(t *testing.T) {
 		t.Fatalf("дата и прошедшие этапы:\n%s", sys)
 	}
 }
+
+// «Идёт сейчас» — только этап, который уже начался. Ближайший этап, до
+// которого ещё месяц, не идёт: иначе модель скажет «регистрация открыта».
+func TestKnowledge_StageNotStartedIsNotCurrent(t *testing.T) {
+	st, tr := setup(t)
+	for day, want := range map[time.Time]bool{
+		time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC): false, // до регистрации «Высшей пробы» (с 20 августа)
+		time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC): true,  // регистрация идёт
+	} {
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		now := func() time.Time { return day }
+		if _, err := (&Assistant{Store: st, LLM: f, Now: now}).Ask(context.Background(), kid, tr, nil, "Что даёт «Высшая проба»?"); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(f.calls[0][0].Content, "идёт сейчас"); got != want {
+			t.Errorf("%s: «идёт сейчас» %v, ждали %v", day.Format(time.DateOnly), got, want)
+		}
+	}
+}
+
+// У каждого расписания — пометка, фактические даты или примерные (по
+// прошлому году): модель должна сказать это в ответе.
+func TestKnowledge_DatesFactualOrApproximate(t *testing.T) {
+	if sys := contextFor(t, "Когда регистрация на «Высшую пробу»?"); !strings.Contains(sys, "даты фактические: Регистрация") {
+		t.Errorf("у «Высшей пробы» даты с сайта олимпиады:\n%s", sys)
+	}
+	if sys := contextFor(t, "Когда школьный этап ВсОШ по информатике?"); !strings.Contains(sys, "даты примерные, по прошлому году: Школьный этап") {
+		t.Errorf("у ВсОШ даты по прошлому году:\n%s", sys)
+	}
+}
+
+// Оговорка — рядом с условием и словами, которые можно повторить в ответе.
+func TestKnowledge_UnverifiedBenefitSaysDataIsBeingChecked(t *testing.T) {
+	sys := contextFor(t, "Что даёт «Высшая проба»?")
+	if strings.Contains(sys, "[источник не указан]") || !strings.Contains(sys, "(данные уточняются)") {
+		t.Fatalf("пометка условия без источника:\n%s", sys)
+	}
+}
+
+// Системный промпт: кто помощник и где он, кому помогает, запрет выдумывать,
+// даты фактические или примерные, класс диплома.
+func TestPrompt_RoleAndRules(t *testing.T) {
+	sys := contextFor(t, "Что даёт «Высшая проба»?")
+	for _, want := range []string{
+		"помощник мини-приложения «Траектория» в мессенджере MAX", "школьникам 7–11 классов и их родителям",
+		"Не выдумывай", "не пиши «или 100 баллов»", "даты фактические", "даты примерные", "только за определённые классы",
+	} {
+		if !strings.Contains(sys, want) {
+			t.Errorf("в промпте нет %q", want)
+		}
+	}
+}
