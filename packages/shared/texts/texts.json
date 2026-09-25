@@ -55,6 +55,10 @@
     "kid": "Цель пока не выбрана",
     "parent": "Цель пока не выбрана"
   },
+  "home.goalMore": {
+    "kid": "{direction} и ещё {count}",
+    "parent": "{direction} и ещё {count}"
+  },
   "home.nextStepLabel": {
     "kid": "Следующий шаг",
     "parent": "Следующий шаг"
