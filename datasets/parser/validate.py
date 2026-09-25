@@ -19,6 +19,35 @@ OID_RE = re.compile(r"^(p669-\d+|vsosh)-[a-z0-9-]+$")
 
 errors, warnings = [], []
 
+# Эталонные факты: программа, олимпиада и что она даёт — {(статус, льгота)},
+# пустое множество — льготы быть не должно. Каждый сверен с первоисточником
+# вручную; это регрессия на ошибки привязки, из-за которых льгота уходила
+# чужим программам (задача #68). Структурные проверки их не ловят.
+POB, PRIZ = "pobeditel", "prizyor"
+GOLDEN = [
+    # МГУ, olymp_disciplines.pdf стр. 43: в Севастополе биология — только «Психология».
+    ("msu__prikladnaya-matematika-i-informatika-filial-mgu-v-g-sev", "vsosh-biologiya", set()),
+    ("msu__prikladnaya-matematika-i-informatika-filial-mgu-v-g-sev", "vsosh-matematika",
+     {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # МФТИ, 2026_olympiads: «Физтех» по биологии — ФБМФ/ВШБИ и ФБВТ, не ЛФИ.
+    ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-biologiya", set()),
+    ("mipt__biofizika-i-bioinformatika-fbmf", "p669-54-biologiya", {(POB, "БВИ")}),
+    # МФТИ, приложение 2: ВсОШ по биологии на ФПМИ — только «ЕКН» и «ММТУ».
+    ("mipt__prikladnaya-matematika-i-informatika", "vsosh-biologiya", set()),
+    ("mipt__estestvennye-i-kompyuternye-nauki", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # ИТМО, vsosh_2026.pdf стр. 2: физика — 03.03.02; «Инноватика» — в блоке химии и биологии.
+    ("itmo__teoreticheskaya-i-eksperimentalnaya-fizika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("itmo__tehnologii-i-innovacii", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # ВШЭ, Москва, стр. 1: Всесибирская по информатике на «Математике» — 100 баллов победителю.
+    ("hse__matematika", "p669-14-informatika", {(POB, "100_ballov")}),
+    # КГМУ, стр. 1 и 3: Сеченовская по химии — первой секции, не «Медицинской биофизике».
+    ("kazan-gmu__lechebnoe-delo", "p669-11-himiya", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("kazan-gmu__medicinskaya-biofizika", "p669-11-himiya", set()),
+    # КФУ, приложение 3 стр. 29: «Физтех» по физике — там, где физика — первое ВИ.
+    ("kfu__prikladnaya-matematika-i-informatika", "p669-54-fizika", set()),
+    ("kfu__astrofizika-i-kosmologiya", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+]
+
 
 def err(msg):
     errors.append(msg)
@@ -123,6 +152,23 @@ def main() -> int:
                 err(f"B: балл подтверждения не заполнен и не помечен is_demo ({oid})")
             if str(ben["source_url"]).lower().endswith(".pdf") and ben.get("source_page") is None:
                 warn(f"B: PDF-источник без source_page ({oid})")
+
+    # --- Эталонные факты
+    have = defaultdict(set)
+    for x in b:
+        for ben in x["prinimaemye_olimpiady"]:
+            have[(x["program_id"], ben["olympiad_id"])].add((ben["diploma_status"], ben["benefit_type"]))
+    for pid, oid, want in GOLDEN:
+        if pid not in a_pids:
+            err(f"эталон: программы {pid} нет в A")
+        elif have[(pid, oid)] != want:
+            err(f"эталон: {pid} ← {oid}: ждали {sorted(want)}, в B {sorted(have[(pid, oid)])}")
+    # ВсОШ СПбГУ — только из документа по ВсОШ, не из перечня РСОШ.
+    for x in b:
+        if x["vuz_id"] == "spbu":
+            for ben in x["prinimaemye_olimpiady"]:
+                if ben["olympiad_id"].startswith("vsosh-") and "olymp_1" not in ben["source_url"]:
+                    err(f"СПбГУ: ВсОШ из перечня РСОШ ({x['program_id']} ← {ben['olympiad_id']})")
 
     # --- Сводка
     print(f"Датасет A: {len(a)} объектов ({len(offered)} offered, "
