@@ -209,6 +209,26 @@ func (s *Server) setRegistered(on bool) handlerFunc {
 	}
 }
 
+// newOnStage — что у этапа появилось: регистрация, которой не было, или
+// новый итог. Снятая отметка — не новость: семье о ней не пишем.
+func newOnStage(before, after trackerItem, stageID string) stages.Mark {
+	find := func(it trackerItem) trackerStage {
+		for _, st := range it.Stages {
+			if st.ID == stageID {
+				return st
+			}
+		}
+		return trackerStage{}
+	}
+	was, now := find(before), find(after)
+	var news stages.Mark
+	news.Registered = now.Registered && !was.Registered
+	if now.Result != nil && (was.Result == nil || *was.Result != *now.Result) {
+		news.Result = *now.Result
+	}
+	return news
+}
+
 var errMarksDependOnRegistration = conflict("Сначала снимите итоги этапов: без регистрации их не бывает.")
 
 // setStageMark — PUT /tracker/{id}/stages/{stage_id}: регистрация на этап
@@ -235,6 +255,10 @@ func (s *Server) setStageMark(w http.ResponseWriter, r *http.Request) error {
 		mark.Result = *body.Result
 	}
 	stageID := r.PathValue("stage_id")
+	before, err := s.trackerItem(ctx, m.TrajectoryID, id)
+	if err != nil {
+		return err
+	}
 	changed, err := s.store.SetStageMark(ctx, m.TrajectoryID, id, stageID, m.MemberID, mark, s.now())
 	switch {
 	case errors.Is(err, store.ErrNotFound):
@@ -248,15 +272,15 @@ func (s *Server) setStageMark(w http.ResponseWriter, r *http.Request) error {
 	case err != nil:
 		return err
 	}
-	if changed {
-		s.replan(r, m.TrajectoryID)
-		if mark != (stages.Mark{}) {
-			s.tell(r, func(ctx context.Context) { s.notify.StageMarked(ctx, m.TrajectoryID, id, stageID, mark, m) })
-		}
-	}
 	item, err := s.trackerItem(ctx, m.TrajectoryID, id)
 	if err != nil {
 		return err
+	}
+	if changed {
+		s.replan(r, m.TrajectoryID)
+		if news := newOnStage(before, item, stageID); news != (stages.Mark{}) {
+			s.tell(r, func(ctx context.Context) { s.notify.StageMarked(ctx, m.TrajectoryID, id, stageID, news, m) })
+		}
 	}
 	writeJSON(w, http.StatusOK, item)
 	return nil
