@@ -120,8 +120,9 @@ func directionText(v voice.Voice, tr store.Trajectory) string {
 }
 
 // resultText — «Под твою цель подходят 4 олимпиады и ВсОШ.», затем
-// стартовая олимпиада (SPEC 2.6, 9) и «В мини-приложении…». Цифры — из
-// того же подбора, что экран «Подбор» (core/pick).
+// стартовая олимпиада (SPEC 2.6, 9), ближайшая по сроку, если это другая, и
+// «В мини-приложении…». Цифры — из того же подбора, что экран «Подбор»
+// (core/pick).
 func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, pick.Result, error) {
 	res, err := pick.Recommend(t.ctx, b.store, tr, b.now(), "all")
 	if err != nil {
@@ -136,7 +137,9 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 		default:
 			perechen++
 		}
-		if r.Deadline != nil && (nearest == nil || r.Deadline.Before(*nearest.Deadline)) {
+		// Ближайшая — с самым ранним сроком, до которого ещё есть хотя бы день.
+		if r.Deadline != nil && voice.DaysUntil(*r.Deadline, b.now(), tzOf(tr)) >= 1 &&
+			(nearest == nil || r.Deadline.Before(*nearest.Deadline)) {
 			nearest = &res.Items[i]
 		}
 	}
@@ -158,19 +161,18 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 		// Цели нет — подбор по предметам.
 		key += "Subjects"
 	}
-	head := []string{v.T(key, voice.Vars{"count": count})}
+	blocks := []string{v.T(key, voice.Vars{"count": count})}
 	start := pick.Start(res)
-	if start == nil && nearest != nil && nearest.Stage != nil {
-		days := voice.DaysUntil(*nearest.Deadline, b.now(), tzOf(tr))
-		if days >= 1 {
-			name := res.Profiles[nearest.ProfileID].OlympiadName
-			head = append(head, v.T("bot.result.deadline", voice.Vars{
-				"stage": notify.StagePhrase(v, nearest.Stage.Kind, name), "days": voice.Days(days)}))
+	if start != nil && nearest != nil && start.ProfileID == nearest.ProfileID {
+		// Стартовая и есть ближайшая — один блок.
+		blocks = append(blocks, b.olympiadText(v, tr, res, *start, "bot.result.startNearest"))
+	} else {
+		if start != nil {
+			blocks = append(blocks, b.olympiadText(v, tr, res, *start, "bot.result.start"))
 		}
-	}
-	blocks := []string{strings.Join(head, " ")}
-	if start != nil {
-		blocks = append(blocks, b.startText(v, tr, res, *start))
+		if nearest != nil {
+			blocks = append(blocks, b.olympiadText(v, tr, res, *nearest, "bot.result.nearest"))
+		}
 	}
 	tail := "bot.result.tail"
 	if len(res.Set.Universities) == 0 {
@@ -183,12 +185,13 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 	return strings.Join(blocks, "\n\n"), res, nil
 }
 
-// startText — «Для старта советую эту:», олимпиада с предметом и строка
-// «II уровень · до 5 октября, 4 дня · онлайн».
-func (b *Bot) startText(v voice.Voice, tr store.Trajectory, res pick.Result, r match.Result) string {
+// olympiadText — заголовок («Для старта советую эту:», «Ближайшая
+// олимпиада:»), олимпиада с предметом и строка «II уровень · до 5 октября,
+// 4 дня · онлайн».
+func (b *Bot) olympiadText(v voice.Voice, tr store.Trajectory, res pick.Result, r match.Result, title string) string {
 	p := res.Profiles[r.ProfileID]
 	lines := []string{
-		v.T("bot.result.start", nil),
+		v.T(title, nil),
 		v.T("bot.result.olympiad", voice.Vars{"olympiad": notify.Short(p.OlympiadName), "subject": p.SubjectName}),
 	}
 	var info []string
