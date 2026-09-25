@@ -19,11 +19,13 @@ import { regions as REGIONS } from '@regions'
 import { DIRECTIONS, OLYMPIADS, SOURCES, UNIVERSITIES, inDays } from './fixtures'
 import {
   type DemoAiChat,
+  dropOrphanPrograms,
   findProfile,
   hasKid,
   nextId,
   primaryProfile,
   profileKey,
+  programById,
   role,
   state,
   universityById,
@@ -143,10 +145,12 @@ route('GET', '/olympiads/:id', ({ params }) => {
 route('GET', '/universities', ({ query }) => {
   const q = query.get('q')?.trim() ?? ''
   const city = query.get('city')
+  const direction = query.get('direction')
 
   const items = (wantsEmpty() ? [] : UNIVERSITIES)
     .filter((u) => !q || matches(u.name, q) || matches(u.short_name, q))
     .filter((u) => !city || u.city === city)
+    .filter((u) => !direction || (u.programs ?? []).some((p) => p.direction_id === direction))
     .map(build.universityListItem)
 
   return { items }
@@ -154,10 +158,12 @@ route('GET', '/universities', ({ query }) => {
 
 route('GET', '/directions', () => ({ items: DIRECTIONS }))
 
-route('GET', '/universities/:id', ({ params }) => {
+route('GET', '/universities/:id', ({ params, query }) => {
   const u = universityById(params.id!)
   if (!u) throw notFound()
-  return build.universityDetail(u)
+  const program = query.get('program')
+  if (program && !u.programs?.some((p) => p.id === program)) throw notFound()
+  return build.universityDetail(u, program)
 })
 
 // --- Трекер ------------------------------------------------------------------
@@ -399,6 +405,7 @@ route('PATCH', '/profile', ({ body }) => {
   }
   if (Array.isArray(patch.university_ids)) {
     state.universities = patch.university_ids as string[]
+    dropOrphanPrograms()
   }
   return build.profile()
 })
@@ -409,6 +416,24 @@ route('PUT', '/profile/universities', ({ body }) => {
     throw new ApiError(400, 'BAD_REQUEST', 'Не передан список вузов')
   }
   state.universities = ids
+  dropOrphanPrograms()
+  return build.profile()
+})
+
+route('PUT', '/profile/programs', ({ body }) => {
+  const ids = (body as { program_ids?: string[] })?.program_ids
+  if (!Array.isArray(ids)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Не передан список направлений')
+  }
+  const found = ids.map(programById)
+  if (found.some((x) => x === null)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Неизвестный предмет, направление или вуз.')
+  }
+  state.programs = [...new Set(ids)]
+  // Направление без своего вуза в списке не бывает.
+  for (const x of found) {
+    if (x && !state.universities.includes(x.university.id)) state.universities.push(x.university.id)
+  }
   return build.profile()
 })
 

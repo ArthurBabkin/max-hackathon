@@ -2,7 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Profile, Tracker, TrackerItem } from '@contract'
+import type {
+  AiChat,
+  AiExchange,
+  AiMessage,
+  CalendarLink,
+  Home,
+  OlympiadDetail,
+  Profile,
+  Tracker,
+  TrackerItem,
+  UniversityDetail,
+} from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -199,6 +210,44 @@ describe('профиль', () => {
   it('пустой регион — «не указан», без прежнего названия', async () => {
     const p = (await handleMock('PATCH', '/profile', { region_code: '' })) as Profile
     expect([p.region_code, p.region_name]).toEqual(['', ''])
+  })
+})
+
+describe('направления вузов', () => {
+  afterEach(() => {
+    state.universities = ['inno', 'kfu', 'hse']
+    state.programs = ['inno__se']
+  })
+
+  it('фильтр вузов по направлению', async () => {
+    const { items } = (await handleMock('GET', '/universities?direction=dir-math')) as { items: { id: string }[] }
+    expect(items.map((u) => u.id)).toEqual(['kfu', 'hse'])
+  })
+
+  it('карточка с направлением — олимпиады только с льготой на него', async () => {
+    const all = (await handleMock('GET', '/universities/inno')) as UniversityDetail
+    const ai = (await handleMock('GET', '/universities/inno?program=inno__ai')) as UniversityDetail
+    expect(all.programs.map((p) => [p.id, p.is_mine])).toEqual([
+      ['inno__se', true],
+      ['inno__ai', false],
+    ])
+    expect(ai.olympiads.length).toBeLessThan(all.olympiads.length)
+    expect(new Set(ai.olympiads.map((o) => o.olympiad_id))).toEqual(new Set(['inno', 'vsosh-inf', 'lomo']))
+    await expect(handleMock('GET', '/universities/kfu?program=inno__ai')).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('сохранённое направление добавляет вуз, убранный вуз уносит направление', async () => {
+    state.universities = []
+    state.programs = []
+    const saved = (await handleMock('PUT', '/profile/programs', { program_ids: ['hse__pmi'] })) as Profile
+    expect(saved.programs.map((p) => p.id)).toEqual(['hse__pmi'])
+    expect(saved.universities.map((u) => u.id)).toEqual(['hse'])
+
+    const dropped = (await handleMock('PUT', '/profile/universities', { university_ids: [] })) as Profile
+    expect(dropped.programs).toEqual([])
+    await expect(handleMock('PUT', '/profile/programs', { program_ids: ['нет'] })).rejects.toMatchObject({
+      status: 400,
+    })
   })
 })
 

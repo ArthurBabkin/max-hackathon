@@ -23,6 +23,7 @@ import {
   type Stage,
   type TrackerItem,
   type TrajectorySummary,
+  type Program,
   type UniversityDetail,
   type UniversityListItem,
 } from '@contract'
@@ -38,6 +39,7 @@ import {
   SUBJECTS,
   UNIVERSITIES,
   type DemoOlympiad,
+  type DemoProgram,
   type DemoUniversity,
   inDays,
 } from './fixtures'
@@ -49,6 +51,7 @@ import {
   profileKey,
   role,
   state,
+  programById,
   universityById,
   viewer,
   type DemoProposal,
@@ -317,7 +320,30 @@ export function universityListItem(u: DemoUniversity): UniversityListItem {
   }
 }
 
-export function universityDetail(u: DemoUniversity): UniversityDetail {
+export function program(u: DemoUniversity, p: DemoProgram): Program {
+  return {
+    id: p.id,
+    university_id: u.id,
+    university_short_name: u.short_name,
+    name: p.name,
+    faculty: p.faculty,
+    code: p.code,
+    direction_id: p.direction_id,
+    budget_places: p.budget_places,
+    olympiads_count: p.olympiads.length,
+    is_mine: state.programs.includes(p.id),
+  }
+}
+
+/** Как на сервере: сохранённые первыми, за ними — по целям ученика. */
+function programRank(p: DemoProgram): number {
+  if (state.programs.includes(p.id)) return 0
+  return state.directions.some((d) => d.id === p.direction_id) ? 1 : 2
+}
+
+/** С programId — олимпиады только этого направления (он уже проверен). */
+export function universityDetail(u: DemoUniversity, programId: string | null = null): UniversityDetail {
+  const chosen = u.programs?.find((p) => p.id === programId)
   return {
     ...universityListItem(u),
     directions: u.directions,
@@ -326,7 +352,11 @@ export function universityDetail(u: DemoUniversity): UniversityDetail {
     description: null,
     site_url: null,
     rules_verified_at: u.rules_verified_at,
+    programs: [...(u.programs ?? [])]
+      .sort((a, b) => programRank(a) - programRank(b) || a.name.localeCompare(b.name, 'ru'))
+      .map((p) => program(u, p)),
     olympiads: Object.entries(u.benefits).flatMap(([olympiadId, benefit]) => {
+      if (chosen && !chosen.olympiads.includes(olympiadId)) return []
       const o = OLYMPIADS.find((x) => x.id === olympiadId)
       const primary = primaryProfile(olympiadId)
       if (!o || !primary) return []
@@ -475,6 +505,10 @@ export function profile(): Profile {
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
       .map(universityListItem),
+    programs: state.programs.flatMap((id) => {
+      const found = programById(id)
+      return found ? [program(found.university, found.program)] : []
+    }),
     other_member_names: state.members.filter((m) => m.id !== state.viewerId).map((m) => m.name),
   }
 }

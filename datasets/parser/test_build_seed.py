@@ -264,6 +264,51 @@ class BuildTest(unittest.TestCase):
     def test_committed_sql_is_up_to_date(self):
         self.assertEqual(bs.OUT.read_text(encoding="utf-8"), bs.render(self.seed),
                          "0003_seed_content.sql устарел — выполните make seed")
+        self.assertEqual(bs.PROGRAMS_OUT.read_text(encoding="utf-8"), bs.render_programs(self.seed),
+                         "0020_university_programs_seed.sql устарел — выполните make seed")
+
+    def test_programs_are_unique_offered_and_of_known_universities(self):
+        ids = [p["id"] for p in self.seed.programs]
+        self.assertEqual(len(ids), len(set(ids)), "программа в двух профильных группах — одна строка")
+        universities = {u["id"] for u in self.seed.universities}
+        directions = {d["id"] for d in self.seed.directions}
+        for p in self.seed.programs:
+            self.assertIn(p["university_id"], universities)
+            self.assertTrue(p["name"])
+            if p["direction_id"] is not None:
+                self.assertIn(p["direction_id"], directions)
+        self.assertTrue(any(p["direction_id"] for p in self.seed.programs))
+
+    def test_program_benefits_are_within_university_benefits(self):
+        """Льгота на программу бывает только там, где есть льгота у вуза."""
+        programs = {p["id"]: p["university_id"] for p in self.seed.programs}
+        by_university = {(b["olympiad_profile_id"], b["university_id"]) for b in self.seed.benefits}
+        for b in self.seed.program_benefits:
+            self.assertIn(b["benefit"], ("bvi", "bvi_winners", "score100"))
+            self.assertIn((b["olympiad_profile_id"], programs[b["program_id"]]), by_university)
+        pairs = [(b["program_id"], b["olympiad_profile_id"]) for b in self.seed.program_benefits]
+        self.assertEqual(len(pairs), len(set(pairs)))
+
+
+class ProgramTextTest(unittest.TestCase):
+    def test_program_name_drops_pdf_artifacts(self):
+        self.assertEqual(bs.program_name("Фундаментальная и прикладная биология — Биотехнология)"),
+                         "Фундаментальная и прикладная биология — Биотехнология")
+        self.assertEqual(bs.program_name("Экономика (профиль аудит)"), "Экономика (профиль аудит)")
+        self.assertEqual(bs.program_name("Информацион- ная безопасность"), "Информационная безопасность")
+        self.assertEqual(bs.program_name("Бизнес- информатика"), "Бизнес-информатика")
+        self.assertEqual(bs.program_name("Технологии микро- и наноэлектроники"),
+                         "Технологии микро- и наноэлектроники")
+        self.assertEqual(bs.program_name("Дизайн информационны х продуктов"), "Дизайн информационных продуктов")
+
+    def test_faculty_only_when_it_is_one(self):
+        self.assertEqual(bs.faculty_name("Физический факультет", "Физика"), "Физический факультет")
+        self.assertEqual(bs.faculty_name("НИУ ВШЭ — Пермь", "Экономика"), "НИУ ВШЭ — Пермь")
+        self.assertIsNone(bs.faculty_name("СПбГУ, УГСН 38.00.00", "Экономика"))
+        self.assertIsNone(bs.faculty_name("09.00.00 Информатика и вычислительная техника", "Бизнес-информатика"))
+        self.assertIsNone(bs.faculty_name("Университет ИТМО", "Физика"))
+        self.assertIsNone(bs.faculty_name("Математика", "Математика"))
+        self.assertIsNone(bs.faculty_name(None, "Физика"))
 
 
 class SqlLiteralTest(unittest.TestCase):

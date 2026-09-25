@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
-import { useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
+import { useDirections, useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
 import { groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
 import { Icon } from '@/ui/Icon'
@@ -60,17 +60,25 @@ export function CatalogScreen() {
   // Туториал открывает олимпиаду, у которой кнопка «Добавить» ещё есть.
   const taken = new Set([...tracked, ...(tracker.data?.proposals.map((p) => p.olympiad_id) ?? [])])
   const [city, setCity] = useState('all')
+  const [direction, setDirection] = useState('all')
+  const directions = useDirections()
+  // Направления ученика — первыми: их и ищут в вузах чаще всего.
+  const myDirections = new Set(profile.data?.directions.map((d) => d.id))
+  const directionChips = [...(directions.data?.items ?? [])].sort(
+    (a, b) => Number(myDirections.has(b.id)) - Number(myDirections.has(a.id)),
+  )
 
   const debouncedQuery = useDebounced(query)
 
   const olympiads = useOlympiads(debouncedQuery, subject, city)
-  const universities = useUniversities(debouncedQuery, city)
+  const universities = useUniversities(debouncedQuery, city, direction)
   const active = segment === 'olympiads' ? olympiads : universities
 
   const reset = () => {
     setQuery('')
     setSubject('all')
     setCity('all')
+    setDirection('all')
   }
 
   const switchSegment = (next: Segment) => {
@@ -229,7 +237,21 @@ export function CatalogScreen() {
             ))}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="filter-row" data-tour="catalog-directions">
+          <span className="filter-label">{t('catalog.filterDirection')}</span>
+          <div className="chips">
+            <Chip active={direction === 'all'} onClick={() => setDirection('all')}>
+              Все
+            </Chip>
+            {directionChips.map((item) => (
+              <Chip key={item.id} active={direction === item.id} onClick={() => setDirection(item.id)}>
+                {item.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="filter-row">
         <span className="filter-label">

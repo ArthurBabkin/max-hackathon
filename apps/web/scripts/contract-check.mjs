@@ -230,7 +230,26 @@ async function main() {
   await call('GET', '/universities', { token: kid, query: { city: 'Москва' }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: unis.items[0].id }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: 'nope' }, expect: 404 })
-  await call('GET', '/directions', { token: kid, expect: 200 })
+  const directions = (await call('GET', '/directions', { token: kid, expect: 200 })).data
+
+  // Направления вузов: фильтр каталога, олимпиады по направлению, сохранение.
+  const direction = directions.items[0]?.id ?? 'nope'
+  await call('GET', '/universities', { token: kid, query: { direction }, expect: 200 })
+  let program = null
+  for (const u of unis.items) {
+    const detail = (await call('GET', '/universities/{id}', { token: kid, params: { id: u.id }, expect: 200 })).data
+    program = detail.programs?.[0] ?? null
+    if (program) break
+  }
+  if (program) {
+    const params = { id: program.university_id }
+    await call('GET', '/universities/{id}', { token: kid, params, query: { program: program.id }, expect: 200 })
+    await call('GET', '/universities/{id}', { token: kid, params, query: { program: 'nope' }, expect: 404 })
+    await call('PUT', '/profile/programs', { token: kid, body: { program_ids: [program.id] }, expect: 200 })
+    await call('PUT', '/profile/programs', { token: kid, body: { program_ids: [] }, expect: 200 })
+  }
+  await call('PUT', '/profile/programs', { token: kid, body: {}, expect: 400 })
+  await call('PUT', '/profile/universities', { token: kid, body: { university_ids: uniIds }, expect: 200 })
 
   // Трекер: добавить то, чего там нет, отметить, снять отметку, удалить.
   const tracker = (await call('GET', '/tracker', { token: kid, expect: 200 })).data

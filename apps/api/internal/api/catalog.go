@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -132,7 +133,8 @@ func (s *Server) universities(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	us, err := s.store.Universities(r.Context(), me(r).TrajectoryID, q, r.URL.Query().Get("city"))
+	us, err := s.store.Universities(r.Context(), me(r).TrajectoryID, store.UniversityQuery{
+		Search: q, City: r.URL.Query().Get("city"), DirectionID: r.URL.Query().Get("direction")})
 	if err != nil {
 		return err
 	}
@@ -156,6 +158,34 @@ type universityOlympiad struct {
 	BenefitLabel      string  `json:"benefit_label"`
 }
 
+// programItem — направление подготовки вуза.
+type programItem struct {
+	ID                  string  `json:"id"`
+	UniversityID        string  `json:"university_id"`
+	UniversityShortName string  `json:"university_short_name"`
+	Name                string  `json:"name"`
+	Faculty             *string `json:"faculty"`
+	Code                *string `json:"code"`
+	DirectionID         *string `json:"direction_id"`
+	BudgetPlaces        *int    `json:"budget_places"`
+	OlympiadsCount      int     `json:"olympiads_count"`
+	IsMine              bool    `json:"is_mine"`
+}
+
+func programItemOf(p store.Program) programItem {
+	return programItem{ID: p.ID, UniversityID: p.UniversityID, UniversityShortName: p.UniversityShort, Name: p.Name,
+		Faculty: p.Faculty, Code: p.Code, DirectionID: p.DirectionID, BudgetPlaces: p.BudgetPlaces,
+		OlympiadsCount: p.Olympiads, IsMine: p.IsMine}
+}
+
+func programItems(ps []store.Program) []programItem {
+	out := make([]programItem, len(ps))
+	for i, p := range ps {
+		out[i] = programItemOf(p)
+	}
+	return out
+}
+
 type universityDetail struct {
 	universityItem
 	Directions      []string             `json:"directions"`
@@ -164,11 +194,13 @@ type universityDetail struct {
 	RulesVerifiedAt *string              `json:"rules_verified_at"`
 	Description     *string              `json:"description"`
 	SiteURL         *string              `json:"site_url"`
+	Programs        []programItem        `json:"programs"`
 	Olympiads       []universityOlympiad `json:"olympiads"`
 }
 
 // university — GET /universities/{id} (F25, F26). Олимпиады по предметам
-// ученика — первыми: у Иннополиса их больше шестидесяти.
+// ученика — первыми: у Иннополиса их больше шестидесяти. С ?program= —
+// олимпиады с льготой на это направление вуза.
 func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 	ctx, m := r.Context(), me(r)
 	d, err := s.store.University(ctx, m.TrajectoryID, r.PathValue("id"))
@@ -178,7 +210,15 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	rows, err := s.store.UniversityOlympiads(ctx, d.ID)
+	programs, err := s.store.UniversityPrograms(ctx, m.TrajectoryID, d.ID)
+	if err != nil {
+		return err
+	}
+	programID := r.URL.Query().Get("program")
+	if programID != "" && !slices.ContainsFunc(programs, func(p store.Program) bool { return p.ID == programID }) {
+		return notFound("Направление не найдено.")
+	}
+	rows, err := s.store.UniversityOlympiads(ctx, d.ID, programID)
 	if err != nil {
 		return err
 	}
@@ -194,7 +234,8 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 
 	out := universityDetail{
 		universityItem: universityItemOf(d.University), Directions: d.Directions, EgeNote: d.EgeNote,
-		RulesURL: d.RulesURL, RulesVerifiedAt: dateOf(d.RulesVerifiedAt), Description: d.Description, SiteURL: d.SiteURL, Olympiads: make([]universityOlympiad, len(rows)),
+		RulesURL: d.RulesURL, RulesVerifiedAt: dateOf(d.RulesVerifiedAt), Description: d.Description, SiteURL: d.SiteURL,
+		Programs: programItems(programs), Olympiads: make([]universityOlympiad, len(rows)),
 	}
 	if out.Directions == nil {
 		out.Directions = []string{}

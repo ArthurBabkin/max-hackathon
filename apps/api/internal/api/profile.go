@@ -48,6 +48,7 @@ type profileResponse struct {
 	HomeCity         *string          `json:"home_city"`
 	Places           []placeDTO       `json:"places"`
 	Universities     []universityItem `json:"universities"`
+	Programs         []programItem    `json:"programs"`
 	OtherMemberNames []string         `json:"other_member_names"`
 }
 
@@ -71,6 +72,10 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 	if err != nil {
 		return profileResponse{}, err
 	}
+	programs, err := s.store.TrajectoryPrograms(ctx, m.TrajectoryID)
+	if err != nil {
+		return profileResponse{}, err
+	}
 	others, err := s.store.OtherMemberNames(ctx, m.TrajectoryID, m.MemberID)
 	if err != nil {
 		return profileResponse{}, err
@@ -80,7 +85,8 @@ func (s *Server) profileOf(ctx context.Context, m store.Member) (profileResponse
 		StudentName: t.StudentName, Grade: t.Grade, RegionCode: t.RegionCode, RegionName: sum.RegionName,
 		Directions: sum.Directions, GoalStatus: t.GoalStatus, HomeCity: t.HomeCity,
 		Subjects: make([]subjectDTO, len(subs)), Universities: make([]universityItem, len(unis)),
-		Places: make([]placeDTO, len(t.Places)), OtherMemberNames: others,
+		Programs: programItems(programs),
+		Places:   make([]placeDTO, len(t.Places)), OtherMemberNames: others,
 	}
 	if t.Experience != "" {
 		out.Experience = &t.Experience
@@ -176,11 +182,31 @@ func (s *Server) putUniversities(w http.ResponseWriter, r *http.Request) error {
 	return s.applyPatch(w, r, store.TrajectoryPatch{UniversityIDs: req.UniversityIDs})
 }
 
+type programsRequest struct {
+	ProgramIDs []string `json:"program_ids"`
+}
+
+// putPrograms — PUT /profile/programs: направления вузов, сохранённые в
+// каталоге. Вузы этих направлений добавляются к вузам ученика.
+func (s *Server) putPrograms(w http.ResponseWriter, r *http.Request) error {
+	if !permissionsOf(me(r)).EditProfile {
+		return forbidden("Править профиль нельзя.")
+	}
+	var req programsRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	if req.ProgramIDs == nil {
+		return badRequest("Не передан список направлений.")
+	}
+	return s.applyPatch(w, r, store.TrajectoryPatch{ProgramIDs: req.ProgramIDs})
+}
+
 func (s *Server) applyPatch(w http.ResponseWriter, r *http.Request, patch store.TrajectoryPatch) error {
 	ctx, m := r.Context(), me(r)
 	err := s.store.UpdateTrajectory(ctx, m.TrajectoryID, m.MemberID, patch)
 	if errors.Is(err, store.ErrNotFound) {
-		// Внешний ключ: предмета, направления или вуза с таким кодом нет.
+		// Внешний ключ: предмета, направления, вуза или программы с таким кодом нет.
 		return badRequest("Неизвестный предмет, направление или вуз.")
 	}
 	if err != nil {

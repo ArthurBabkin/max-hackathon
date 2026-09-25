@@ -1562,6 +1562,111 @@
   margin-left: auto;
 }
 
+/* Направления подготовки: строка выбирает направление для олимпиад ниже,
+   кнопка справа сохраняет его к себе. Блок на --bg, строки — на --surface. */
+.programs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--gap-sm);
+}
+
+.program {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.program-on {
+  border-color: var(--p);
+  background: var(--ps);
+}
+
+.program-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  color: var(--tx);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.program-name {
+  font-size: var(--t-small);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.program-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.program-meta:empty {
+  display: none;
+}
+
+.program-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--gr-ink);
+  font-weight: 700;
+}
+
+.program-save {
+  display: grid;
+  flex: 0 0 var(--tap);
+  align-self: center;
+  height: var(--tap);
+  place-items: center;
+  margin-right: 6px;
+  border: 1px solid var(--ln-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--p);
+  cursor: pointer;
+}
+
+.program-save-on {
+  border-color: var(--p);
+  background: var(--p);
+  color: var(--surface);
+}
+
+.program-save:disabled {
+  opacity: 0.6;
+}
+
+.program-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px var(--gap-sm);
+  margin: 0 0 4px;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--tx-2);
+}
+
+[aria-busy='true'] > .benefit {
+  opacity: 0.6;
+}
+
 .rules-date {
   color: var(--mu);
   font-weight: 500;

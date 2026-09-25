@@ -5,7 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
 import { GRADES, type Grade, type ProfilePatch } from '@contract'
 import { districts, regions } from '@regions'
-import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
+import {
+  useDirections,
+  usePatchProfile,
+  useProfile,
+  useServerVersion,
+  useSetPrograms,
+  useUniversities,
+} from '@/api/queries'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip } from '@/ui/primitives'
 import { ThemeSetting } from '@/ui/ThemeSetting'
@@ -43,6 +50,7 @@ export function ProfileScreen() {
   const universities = useUniversities('', 'all')
   const directions = useDirections()
   const save = usePatchProfile()
+  const savePrograms = useSetPrograms()
   const serverVersion = useServerVersion()
 
   const [name, setName] = useState('')
@@ -54,6 +62,8 @@ export function ProfileScreen() {
   const [experience, setExperience] = useState<Experience | null>(null)
   const [subjects, setSubjects] = useState<string[]>([])
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>([])
+  /** Направления вузов, сохранённые в каталоге; здесь их можно только убрать. */
+  const [selectedPrograms, setSelectedPrograms] = useState<string[]>([])
   const [warning, setWarning] = useState<string | null>(null)
   const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice)
 
@@ -69,6 +79,7 @@ export function ProfileScreen() {
     setExperience(profile.data.experience ?? null)
     setSubjects(profile.data.subjects.map((s) => s.code))
     setSelectedUniversities(profile.data.universities.map((u) => u.id))
+    setSelectedPrograms(profile.data.programs.map((p) => p.id))
   }, [profile.data])
 
   if (profile.isPending) {
@@ -88,6 +99,8 @@ export function ProfileScreen() {
   }
 
   const data = profile.data
+  // Убранный вуз уносит свои направления — так же решит и сервер.
+  const programs = data.programs.filter((p) => selectedUniversities.includes(p.university_id))
 
   /** Мультивыбор, в котором нельзя снять последний элемент (ТЗ F7). */
   const toggleRequired = (list: string[], value: string, emptyMessage: string): string[] => {
@@ -121,7 +134,16 @@ export function ProfileScreen() {
         subject_codes: subjects,
         university_ids: selectedUniversities,
       },
-      { onSuccess: () => navigate('/match') },
+      {
+        onSuccess: () => {
+          const keep = selectedPrograms.filter((id) => programs.some((p) => p.id === id))
+          if (keep.length === programs.length) {
+            navigate('/match')
+            return
+          }
+          savePrograms.mutate(keep, { onSuccess: () => navigate('/match') })
+        },
+      },
     )
   }
 
@@ -302,7 +324,7 @@ export function ProfileScreen() {
           <span>{t('profile.universitiesLabel')}</span>
           <span>{t('profile.selectedCount', { count: selectedUniversities.length })}</span>
         </p>
-        <div className="wrap-chips">
+        <div className="wrap-chips" role="group" aria-label={t('profile.universitiesLabel')}>
           {(universities.data?.items ?? []).map((university) => (
             <Chip
               key={university.id}
@@ -318,13 +340,40 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      <div className="field">
+        <p className="field-label">
+          <span>{t('profile.programsLabel')}</span>
+          <span>
+            {t('profile.selectedCount', {
+              count: selectedPrograms.filter((id) => programs.some((p) => p.id === id)).length,
+            })}
+          </span>
+        </p>
+        {programs.length === 0 ? (
+          <p className="field-note">{t('profile.programsEmpty')}</p>
+        ) : (
+          <div className="wrap-chips" role="group" aria-label={t('profile.programsLabel')}>
+            {programs.map((program) => (
+              <Chip
+                key={program.id}
+                active={selectedPrograms.includes(program.id)}
+                onClick={() => setSelectedPrograms((list) => toggle(list, program.id))}
+              >
+                {selectedPrograms.includes(program.id) ? '✓ ' : ''}
+                {program.university_short_name}: {program.name}
+              </Chip>
+            ))}
+          </div>
+        )}
+      </div>
+
       {warning ? <p className="field-warning">{warning}</p> : null}
 
       <ThemeSetting value={theme} onChange={setTheme} />
 
       <Button
         stretched
-        loading={save.isPending}
+        loading={save.isPending || savePrograms.isPending}
         disabled={nameInvalid}
         iconBefore={<Icon name="spark" size={15} />}
         innerClassNames={{ content: 'button-wrap' }}

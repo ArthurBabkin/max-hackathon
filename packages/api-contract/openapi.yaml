@@ -190,6 +190,10 @@ paths:
         - name: city
           in: query
           schema: { type: string }
+        - name: direction
+          in: query
+          description: "`directions.id` — только вузы, где есть программа этого направления."
+          schema: { type: string, examples: ["napr-09-03-04"] }
       responses:
         "200":
           description: OK
@@ -215,6 +219,12 @@ paths:
           required: true
           schema: { type: string }
           description: "`universities.id`"
+        - name: program
+          in: query
+          description: |
+            `Program.id` направления этого вуза: `olympiads` — только с льготой
+            на это направление. Направление другого вуза — 404.
+          schema: { type: string }
       responses:
         "200":
           description: OK
@@ -618,6 +628,36 @@ paths:
               schema: { $ref: "#/components/schemas/Profile" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profile/programs:
+    put:
+      tags: [profile]
+      summary: Заменить сохранённые направления вузов
+      description: |
+        Направления подготовки, которые ученик сохранил в карточке вуза.
+        Вузы этих направлений добавляются к вузам ученика; убранный вуз
+        (`PUT /profile/universities`) уносит и свои направления.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [program_ids]
+              properties:
+                program_ids:
+                  type: array
+                  description: "`Program.id`; может быть пустым."
+                  items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /ai/chats:
     get:
@@ -1345,15 +1385,50 @@ components:
           type: boolean
           description: Вуз входит в список ученика.
 
+    Program:
+      type: object
+      description: Направление подготовки вуза (образовательная программа).
+      required:
+        [id, university_id, university_short_name, name, faculty, code, direction_id, budget_places, olympiads_count, is_mine]
+      properties:
+        id: { type: string, examples: ["msu__prikladnaya-matematika-i-informatika"] }
+        university_id: { type: string }
+        university_short_name: { type: string, examples: ["МГУ"] }
+        name: { type: string, examples: ["Прикладная математика и информатика"] }
+        faculty: { type: [string, "null"], examples: ["Факультет вычислительной математики и кибернетики"] }
+        code:
+          type: [string, "null"]
+          description: Код направления по ОКСО.
+          examples: ["01.03.02"]
+        direction_id:
+          type: [string, "null"]
+          description: "`Direction.id`, если код входит в справочник целей."
+        budget_places:
+          type: [integer, "null"]
+          description: Бюджетные места; null — число не подтверждено источником.
+        olympiads_count:
+          type: integer
+          description: Сколько олимпиад дают на это направление БВИ или 100 баллов.
+        is_mine:
+          type: boolean
+          description: Ученик сохранил направление.
+
     UniversityDetail:
       allOf:
         - $ref: "#/components/schemas/UniversityListItem"
         - type: object
-          required: [directions, ege_note, rules_url, rules_verified_at, description, site_url, olympiads]
+          required: [directions, ege_note, rules_url, rules_verified_at, description, site_url, programs, olympiads]
           properties:
             directions:
               type: array
+              description: Топ названий направлений вуза — для вузов без программ в базе.
               items: { type: string }
+            programs:
+              type: array
+              description: |
+                Направления подготовки вуза: сохранённые учеником первыми, за ними —
+                по направлениям-целям ученика, дальше по названию.
+              items: { $ref: "#/components/schemas/Program" }
             ege_note:
               type: [string, "null"]
               examples: ["от 75 баллов по профильному предмету"]
@@ -1557,6 +1632,7 @@ components:
           home_city,
           places,
           universities,
+          programs,
           other_member_names,
         ]
       properties:
@@ -1603,6 +1679,10 @@ components:
           type: array
           description: Может быть пустым — вузы выбирать не обязательно (F9).
           items: { $ref: "#/components/schemas/UniversityListItem" }
+        programs:
+          type: array
+          description: Направления вузов, сохранённые в каталоге; их вузы — в `universities`.
+          items: { $ref: "#/components/schemas/Program" }
         other_member_names:
           type: array
           description: "Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь»."

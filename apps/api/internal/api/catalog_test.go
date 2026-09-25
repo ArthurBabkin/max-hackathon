@@ -150,6 +150,75 @@ func TestUniversitiesCatalogAndCard(t *testing.T) {
 	}
 }
 
+// Направления подготовки: фильтр каталога, олимпиады по направлению и
+// сохранение направления к себе.
+func TestUniversityPrograms(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	const pmi = "msu__prikladnaya-matematika-i-informatika"
+
+	medical := list(t, e.do("GET", "/api/v1/universities?direction=napr-31-05-01", token, nil).body["items"])
+	if len(medical) != 6 {
+		t.Fatalf("вузы с «Лечебным делом»: %v", medical)
+	}
+	if r := e.do("GET", "/api/v1/universities?direction=napr-31-05-01&city="+url.QueryEscape("Казань"), token, nil); len(list(t, r.body["items"])) != 2 {
+		t.Fatalf("фильтр по направлению и городу: %s", r.raw)
+	}
+
+	card := e.do("GET", "/api/v1/universities/msu", token, nil).body
+	programs := list(t, card["programs"])
+	var found map[string]any
+	for _, p := range programs {
+		if p["id"] == pmi {
+			found = p
+		}
+	}
+	if found == nil || found["code"] != "01.03.02" || found["direction_id"] != "napr-01-03-02" ||
+		found["university_short_name"] == "" || found["is_mine"] != false || found["olympiads_count"].(float64) <= 0 {
+		t.Fatalf("направление в карточке вуза: %v", found)
+	}
+	for _, key := range []string{"faculty", "budget_places"} {
+		if _, ok := found[key]; !ok {
+			t.Fatalf("поле %s есть, пусть и null: %v", key, found)
+		}
+	}
+	all := list(t, card["olympiads"])
+	r := e.do("GET", "/api/v1/universities/msu?program="+pmi, token, nil)
+	if r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	own := list(t, r.body["olympiads"])
+	if len(own) == 0 || len(own) >= len(all) {
+		t.Fatalf("олимпиады направления — часть олимпиад вуза: %d из %d", len(own), len(all))
+	}
+	if r := e.do("GET", "/api/v1/universities/hse?program="+pmi, token, nil); r.code != 404 {
+		t.Fatalf("направление другого вуза — 404: %d %s", r.code, r.raw)
+	}
+
+	if r := e.do("PUT", "/api/v1/profile/programs", token, map[string]any{}); r.code != 400 {
+		t.Fatalf("без списка направлений: %d", r.code)
+	}
+	if r := e.do("PUT", "/api/v1/profile/programs", token, map[string]any{"program_ids": []string{"нет"}}); r.code != 400 {
+		t.Fatalf("неизвестное направление: %d %s", r.code, r.raw)
+	}
+	r = e.do("PUT", "/api/v1/profile/programs", token, map[string]any{"program_ids": []string{pmi}})
+	saved := list(t, r.body["programs"])
+	if r.code != 200 || len(saved) != 1 || saved[0]["id"] != pmi || saved[0]["is_mine"] != true {
+		t.Fatalf("сохранили направление: %d %s", r.code, r.raw)
+	}
+	unis := list(t, r.body["universities"])
+	if len(unis) != 4 {
+		t.Fatalf("вуз направления добавился к вузам ученика: %v", unis)
+	}
+	if got := list(t, e.do("GET", "/api/v1/profile", token, nil).body["programs"]); len(got) != 1 {
+		t.Fatalf("GET /profile отдаёт сохранённые направления: %v", got)
+	}
+	if first := list(t, e.do("GET", "/api/v1/universities/msu", token, nil).body["programs"])[0]; first["id"] != pmi || first["is_mine"] != true {
+		t.Fatalf("сохранённое направление — первым: %v", first)
+	}
+}
+
 // Карточки рассказывают, что это за вуз и олимпиада, и ведут на их сайты.
 func TestCards_DescriptionAndSite(t *testing.T) {
 	e := newEnv(t)

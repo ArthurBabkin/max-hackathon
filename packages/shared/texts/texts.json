@@ -551,6 +551,10 @@
     "kid": "Город",
     "parent": "Город"
   },
+  "catalog.filterDirection": {
+    "kid": "Направление",
+    "parent": "Направление"
+  },
   "catalog.mineBadge": {
     "kid": "мой",
     "parent": "{student_gen}"
@@ -846,6 +850,14 @@
   "profile.selectedCount": {
     "kid": "выбрано: {count}",
     "parent": "выбрано: {count}"
+  },
+  "profile.programsLabel": {
+    "kid": "Сохранённые направления",
+    "parent": "Сохранённые направления"
+  },
+  "profile.programsEmpty": {
+    "kid": "Сохраняй направления в карточке вуза в каталоге — они появятся здесь.",
+    "parent": "Сохраняйте направления в карточке вуза в каталоге — они появятся здесь."
   },
   "profile.saveCta": {
     "kid": "Сохранить и обновить подбор",
@@ -1994,6 +2006,46 @@
   "university.showAll": {
     "kid": "Показать все {count}",
     "parent": "Показать все {count}"
+  },
+  "university.programsTitle": {
+    "kid": "Направления подготовки",
+    "parent": "Направления подготовки"
+  },
+  "university.programsHint": {
+    "kid": "Выбери направление — покажем олимпиады с льготой именно на него.",
+    "parent": "Выберите направление — покажем олимпиады с льготой именно на него."
+  },
+  "university.programOlympiads": {
+    "kid": "олимпиад с льготой: {count}",
+    "parent": "олимпиад с льготой: {count}"
+  },
+  "university.programPlaces": {
+    "kid": "бюджетных мест: {count}",
+    "parent": "бюджетных мест: {count}"
+  },
+  "university.programSave": {
+    "kid": "Сохранить направление «{name}»",
+    "parent": "Сохранить направление «{name}» для {student_gen}"
+  },
+  "university.programUnsave": {
+    "kid": "Убрать направление «{name}» из сохранённых",
+    "parent": "Убрать направление «{name}» из сохранённых"
+  },
+  "university.programSaved": {
+    "kid": "сохранено",
+    "parent": "сохранено"
+  },
+  "university.programChosen": {
+    "kid": "Льготы на направление «{name}»",
+    "parent": "Льготы на направление «{name}»"
+  },
+  "university.allPrograms": {
+    "kid": "Все направления",
+    "parent": "Все направления"
+  },
+  "university.programNoOlympiads": {
+    "kid": "На это направление в нашей базе нет олимпиад с БВИ или 100 баллами.",
+    "parent": "На это направление в нашей базе нет олимпиад с БВИ или 100 баллами."
   },
   "olympiad.aboutTitle": {
     "kid": "Об олимпиаде",

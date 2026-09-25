@@ -43,6 +43,9 @@ OUT = REPO / "packages" / "db" / "migrations" / "0003_seed_content.sql"
 # Вымышленные олимпиады — только локальный стенд и CI. Не migrations-demo:
 # та катится и в прод, пока включён демо-режим в браузере.
 DEMO_OUT = REPO / "packages" / "db" / "migrations-local" / "0001_fictional_olympiads.sql"
+# Направления подготовки вузов и льготы по ним. Отдельный файл: таблицы
+# появились в 0019, а 0003 катится раньше.
+PROGRAMS_OUT = REPO / "packages" / "db" / "migrations" / "0020_university_programs_seed.sql"
 
 SCHOOL_YEAR = "2026/27"
 # Датасеты собраны 21.09.2026; это дата проверки источников, отмеченных как факт.
@@ -212,6 +215,8 @@ class Seed:
     profiles: dict[str, dict] = field(default_factory=dict)
     stages: list[dict] = field(default_factory=list)
     benefits: list[dict] = field(default_factory=list)
+    programs: list[dict] = field(default_factory=list)
+    program_benefits: list[dict] = field(default_factory=list)
     stats: Counter = field(default_factory=Counter)
 
 
@@ -536,8 +541,12 @@ def aggregate_key(records: list[dict]) -> dict:
     }
 
 
-def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",)):
-    """Сгруппировать записи B по ключу (профиль, вуз, год)."""
+def by_university(prog: dict, r: dict) -> tuple:
+    return (r["olympiad_id"], prog["vuz_id"], prog["admission_year"])
+
+
+def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",), key=by_university):
+    """Сгруппировать записи B по ключу — по умолчанию (профиль, вуз, год)."""
     keys: dict[tuple, list[dict]] = defaultdict(list)
     stats = Counter()
     for prog in B:
@@ -551,7 +560,7 @@ def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",)):
             if not level_ok(p["level"], r["min_level_required"], p["id"].startswith("vsosh-")):
                 stats["benefit_level_filtered"] += 1
                 continue
-            keys[(r["olympiad_id"], prog["vuz_id"], prog["admission_year"])].append(r)
+            keys[key(prog, r)].append(r)
     return keys, stats
 
 
@@ -608,6 +617,62 @@ def build_universities(seed: Seed, vuzy: list[dict], A: list[dict], B: list[dict
             "rules_url": safe_url(rule["url"]) if rule else (v["website"] or None),
             "rules_verified_at": rule["fetched_at"] if rule else None,
         })
+
+
+def build_programs(seed: Seed, A: list[dict], B: list[dict]):
+    """Программы вузов (A) и льготы по ним (B) — те же правила, что у benefits:
+    только status='offered', уровень профиля не ниже требования вуза, запись
+    сворачивается до лучшей льготы победителя и призёра."""
+    direction_ids = {code: "napr-" + code.replace(".", "-") for code, _, _ in DIRECTIONS}
+    programs = {}
+    for a in A:
+        pid = a["program_id"]
+        # Одна программа бывает в двух профильных группах («Бизнес-информатика»
+        # в ИТ и в Экономике) — это одна строка.
+        if a["status"] != "offered" or not pid or pid in programs:
+            continue
+        programs[pid] = {
+            "id": pid, "university_id": a["vuz_id"], "name": program_name(a["program_name"]),
+            "faculty": faculty_name(a["faculty"], a["napravlenie_name"]),
+            "code": a["napravlenie_code"], "direction_id": direction_ids.get(a["napravlenie_code"]),
+            # Без источника число мест — предположение, его не показываем.
+            "budget_places": None if a["is_demo"] else a["budget_places_2026"],
+            "admission_year": a["admission_year"],
+        }
+    seed.programs = [programs[k] for k in sorted(programs)]
+    keys, _ = benefit_keys([b for b in B if b["program_id"] in programs], seed.profiles,
+                           key=lambda prog, r: (prog["program_id"], r["olympiad_id"]))
+    seed.program_benefits = [
+        {"program_id": prog, "olympiad_profile_id": profile, "benefit": aggregate_key(keys[(prog, profile)])["benefit"]}
+        for prog, profile in sorted(keys)
+    ]
+
+
+def program_name(name: str) -> str:
+    """Название программы без следов PDF: непарная скобка в конце («Биология —
+    Общая биология)»), перенос по слогам («Информацион- ная») и пробел внутри
+    слова («информационны х»)."""
+    name = name.strip()
+    while name.endswith(")") and name.count(")") > name.count("("):
+        name = name[:-1].rstrip()
+    name = re.sub(r"([Бб]изнес)- ", r"\1-", name)
+    name = re.sub(r"(\w{3,})- (?!и\b)(\w)", r"\1\2", name)
+    return name.replace("информационны х", "информационных")
+
+
+# Не факультеты: имя вуза целиком, группа направлений (УГСН), заглушки.
+NOT_FACULTY = {"Университет ИТМО", "Сеченовский Университет", "Казанский ГМУ",
+               "Университет Иннополис", "не предусмотрено"}
+
+
+def faculty_name(faculty: str | None, direction: str | None) -> str | None:
+    """Факультет или кампус («НИУ ВШЭ — Пермь»), если в поле он, а не
+    список УГСН, имя вуза или название самого направления."""
+    if not faculty or faculty in NOT_FACULTY or faculty == direction:
+        return None
+    if re.match(r"\d\d\.", faculty) or "УГСН" in faculty or len(faculty) > 80:
+        return None
+    return faculty
 
 
 def base_name(name: str) -> str:
@@ -673,6 +738,7 @@ def build() -> Seed:
     olympiad_format(seed)
     build_benefits(seed, B, UNIVERSITY_SHORT)
     seed.benefits.sort(key=lambda b: b["id"])
+    build_programs(seed, A, B)
     return seed
 
 
@@ -707,6 +773,7 @@ def lit(v) -> str:
 
 def insert(table: str, cols: list[str], rows: list[dict], key: str = "id",
            casts: dict[str, str] | None = None) -> str:
+    """key — ключ ON CONFLICT, составной через запятую."""
     if not rows:
         return ""
     casts = casts or {}
@@ -716,7 +783,8 @@ def insert(table: str, cols: list[str], rows: list[dict], key: str = "id",
         return f"{s}::{casts[c]}" if c in casts and r[c] is not None else s
 
     values = ",\n".join("  (" + ", ".join(value(r, c) for c in cols) + ")" for r in rows)
-    updates = ",\n  ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != key)
+    keys = [k.strip() for k in key.split(",")]
+    updates = ",\n  ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in keys)
     return (f"INSERT INTO {table} ({', '.join(cols)}) VALUES\n{values}\n"
             f"ON CONFLICT ({key}) DO UPDATE SET\n  {updates};\n")
 
@@ -801,15 +869,37 @@ def render_demo(demo: Seed) -> str:
     ])
 
 
+def render_programs(seed: Seed) -> str:
+    return "\n".join([
+        "-- Направления подготовки вузов и олимпиады, дающие льготу на каждое.\n"
+        "-- Схема — 0019_university_programs.sql.\n"
+        "--\n"
+        "-- ФАЙЛ СГЕНЕРИРОВАН: datasets/parser/build_seed.py (make seed). Руками не править —\n"
+        "-- поменяйте датасет или генератор и перегенерируйте.\n"
+        "--\n"
+        f"-- Строк: программы {len(seed.programs)}, льготы по программам {len(seed.program_benefits)}.\n",
+        "-- +goose Up\n",
+        insert("university_programs", ["id", "university_id", "name", "faculty", "code", "direction_id",
+                                       "budget_places", "admission_year"], seed.programs),
+        insert("program_benefits", ["program_id", "olympiad_profile_id", "benefit"], seed.program_benefits,
+               key="program_id, olympiad_profile_id"),
+        "-- +goose Down\n"
+        "-- Сохранённые учениками направления уходят вместе с программами (CASCADE).\n"
+        "DELETE FROM program_benefits;\nDELETE FROM university_programs;\n",
+    ])
+
+
 def main():
     seed = build()
     OUT.write_text(render(seed), encoding="utf-8")
     DEMO_OUT.write_text(render_demo(build_demo()), encoding="utf-8")
+    PROGRAMS_OUT.write_text(render_programs(seed), encoding="utf-8")
     counts = {
         "subjects": len(seed.subjects), "directions": len(seed.directions),
         "universities": len(seed.universities), "sources": len(seed.sources),
         "olympiads": len(seed.olympiads), "profiles": len(seed.profiles),
         "stages": len(seed.stages), "benefits": len(seed.benefits),
+        "programs": len(seed.programs), "program_benefits": len(seed.program_benefits),
     }
     print(f"{OUT.relative_to(REPO)}: {counts}")
     print(dict(sorted(seed.stats.items())))

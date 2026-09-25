@@ -314,6 +314,19 @@ export interface DemoUniversity {
   benefits: Record<string, BenefitKind>
   /** Чем правила по олимпиаде отличаются от общих (F19): id олимпиады → оговорки. */
   rules?: Record<string, DemoRule>
+  /** Направления подготовки; у вуза без них карточка показывает directions. */
+  programs?: DemoProgram[]
+}
+
+/** Направление подготовки вуза и олимпиады (из benefits вуза), дающие на него льготу. */
+export interface DemoProgram {
+  id: string
+  name: string
+  code: string
+  direction_id: string | null
+  faculty: string | null
+  budget_places: number | null
+  olympiads: string[]
 }
 
 /** Оговорки вуза: что получит призёр, разброс порога, своё — строкой под вузом. */
@@ -337,6 +350,26 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_verified_at: '2026-09-15',
     benefits: { inno: 'bvi', hse: 'bvi', 'vsosh-inf': 'bvi', lomo: 'score100', tk: 'score100' },
     rules: { inno: { notes: ['ЕГЭ по двум другим предметам — от 60'] } },
+    programs: [
+      {
+        id: 'inno__se',
+        name: 'Программная инженерия',
+        code: '09.03.04',
+        direction_id: 'dir-se',
+        faculty: null,
+        budget_places: 120,
+        olympiads: ['inno', 'hse', 'vsosh-inf', 'tk'],
+      },
+      {
+        id: 'inno__ai',
+        name: 'Искусственный интеллект и наука о данных',
+        code: '09.03.01',
+        direction_id: 'dir-ai',
+        faculty: null,
+        budget_places: 60,
+        olympiads: ['inno', 'vsosh-inf', 'lomo'],
+      },
+    ],
   },
   {
     id: 'kfu',
@@ -350,6 +383,26 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_url: 'https://kpfu.ru/',
     rules_verified_at: '2026-09-15',
     benefits: { 'vsosh-inf': 'bvi', lomo: 'bvi', hse: 'score100', inno: 'score100', tyk: 'extra_points' },
+    programs: [
+      {
+        id: 'kfu__se',
+        name: 'Программная инженерия',
+        code: '09.03.04',
+        direction_id: 'dir-se',
+        faculty: 'Институт информационных технологий и интеллектуальных систем',
+        budget_places: 75,
+        olympiads: ['vsosh-inf', 'hse', 'inno'],
+      },
+      {
+        id: 'kfu__math',
+        name: 'Математика',
+        code: '01.03.01',
+        direction_id: 'dir-math',
+        faculty: 'Институт математики и механики',
+        budget_places: null,
+        olympiads: ['lomo'],
+      },
+    ],
   },
   {
     id: 'hse',
@@ -364,6 +417,26 @@ export const UNIVERSITIES: DemoUniversity[] = [
     rules_verified_at: '2026-09-15',
     benefits: { 'vsosh-inf': 'bvi', hse: 'bvi', lomo: 'bvi', tk: 'score100' },
     rules: { hse: { egeMax: 90 } },
+    programs: [
+      {
+        id: 'hse__pmi',
+        name: 'Прикладная математика и информатика',
+        code: '01.03.02',
+        direction_id: 'dir-math',
+        faculty: 'НИУ ВШЭ — Москва',
+        budget_places: null,
+        olympiads: ['vsosh-inf', 'hse', 'lomo'],
+      },
+      {
+        id: 'hse__se',
+        name: 'Программная инженерия',
+        code: '09.03.04',
+        direction_id: 'dir-se',
+        faculty: 'НИУ ВШЭ — Москва',
+        budget_places: null,
+        olympiads: ['vsosh-inf', 'hse', 'tk'],
+      },
+    ],
   },
   {
     id: 'itmo',

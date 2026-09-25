@@ -3,19 +3,22 @@ import userEvent from '@testing-library/user-event'
 import type { UniversityDetail } from '@contract'
 import { expect, it, vi } from 'vitest'
 import { keys } from '@/api/queries'
-import { universityDetail } from '@/api/mocks/build'
+import { profile, universityDetail } from '@/api/mocks/build'
 import { UNIVERSITIES } from '@/api/mocks/fixtures'
 import { getWebApp } from '@/bridge'
 import { renderApp } from '@/test/render'
 import type { SheetStack } from '@/ui/sheets'
 import { UniversitySheet } from './UniversitySheet'
 
+// Сохранение уходит в «живой» API: моки ответили бы сами и тело не поймать.
+vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
+
 const sheets = { stack: [], open: vi.fn(), back: vi.fn(), closeAll: vi.fn() } as unknown as SheetStack
 
 function renderSheet(patch: Partial<UniversityDetail>) {
   const base = universityDetail(UNIVERSITIES[0]!)
   renderApp(<UniversitySheet id={base.id} sheets={sheets} />, {
-    seed: (c) => c.setQueryData(keys.university(base.id), { ...base, ...patch }),
+    seed: (c) => c.setQueryData(keys.university(base.id, null), { ...base, ...patch }),
   })
 }
 
@@ -60,4 +63,45 @@ it('олимпиады с льготой — строка на олимпиад�
   expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(8)
   await userEvent.click(within(block).getByRole('button', { name: 'Показать все 10' }))
   expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(10)
+})
+
+it('выбор направления показывает олимпиады с льготой на него, кнопка сохраняет направление', async () => {
+  const sent: unknown[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((_url: string, init: RequestInit) => {
+      if (init.method === 'PUT') sent.push(JSON.parse(init.body as string))
+      return new Promise(() => {})
+    }),
+  )
+  const u = UNIVERSITIES[0]!
+  const base = universityDetail(u)
+  renderApp(<UniversitySheet id={base.id} sheets={sheets} />, {
+    seed: (c) => {
+      c.setQueryData(keys.profile, profile())
+      c.setQueryData(keys.university(base.id, null), base)
+      c.setQueryData(keys.university(base.id, 'inno__ai'), universityDetail(u, 'inno__ai'))
+    },
+  })
+
+  const programs = screen.getByRole('heading', { name: 'Направления подготовки' }).closest('section')!
+  const olympiads = screen.getByRole('heading', { name: /Олимпиады с льготой/ }).closest('section')!
+  const rows = () => olympiads.querySelectorAll('.benefit').length
+  const before = rows()
+
+  const ai = within(programs).getByRole('button', { name: /^Искусственный интеллект и наука о данных/ })
+  await userEvent.click(ai)
+  expect(ai).toHaveAttribute('aria-pressed', 'true')
+  expect(within(olympiads).getByText('Льготы на направление «Искусственный интеллект и наука о данных»')).toBeVisible()
+  expect(rows()).toBeLessThan(before)
+
+  await userEvent.click(within(olympiads).getByRole('button', { name: 'Все направления' }))
+  expect(ai).toHaveAttribute('aria-pressed', 'false')
+
+  // Уже сохранённое направление помечено; второе добавляется к нему.
+  expect(within(programs).getByRole('button', { name: 'Убрать направление «Программная инженерия» из сохранённых' })).toBeVisible()
+  await userEvent.click(
+    within(programs).getByRole('button', { name: /Сохранить направление «Искусственный интеллект и наука о данных»/ }),
+  )
+  expect(sent).toEqual([{ program_ids: ['inno__se', 'inno__ai'] }])
 })

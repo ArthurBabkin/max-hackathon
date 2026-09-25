@@ -8,6 +8,7 @@
  */
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -48,8 +49,8 @@ export const keys = {
   recommendations: (filter: MatchFilter) => ['recommendations', filter] as const,
   olympiads: (q: string, subject: string, city: string) => ['olympiads', q, subject, city] as const,
   olympiad: (id: string) => ['olympiad', id] as const,
-  universities: (q: string, city: string) => ['universities', q, city] as const,
-  university: (id: string) => ['university', id] as const,
+  universities: (q: string, city: string, direction: string) => ['universities', q, city, direction] as const,
+  university: (id: string, program: string | null) => ['university', id, program] as const,
   tracker: ['tracker'] as const,
   calendar: (month: string) => ['calendar', month] as const,
   calendarLink: ['calendar-link'] as const,
@@ -143,21 +144,31 @@ export const useOlympiad = (id: string | null) =>
     enabled: id !== null,
   })
 
-export const useUniversities = (q: string, city: string) =>
+export const useUniversities = (q: string, city: string, direction = 'all') =>
   useQuery({
-    queryKey: keys.universities(q, city),
+    queryKey: keys.universities(q, city, direction),
     queryFn: () =>
       api.get<{ items: UniversityListItem[] }>('/universities', {
         q,
         city: city === 'all' ? undefined : city,
+        direction: direction === 'all' ? undefined : direction,
       }),
   })
 
-export const useUniversity = (id: string | null) =>
+/**
+ * Карточка вуза; с program — олимпиады только этого направления. Пока
+ * грузится другое направление, видна прежняя карточка, а не скелет.
+ */
+export const useUniversity = (id: string | null, program: string | null = null) =>
   useQuery({
-    queryKey: keys.university(id ?? ''),
-    queryFn: () => api.get<UniversityDetail>(`/universities/${encodeURIComponent(id!)}`),
+    queryKey: keys.university(id ?? '', program),
+    queryFn: () =>
+      api.get<UniversityDetail>(`/universities/${encodeURIComponent(id!)}`, {
+        program: program ?? undefined,
+      }),
     enabled: id !== null,
+    // Только тот же вуз: карточка другого вуза не должна мелькнуть чужой.
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[1] === id ? keepPreviousData(prev) : undefined),
   })
 
 // enabled — для оболочки: бейдж вкладки нельзя запрашивать раньше сессии,
@@ -327,6 +338,15 @@ export function useSetUniversities() {
   return useMutation({
     mutationFn: (universityIds: string[]) =>
       api.put<Profile>('/profile/universities', { university_ids: universityIds }),
+    onSuccess: () => invalidateProfile(qc),
+  })
+}
+
+/** Направления вузов, сохранённые в каталоге. Вузы сервер добавит сам. */
+export function useSetPrograms() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (programIds: string[]) => api.put<Profile>('/profile/programs', { program_ids: programIds }),
     onSuccess: () => invalidateProfile(qc),
   })
 }

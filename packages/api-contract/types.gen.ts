@@ -250,6 +250,8 @@ export interface paths {
                 query?: {
                     q?: string;
                     city?: string;
+                    /** @description `directions.id` — только вузы, где есть программа этого направления. */
+                    direction?: string;
                 };
                 header?: never;
                 path?: never;
@@ -289,7 +291,13 @@ export interface paths {
         /** Карточка вуза */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /**
+                     * @description `Program.id` направления этого вуза: `olympiads` — только с льготой
+                     *     на это направление. Направление другого вуза — 404.
+                     */
+                    program?: string;
+                };
                 header?: never;
                 path: {
                     /** @description `universities.id` */
@@ -1144,6 +1152,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/programs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Заменить сохранённые направления вузов
+         * @description Направления подготовки, которые ученик сохранил в карточке вуза.
+         *     Вузы этих направлений добавляются к вузам ученика; убранный вуз
+         *     (`PUT /profile/universities`) уносит и свои направления.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description `Program.id`; может быть пустым. */
+                        program_ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Profile"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/chats": {
         parameters: {
             query?: never;
@@ -1703,8 +1762,39 @@ export interface components {
             /** @description Вуз входит в список ученика. */
             is_mine: boolean;
         };
+        /** @description Направление подготовки вуза (образовательная программа). */
+        Program: {
+            /** @example msu__prikladnaya-matematika-i-informatika */
+            id: string;
+            university_id: string;
+            /** @example МГУ */
+            university_short_name: string;
+            /** @example Прикладная математика и информатика */
+            name: string;
+            /** @example Факультет вычислительной математики и кибернетики */
+            faculty: string | null;
+            /**
+             * @description Код направления по ОКСО.
+             * @example 01.03.02
+             */
+            code: string | null;
+            /** @description `Direction.id`, если код входит в справочник целей. */
+            direction_id: string | null;
+            /** @description Бюджетные места; null — число не подтверждено источником. */
+            budget_places: number | null;
+            /** @description Сколько олимпиад дают на это направление БВИ или 100 баллов. */
+            olympiads_count: number;
+            /** @description Ученик сохранил направление. */
+            is_mine: boolean;
+        };
         UniversityDetail: components["schemas"]["UniversityListItem"] & {
+            /** @description Топ названий направлений вуза — для вузов без программ в базе. */
             directions: string[];
+            /**
+             * @description Направления подготовки вуза: сохранённые учеником первыми, за ними —
+             *     по направлениям-целям ученика, дальше по названию.
+             */
+            programs: components["schemas"]["Program"][];
             /** @example от 75 баллов по профильному предмету */
             ege_note: string | null;
             /** Format: uri */
@@ -1865,6 +1955,8 @@ export interface components {
             places: components["schemas"]["Place"][];
             /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
             universities: components["schemas"]["UniversityListItem"][];
+            /** @description Направления вузов, сохранённые в каталоге; их вузы — в `universities`. */
+            programs: components["schemas"]["Program"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
             other_member_names: string[];
         };

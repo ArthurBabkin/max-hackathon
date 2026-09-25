@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
-import { BENEFIT_LABELS } from '@contract'
-import { useProfile, useSetUniversities, useUniversity } from '@/api/queries'
+import { BENEFIT_LABELS, type Program } from '@contract'
+import { useProfile, useSetPrograms, useSetUniversities, useUniversity } from '@/api/queries'
 import { getWebApp } from '@/bridge'
 import { byOlympiad } from '@/lib/catalog'
 import { formatShortDate } from '@/lib/deadline'
@@ -18,12 +18,19 @@ import { ErrorState } from '@/ui/ErrorState'
 /** Сколько олимпиад вуза видно сразу: у Иннополиса их больше шестидесяти. */
 const PREVIEW = 8
 
+/** Сколько направлений видно сразу: у КФУ их больше семидесяти. */
+const PROGRAMS_PREVIEW = 5
+
 export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack }) {
   const t = useVoice()
   const [showAll, setShowAll] = useState(false)
-  const query = useUniversity(id)
+  const [showAllPrograms, setShowAllPrograms] = useState(false)
+  // Выбранное направление: олимпиады в карточке — с льготой именно на него.
+  const [programId, setProgramId] = useState<string | null>(null)
+  const query = useUniversity(id, programId)
   const { data: profile } = useProfile()
   const setUniversities = useSetUniversities()
+  const setPrograms = useSetPrograms()
 
   const canGoBack = sheets.stack.length > 1
 
@@ -45,14 +52,29 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
 
   const university = query.data
   const current = profile?.universities.map((u) => u.id) ?? []
+  const saved = profile?.programs.map((p) => p.id) ?? []
   const isMine = university.is_mine
   const olympiads = byOlympiad(university.olympiads)
   const shown = showAll ? olympiads : olympiads.slice(0, PREVIEW)
+  const programs = university.programs
+  const shownPrograms = showAllPrograms ? programs : programs.slice(0, PROGRAMS_PREVIEW)
+  const chosen = programs.find((p) => p.id === programId) ?? null
 
   const toggle = () => {
     // Вузы выбирать не обязательно (F9): последний тоже можно убрать.
     const next = isMine ? current.filter((x) => x !== university.id) : [...current, university.id]
     setUniversities.mutate(next)
+  }
+
+  // Вуз сохранённого направления сервер добавит к вузам сам.
+  const toggleProgram = (program: Program) => {
+    const next = program.is_mine ? saved.filter((x) => x !== program.id) : [...saved, program.id]
+    setPrograms.mutate(next)
+  }
+
+  const choose = (next: string | null) => {
+    setProgramId(next)
+    setShowAll(false)
   }
 
   return (
@@ -106,23 +128,89 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
         ) : null}
       </section>
 
-      <section className="block">
-        <h3 className="block-head">{t('university.directions')}</h3>
-        <div className="directions">
-          {university.directions.map((direction) => (
-            <span key={direction} className="direction">
-              {direction}
-            </span>
-          ))}
-        </div>
-      </section>
+      {programs.length > 0 ? (
+        // Направление — это то, куда поступают: льготы по олимпиадам у
+        // разных направлений одного вуза разные.
+        <section className="block" data-tour="university-programs">
+          <h3 className="block-head">{t('university.programsTitle')}</h3>
+          <p className="block-text">{t('university.programsHint')}</p>
+          <div className="programs">
+            {shownPrograms.map((program) => (
+              <div key={program.id} className={`program${program.id === programId ? ' program-on' : ''}`}>
+                <button
+                  type="button"
+                  className="program-main"
+                  aria-pressed={program.id === programId}
+                  onClick={() => choose(program.id === programId ? null : program.id)}
+                >
+                  <span className="program-name">{program.name}</span>
+                  <span className="program-meta">{[program.code, program.faculty].filter(Boolean).join(' · ')}</span>
+                  <span className="program-meta">
+                    {t('university.programOlympiads', { count: program.olympiads_count })}
+                    {program.budget_places !== null
+                      ? `, ${t('university.programPlaces', { count: program.budget_places })}`
+                      : ''}
+                    {program.is_mine ? (
+                      <span className="program-saved">
+                        <Icon name="check" size={12} />
+                        {t('university.programSaved')}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`program-save${program.is_mine ? ' program-save-on' : ''}`}
+                  aria-pressed={program.is_mine}
+                  aria-label={
+                    program.is_mine
+                      ? t('university.programUnsave', { name: program.name })
+                      : t('university.programSave', { name: program.name })
+                  }
+                  disabled={setPrograms.isPending}
+                  onClick={() => toggleProgram(program)}
+                >
+                  <Icon name={program.is_mine ? 'check' : 'plus'} size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+          {programs.length > shownPrograms.length ? (
+            <button type="button" className="link show-more" onClick={() => setShowAllPrograms(true)}>
+              {t('university.showAll', { count: programs.length })}
+            </button>
+          ) : null}
+        </section>
+      ) : (
+        <section className="block">
+          <h3 className="block-head">{t('university.directions')}</h3>
+          <div className="directions">
+            {university.directions.map((direction) => (
+              <span key={direction} className="direction">
+                {direction}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Олимпиады, дающие льготу в этом вузе, с переходом в карточку — F26. */}
-      <section className="block" data-tour="university-olympiads">
+      <section className="block" data-tour="university-olympiads" aria-busy={query.isPlaceholderData}>
         <h3 className="block-head">
           {t('university.olympiadsTitle')}
           <SourceTag kind="fact" />
         </h3>
+        {chosen ? (
+          <p className="program-filter">
+            <span>{t('university.programChosen', { name: chosen.name })}</span>
+            <button type="button" className="link" onClick={() => choose(null)}>
+              {t('university.allPrograms')}
+            </button>
+          </p>
+        ) : null}
+        {chosen && olympiads.length === 0 && !query.isPlaceholderData ? (
+          <p className="block-text">{t('university.programNoOlympiads')}</p>
+        ) : null}
         {/* Строка на олимпиаду, а не на профиль (D3): предметы через запятую,
             льгота — лучшая из профилей; открывается профиль ученика. */}
         {shown.map((row) => (

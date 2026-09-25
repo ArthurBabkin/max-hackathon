@@ -25,7 +25,7 @@ it('меняет регион, направления, места и опыт и
     route: '/profile',
     seed: (c) => {
       c.setQueryData(keys.profile, profile())
-      c.setQueryData(keys.universities('', 'all'), { items: [] })
+      c.setQueryData(keys.universities('', 'all', 'all'), { items: [] })
       c.setQueryData(keys.directions, {
         items: [
           { id: 'dir-se', name: 'Программная инженерия' },
@@ -77,14 +77,16 @@ it('отправляет пустые направления, вузы и мес
     route: '/profile',
     seed: (c) => {
       c.setQueryData(keys.profile, data)
-      c.setQueryData(keys.universities('', 'all'), { items: data.universities })
+      c.setQueryData(keys.universities('', 'all', 'all'), { items: data.universities })
       c.setQueryData(keys.directions, { items: [{ id: 'dir-se', name: 'Программная инженерия' }] })
     },
   })
 
-  await userEvent.click(screen.getByRole('button', { name: /Программная инженерия/ }))
+  const goals = within(screen.getByRole('group', { name: 'Направления' }))
+  await userEvent.click(goals.getByRole('button', { name: /Программная инженерия/ }))
+  const universities = within(screen.getByRole('group', { name: 'Вузы' }))
   for (const u of data.universities) {
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(u.short_name) }))
+    await userEvent.click(universities.getByRole('button', { name: new RegExp(u.short_name) }))
   }
   const places = within(screen.getByRole('group', { name: 'Где хочу учиться' }))
   await userEvent.click(places.getByRole('button', { name: 'Убрать: Республика Татарстан' }))
@@ -92,6 +94,42 @@ it('отправляет пустые направления, вузы и мес
   await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
 
   expect(sent).toEqual([expect.objectContaining({ direction_ids: [], university_ids: [], places: [] })])
+})
+
+// Сохранённые в каталоге направления в профиле можно только убрать: после PATCH уходит PUT.
+it('убирает сохранённое направление через PUT /profile/programs', async () => {
+  const sent: { method: string; url: string; body: unknown }[] = []
+  const data = profile()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init: RequestInit) => {
+      if (init.method === 'PATCH' || init.method === 'PUT') {
+        sent.push({ method: init.method, url, body: JSON.parse(init.body as string) })
+      }
+      return Promise.resolve(new Response(JSON.stringify(data), { status: 200 }))
+    }),
+  )
+  renderApp(<ProfileScreen />, {
+    route: '/profile',
+    seed: (c) => {
+      c.setQueryData(keys.profile, data)
+      c.setQueryData(keys.universities('', 'all', 'all'), { items: data.universities })
+      c.setQueryData(keys.directions, { items: [] })
+    },
+  })
+
+  const programs = within(screen.getByRole('group', { name: 'Сохранённые направления' }))
+  const chip = programs.getByRole('button', { name: /УИ: Программная инженерия/ })
+  expect(chip).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(chip)
+  await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+
+  await vi.waitFor(() => expect(sent.map((r) => r.method)).toEqual(['PATCH', 'PUT']))
+  expect(sent[1]).toEqual({
+    method: 'PUT',
+    url: expect.stringMatching(/\/profile\/programs$/),
+    body: { program_ids: [] },
+  })
 })
 
 // «Не важно» в боте: регион не указан — так и видно в профиле и так и сохраняется.
@@ -108,7 +146,7 @@ it('показывает и сохраняет регион «Не указан�
     route: '/profile',
     seed: (c) => {
       c.setQueryData(keys.profile, { ...profile(), region_code: '', region_name: '' })
-      c.setQueryData(keys.universities('', 'all'), { items: [] })
+      c.setQueryData(keys.universities('', 'all', 'all'), { items: [] })
       c.setQueryData(keys.directions, { items: [] })
     },
   })
@@ -130,7 +168,7 @@ function renderProfile() {
       route: '/profile',
       seed: (c) => {
         c.setQueryData(keys.profile, profile())
-        c.setQueryData(keys.universities('', 'all'), { items: [] })
+        c.setQueryData(keys.universities('', 'all', 'all'), { items: [] })
         c.setQueryData(keys.directions, { items: [] })
       },
     },

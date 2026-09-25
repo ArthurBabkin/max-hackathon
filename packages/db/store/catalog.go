@@ -199,14 +199,23 @@ func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerS
 	return st, wrap(rows.Err())
 }
 
+// UniversityQuery — фильтры каталога вузов; пустое поле — без фильтра.
+type UniversityQuery struct {
+	Search      string // название или короткое имя, без учёта регистра
+	City        string
+	DirectionID string // есть программа этого направления (directions.id)
+}
+
 // Universities — каталог вузов с отметкой «мой».
-func (s *Store) Universities(ctx context.Context, trajectoryID, search, city string) ([]University, error) {
+func (s *Store) Universities(ctx context.Context, trajectoryID string, q UniversityQuery) ([]University, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT `+universityColumns+`,
 		       EXISTS (SELECT 1 FROM trajectory_universities tu WHERE tu.trajectory_id = $1 AND tu.university_id = u.id)
 		FROM universities u
 		WHERE ($2 = '' OR u.name ILIKE $4 OR u.short_name ILIKE $4) AND ($3 = '' OR u.city = $3)
-		ORDER BY u.name`, trajectoryID, search, city, "%"+escapeLike(search)+"%")
+		  AND ($5 = '' OR EXISTS (SELECT 1 FROM university_programs up
+		                          WHERE up.university_id = u.id AND up.direction_id = $5))
+		ORDER BY u.name`, trajectoryID, q.Search, q.City, "%"+escapeLike(q.Search)+"%", q.DirectionID)
 	if err != nil {
 		return nil, wrap(err)
 	}
@@ -249,21 +258,30 @@ type UniversityOlympiad struct {
 }
 
 // UniversityOlympiads — профили с льготой БВИ или 100 баллов в вузе за
-// последний год приёма, сильные льготы и уровни первыми.
-func (s *Store) UniversityOlympiads(ctx context.Context, universityID string) ([]UniversityOlympiad, error) {
-	rows, err := s.db.Query(ctx, `
-		SELECT p.id, o.id, o.name, p.subject_code, sub.name, p.profile_name, p.level, b.benefit
-		FROM (SELECT DISTINCT ON (olympiad_profile_id) olympiad_profile_id, benefit
+// последний год приёма, сильные льготы и уровни первыми. С programID —
+// только льготы на это направление вуза.
+func (s *Store) UniversityOlympiads(ctx context.Context, universityID, programID string) ([]UniversityOlympiad, error) {
+	from := `(SELECT DISTINCT ON (olympiad_profile_id) olympiad_profile_id, benefit
 		      FROM benefits
 		      WHERE university_id = $1 AND benefit IN ('bvi', 'bvi_winners', 'score100')
 		        AND admission_year = (SELECT max(admission_year) FROM benefits WHERE university_id = $1)
 		      ORDER BY olympiad_profile_id,
-		               array_position(ARRAY['bvi','bvi_winners','score100'], benefit)) b
+		               array_position(ARRAY['bvi','bvi_winners','score100'], benefit)) b`
+	args := []any{universityID}
+	if programID != "" {
+		from = `(SELECT pb.olympiad_profile_id, pb.benefit
+		      FROM program_benefits pb JOIN university_programs up ON up.id = pb.program_id
+		      WHERE up.university_id = $1 AND up.id = $2) b`
+		args = append(args, programID)
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT p.id, o.id, o.name, p.subject_code, sub.name, p.profile_name, p.level, b.benefit
+		FROM `+from+`
 		JOIN olympiad_profiles p ON p.id = b.olympiad_profile_id
 		JOIN olympiads o ON o.id = p.olympiad_id
 		JOIN subjects sub ON sub.code = p.subject_code
 		ORDER BY array_position(ARRAY['bvi','bvi_winners','score100'], b.benefit),
-		         o.kind = 'vsosh' DESC, p.level NULLS FIRST, o.name, p.id`, universityID)
+		         o.kind = 'vsosh' DESC, p.level NULLS FIRST, o.name, p.id`, args...)
 	if err != nil {
 		return nil, wrap(err)
 	}
@@ -272,4 +290,63 @@ func (s *Store) UniversityOlympiads(ctx context.Context, universityID string) ([
 		return x, r.Scan(&x.ProfileID, &x.OlympiadID, &x.OlympiadName, &x.SubjectCode, &x.SubjectName, &x.ProfileName,
 			&x.Level, &x.Benefit)
 	})
+}
+
+// Program — направление подготовки вуза (образовательная программа).
+type Program struct {
+	ID              string
+	UniversityID    string
+	UniversityShort string
+	Name            string
+	Faculty         *string
+	Code            *string // код по ОКСО: 01.03.02
+	DirectionID     *string // направление-цель из справочника, если код в него входит
+	BudgetPlaces    *int    // nil — число не подтверждено источником
+	Olympiads       int     // сколько разных олимпиад дают льготу на программу
+	IsMine          bool    // ученик сохранил направление
+}
+
+// programColumns — колонки Program; $1 — траектория для признака «моё».
+const programColumns = `up.id, up.university_id, u.short_name, up.name, up.faculty, up.code, up.direction_id,
+	up.budget_places,
+	(SELECT count(DISTINCT op.olympiad_id) FROM program_benefits pb
+	 JOIN olympiad_profiles op ON op.id = pb.olympiad_profile_id WHERE pb.program_id = up.id),
+	EXISTS (SELECT 1 FROM trajectory_programs tp WHERE tp.trajectory_id = $1 AND tp.program_id = up.id)`
+
+func scanProgram(r rowScanner) (Program, error) {
+	var p Program
+	return p, r.Scan(&p.ID, &p.UniversityID, &p.UniversityShort, &p.Name, &p.Faculty, &p.Code, &p.DirectionID,
+		&p.BudgetPlaces, &p.Olympiads, &p.IsMine)
+}
+
+// UniversityPrograms — направления вуза: сохранённые учеником первыми, за
+// ними — по направлениям-целям ученика, дальше по названию.
+func (s *Store) UniversityPrograms(ctx context.Context, trajectoryID, universityID string) ([]Program, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT `+programColumns+`
+		FROM university_programs up JOIN universities u ON u.id = up.university_id
+		WHERE up.university_id = $2
+		ORDER BY EXISTS (SELECT 1 FROM trajectory_programs tp WHERE tp.trajectory_id = $1 AND tp.program_id = up.id) DESC,
+		         EXISTS (SELECT 1 FROM trajectory_directions td
+		                 WHERE td.trajectory_id = $1 AND td.direction_id = up.direction_id) DESC,
+		         up.name, up.id`, trajectoryID, universityID)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanProgram)
+}
+
+// TrajectoryPrograms — направления, которые ученик сохранил, по вузу и названию.
+func (s *Store) TrajectoryPrograms(ctx context.Context, trajectoryID string) ([]Program, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT `+programColumns+`
+		FROM trajectory_programs t
+		JOIN university_programs up ON up.id = t.program_id
+		JOIN universities u ON u.id = up.university_id
+		WHERE t.trajectory_id = $1
+		ORDER BY u.name, up.name, up.id`, trajectoryID)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanProgram)
 }

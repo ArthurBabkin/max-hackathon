@@ -134,6 +134,8 @@ type TrajectoryPatch struct {
 	GoalByKid     *bool
 	SubjectCodes  []string
 	UniversityIDs []string
+	// ProgramIDs: nil — не менять. Вузы направлений добавляются к вузам.
+	ProgramIDs []string
 }
 
 // UpdateTrajectory применяет правку одной транзакцией. Выбранные в профиле
@@ -187,6 +189,11 @@ func (s *Store) UpdateTrajectory(ctx context.Context, trajectoryID, memberID str
 		}
 		if p.UniversityIDs != nil {
 			if err := tx.ReplaceUniversities(ctx, trajectoryID, p.UniversityIDs); err != nil {
+				return err
+			}
+		}
+		if p.ProgramIDs != nil {
+			if err := tx.ReplacePrograms(ctx, trajectoryID, p.ProgramIDs); err != nil {
 				return err
 			}
 		}

@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import type { OlympiadListItem } from '@contract'
 import { expect, it } from 'vitest'
 import { keys } from '@/api/queries'
-import { profile } from '@/api/mocks/build'
+import { profile, universityListItem } from '@/api/mocks/build'
+import { UNIVERSITIES } from '@/api/mocks/fixtures'
 import { renderApp } from '@/test/render'
 import { CatalogScreen } from './Catalog'
 
@@ -57,4 +58,41 @@ it('длинная группа свёрнута до пяти, «Показат
 it('олимпиада из трекера помечена', () => {
   setup()
   expect(within(screen.getByRole('button', { name: /Олимпиада a/ })).getByText('в трекере')).toBeInTheDocument()
+})
+
+// Вузы фильтруются по направлению подготовки; направления ученика — первыми.
+it('вузы фильтруются по направлению', async () => {
+  const byId = (...ids: string[]) => ({
+    items: ids.map((id) => universityListItem(UNIVERSITIES.find((u) => u.id === id)!)),
+  })
+  renderApp(<CatalogScreen />, {
+    route: '/catalog',
+    seed: (c) => {
+      c.setQueryData(keys.profile, profile())
+      c.setQueryData(keys.olympiads('', 'inf', 'all'), { items: [] })
+      c.setQueryData(keys.tracker, { items: [], proposals: [] })
+      c.setQueryData(keys.directions, {
+        items: [
+          { id: 'dir-math', name: 'Математика' },
+          { id: 'dir-se', name: 'Программная инженерия' },
+        ],
+      })
+      c.setQueryData(keys.universities('', 'all', 'all'), byId('inno', 'kfu', 'hse'))
+      c.setQueryData(keys.universities('', 'all', 'dir-math'), byId('kfu', 'hse'))
+    },
+  })
+
+  await userEvent.click(screen.getByRole('tab', { name: 'Вузы' }))
+  const chips = screen.getByText('Направление').closest<HTMLElement>('.filter-row')!
+  expect(within(chips).getAllByRole('button').map((b) => b.textContent)).toEqual([
+    'Все',
+    'Программная инженерия',
+    'Математика',
+  ])
+  expect(screen.getByText('Университет Иннополис')).toBeInTheDocument()
+
+  await userEvent.click(within(chips).getByRole('button', { name: 'Математика' }))
+  expect(within(chips).getByRole('button', { name: 'Математика' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByText('Университет Иннополис')).not.toBeInTheDocument()
+  expect(screen.getByText('Казанский федеральный университет')).toBeInTheDocument()
 })

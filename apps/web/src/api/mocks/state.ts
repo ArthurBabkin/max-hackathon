@@ -10,7 +10,7 @@
  */
 
 import type { Role } from '@contract'
-import { OLYMPIADS, UNIVERSITIES } from './fixtures'
+import { OLYMPIADS, UNIVERSITIES, type DemoProgram, type DemoUniversity } from './fixtures'
 
 export interface DemoMember {
   id: string
@@ -85,6 +85,8 @@ export interface DemoState {
   home_city: string | null
   subjects: string[]
   universities: string[]
+  /** Сохранённые направления вузов; вуз каждого — в universities. */
+  programs: string[]
   members: DemoMember[]
   tracker: DemoTrackerItem[]
   proposals: DemoProposal[]
@@ -116,6 +118,7 @@ export const state: DemoState = {
   home_city: 'Казань',
   subjects: ['inf', 'math'],
   universities: ['inno', 'kfu', 'hse'],
+  programs: ['inno__se'],
 
   // Траекторию создала Ольга, Артём подключился по ссылке — сценарий из ТЗ §14.
   members: [
@@ -171,6 +174,23 @@ export function primaryProfile(olympiadId: string) {
 }
 
 export const universityById = (id: string) => UNIVERSITIES.find((u) => u.id === id) ?? null
+
+/** Направление и его вуз по id направления. */
+export function programById(id: string): { university: DemoUniversity; program: DemoProgram } | null {
+  for (const university of UNIVERSITIES) {
+    const program = university.programs?.find((p) => p.id === id)
+    if (program) return { university, program }
+  }
+  return null
+}
+
+/** Направления вузов, которых больше нет в списке ученика, уходят вместе с вузом. */
+export function dropOrphanPrograms(): void {
+  state.programs = state.programs.filter((id) => {
+    const found = programById(id)
+    return found !== null && state.universities.includes(found.university.id)
+  })
+}
 
 let counter = 0
 export const nextId = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString(36)}`

@@ -130,16 +130,46 @@ func (s *Store) ReplaceDirections(ctx context.Context, trajectoryID string, ids 
 	return wrap(err)
 }
 
+// ReplaceUniversities заменяет вузы ученика; убранный вуз уносит и
+// сохранённые направления в нём.
 func (s *Store) ReplaceUniversities(ctx context.Context, trajectoryID string, ids []string) error {
 	if _, err := s.db.Exec(ctx, `DELETE FROM trajectory_universities WHERE trajectory_id = $1`, trajectoryID); err != nil {
+		return wrap(err)
+	}
+	if len(ids) > 0 {
+		if _, err := s.db.Exec(ctx, `
+			INSERT INTO trajectory_universities (trajectory_id, university_id)
+			SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, trajectoryID, ids); err != nil {
+			return wrap(err)
+		}
+	}
+	_, err := s.db.Exec(ctx, `
+		DELETE FROM trajectory_programs tp USING university_programs up
+		WHERE tp.trajectory_id = $1 AND up.id = tp.program_id
+		  AND NOT EXISTS (SELECT 1 FROM trajectory_universities tu
+		                  WHERE tu.trajectory_id = $1 AND tu.university_id = up.university_id)`, trajectoryID)
+	return wrap(err)
+}
+
+// ReplacePrograms заменяет сохранённые направления вузов. Вузы этих
+// направлений добавляются к вузам ученика: направления без своего вуза в
+// списке не бывает.
+func (s *Store) ReplacePrograms(ctx context.Context, trajectoryID string, ids []string) error {
+	if _, err := s.db.Exec(ctx, `DELETE FROM trajectory_programs WHERE trajectory_id = $1`, trajectoryID); err != nil {
 		return wrap(err)
 	}
 	if len(ids) == 0 {
 		return nil
 	}
+	if _, err := s.db.Exec(ctx, `
+		INSERT INTO trajectory_programs (trajectory_id, program_id)
+		SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, trajectoryID, ids); err != nil {
+		return wrap(err)
+	}
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO trajectory_universities (trajectory_id, university_id)
-		SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, trajectoryID, ids)
+		SELECT DISTINCT $1::uuid, up.university_id FROM university_programs up WHERE up.id = ANY($2)
+		ON CONFLICT DO NOTHING`, trajectoryID, ids)
 	return wrap(err)
 }
 
