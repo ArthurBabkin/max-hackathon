@@ -151,7 +151,9 @@ class BuildTest(unittest.TestCase):
         cls.demo = bs.build_demo()
 
     def test_benefit_keys_match_dataset(self):
-        self.assertEqual(self.seed.stats["benefit_keys"], 1149)
+        # 1149 + 34 льготы Иннополиса со стр. 8, 9, 11, 16 его приказа
+        # + 9 МГУ из строк-продолжений объединённых ячеек.
+        self.assertEqual(self.seed.stats["benefit_keys"], 1192)
         self.assertEqual(self.seed.stats["benefit_level_filtered"], 91)
         self.assertEqual(self.seed.stats["benefit_unknown_profile"], 0)
 
