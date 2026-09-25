@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/jev"
 )
@@ -440,5 +443,62 @@ func TestAsk_CatalogForAskedGrade(t *testing.T) {
 		if strings.Contains(c, "Бельчонок") || strings.Contains(c, "Высшая проба") {
 			t.Errorf("%s: олимпиады с 8 и 9 класса в каталоге для 7 класса:\n%s", q, c)
 		}
+	}
+}
+
+// «Что мне ещё добавить?» — ответ как экран «Подбор»: подходящие олимпиады,
+// которых ещё нет в трекере, в том же порядке; добавленные не предлагаются,
+// но сказано, сколько их уже в трекере.
+func TestAsk_PersonalQuestionHasPick(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	now := time.Date(2026, 9, 10, 9, 0, 0, 0, time.UTC)
+	before, err := pick.Pick(ctx, st, tr, now, pick.Options{HideTracked: true})
+	if err != nil || len(before.Items) < 3 {
+		t.Fatalf("подбор до: %+v %v", before.Items, err)
+	}
+	fam, _ := st.FamilyMembers(ctx, tr.ID)
+	added := before.Profiles[before.Items[0].ProfileID]
+	if _, _, err := st.AddTrackerItem(ctx, tr.ID, added.ID, fam[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	res, _ := pick.Pick(ctx, st, tr, now, pick.Options{HideTracked: true})
+
+	for _, intent := range []string{"personal", "search"} {
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		a := &Assistant{Store: st, LLM: f, Classifier: said(intent, map[string]float64{none: 1}, map[string]float64{none: 1}),
+			Now: func() time.Time { return now }}
+		if _, err := a.Ask(ctx, kid, tr, nil, "Что мне ещё добавить в трекер?"); err != nil {
+			t.Fatal(err)
+		}
+		c := cardIn(t, f.calls[0][0].Content, "pick")
+		if !strings.Contains(c, "Подбор — подходящие олимпиады, которых ещё нет в трекере, лучшие первыми:") ||
+			!strings.Contains(c, "Уже в трекере: 1 подходящая олимпиада") {
+			t.Fatalf("%s: подбор:\n%s", intent, c)
+		}
+		if strings.Contains(c, names.Olympiad(added.OlympiadName)+",") {
+			t.Errorf("%s: добавленная олимпиада в подборе:\n%s", intent, c)
+		}
+		at := 0
+		for _, r := range res.Items {
+			p := res.Profiles[r.ProfileID]
+			i := strings.Index(c[at:], names.Olympiad(p.OlympiadName)+", "+profileTitle(p))
+			if i < 0 {
+				t.Fatalf("%s: нет %s по порядку:\n%s", intent, p.ID, c)
+			}
+			at += i
+		}
+	}
+}
+
+// Добавлено всё подходящее — так и сказано, а не пустой подбор.
+func TestPickText_AllTracked(t *testing.T) {
+	got := strings.Join(pickText(base{}, pick.Result{State: match.StateAllTracked, Tracked: 4}, clock{}), "\n")
+	if !strings.Contains(got, "Все подходящие олимпиады уже в трекере (4)") {
+		t.Fatalf("всё добавлено:\n%s", got)
+	}
+	got = strings.Join(pickText(base{}, pick.Result{State: match.StateNoneSuitable}, clock{}), "\n")
+	if !strings.Contains(got, "Подходящих олимпиад нет") {
+		t.Fatalf("подходящих нет:\n%s", got)
 	}
 }

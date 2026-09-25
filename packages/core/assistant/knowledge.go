@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
@@ -1106,15 +1107,16 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 		}
 		goal += "; направления: " + strings.Join(directions, ", ")
 	}
-	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(c.universities, ", ")))
 	unis, err := a.Store.TrajectoryUniversities(ctx, t.ID)
 	if err != nil {
 		return err
 	}
 	uniIDs := make([]string, len(unis))
+	nicks := make([]string, len(unis))
 	for i, u := range unis {
-		uniIDs[i] = u.ID
+		uniIDs[i], nicks[i] = u.ID, pick.Nick(u.ID, u.ShortName)
 	}
+	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(nicks, ", ")))
 	tg, err := a.Store.TargetsOf(ctx, t.ID, uniIDs)
 	if err != nil {
 		return err
@@ -1240,4 +1242,84 @@ func gradesList(grades []int32) string {
 		parts[i] = fmt.Sprint(g)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// pickText — карточка «Подбор», как экран в приложении: подходящие
+// олимпиады, которых ещё нет в трекере, в том же порядке, с льготой в вузах
+// ученика и ближайшим этапом; сколько подходящих уже в трекере или ждут
+// ответа на предложение, остальные подходящие и вне перечня — списком.
+func pickText(b base, res pick.Result, c clock) []string {
+	var lines []string
+	switch res.State {
+	case match.StateAllTracked:
+		lines = append(lines, fmt.Sprintf("Все подходящие олимпиады уже в трекере (%d): ученик следит за всеми, добавить из подбора нечего.", res.Tracked))
+	case match.StateAllProposed:
+		lines = append(lines, fmt.Sprintf("Все подходящие олимпиады уже в трекере или предложены и ждут ответа (ждут ответа: %d).", res.Proposed))
+	case match.StateNoneSuitable:
+		lines = append(lines, "Подходящих олимпиад нет: по предметам ученика нет олимпиад с льготой в его вузах, в которые ещё можно вступить.")
+	default:
+		lines = append(lines, "Подбор — подходящие олимпиады, которых ещё нет в трекере, лучшие первыми:")
+		for i, r := range res.Items {
+			lines = append(lines, fmt.Sprintf("  %d. %s", i+1, pickLine(res, r, c)))
+		}
+		if res.Tracked > 0 {
+			lines = append(lines, fmt.Sprintf("Уже в трекере: %d %s", res.Tracked,
+				voice.Plural(res.Tracked, "подходящая олимпиада", "подходящие олимпиады", "подходящих олимпиад")))
+		}
+		if res.Proposed > 0 {
+			lines = append(lines, fmt.Sprintf("Предложены и ждут ответа: %d", res.Proposed))
+		}
+	}
+	list := func(rs []match.Result) string {
+		out := make([]string, len(rs))
+		for i, r := range rs {
+			p := res.Profiles[r.ProfileID]
+			out[i] = names.Olympiad(p.OlympiadName) + ", " + profileTitle(p)
+		}
+		return strings.Join(out, "; ")
+	}
+	if len(res.More) > 0 {
+		lines = append(lines, fmt.Sprintf("Ещё подходят (%d): %s", len(res.More), list(res.More)))
+	}
+	if len(res.Outside) > 0 {
+		lines = append(lines, fmt.Sprintf("Вне перечня — льгот при поступлении не дают (%d): %s", len(res.Outside), list(res.Outside)))
+	}
+	return lines
+}
+
+// pickLine — олимпиада подбора: уровень, самая сильная льгота в вузах
+// ученика (без вузов — в вузах с его направлением), ближайший этап.
+func pickLine(res pick.Result, r match.Result, c clock) string {
+	p := res.Profiles[r.ProfileID]
+	parts := []string{names.Olympiad(p.OlympiadName) + ", " + profileTitle(p)}
+	switch {
+	case p.Kind == "vsosh":
+		parts = append(parts, "ВсОШ")
+	case p.Level != nil:
+		parts = append(parts, *p.Level+" уровень")
+	}
+	rows := res.Set.Benefits[p.ID]
+	if len(res.Set.Universities) == 0 {
+		rows = res.Set.Potential[p.ID]
+	}
+	if best := pick.BestBenefit(rows); best != "" {
+		var nicks []string
+		for _, bn := range rows {
+			if bn.Benefit == best {
+				nicks = append(nicks, pick.Nick(bn.UniversityID, bn.UniversityShort))
+			}
+		}
+		label := otherText[best]
+		if label == "" {
+			label = "доп. баллы"
+		}
+		parts = append(parts, label+": "+strings.Join(nicks, ", "))
+	}
+	if r.Stage != nil && r.Deadline != nil {
+		parts = append(parts, "ближайший этап: "+strings.ToLower(stageName(*r.Stage))+" до "+c.day(*r.Deadline))
+	}
+	if r.Online {
+		parts = append(parts, "онлайн")
+	}
+	return strings.Join(parts, "; ")
 }

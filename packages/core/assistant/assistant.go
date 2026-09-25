@@ -167,7 +167,7 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	}
 	c.myCodes = myCodes
 	for _, u := range myUnis {
-		c.universities = append(c.universities, u.ShortName)
+		c.universities = append(c.universities, pick.Nick(u.ID, u.ShortName))
 		c.myUnis = append(c.myUnis, u.ID)
 		c.focus = append(c.focus, u.ID)
 		if m.MyUniversities && !slices.Contains(m.Universities, u.ID) {
@@ -249,6 +249,14 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		if err := a.studentCard(ctx, b, t, &c); err != nil {
 			return c, err
 		}
+	}
+	// «Что мне подходит, что ещё добавить» — как экран «Подбор».
+	if c.intent == intentPersonal || c.intent == intentSearch {
+		res, err := pick.Pick(ctx, a.Store, t, c.clock.now, pick.Options{HideTracked: true})
+		if err != nil {
+			return c, err
+		}
+		c.cards = append(c.cards, card{id: "pick", text: strings.Join(pickText(b, res, c.clock), "\n")})
 	}
 	return c, nil
 }
@@ -639,10 +647,12 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 		"«Льготы уточняются» у направления — скажи, что льготы на нём ещё проверяются. " +
 		"Если в вопросе названо направление — отвечай про льготы на него (строки «на направление из вопроса»), а не на цель ученика; " +
 		"если этого направления в вузе нет — так и скажи.\n")
-	b.WriteString("9. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
-	b.WriteString("10. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
+	b.WriteString("9. На вопрос, что ещё добавить или что ученику подходит — предлагай олимпиады из карточки «Подбор» в её порядке: " +
+		"их ещё нет в трекере; то, что уже в трекере, не предлагай заново.\n")
+	b.WriteString("10. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
+	b.WriteString("11. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	if c.intent == intentChat {
-		b.WriteString("11. Это приветствие, благодарность, вопрос о том, что ты умеешь, или о прошлых репликах разговора: ответь по разговору, card_ids может быть пустым.\n")
+		b.WriteString("12. Это приветствие, благодарность, вопрос о том, что ты умеешь, или о прошлых репликах разговора: ответь по разговору, card_ids может быть пустым.\n")
 	}
 	b.WriteString(`Ответ — только JSON-объект: {"answer": "текст", "card_ids": ["id"], "no_data": false}` + "\n")
 	directions := make([]string, len(t.Directions))
