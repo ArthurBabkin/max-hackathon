@@ -261,6 +261,18 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 		}
 	}
 
+	// Льготы на выбранные в НГУ направления ещё уточняются: вести туда
+	// нечем — как и в карточке вуза на «На мои направления».
+	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{"nsu"}); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.do("PUT", "/api/v1/profile/universities/nsu/directions", token, map[string]any{"direction_ids": []string{"napr-01-03-02"}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	if items := list(t, e.do("GET", "/api/v1/olympiads?mine=true&subject=math", token, nil).body["items"]); len(items) != 0 {
+		t.Fatalf("льготы уточняются — не «ведут»: %d, первая %v", len(items), items[0]["my_benefits"])
+	}
+
 	// Вузов нет — никуда не ведут.
 	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{}); err != nil {
 		t.Fatal(err)

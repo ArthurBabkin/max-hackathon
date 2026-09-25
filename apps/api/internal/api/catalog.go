@@ -162,9 +162,13 @@ func (s *Server) leadsToMine(ctx context.Context, trajectoryID string, profiles 
 	if err != nil {
 		return nil, err
 	}
+	// Льгота, которая на мои направления ещё уточняется, никуда не «ведёт»:
+	// в карточке вуза её тоже нет среди «На мои направления».
 	byPair := map[string]string{}
 	for _, b := range rows {
-		byPair[b.ProfileID+"/"+b.UniversityID] = b.Benefit
+		if !b.Unverified {
+			byPair[b.ProfileID+"/"+b.UniversityID] = b.Benefit
+		}
 	}
 	out := map[string][]myBenefit{}
 	for _, p := range profiles {
