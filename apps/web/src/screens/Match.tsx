@@ -50,7 +50,7 @@ export function MatchScreen() {
       <h1 className="match-title">{t('match.title')}</h1>
       {trajectory ? (
         <p className="match-subtitle">
-          {t('match.subtitle', {
+          {t(trajectory.region_name ? 'match.subtitle' : 'match.subtitleNoRegion', {
             direction: trajectory.directions.map((d) => d.name).join(', ') || t('home.goalEmpty'),
             grade: trajectory.grade,
             region: trajectory.region_name,

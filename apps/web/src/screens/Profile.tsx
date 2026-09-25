@@ -180,10 +180,12 @@ export function ProfileScreen() {
         </div>
       </div>
 
-      {/* Нативный список: 89 регионов по округам, на телефоне — системный пикер. */}
+      {/* Нативный список: 89 регионов по округам, на телефоне — системный пикер.
+          «Не указан» — «Не важно» в боте: время напоминаний московское. */}
       <label className="field">
         <span className="field-label">{t('profile.regionLabel')}</span>
         <select className="field-select" value={region} onChange={(event) => setRegion(event.target.value)}>
+          <option value="">{t('profile.regionNone')}</option>
           {districts.map((district) => (
             <optgroup key={district.n} label={`${district.name} округ`}>
               {regions

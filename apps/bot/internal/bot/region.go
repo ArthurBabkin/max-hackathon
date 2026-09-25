@@ -15,7 +15,9 @@ import (
 const lettersOpen = "*"
 
 // regionPrompt — шаг региона (SPEC 3.2): вопрос с быстрыми кнопками (R1),
-// буквы алфавита или регионы на букву (R5).
+// буквы алфавита или регионы на букву (R5). Кнопки геолокации нет: в MAX
+// она работает только в мобильном приложении, а геопозицию из вложений
+// бот и так понимает (location).
 func regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 	cb := maxapi.CallbackButton
 	hint := "\n" + v.T("bot.region.typeHint", nil)
@@ -36,9 +38,9 @@ func regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 		return maxapi.WithKeyboard(v.T("bot.region.onLetter", voice.Vars{"letter": d.Draft.Letter})+hint, kb)
 	}
 	return maxapi.WithKeyboard(v.T("bot.region.ask", nil), maxapi.Keyboard{
-		maxapi.Row(maxapi.GeoButton(v.T("bot.region.geo", nil))),
 		maxapi.Row(cb(refdata.Short("77"), "region:77"), cb(refdata.Short("78"), "region:78")),
 		maxapi.Row(cb(refdata.Short("50"), "region:50"), cb(v.T("bot.region.alphabet", nil), "region:abc")),
+		maxapi.Row(cb(v.T("bot.region.skip", nil), "region:skip")),
 	})
 }
 
@@ -132,6 +134,18 @@ func (b *Bot) regionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Mess
 			return nil
 		}, func(d store.Dialog) error {
 			_, err := b.send(t, foundMessage(dialogVoice(t, d), picked.RegionCode, picked.City))
+			return err
+		})
+	case "skip":
+		// «Не важно»: регион не указан, напоминания — по московскому времени.
+		return b.transitionSay(t, cb, question, v.T("bot.region.skip", nil), func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepRegion); err != nil {
+				return err
+			}
+			setRegion(d, "", "")
+			return nil
+		}, func(d store.Dialog) error {
+			_, err := b.send(t, maxapi.Text(dialogVoice(t, d).T("bot.region.skipped", nil)))
 			return err
 		})
 	case "change":
