@@ -131,8 +131,9 @@ describe('ведут в мои вузы и на мои направления', 
     })
     const toggle = screen.getByRole('switch', { name: /Ведут в мои вузы и на мои направления/ })
     expect(toggle).toHaveAttribute('aria-checked', 'false')
-    // Цель ПИ: в Иннополисе её покрывает 09.00.00 — два разных направления.
-    expect(toggle).toHaveTextContent('Иннополис, КФУ, ВШЭ · 2 направления')
+    // Мои направления — те, что выбрал ученик: цель ПИ. Что в Иннополисе её
+    // покрывает укрупнённое 09.00.00, числа не меняет.
+    expect(toggle).toHaveTextContent('Иннополис, КФУ, ВШЭ · 1 направление')
     // Предметы — ниже переключателя.
     expect(toggle.compareDocumentPosition(screen.getByText('Предмет')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('button', { name: /Олимпиада a/ })).toBeInTheDocument()
@@ -142,6 +143,12 @@ describe('ведут в мои вузы и на мои направления', 
     expect(toggle).toHaveAttribute('aria-checked', 'true')
     expect(screen.queryByRole('button', { name: /Олимпиада a/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Высшая проба/ })).toHaveTextContent('БВИ Иннополис · 100 баллов: КФУ, ВШЭ')
+  })
+
+  it('направления, выбранные в вузе, — тоже мои', () => {
+    state.chosen = { hse: ['dir-ami'] }
+    renderMine({})
+    expect(screen.getByRole('switch', { name: /Ведут/ })).toHaveTextContent('Иннополис, КФУ, ВШЭ · 2 направления')
   })
 
   it('льгота во всех моих вузах — так и написано', async () => {
