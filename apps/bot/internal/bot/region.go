@@ -234,7 +234,7 @@ func (b *Bot) regionText(t *turn, d store.Dialog, text string) error {
 		kb = append(kb, maxapi.Row(cb(v.T("bot.region.notMine", nil), "region:abc")))
 		msg = maxapi.WithKeyboard(v.T("bot.region.many", nil), kb)
 	}
-	return b.sendPrompt(t, msg)
+	return b.sendPrompt(t, withStep(v, d, msg))
 }
 
 // location — геопозиция на шаге региона (F6): регион и город, если он
