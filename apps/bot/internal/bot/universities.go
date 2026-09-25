@@ -340,8 +340,10 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		}))
 	case "done":
 		label := v.T("bot.btn.done", nil)
-		return b.transition(t, cb, question, label, onStep(func(tx *store.Store, d *store.Dialog) error {
-			return b.createTrajectory(t, tx, d)
+		// Дальше — профиль на подтверждение; траектория создаётся по «Готово» там.
+		return b.transition(t, cb, question, label, onStep(func(_ *store.Store, d *store.Dialog) error {
+			d.Step, d.Draft.EditMenu = stepSummary, false
+			return nil
 		}))
 	case "other", "city":
 		// Кнопки шага вузов из v1.
@@ -370,7 +372,7 @@ func (b *Bot) universityText(t *turn, d store.Dialog, text string) error {
 			return err
 		}
 	}
-	d, err = b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err = b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepUniversities, stepUniSearch); err != nil {
 			return err
 		}

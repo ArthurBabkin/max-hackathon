@@ -122,6 +122,14 @@ func (h *harness) answered(id string) maxapi.CallbackAnswer {
 	return maxapi.CallbackAnswer{}
 }
 
+// step — последний вопрос начинается со счётчика «Шаг n из 9».
+func (h *harness) step(u maxapi.User, n int) {
+	h.t.Helper()
+	if got := h.lastText(u); !strings.HasPrefix(got, fmt.Sprintf("Шаг %d из 9\n\n", n)) {
+		h.t.Fatalf("ждали шаг %d, последнее сообщение: %q", n, got)
+	}
+}
+
 func (h *harness) mustContain(u maxapi.User, want string) {
 	h.t.Helper()
 	if got := h.lastText(u); !strings.Contains(got, want) {
@@ -166,7 +174,7 @@ func (h *harness) toRegion(grade string) {
 	h.press(artem, "role:kid")
 	h.press(artem, "name:ok")
 	h.press(artem, "grade:"+grade)
-	h.mustContain(artem, "Где ты живёшь?")
+	h.mustContain(artem, "Шаг 4 из 9\n\nГде ты живёшь?")
 }
 
 // toDirections — ученик из Казани с предметами до вопроса о направлениях.
@@ -180,36 +188,67 @@ func (h *harness) toDirections(subjects ...string) {
 	h.press(artem, "subj:done")
 }
 
+// toSummary — ученик из Казани (информатика, программная инженерия,
+// школьный этап, Татарстан, без вузов) до карточки профиля.
+func (h *harness) toSummary() {
+	h.t.Helper()
+	h.toDirections("inf")
+	h.press(artem, "dir:t:napr-09-03-04")
+	h.press(artem, "dir:done")
+	h.press(artem, "exp:school")
+	h.press(artem, "place:t:1")
+	h.press(artem, "place:done")
+	h.press(artem, "vuz:done")
+	h.mustContain(artem, "**Артём, сформировали твой профиль**")
+}
+
+// edit открывает меню правки и выбирает поле.
+func (h *harness) edit(field string) {
+	h.t.Helper()
+	h.press(artem, "sum:edit")
+	// Меню — на той же карточке, в последнем сообщении его нет.
+	h.pressAny(artem, "sum:f:"+field, "профиль")
+}
+
 // kidOnboarding проходит онбординг ученика целиком (ТЗ §5.1, SPEC 3–9).
 func (h *harness) kidOnboarding() store.Member {
 	h.t.Helper()
 	h.started(artem, "src_class_9a")
+	h.step(artem, 1)
 	h.mustContain(artem, "Кто вы?")
 	h.press(artem, "role:kid")
+	h.step(artem, 2)
 	h.mustContain(artem, "Тебя зовут Артём?")
 	h.press(artem, "name:ok")
+	h.step(artem, 3)
 	h.mustContain(artem, "Приятно познакомиться, Артём! В каком ты классе?")
 	h.press(artem, "grade:9")
+	h.step(artem, 4)
 	h.mustContain(artem, "Где ты живёшь? Напиши город или регион")
 	h.text(artem, "Казань")
 	if got := h.sentBack(artem, 1); got.Text != "Казань → Татарстан ✓" || !slices.Contains(maxtest.Payloads(got), "region:change") {
 		h.t.Fatalf("найден город: %q %v", got.Text, maxtest.Payloads(got))
 	}
+	h.step(artem, 5)
 	h.press(artem, "subj:t:inf")
 	h.press(artem, "subj:t:math")
 	h.press(artem, "subj:done")
+	h.step(artem, 6)
 	h.mustContain(artem, "Куда думаешь поступать? Под твои предметы подходят")
 	h.press(artem, "dir:t:napr-09-03-04")
 	h.press(artem, "dir:t:napr-09-03-01")
 	h.press(artem, "dir:done")
+	h.step(artem, 7)
 	h.mustContain(artem, "Какой у тебя опыт в олимпиадах?")
 	h.press(artem, "exp:school")
+	h.step(artem, 8)
 	h.mustContain(artem, "Где хочешь учиться? Можно выбрать несколько мест или написать город.")
 	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.HasPrefix(b, "Только Казань | Весь регион · Татарстан | Москва | Санкт-Петербург") {
 		h.t.Fatalf("варианты мест: %s", b)
 	}
 	h.press(artem, "place:t:1")
 	h.press(artem, "place:done")
+	h.step(artem, 9)
 	h.mustContain(artem, "Вот вузы с направлениями программная инженерия, информатика и вычислительная техника в этих местах.")
 	h.press(artem, "vuz:t:innopolis")
 	h.text(artem, "вышка")
@@ -217,6 +256,18 @@ func (h *harness) kidOnboarding() store.Member {
 		h.t.Fatalf("поиск по алиасу: %q", got)
 	}
 	h.press(artem, "vuz:done")
+	// Профиль на подтверждение: траектории до «Готово» ещё нет (SPEC 9).
+	if _, err := h.st.CurrentMember(context.Background(), artem.UserID); err == nil {
+		h.t.Fatal("траектория создана до «Готово»")
+	}
+	summary := h.fake.Last(artem.UserID)
+	if summary.Text != "**Артём, сформировали твой профиль**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
+		"Цель: программная инженерия, информатика и вычислительная техника\nОпыт: школьный или муниципальный этап\n"+
+		"Где учиться: Татарстан\nВузы: Иннополис, ВШЭ\n\nВсё верно? Если нужно поправить — нажми «Изменить»." ||
+		summary.Format != "markdown" || !slices.Equal(maxtest.Payloads(summary), []string{"sum:edit", "sum:ok"}) {
+		h.t.Fatalf("профиль: %q (%s) %v", summary.Text, summary.Format, maxtest.Payloads(summary))
+	}
+	h.press(artem, "sum:ok")
 	m, err := h.st.CurrentMember(context.Background(), artem.UserID)
 	if err != nil {
 		h.t.Fatalf("траектория создана: %v", err)
@@ -237,28 +288,51 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 		!slices.Equal(tr.Places, []store.Place{{RegionCode: "16"}}) || tr.GoalByKid {
 		t.Fatalf("траектория: %+v", tr)
 	}
-	summary := h.sentBack(artem, 1)
-	if summary.Text != "**Профиль готов, Артём**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
-		"Цель: программная инженерия, информатика и вычислительная техника\nОпыт: школьный или муниципальный этап\n"+
-		"Где учиться: Татарстан\nВузы: ВШЭ, Иннополис" || summary.Format != "markdown" {
-		t.Fatalf("профиль: %q (%s)", summary.Text, summary.Format)
-	}
-	if kb := summary.Keyboard(); kb[0][0].Type != "open_app" || kb[0][0].Text != "Изменить" || kb[0][0].Payload != "profile" {
-		t.Fatalf("кнопка профиля: %+v", kb)
+	// После «Готово» — только итог: профиль уже был на подтверждении.
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**") {
+		t.Fatalf("перед итогом — карточка профиля: %q", s)
 	}
 	result := h.fake.Last(artem.UserID)
-	if !strings.HasPrefix(result.Text, "Под твою цель подходят ") || !strings.Contains(result.Text, "\n\nДля старта советую эту:\n") ||
-		!strings.Contains(result.Text, " уровень · до ") || !strings.HasSuffix(result.Text, "В мини-приложении — льготы в твоих вузах, источники и трекер сроков.") {
+	if !strings.HasPrefix(result.Text, "Под твою цель подходят 5 олимпиад и ВсОШ.\n\nДля старта советую эту:") ||
+		!strings.HasSuffix(result.Text, "\n\nВ мини-приложении — льготы в твоих вузах, источники и трекер сроков.") {
 		t.Fatalf("итог: %q", result.Text)
 	}
+	// Одна кнопка: приложение на главной, где новичку покажут обучение.
 	kb := result.Keyboard()
-	if kb[0][0].Type != "open_app" || kb[0][0].ContactID != 42 || kb[0][0].Payload != "match" || kb[0][0].Text != "Открыть подборку" ||
-		kb[1][0].Payload != "rem:on" || kb[2][0].Payload != "inv:new" || kb[2][0].Text != "👋 Пригласить родителя" {
+	if len(kb) != 1 || len(kb[0]) != 1 || kb[0][0].Type != "open_app" || kb[0][0].ContactID != 42 ||
+		kb[0][0].Payload != "home" || kb[0][0].Text != "Открыть «Траекторию»" {
 		t.Fatalf("кнопки итога: %s", maxtest.Buttons(result))
 	}
 	d := h.dialog(artem)
 	if d.Step != stepDone || d.SourcePayload == nil || *d.SourcePayload != "src_class_9a" {
 		t.Fatalf("диалог закрыт, источник сохранён: %+v", d)
+	}
+}
+
+// Итог: кроме стартовой олимпиады — ближайшая по сроку, если это другая.
+func TestResult_NearestAfterStart(t *testing.T) {
+	h := newHarness(t)
+	h.kidOnboarding()
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 4 || !strings.HasPrefix(blocks[1], "Для старта советую эту:\nInnopolis Open · Информатика\n") ||
+		blocks[2] != "Ближайшая олимпиада:\nФизтех · Математика\nII уровень · до 7 сентября, 6 дней · онлайн" {
+		t.Fatalf("итог: %q", blocks)
+	}
+}
+
+// Стартовая и есть ближайшая — один блок.
+func TestResult_StartIsNearest(t *testing.T) {
+	h := newHarness(t)
+	h.toDirections("inf")
+	h.press(artem, "dir:later")
+	h.press(artem, "exp:none")
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 3 || !strings.HasPrefix(blocks[1], "Для старта советую эту — она же ближайшая:\nФизтех · Информатика\n") ||
+		!strings.Contains(blocks[1], "до 7 сентября, 6 дней") {
+		t.Fatalf("итог: %q", blocks)
 	}
 }
 
@@ -281,7 +355,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
 	id := h.press(olga, "region:abc")
-	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "На какую букву ваш регион?") ||
+	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Шаг 4 из 9\n\nНа какую букву ваш регион?") ||
 		!slices.Contains(maxtest.Payloads(*a.Message), "region:l:Т") {
 		t.Fatalf("буквы на месте вопроса: %+v", a)
 	}
@@ -333,6 +407,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.press(olga, "place:any")
 	h.mustContain(olga, "Вот вузы в этих местах. Отметьте, куда хочет поступать Артём")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	m, _ := h.st.CurrentMember(context.Background(), olga.UserID)
 	if m.Role != "parent" || !m.IsCreator || m.HasKid {
@@ -343,16 +418,16 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 		t.Fatalf("цель не выбрана, место не важно: %+v", tr)
 	}
 	summary := h.sentBack(olga, 1).Text
-	if summary != "**Профиль Артёма готов**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
-		"Опыт: первые олимпиады\nГде учиться: не важно\nВузы: не выбраны" {
+	if summary != "**Ольга, сформировали профиль Артёма**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
+		"Опыт: первые олимпиады\nГде учиться: не важно\nВузы: не выбраны\n\nВсё верно? Если нужно поправить — нажмите «Изменить»." {
 		t.Fatalf("профиль родителю: %q", summary)
 	}
 	result := h.fake.Last(olga.UserID)
-	if !strings.HasPrefix(result.Text, "По предметам Артёма подход") {
+	if !strings.HasPrefix(result.Text, "По предметам Артёма подходят ") {
 		t.Fatalf("итог родителю: %q", result.Text)
 	}
-	if kb := result.Keyboard(); kb[2][0].Text != "👋 Пригласить Артёма" {
-		t.Fatalf("третья кнопка родителя: %s", maxtest.Buttons(result))
+	if p := maxtest.Payloads(result); !slices.Equal(p, []string{"home"}) {
+		t.Fatalf("у родителя одна кнопка: %s", maxtest.Buttons(result))
 	}
 }
 
@@ -371,7 +446,7 @@ func TestRegion_TextSingleAndChange(t *testing.T) {
 		t.Fatalf("регион и город: %+v", d)
 	}
 	h.pressAny(artem, "region:change", found.Text)
-	h.mustContain(artem, "Где ты живёшь?")
+	h.mustContain(artem, "Шаг 4 из 9\n\nГде ты живёшь?")
 	if d := h.dialog(artem); d.Step != stepRegion || d.Draft.RegionCode != "" || d.Draft.HomeCity != "" {
 		t.Fatalf("снова регион: %+v", d)
 	}
@@ -397,7 +472,7 @@ func TestRegion_TextMany(t *testing.T) {
 	h.text(artem, "советск")
 	last := h.fake.Last(artem.UserID)
 	p := maxtest.Payloads(last)
-	if last.Text != "Нашёл несколько. Какой твой?" || len(p) != 4 || p[0] != "region:o:0" || p[3] != "region:abc" ||
+	if last.Text != "Шаг 4 из 9\n\nНашёл несколько. Какой твой?" || len(p) != 4 || p[0] != "region:o:0" || p[3] != "region:abc" ||
 		!strings.HasPrefix(maxtest.Buttons(last), "Советск · Калининградская обл.") {
 		t.Fatalf("варианты: %q %s %v", last.Text, maxtest.Buttons(last), p)
 	}
@@ -416,12 +491,12 @@ func TestRegion_TextFuzzy(t *testing.T) {
 	h.toRegion("9")
 	h.text(artem, "Казнь")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Не нашёл «Казнь». Может, это Казань — Татарстан?" ||
+	if last.Text != "Шаг 4 из 9\n\nНе нашёл «Казнь». Может, это Казань — Татарстан?" ||
 		!slices.Equal(maxtest.Payloads(last), []string{"region:o:0", "region:retry", "region:abc"}) {
 		t.Fatalf("переспрос: %q %v", last.Text, maxtest.Payloads(last))
 	}
 	id := h.press(artem, "region:retry")
-	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Где ты живёшь?") {
+	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Шаг 4 из 9\n\nГде ты живёшь?") {
 		t.Fatalf("написать заново: %+v", a)
 	}
 	h.text(artem, "Казнь")
@@ -436,7 +511,7 @@ func TestRegion_TextNotFound(t *testing.T) {
 	h.toRegion("9")
 	h.text(artem, "asdf")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Не нашёл «asdf». Попробуй написать иначе или выбери по алфавиту." ||
+	if last.Text != "Шаг 4 из 9\n\nНе нашёл «asdf». Попробуй написать иначе или выбери по алфавиту." ||
 		!slices.Equal(maxtest.Payloads(last), []string{"region:abc"}) {
 		t.Fatalf("не найдено: %q %v", last.Text, maxtest.Payloads(last))
 	}
@@ -481,11 +556,12 @@ func TestRegion_SkipCreatesTrajectory(t *testing.T) {
 	}
 	h.press(artem, "place:any")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	if tr.RegionCode != "" || tr.TZ != "Europe/Moscow" || tr.HomeCity != nil {
 		t.Fatalf("траектория без региона: %+v", tr)
 	}
-	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Профиль готов, Артём**\nКласс: 9\nПредметы: информатика\n") {
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**\nКласс: 9\nПредметы: информатика\n") {
 		t.Fatalf("профиль: %q", s)
 	}
 }
@@ -510,7 +586,7 @@ func TestRegion_Geolocation(t *testing.T) {
 		t.Fatalf("без города: %+v", d)
 	}
 	// Кнопка «Москва» из первого вопроса уже не действует.
-	id := h.pressAny(artem, "region:77", "Где ты живёшь?")
+	id := h.pressAny(artem, "region:77", "Шаг 4 из 9\n\nГде ты живёшь?")
 	if a := h.answered(id); a.Notification != "Этот вопрос уже позади" {
 		t.Fatalf("старая кнопка региона: %+v", a)
 	}
@@ -522,6 +598,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 	h.toDirections("inf", "math")
 	h.press(artem, "dir:help")
 	h.mustContain(artem, "Давай разберёмся вместе — два вопроса.")
+	h.step(artem, 6)
 	id := h.press(artem, "int:done")
 	if a := h.answered(id); a.Notification != "Выбери хотя бы один вариант" {
 		t.Fatalf("«Готово» без интересов: %+v", a)
@@ -537,6 +614,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 		t.Fatalf("интересы после «Готово»: %+v", a.Message)
 	}
 	h.mustContain(artem, "Какая работа тебе ближе?")
+	h.step(artem, 6)
 	id = h.press(artem, "work:text")
 	if a := h.answered(id); a.Notification != "Скоро здесь можно будет написать своими словами. Пока выбери вариант выше." {
 		t.Fatalf("своими словами: %+v", a)
@@ -557,6 +635,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 	h.press(artem, "exp:none")
 	h.press(artem, "place:any")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	if tr.GoalStatus != "suggested" || len(tr.Directions) != 2 || tr.Directions[0].ID != "napr-09-03-04" ||
 		tr.Directions[1].ID != "napr-01-03-02" {
@@ -602,6 +681,7 @@ func TestDirectionHelp_ParentStillUndecided(t *testing.T) {
 	h.press(olga, "place:t:0")
 	h.press(olga, "place:done")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	if tr.GoalStatus != "exploring" || len(tr.Directions) != 0 || tr.Experience != "region" ||
 		!slices.Equal(tr.Places, []store.Place{{RegionCode: "77"}}) {
@@ -617,7 +697,7 @@ func TestTarget_AddPlacesByText(t *testing.T) {
 	h.press(artem, "exp:none")
 	h.text(artem, "Иннополис")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Добавил Иннополис. Что-то ещё?" || !strings.Contains(maxtest.Buttons(last), "✓ Иннополис · Татарстан") {
+	if last.Text != "Шаг 8 из 9\n\nДобавил Иннополис. Что-то ещё?" || !strings.Contains(maxtest.Buttons(last), "✓ Иннополис · Татарстан") {
 		t.Fatalf("добавлено: %q %s", last.Text, maxtest.Buttons(last))
 	}
 	h.text(artem, "советск")
@@ -635,6 +715,7 @@ func TestTarget_AddPlacesByText(t *testing.T) {
 	h.pressAny(artem, "place:done", "")
 	h.mustContain(artem, "Вот вузы в этих местах.")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	if tr := h.trajectory(artem); !slices.Equal(tr.Places, []store.Place{{RegionCode: "16", City: "Иннополис"}, {RegionCode: "39", City: "Советск"}}) {
 		t.Fatalf("места: %+v", tr.Places)
 	}
@@ -683,7 +764,7 @@ func TestUniversities_NoDirectionHere(t *testing.T) {
 	h.press(artem, "place:done")
 	last := h.fake.Last(artem.UserID)
 	p := maxtest.Payloads(last)
-	if last.Text != "В выбранных местах нет программ по направлению «Биотехнология». Ближайшие вузы, где оно есть:" ||
+	if last.Text != "Шаг 9 из 9\n\nВ выбранных местах нет программ по направлению «Биотехнология». Ближайшие вузы, где оно есть:" ||
 		!slices.Contains(p, "vuz:add:sechenov") || !slices.Contains(p, "vuz:add:mipt") || !slices.Contains(p, "vuz:add:itmo") ||
 		!slices.Contains(p, "vuz:alldir") || !slices.Contains(p, "vuz:similar") {
 		t.Fatalf("пустая подборка: %q %v", last.Text, p)
@@ -742,6 +823,7 @@ func TestUniversities_AddNearbyAndAllDirections(t *testing.T) {
 		t.Fatalf("добавлен ближайший вуз: %+v", a.Message)
 	}
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	unis, _ := h.st.TrajectoryUniversities(context.Background(), tr.ID)
 	if len(unis) != 1 || unis[0].ID != "itmo" ||
@@ -755,12 +837,14 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	h := newHarness(t)
 	h.started(olga, "")
 	h.press(olga, "role:parent")
+	h.step(olga, 2) // у родителя имя вводится, номер тот же
 	h.text(olga, "Артём")
 	h.press(olga, "grade:10")
 	h.text(olga, "Казань")
 	h.press(olga, "subj:t:bio")
 	h.press(olga, "subj:done")
 	h.press(olga, "dir:kid")
+	h.step(olga, 7)
 	if got := h.sentBack(olga, 1).Text; !strings.HasPrefix(got, "Хорошо. Когда закончим, дам ссылку-приглашение: Артём ответит") {
 		t.Fatalf("ответ на «Пусть ответит»: %q", got)
 	}
@@ -768,6 +852,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	h.press(olga, "exp:none")
 	h.press(olga, "place:any")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	if !tr.GoalByKid || len(tr.Directions) != 0 {
 		t.Fatalf("цель ждёт ребёнка: %+v", tr)
@@ -792,6 +877,9 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	}
 	h.press(artem, "join:ok")
 	h.mustContain(artem, "Давай разберёмся вместе")
+	if got := h.lastText(artem); strings.HasPrefix(got, "Шаг ") {
+		t.Fatalf("у приглашённого ученика счётчика нет: %q", got)
+	}
 	h.press(artem, "int:t:bio")
 	h.press(artem, "int:done")
 	h.press(artem, "work:health")
@@ -802,7 +890,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 		t.Fatalf("цель выбрана ребёнком: %+v", tr)
 	}
 	h.mustContain(olga, "Артём: цель выбрана — лечебное дело")
-	h.mustContain(artem, "Отлично! Под твою цель подход")
+	h.mustContain(artem, "Отлично! Под твою цель подходят ")
 }
 
 func TestSuggestDirections(t *testing.T) {
@@ -897,7 +985,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	}
 	h.text(olga, "/menu")
 	h.fake.Sent = append(h.fake.Sent, maxtest.Sent{UserID: olga.UserID, Msg: maxapi.WithKeyboard("итог",
-		h.bot.resultKeyboard(mustVoice(h, olga, parent), parent, store.Trajectory{}, false))})
+		maxapi.Keyboard{maxapi.Row(maxapi.CallbackButton("👋", "inv:new"))})})
 	h.press(olga, "inv:new")
 	link := h.lastText(olga)
 	if !strings.HasPrefix(link, "Перешлите Артёму эту ссылку в MAX.") || !strings.Contains(link, "https://max.ru/test_bot?start=inv_") {
@@ -914,7 +1002,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 		t.Fatalf("пригласившему: %q", got)
 	}
 	h.press(artem, "join:ok")
-	h.mustContain(artem, "Отлично! Под твою цель подход")
+	h.mustContain(artem, "Отлично! Под твою цель подходят ")
 	m, _ := h.st.CurrentMember(context.Background(), artem.UserID)
 	if m.TrajectoryID != parent.TrajectoryID || m.Role != "kid" || m.IsCreator {
 		t.Fatalf("ученик в траектории Ольги: %+v", m)
@@ -952,7 +1040,7 @@ func TestInvite_KidChangesGoal(t *testing.T) {
 	if len(tr.Directions) != 2 || tr.Directions[1].ID != "napr-01-03-02" || tr.GoalStatus != "known" {
 		t.Fatalf("цель после правки: %+v", tr.Directions)
 	}
-	h.mustContain(artem, "Под твою цель подход")
+	h.mustContain(artem, "Под твою цель подходят ")
 }
 
 func ptr(s string) *string { return &s }
@@ -1020,7 +1108,8 @@ func TestSettings_ToggleOffsets(t *testing.T) {
 func TestRemindOn_FillsEmptyTrackerAndPlans(t *testing.T) {
 	h := newHarness(t)
 	m := h.kidOnboarding()
-	h.press(artem, "rem:on")
+	// Кнопка из итога прежних версий: в новом итоге её нет.
+	h.pressAny(artem, "rem:on", "итог")
 	h.mustContain(artem, "Буду напоминать за месяц, неделю, 3 дня и 1 день до каждого срока.")
 	h.mustContain(artem, "Добавил в трекер олимпиады из подборки: 7 олимпиад.")
 	items, _ := h.st.TrackerItems(context.Background(), m.TrajectoryID)
@@ -1118,5 +1207,118 @@ func TestMultiselectDoneKeepsPicked(t *testing.T) {
 	if a.Message == nil || !strings.Contains(maxtest.Buttons(*a.Message), "✓ Иннополис") ||
 		!strings.Contains(maxtest.Buttons(*a.Message), "✓ КФУ · Казань") || strings.Contains(maxtest.Buttons(*a.Message), "Готово") {
 		t.Fatalf("вузы после «Готово»: %+v", a.Message)
+	}
+}
+
+// «Изменить» открывает меню на той же карточке, «Назад» закрывает (SPEC 9).
+func TestSummary_EditMenuAndBack(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	n := len(h.fake.To(artem.UserID))
+	a := h.answered(h.press(artem, "sum:edit"))
+	if a.Message == nil || !strings.HasSuffix(a.Message.Text, "\n\nЧто поменять?") || a.Message.Format != "markdown" ||
+		!slices.Equal(maxtest.Payloads(*a.Message), []string{"sum:f:name", "sum:f:grade", "sum:f:region", "sum:f:subjects",
+			"sum:f:goal", "sum:f:exp", "sum:f:places", "sum:f:vuz", "sum:back"}) {
+		t.Fatalf("меню правки: %+v", a.Message)
+	}
+	a = h.answered(h.pressAny(artem, "sum:back", "профиль"))
+	if a.Message == nil || !slices.Equal(maxtest.Payloads(*a.Message), []string{"sum:edit", "sum:ok"}) {
+		t.Fatalf("«Назад»: %+v", a.Message)
+	}
+	if len(h.fake.To(artem.UserID)) != n {
+		t.Fatal("меню правится на месте, новых сообщений нет")
+	}
+}
+
+// Правка класса: вопрос без счётчика и приветствия, затем снова профиль;
+// траектория создаётся с новым классом только по «Готово».
+func TestSummary_EditGrade(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("grade")
+	if got := h.lastText(artem); got != "В каком ты классе?" {
+		t.Fatalf("вопрос при правке: %q", got)
+	}
+	h.press(artem, "grade:10")
+	h.mustContain(artem, "**Артём, сформировали твой профиль**\nКласс: 10 · Казань\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.EditStage != 0 || d.Draft.RegionCode != "16" {
+		t.Fatalf("после правки — профиль, регион прежний: %+v", d)
+	}
+	h.press(artem, "sum:ok")
+	if tr := h.trajectory(artem); tr.Grade != 10 || len(tr.Directions) != 1 {
+		t.Fatalf("траектория: %+v", tr)
+	}
+}
+
+// «Помоги выбрать» при правке направлений проходит целиком — это тот же шаг.
+func TestSummary_EditDirectionsWithHelp(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("goal")
+	if got := h.lastText(artem); !strings.HasPrefix(got, "Куда думаешь поступать?") {
+		t.Fatalf("вопрос без счётчика: %q", got)
+	}
+	h.press(artem, "dir:help")
+	h.press(artem, "int:t:code")
+	h.press(artem, "int:done")
+	h.press(artem, "work:build")
+	h.mustContain(artem, "Похоже, тебе подойдут эти направления.")
+	h.press(artem, "dir:done")
+	h.mustContain(artem, " · подобрали вместе\nОпыт: школьный или муниципальный этап\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.Experience != "school" {
+		t.Fatalf("опыт не спрашивали заново: %+v", d)
+	}
+}
+
+// Регион при правке: без кнопки «Не то», сразу профиль.
+func TestSummary_EditRegion(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("region")
+	h.text(artem, "Москва")
+	if found := h.sentBack(artem, 1); found.Text != "Москва ✓" || len(found.Keyboard()) != 0 {
+		t.Fatalf("найдено: %q %v", found.Text, maxtest.Payloads(found))
+	}
+	h.mustContain(artem, "Класс: 9 · Москва\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.RegionCode != "77" || d.Draft.HomeCity != "" {
+		t.Fatalf("регион: %+v", d)
+	}
+}
+
+// Вузы: «← Назад» при правке — к меню «Что поменять?», места правятся своим
+// полем. «Изменить места» со старого сообщения — шаг назад, правка
+// продолжается до «Готово» вузов.
+func TestSummary_EditUniversitiesViaPlaces(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("vuz")
+	h.press(artem, "back:universities")
+	if d := h.dialog(artem); d.Step != stepSummary || !d.Draft.EditMenu || d.Draft.EditStage != 0 {
+		t.Fatalf("назад с вузов при правке: %+v", d)
+	}
+	h.pressAny(artem, "sum:f:vuz", "профиль")
+	h.pressAny(artem, "vuz:places", "")
+	if d := h.dialog(artem); d.Step != stepTarget || d.Draft.EditStage != 9 {
+		t.Fatalf("места при правке вузов: %+v", d)
+	}
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:t:mipt")
+	h.press(artem, "vuz:done")
+	h.mustContain(artem, "Где учиться: не важно\nВузы: МФТИ\n")
+}
+
+// «Готово» из старой карточки после создания траектории ничего не меняет.
+func TestSummary_StaleDone(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.press(artem, "sum:ok")
+	id := h.pressAny(artem, "sum:ok", "профиль")
+	if a := h.answered(id); a.Notification == "" {
+		t.Fatalf("старая кнопка: %+v", a)
+	}
+	var n int
+	_ = h.db.QueryRow(context.Background(), `SELECT count(*) FROM trajectories`).Scan(&n)
+	if n != 1 {
+		t.Fatalf("траекторий: %d", n)
 	}
 }

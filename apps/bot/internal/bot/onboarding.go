@@ -37,7 +37,10 @@ const (
 	stepUniSearch     = "university_search"
 	stepJoinConfirm   = "join_confirm"
 	stepJoinDirection = "join_direction"
-	stepDone          = "done"
+	// stepSummary — профиль на подтверждение: траектории ещё нет, «Готово»
+	// создаёт её, «Изменить» возвращает к нужному вопросу.
+	stepSummary = "summary"
+	stepDone    = "done"
 )
 
 // multiSelect — шаги, где «Готово» оставляет у вопроса отмеченное.
@@ -67,18 +70,44 @@ func grid(buttons []maxapi.Button, n int) maxapi.Keyboard {
 	return kb
 }
 
-// prompt — вопрос текущего шага с клавиатурой, собранной из черновика:
-// отмеченное — с «✓» (F7, F9).
-// Под вопросом, кроме первого, — «← Назад».
+// stepNumbers — номер шага онбординга в счётчике «Шаг N из M». Номера
+// постоянные: пропущенный шаг не сдвигает остальные, счётчик просто
+// перескакивает. «Помоги выбрать» (interest, work, suggest) — часть шага
+// направления, как и поиск вуза — часть шага вузов.
+var stepNumbers = map[string]int{
+	stepRole: 1, stepNameConfirm: 2, stepNameInput: 2, stepGrade: 3, stepRegion: 4, stepSubjects: 5,
+	stepDirection: 6, stepInterest: 6, stepWork: 6, stepSuggest: 6,
+	stepExperience: 7, stepTarget: 8, stepUniversities: 9, stepUniSearch: 9,
+}
+
+// stepsTotal — сколько шагов в счётчике.
+const stepsTotal = 9
+
+// withStep ставит «Шаг N из M» первой строкой вопроса. У приглашённого
+// ученика своя короткая анкета, счётчика там нет; при правке из карточки
+// профиля — тоже.
+func withStep(v voice.Voice, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMessage {
+	n, ok := stepNumbers[d.Step]
+	if !ok || d.Draft.Joined || d.Draft.EditStage > 0 {
+		return msg
+	}
+	msg.Text = maxapi.Truncate(v.T("bot.step", voice.Vars{"count": n, "total": stepsTotal})+"\n\n"+msg.Text, maxapi.MaxTextLen)
+	return msg
+}
+
+// prompt — вопрос текущего шага со счётчиком шагов; под вопросом, кроме
+// первого, — «← Назад».
 func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
-	msg, err := b.stepPrompt(t, d)
+	msg, err := b.question(t, d)
 	if err != nil {
 		return msg, err
 	}
-	return withBack(t, d, msg), nil
+	return withBack(t, d, withStep(dialogVoice(t, d), d, msg)), nil
 }
 
-func (b *Bot) stepPrompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
+// question — вопрос текущего шага с клавиатурой, собранной из черновика:
+// отмеченное — с «✓» (F7, F9).
+func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	v := dialogVoice(t, d)
 	cb := maxapi.CallbackButton
 	switch d.Step {
@@ -101,7 +130,12 @@ func (b *Bot) stepPrompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		for g := 8; g <= 11; g++ {
 			row = append(row, cb(check(g == d.Draft.Grade, strconv.Itoa(g)), "grade:"+strconv.Itoa(g)))
 		}
-		return maxapi.WithKeyboard(v.T("bot.grade.ask", nil), maxapi.Keyboard{row}), nil
+		ask := "bot.grade.ask"
+		if d.Draft.EditStage > 0 {
+			// Правка из карточки профиля: знакомились уже.
+			ask = "bot.grade.askAgain"
+		}
+		return maxapi.WithKeyboard(v.T(ask, nil), maxapi.Keyboard{row}), nil
 	case stepRegion:
 		return regionPrompt(v, d), nil
 	case stepSubjects:
@@ -129,6 +163,8 @@ func (b *Bot) stepPrompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		return b.universitiesPrompt(t, v, d)
 	case stepJoinConfirm:
 		return b.joinCheck(t, d)
+	case stepSummary:
+		return b.summaryPrompt(t, v, d)
 	}
 	return maxapi.NewMessage{}, errors.New("bot: у шага нет вопроса: " + d.Step)
 }
@@ -324,7 +360,8 @@ func withBack(t *turn, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMessage 
 }
 
 // backCallback — «← Назад»: предыдущий вопрос на месте текущего. Ответы
-// черновика остаются и отмечены «✓», вперёд их можно пройти заново.
+// черновика остаются и отмечены «✓», вперёд их можно пройти заново. При
+// правке из карточки профиля — меню правки.
 func (b *Bot) backCallback(t *turn, cb *maxapi.Callback, step string) error {
 	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, step); err != nil {
@@ -333,6 +370,13 @@ func (b *Bot) backCallback(t *turn, cb *maxapi.Callback, step string) error {
 		prev := backStep(t, *d)
 		if prev == "" {
 			return store.ErrStale
+		}
+		if d.Draft.EditStage > 0 && stepNumbers[prev] != d.Draft.EditStage {
+			// Правка из карточки профиля: назад — к меню «Что поменять?»,
+			// внутри поля («Помоги выбрать») — к его прошлому вопросу.
+			d.Step, d.Draft.EditStage, d.Draft.EditMenu = stepSummary, 0, true
+			d.Draft.Letter, d.Draft.Found = "", nil
+			return nil
 		}
 		switch prev {
 		case stepRegion:
@@ -402,7 +446,7 @@ func (b *Bot) transitionSay(t *turn, cb *maxapi.Callback, question *maxapi.Messa
 	if err != nil {
 		return err
 	}
-	after, err := b.store.UpdateDialog(t.ctx, t.userID, apply)
+	after, err := b.updateDialog(t, apply)
 	var notNow errNotNow
 	switch {
 	case errors.Is(err, store.ErrStale):
@@ -630,6 +674,8 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		return true, b.universityCallback(t, cb, question, arg(0), arg(1))
 	case "back":
 		return true, b.backCallback(t, cb, arg(0))
+	case "sum":
+		return true, b.summaryCallback(t, cb, question, arg(0), arg(1))
 	}
 	return false, nil
 }
@@ -893,7 +939,7 @@ func (b *Bot) freeText(t *turn, text string) error {
 		if !nameOK(name) {
 			return b.say(t, dialogVoice(t, d).T("bot.name.invalid", nil))
 		}
-		d, err = b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+		d, err = b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 			if err := expect(d, stepNameInput); err != nil {
 				return err
 			}

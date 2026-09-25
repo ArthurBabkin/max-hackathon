@@ -106,11 +106,32 @@
   --gap-md: 12px;
   --gap-lg: 16px;
   --gap-xl: 24px;
+  /* Поле внутри карточки по горизонтали. На макетах оно около 16 px, как и
+     отступ карточки от края экрана; при 12 px текст прижимался к скруглению. */
+  --pad-card: 16px;
 
   /* Минимальная тач-цель — ТЗ §12 */
   --tap: 44px;
 
+  --font-app: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   color-scheme: light;
+}
+
+/* Провайдер MAX UI ставит на свой корень системный шрифт платформы
+   (Roboto на Android и в вебе, SF на iOS), и без этой строки Onest не
+   доходил ни до одного экрана. Двойной класс — чтобы перебить классы
+   платформы MAX UI независимо от порядка стилей. */
+.max-root.max-root {
+  --family-base: var(--font-app);
+  --family-headers: var(--font-app);
+}
+
+/* На макетах подписи кнопок жирные, а 500 из MAX UI в Onest читается как
+   обычный текст. Вес в MAX UI зашит под :where(), переменной его не
+   поменять; имя класса хешировано, поэтому селектор — по его началу. */
+.max-root [class*='Button__content'] {
+  font-weight: 600;
 }
 
 /* Тёмная тема — требование ТЗ §12. Следует за системной настройкой,
@@ -222,7 +243,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--tx);
-  font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-app);
   font-size: var(--t-base);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
