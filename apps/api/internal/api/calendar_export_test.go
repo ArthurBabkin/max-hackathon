@@ -86,7 +86,7 @@ func TestCalendarExport(t *testing.T) {
 			t.Fatalf("событие %d: %q, ждали %q", i, got[i], want[i])
 		}
 	}
-	if !strings.Contains(strings.ReplaceAll(string(file.raw), "\r\n ", ""), "DESCRIPTION:Информатика. Срок — 28 октября.\r\n") {
+	if !strings.Contains(strings.ReplaceAll(string(file.raw), "\r\n ", ""), "DESCRIPTION:Информатика. Срок: 28 октября.\r\n") {
 		t.Fatalf("в описании — предмет и день срока:\n%s", file.raw)
 	}
 

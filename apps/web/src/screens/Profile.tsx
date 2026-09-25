@@ -431,6 +431,7 @@ export function ProfileScreen() {
 
       <Button
         stretched
+        className="profile-save"
         loading={save.isPending}
         disabled={nameInvalid}
         iconBefore={<Icon name="spark" size={15} />}
