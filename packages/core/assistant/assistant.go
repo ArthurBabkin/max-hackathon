@@ -139,6 +139,7 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	}
 	olympiads, unis := b.named()
 	c.mentions = Find(question, olympiads, unis)
+	c.mentions.MyUniversities = c.mentions.MyUniversities || studentsUniversities(question, t.StudentName)
 	a.understand(ctx, b, &c, history, question)
 	m := &c.mentions
 
