@@ -86,6 +86,35 @@ func TestAsk_JevThresholds(t *testing.T) {
 	}
 }
 
+// Вуз-организатор названной олимпиады Jev принимает за вуз вопроса
+// («Покори Воробьёвы горы» → МГУ), хотя о поступлении в него не спрашивают:
+// в карточке олимпиады остались бы условия одного организатора. Такой вуз
+// берём, только если его назвали словами — в вопросе или прошлом вопросе.
+func TestAsk_JevOrganizerOnlyIfNamed(t *testing.T) {
+	st, tr := setup(t)
+	cases := []struct {
+		name     string
+		uni      string
+		history  []store.AiMessage
+		question string
+		want     bool
+	}{
+		{"организатор не назван", "msu", nil, "Когда регистрация на «Робофест»?", false},
+		{"организатор назван в прошлом вопросе", "msu", history("Что МГУ даёт за «Робофест»?", "Данных нет."), "А когда регистрация?", true},
+		{"не организатор", "spbu", nil, "Когда регистрация на «Робофест»?", true},
+	}
+	for _, c := range cases {
+		j := said("olympiad_info", map[string]float64{"p669-53": 0.9, none: 0.1}, map[string]float64{c.uni: 0.8, none: 0.2})
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		if _, err := (&Assistant{Store: st, LLM: f, Classifier: j}).Ask(context.Background(), kid, tr, c.history, c.question); err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(f.calls[0][0].Content, `"id":"university:`+c.uni+`"`); got != c.want {
+			t.Errorf("%s: карточка вуза %s — %v, ждали %v", c.name, c.uni, got, c.want)
+		}
+	}
+}
+
 // Вопросы, на которые в базе ответа нет, и вопросы не по теме — сразу отказ,
 // без модели; первоисточник — правила названного вуза.
 func TestAsk_JevNoDataIntentsRefuseWithoutModel(t *testing.T) {
