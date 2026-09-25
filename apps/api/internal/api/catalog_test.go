@@ -108,8 +108,18 @@ func TestUniversitiesCatalogAndCard(t *testing.T) {
 	if mine != 3 {
 		t.Fatalf("вузы ученика отмечены: %d", mine)
 	}
-	if found := list(t, e.do("GET", "/api/v1/universities?q="+url.QueryEscape("ИННОПОЛ"), token, nil).body["items"]); len(found) != 1 {
+	found := list(t, e.do("GET", "/api/v1/universities?q="+url.QueryEscape("ИННОПОЛ"), token, nil).body["items"])
+	if len(found) != 1 {
 		t.Fatalf("поиск вуза: %v", found)
+	}
+	// В тексте — понятное школьнику название, не аббревиатура.
+	if found[0]["short_name"] != "УИ" || found[0]["nick"] != "Иннополис" {
+		t.Fatalf("название в тексте: %v", found[0])
+	}
+	for _, u := range list(t, e.do("GET", "/api/v1/profile", token, nil).body["universities"]) {
+		if u["id"] == "hse" && u["nick"] != "ВШЭ" {
+			t.Fatalf("в профиле тоже: %v", u)
+		}
 	}
 	if kazan := list(t, e.do("GET", "/api/v1/universities?city="+url.QueryEscape("Казань"), token, nil).body["items"]); len(kazan) != 2 {
 		t.Fatalf("вузы Казани: %v", kazan)

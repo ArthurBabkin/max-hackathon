@@ -20,6 +20,7 @@ type subjectDTO struct {
 type universityItem struct {
 	ID                    string  `json:"id"`
 	ShortName             string  `json:"short_name"`
+	Nick                  string  `json:"nick"`
 	Name                  string  `json:"name"`
 	City                  *string `json:"city"`
 	Color                 *string `json:"color"`
@@ -28,7 +29,7 @@ type universityItem struct {
 }
 
 func universityItemOf(u store.University) universityItem {
-	return universityItem{ID: u.ID, ShortName: u.ShortName, Name: u.Name, City: u.City,
+	return universityItem{ID: u.ID, ShortName: u.ShortName, Nick: nick(u.ID, u.ShortName), Name: u.Name, City: u.City,
 		BenefitOlympiadsCount: u.BenefitOlympiads, IsMine: u.IsMine}
 }
 

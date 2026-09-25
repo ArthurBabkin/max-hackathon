@@ -153,13 +153,15 @@ route('GET', '/olympiads', ({ query }) => {
   const q = query.get('q')?.trim() ?? ''
   const subject = query.get('subject')
   const city = query.get('city')
+  const mine = query.get('mine') === 'true'
 
   const items = (wantsEmpty() ? [] : OLYMPIADS)
     .filter((o) => !q || matches(o.name, q) || matches(o.organizer, q))
     .filter((o) => !subject || o.profiles.some((p) => p.subject_code === subject))
     .filter((o) => !city || o.final_city === city)
-    .map(build.olympiadListItem)
+    .map((o) => build.olympiadListItem(o, mine))
     .filter((i): i is NonNullable<typeof i> => i !== null)
+    .filter((i) => !mine || i.my_benefits.length > 0)
 
   return { items }
 })

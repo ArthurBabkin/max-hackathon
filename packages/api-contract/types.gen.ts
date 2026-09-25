@@ -165,6 +165,13 @@ export interface paths {
                     subject?: string;
                     /** @description Город финала, `olympiads.final_city`. */
                     city?: string;
+                    /**
+                     * @description «Ведут в мои вузы и на мои направления»: только олимпиады с БВИ,
+                     *     БВИ победителям или 100 баллами в вузах ученика — на его
+                     *     направления по правилу целей (выбранные в вузе, иначе из цели,
+                     *     иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
+                     */
+                    mine?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -183,6 +190,7 @@ export interface paths {
                         };
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -1738,6 +1746,19 @@ export interface components {
             profiles_count?: number;
             /** @description По основному профилю — срок первого этапа прошёл. */
             registration_closed: boolean;
+            /**
+             * @description С `mine=true` — льгота основного профиля в моих вузах на мои
+             *     направления, от сильной к слабой. Без фильтра — пустой массив.
+             */
+            my_benefits: components["schemas"]["MyBenefit"][];
+        };
+        /** @description Льгота в моих вузах и вузы, где она даётся. */
+        MyBenefit: {
+            /** @enum {string} */
+            benefit: "bvi" | "bvi_winners" | "score100";
+            benefit_label: string;
+            /** @description Короткие названия моих вузов, в их порядке в профиле. */
+            universities: string[];
         };
         /** @description Строка блока «Уровень по профилям». */
         ProfileLevel: {
@@ -1920,6 +1941,8 @@ export interface components {
         UniversityListItem: {
             id: string;
             short_name: string;
+            /** @description Название в тексте — «Иннополис», а не «УИ»; обычно совпадает с `short_name`. */
+            nick: string;
             name: string;
             city: string | null;
             color?: string | null;

@@ -47,7 +47,7 @@ export const keys = {
   session: ['session'] as const,
   home: ['home'] as const,
   recommendations: (filter: MatchFilter) => ['recommendations', filter] as const,
-  olympiads: (q: string, subject: string, city: string) => ['olympiads', q, subject, city] as const,
+  olympiads: (q: string, subject: string, mine: boolean) => ['olympiads', q, subject, mine] as const,
   olympiad: (id: string) => ['olympiad', id] as const,
   universities: (q: string, city: string) => ['universities', q, city] as const,
   university: (id: string) => ['university', id] as const,
@@ -77,6 +77,8 @@ function invalidateProfile(qc: QueryClient): void {
   void qc.invalidateQueries({ queryKey: keys.session })
   void qc.invalidateQueries({ queryKey: keys.home })
   void qc.invalidateQueries({ queryKey: ['recommendations'] })
+  // Каталог «Ведут в мои вузы» и предмет по умолчанию — от профиля.
+  void qc.invalidateQueries({ queryKey: ['olympiads'] })
   void qc.invalidateQueries({ queryKey: ['olympiad'] })
   void qc.invalidateQueries({ queryKey: ['universities'] })
   void qc.invalidateQueries({ queryKey: ['university'] })
@@ -126,14 +128,14 @@ export const useRecommendations = (filter: MatchFilter) =>
     queryFn: () => api.get<Recommendations>('/recommendations', { filter }),
   })
 
-export const useOlympiads = (q: string, subject: string, city: string) =>
+export const useOlympiads = (q: string, subject: string, mine: boolean) =>
   useQuery({
-    queryKey: keys.olympiads(q, subject, city),
+    queryKey: keys.olympiads(q, subject, mine),
     queryFn: () =>
       api.get<{ items: OlympiadListItem[] }>('/olympiads', {
         q,
         subject: subject === 'all' ? undefined : subject,
-        city: city === 'all' ? undefined : city,
+        mine: mine ? 'true' : undefined,
       }),
   })
 

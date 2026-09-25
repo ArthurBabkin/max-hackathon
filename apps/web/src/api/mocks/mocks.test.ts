@@ -9,6 +9,7 @@ import type {
   CalendarLink,
   Home,
   OlympiadDetail,
+  OlympiadListItem,
   Profile,
   Tracker,
   TrackerItem,
@@ -293,6 +294,28 @@ describe('карточка олимпиады', () => {
     await expect(
       handleMock('PUT', '/profile/universities/inno/directions', { direction_ids: ['dir-bio'] }),
     ).rejects.toMatchObject({ status: 400 })
+  })
+
+  // «Ведут в мои вузы и на мои направления» (F66): только олимпиады с
+  // сильной льготой в моих вузах на мои направления, льгота — в строке.
+  it('каталог «мои» — олимпиады с льготой на мои направления', async () => {
+    const list = async (query: string) =>
+      ((await handleMock('GET', `/olympiads${query}`)) as { items: OlympiadListItem[] }).items
+
+    expect((await list('')).every((o) => o.my_benefits.length === 0)).toBe(true)
+    expect((await list('?mine=true')).find((o) => o.olympiad_id === 'hse')?.my_benefits).toEqual([
+      { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'] },
+      { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'] },
+    ])
+
+    // Только ВШЭ: Технокубок даёт там льготу, но не на Программную инженерию.
+    state.universities = ['hse']
+    const hseOnly = await list('?mine=true')
+    expect(hseOnly.map((o) => o.olympiad_id)).toContain('hse')
+    expect(hseOnly.map((o) => o.olympiad_id)).not.toContain('tk')
+
+    state.universities = []
+    expect(await list('?mine=true')).toEqual([])
   })
 
   it('БВИ только победителю — призёр получает 100 баллов, а не БВИ', async () => {

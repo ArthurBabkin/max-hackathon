@@ -403,7 +403,7 @@ export function ProfileScreen() {
               {myUniversities.map((u) => (
                 <li key={u.id}>
                   <button type="button" onClick={() => sheets.open({ kind: 'vuz', id: u.id })}>
-                    <b>{u.short_name}</b>
+                    <b>{u.nick}</b>
                     <span>
                       {u.target_basis === 'chosen'
                         ? u.chosen_directions.map((d) => d.name).join(', ')

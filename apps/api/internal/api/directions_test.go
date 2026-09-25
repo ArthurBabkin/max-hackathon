@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
 // Сид: «Виртуальные миры» НТО. ВШЭ целиком даёт БВИ, но на Программную
@@ -171,5 +173,99 @@ func TestOlympiad_BenefitUnverified(t *testing.T) {
 	if row == nil || row["unverified"] != true || !slices.Contains(strs(row["conditions"]),
 		"Льгота на «Прикладная математика и информатика» ещё уточняется — пока показана льгота вуза целиком") {
 		t.Fatalf("НГУ: %v", row)
+	}
+}
+
+// «Ведут в мои вузы и на мои направления» (F66): олимпиады, у которых есть
+// БВИ, БВИ победителям или 100 баллов в моих вузах — на мои направления
+// по правилу целей, а не в вузе целиком.
+func TestOlympiadsCatalog_Mine(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	token := e.login(900000001, "Артём")
+	ctx := context.Background()
+	// Только ВШЭ, в ней выбрана ИБ: часть олимпиад даёт льготу в ВШЭ, но не на ИБ.
+	unis := []string{"hse"}
+	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, unis); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.do("PUT", "/api/v1/profile/universities/hse/directions", token, map[string]any{"direction_ids": []string{dirIS}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+
+	// Оракул — store: профили по информатике с сильной льготой.
+	profiles, err := e.st.Profiles(ctx, store.ProfileQuery{SubjectCodes: []string{"inf"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, len(profiles))
+	olympiadOf := map[string]string{}
+	for i, p := range profiles {
+		ids[i], olympiadOf[p.ID] = p.ID, p.OlympiadID
+	}
+	strong := func(rows []store.BenefitRow) map[string]bool {
+		out := map[string]bool{}
+		for _, b := range rows {
+			if b.Benefit == "bvi" || b.Benefit == "bvi_winners" || b.Benefit == "score100" {
+				out[olympiadOf[b.ProfileID]] = true
+			}
+		}
+		return out
+	}
+	targetRows, _ := e.st.TargetBenefits(ctx, f.trajectoryID, ids, unis)
+	wholeRows, _ := e.st.Benefits(ctx, ids, unis)
+	want, whole := strong(targetRows), strong(wholeRows)
+	if len(want) == 0 || len(whole) <= len(want) {
+		t.Fatalf("в сиде есть олимпиады с льготой в ВШЭ, но не на ИБ: %d / %d", len(whole), len(want))
+	}
+
+	items := list(t, e.do("GET", "/api/v1/olympiads?mine=true&subject=inf", token, nil).body["items"])
+	got := map[string]bool{}
+	rank := map[string]int{"bvi": 0, "bvi_winners": 1, "score100": 2}
+	for _, it := range items {
+		got[it["olympiad_id"].(string)] = true
+		if it["primary_profile"].(map[string]any)["subject_code"] != "inf" {
+			t.Fatalf("с предметом — «и»: %v", it)
+		}
+		groups := list(t, it["my_benefits"])
+		if len(groups) == 0 {
+			t.Fatalf("у строки — льгота в моих вузах: %v", it)
+		}
+		for i, g := range groups {
+			if _, ok := rank[g["benefit"].(string)]; !ok || g["benefit_label"] == "" || len(strs(g["universities"])) == 0 {
+				t.Fatalf("группа льготы: %v", g)
+			}
+			if i > 0 && rank[groups[i-1]["benefit"].(string)] >= rank[g["benefit"].(string)] {
+				t.Fatalf("от сильной льготы к слабой: %v", groups)
+			}
+			for _, u := range strs(g["universities"]) {
+				if u != "ВШЭ" {
+					t.Fatalf("вузы — мои, короткими названиями: %v", g)
+				}
+			}
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("олимпиады с льготой на мои направления: %d, ждём %d", len(got), len(want))
+	}
+	for id := range want {
+		if !got[id] {
+			t.Fatalf("нет %s", id)
+		}
+	}
+
+	// Без фильтра льгота в строке не считается.
+	for _, it := range list(t, e.do("GET", "/api/v1/olympiads?subject=inf", token, nil).body["items"]) {
+		if len(list(t, it["my_benefits"])) != 0 {
+			t.Fatalf("без mine — пусто: %v", it)
+		}
+	}
+
+	// Вузов нет — никуда не ведут.
+	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{}); err != nil {
+		t.Fatal(err)
+	}
+	if items := list(t, e.do("GET", "/api/v1/olympiads?mine=true", token, nil).body["items"]); len(items) != 0 {
+		t.Fatalf("без вузов пусто: %d", len(items))
 	}
 }

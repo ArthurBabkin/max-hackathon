@@ -334,7 +334,22 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
   }
 }
 
-export function olympiadListItem(o: DemoOlympiad): OlympiadListItem | null {
+/**
+ * Сильная льгота олимпиады в моих вузах на мои направления, от сильной к
+ * слабой; вузы — в порядке профиля (F66).
+ */
+export function myBenefits(olympiadId: string): OlympiadListItem['my_benefits'] {
+  const mine = state.universities.map(universityById).filter((u): u is DemoUniversity => u !== null)
+  return (['bvi', 'bvi_winners', 'score100'] as const)
+    .map((benefit) => ({
+      benefit,
+      benefit_label: BENEFIT_LABELS[benefit],
+      universities: mine.filter((u) => targetBenefit(u, olympiadId).benefit === benefit).map((u) => u.nick),
+    }))
+    .filter((g) => g.universities.length > 0)
+}
+
+export function olympiadListItem(o: DemoOlympiad, withMine = false): OlympiadListItem | null {
   const primary = primaryProfile(o.id)
   if (!primary) return null
   return {
@@ -352,6 +367,7 @@ export function olympiadListItem(o: DemoOlympiad): OlympiadListItem | null {
     },
     profiles_count: o.profiles.length,
     registration_closed: o.deadlineIn < 0,
+    my_benefits: withMine ? myBenefits(o.id) : [],
   }
 }
 
@@ -365,6 +381,7 @@ export function universityListItem(u: DemoUniversity): UniversityListItem {
   return {
     id: u.id,
     short_name: u.short_name,
+    nick: u.nick,
     name: u.name,
     city: u.city,
     color: u.color,
