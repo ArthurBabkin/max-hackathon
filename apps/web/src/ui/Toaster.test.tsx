@@ -33,11 +33,11 @@ it('показывает объяснение сервера, если дейс�
   expect(await screen.findByRole('alert')).toHaveTextContent('Имя — от 1 до 40 символов.')
 })
 
-it('без сети — «не сохранилось», и сообщение можно закрыть', async () => {
+it('без сети — «не сохранились», и сообщение можно закрыть', async () => {
   renderApp(<Failing error={new ApiError(0, 'INTERNAL', 'x')} />)
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('Нет соединения — не сохранилось')
+  expect(await screen.findByRole('alert')).toHaveTextContent('Нет соединения, изменения не сохранились')
   await userEvent.click(screen.getByRole('button', { name: 'Закрыть' }))
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
