@@ -2475,6 +2475,21 @@
   color: var(--tx-2);
 }
 
+/* Отступ под раскрытым ответом — полем, а не margin последнего элемента:
+   margin схлопывался через <details> и уходил за край карточки, и ответ
+   без ссылки на источник прилипал к её низу. */
+.faq-item[open] {
+  padding-bottom: var(--gap-md);
+}
+
+.faq-item[open] > :last-child {
+  margin-bottom: 0;
+}
+
+.faq-ask .block-text {
+  margin-bottom: var(--gap-md);
+}
+
 .faq-item .source-line {
   margin: 0 0 12px;
   padding: 0;
