@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
@@ -50,7 +51,8 @@ func TestAsk_AnswerFromCardsWithRefsAndSources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ans.Refused || ans.Text != "Да: победителю и призёру «Высшей пробы» по информатике ВШЭ даёт БВИ." {
+	// Дальше — оговорки, которые дописывает код (TestAsk_NotesModelSkipped).
+	if ans.Refused || !strings.HasPrefix(ans.Text, "Да: победителю и призёру «Высшей пробы» по информатике ВШЭ даёт БВИ.") {
 		t.Fatalf("ответ: %+v", ans)
 	}
 	if len(ans.CardRefs) != 1 || ans.CardRefs[0] != (store.AiCardRef{Type: "olympiad", ID: "p669-8-informatika", Title: "Высшая проба, информатика"}) {
@@ -243,5 +245,62 @@ func TestAsk_CarriedCardsSkipDuplicatesAndVanished(t *testing.T) {
 	}
 	if strings.Contains(sys, "gone-") {
 		t.Fatalf("исчезнувшие карточки в контексте:\n%s", sys)
+	}
+}
+
+// Оговорки, которые модель пропустила, дописываем сами: какие даты —
+// фактические или примерные — и что условия вуза уточняются. Правила в
+// промпте модель выполняет через раз.
+func TestAsk_NotesModelSkipped(t *testing.T) {
+	st, tr := setup(t)
+	reply := func(answer, card string) string {
+		return `{"answer": "` + answer + `", "card_ids": ["` + card + `"], "no_data": false}`
+	}
+	cases := []struct{ name, question, reply, want string }{
+		{"фактические даты", "Когда отборочный этап «Высшей пробы»?", reply("Первый тур — до 11.10.2026.", "olympiad:p669-8"),
+			"Первый тур — до 11.10.2026. Даты фактические — с сайта олимпиады."},
+		{"примерные даты", "Когда школьный этап ВсОШ по информатике?", reply("Школьный этап — с 23 сентября.", "olympiad:vsosh-informatika"),
+			"Школьный этап — с 23 сентября. Даты примерные, по прошлому году — точные будут на сайте олимпиады."},
+		{"модель сказала сама", "Когда отборочный этап «Высшей пробы»?", reply("Первый тур — до 11.10.2026, даты фактические.", "olympiad:p669-8"),
+			"Первый тур — до 11.10.2026, даты фактические."},
+		{"условия уточняются", "Что даёт «Высшая проба» по информатике в ВШЭ?", reply("В ВШЭ победителю — БВИ.", "olympiad:p669-8"),
+			"В ВШЭ победителю — БВИ. ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."},
+		{"вуза нет в ответе", "Что даёт «Высшая проба» по информатике в ВШЭ?", reply("Победителю — БВИ.", "olympiad:p669-8"),
+			"Победителю — БВИ."},
+	}
+	for _, c := range cases {
+		ans, err := (&Assistant{Store: st, LLM: &fakeLLM{reply: c.reply}}).Ask(context.Background(), kid, tr, nil, c.question)
+		if err != nil || ans.Refused {
+			t.Fatalf("%s: %+v %v", c.name, ans, err)
+		}
+		if ans.Text != c.want {
+			t.Errorf("%s:\n%q\nждали\n%q", c.name, ans.Text, c.want)
+		}
+	}
+}
+
+// Даты из трекера разные: у одних олимпиад фактические, у других примерные —
+// оговорка называет, у каких примерные.
+func TestAsk_NotesForMixedTrackerDates(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	fam, err := st.FamilyMembers(ctx, tr.ID)
+	if err != nil || len(fam) == 0 {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"p669-8-informatika", "vsosh-informatika"} {
+		if _, _, err := st.AddTrackerItem(ctx, tr.ID, p, fam[0].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := &fakeLLM{reply: `{"answer": "Ближайшее — отборочный этап «Высшей пробы» до 11.10.2026 и школьный этап ВсОШ до 28.10.2026.", "card_ids": ["student"], "no_data": false}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("personal", map[string]float64{none: 1}, map[string]float64{none: 1}),
+		Now: func() time.Time { return time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC) }}
+	ans, err := a.Ask(ctx, kid, tr, nil, "Что у меня ближайшее в трекере?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if want := "Даты примерные, по прошлому году, у: ВсОШ по информатике; остальные — фактические."; !strings.HasSuffix(ans.Text, want) {
+		t.Fatalf("оговорка о датах трекера:\n%s", ans.Text)
 	}
 }
