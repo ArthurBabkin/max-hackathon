@@ -271,6 +271,12 @@ func (n *Notifier) Joined(ctx context.Context, m store.Member) {
 	n.broadcast(ctx, m.TrajectoryID, m.MemberID, "notify.joined", voice.Vars{"name": m.FirstName})
 }
 
+// KidChoseGoal — родителям: приглашённый ученик ответил на вопросы об
+// интересах и выбрал цель (docs/onboarding-v2/SPEC.md, 10).
+func (n *Notifier) KidChoseGoal(ctx context.Context, m store.Member, directions string) {
+	n.broadcast(ctx, m.TrajectoryID, m.MemberID, "bot.notify.kidChoseGoal", voice.Vars{"directions": directions})
+}
+
 func (n *Notifier) broadcast(ctx context.Context, trajectoryID, except, key string, vars voice.Vars) {
 	if n.Max == nil {
 		return

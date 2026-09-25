@@ -462,8 +462,15 @@ export function profile(): Profile {
     subjects: state.subjects.map((code) => ({ code, name: subjectName(code) })),
     directions: state.directions,
     goal_status: state.goal_status,
-    target_region_code: state.target_region_code,
-    target_region_name: REGIONS.find((r) => r.code === state.target_region_code)?.name ?? null,
+    target_region_code: state.places[0]?.region_code ?? null,
+    target_region_name: REGIONS.find((r) => r.code === state.places[0]?.region_code)?.name ?? null,
+    experience: state.experience,
+    home_city: state.home_city,
+    places: state.places.map((p) => ({
+      region_code: p.region_code,
+      region_name: REGIONS.find((r) => r.code === p.region_code)?.name ?? p.region_code,
+      city: p.city,
+    })),
     universities: state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)

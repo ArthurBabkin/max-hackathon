@@ -79,6 +79,8 @@ func TestProfile_GetAndPatch(t *testing.T) {
 		{"direction_ids": []string{"нет-такого"}},
 		{"target_region_code": "999"},
 		{"subject_codes": []string{"klingon"}},
+		{"experience": "pro"},
+		{"places": []map[string]any{{"region_code": "999"}}},
 	}
 	for _, body := range bad {
 		if r := e.do("PATCH", "/api/v1/profile", token, body); r.code != 400 || r.errCode() != "BAD_REQUEST" {
@@ -102,6 +104,20 @@ func TestProfile_GetAndPatch(t *testing.T) {
 	if r.code != 200 || len(r.body["directions"].([]any)) != 0 || r.body["goal_status"] != "exploring" ||
 		r.body["target_region_code"] != nil {
 		t.Fatalf("PATCH без цели: %d %s", r.code, r.raw)
+	}
+	// Несколько мест «Где учиться» и опыт (онбординг v2); повтор места не
+	// дублируется, первое место — ещё и в устаревшем target_region_code.
+	r = e.do("PATCH", "/api/v1/profile", token, map[string]any{"experience": "region", "places": []map[string]any{
+		{"region_code": "16", "city": " Казань "}, {"region_code": "78"}, {"region_code": "78"}}})
+	places, _ := r.body["places"].([]any)
+	if r.code != 200 || r.body["experience"] != "region" || len(places) != 2 ||
+		places[0].(map[string]any)["city"] != "Казань" || places[0].(map[string]any)["region_name"] != "Республика Татарстан" ||
+		places[1].(map[string]any)["city"] != nil || r.body["target_region_code"] != "16" {
+		t.Fatalf("PATCH мест: %d %s", r.code, r.raw)
+	}
+	r = e.do("PATCH", "/api/v1/profile", token, map[string]any{"places": []any{}})
+	if r.code != 200 || len(r.body["places"].([]any)) != 0 || r.body["experience"] != "region" {
+		t.Fatalf("PATCH «не важно»: %d %s", r.code, r.raw)
 	}
 	var tz string
 	_ = e.pool.QueryRow(context.Background(), "SELECT tz FROM trajectories").Scan(&tz)

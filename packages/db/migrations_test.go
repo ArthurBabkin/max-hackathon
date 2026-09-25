@@ -462,3 +462,61 @@ func TestMigration_RealStageDates(t *testing.T) {
 		t.Fatalf("демо-этапы «Ломоносова» тронуты: было %d, стало %d", lomonosov, after)
 	}
 }
+
+// Онбординг v2: город «Где учиться» старой траектории становится местом,
+// «не важно» — пустым списком мест; откат возвращает первое место в
+// target_region_code и уводит диалог с новых шагов на старые.
+func TestMigration_OnboardingV2(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0016_onboarding_v2.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	mustExec(t, tx.Exec, dbtest.DownSection(string(raw)))
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, target_region_code, goal_status) VALUES
+		('00000000-0000-4000-8000-00000000e010', 'Артём', 9, '16', '77', 'exploring'),
+		('00000000-0000-4000-8000-00000000e011', 'Игорь', 10, '16', NULL, 'exploring')`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	var places string
+	_ = tx.QueryRow(ctx, `SELECT coalesce(string_agg(trajectory_id::text || ':' || region_code || ':' || coalesce(city, ''), ','), '')
+		FROM trajectory_places WHERE trajectory_id::text LIKE '%e01_'`).Scan(&places)
+	if places != "00000000-0000-4000-8000-00000000e010:77:" {
+		t.Fatalf("места после миграции: %q", places)
+	}
+	var experience *string
+	var byKid bool
+	if err := tx.QueryRow(ctx, `SELECT experience, goal_by_kid FROM trajectories
+		WHERE id = '00000000-0000-4000-8000-00000000e010'`).Scan(&experience, &byKid); err != nil || experience != nil || byKid {
+		t.Fatalf("новые колонки: %v %v (err=%v)", experience, byKid, err)
+	}
+	mustExec(t, tx.Exec, `INSERT INTO users (id, max_user_id, first_name) VALUES
+		('00000000-0000-4000-8000-00000000e001', 900000021, 'Артём')`)
+	mustExec(t, tx.Exec, `INSERT INTO bot_dialogs (user_id, step, role, draft) VALUES
+		('00000000-0000-4000-8000-00000000e001', 'work', 'kid', '{"name":"Артём"}')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_places (trajectory_id, position, region_code, city) VALUES
+		('00000000-0000-4000-8000-00000000e011', 0, '16', 'Казань'),
+		('00000000-0000-4000-8000-00000000e011', 1, '78', NULL)`)
+
+	mustExec(t, tx.Exec, dbtest.DownSection(string(raw)))
+
+	var target string
+	_ = tx.QueryRow(ctx, `SELECT coalesce(target_region_code, '') FROM trajectories
+		WHERE id = '00000000-0000-4000-8000-00000000e011'`).Scan(&target)
+	if target != "16" {
+		t.Fatalf("откат: target_region_code %q", target)
+	}
+	var step string
+	_ = tx.QueryRow(ctx, `SELECT step FROM bot_dialogs WHERE user_id = '00000000-0000-4000-8000-00000000e001'`).Scan(&step)
+	if step != "direction" {
+		t.Fatalf("откат: шаг диалога %q", step)
+	}
+}

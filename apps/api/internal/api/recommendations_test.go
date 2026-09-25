@@ -168,3 +168,23 @@ func TestRecommendations_Filters(t *testing.T) {
 		t.Fatalf("без токена — 401: %d", r.code)
 	}
 }
+
+// Вузы не выбраны — льготы в вузах с направлением ученика в выбранных
+// местах, а не «льгот нет» (SPEC 2.3). ИВТ в Татарстане — только Иннополис.
+func TestRecommendations_PotentialBenefitsWithoutUniversities(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	if r := e.do("PUT", "/api/v1/profile/universities", token, map[string]any{"university_ids": []string{}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	if r := e.do("PATCH", "/api/v1/profile", token, map[string]any{
+		"direction_ids": []string{"napr-09-03-01"}, "places": []map[string]any{{"region_code": "16"}}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	r := e.do("GET", "/api/v1/recommendations", token, nil)
+	vsosh := byProfile(cards(t, r, "items"), "vsosh-informatika")
+	if vsosh == nil || vsosh["benefits_summary"] != "Иннополис: БВИ" {
+		t.Fatalf("потенциальная льгота: %v", vsosh)
+	}
+}

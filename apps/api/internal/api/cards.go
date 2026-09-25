@@ -89,6 +89,10 @@ func (cs cardSet) card(p store.Profile, r match.Result) olympiadCard {
 // льготой по этому профилю — «ВШЭ, Иннополис: БВИ».
 func (cs cardSet) benefitsSummary(profileID string) string {
 	rows := cs.Benefits[profileID]
+	if len(cs.Universities) == 0 {
+		// Вузы не выбраны — льготы в вузах с направлением (SPEC 2.3).
+		rows = cs.Potential[profileID]
+	}
 	if len(rows) == 0 {
 		return cs.voice.T("match.noBenefits", nil)
 	}
@@ -126,8 +130,14 @@ func (cs cardSet) factorText(f match.Factor, r match.Result) string {
 	case match.Direction:
 		return cs.voice.T("reason.direction", nil)
 	case match.Benefit:
+		if r.PotentialBenefit {
+			return cs.voice.T("reason.benefitPotential", nil)
+		}
 		return cs.voice.T("reason.benefit", nil)
 	case match.Level:
+		if r.LevelFit {
+			return cs.voice.T("reason.levelFit", nil)
+		}
 		if r.Level != nil {
 			return cs.voice.T("reason.level"+*r.Level, nil)
 		}

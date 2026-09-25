@@ -2,7 +2,6 @@ package bot
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -10,12 +9,13 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
-// finished — онбординг пройден: сводка ответов и итог (F10, F11).
+// finished — онбординг пройден: профиль списком и итог (SPEC 9, F10, F11).
 func (b *Bot) finished(t *turn) error {
 	m, ok, err := b.member(t)
 	if err != nil || !ok {
@@ -25,44 +25,87 @@ func (b *Bot) finished(t *turn) error {
 	if err != nil {
 		return err
 	}
-	summary, err := b.summary(t, v, tr)
+	lines, err := b.profileLines(t, v, tr, true)
 	if err != nil {
 		return err
 	}
-	if err := b.say(t, summary); err != nil {
+	msg := maxapi.WithKeyboard(v.T("bot.summary.title", nil)+"\n"+strings.Join(lines, "\n"),
+		maxapi.Keyboard{maxapi.Row(b.app(v.T("bot.summary.edit", nil), "profile"))})
+	msg.Format = "markdown"
+	if _, err := b.send(t, msg); err != nil {
 		return err
 	}
 	return b.sendResult(t, m, v, tr, "")
 }
 
-// summary — «Готово: Артём, 9 класс, Татарстан. Предметы: …».
-func (b *Bot) summary(t *turn, v voice.Voice, tr store.Trajectory) (string, error) {
+// profileLines — профиль списком: класс и место, предметы, цель, опыт,
+// где учиться, вузы. withEmptyVuz = false — без строки «Вузы», если их нет.
+func (b *Bot) profileLines(t *turn, v voice.Voice, tr store.Trajectory, withEmptyVuz bool) ([]string, error) {
 	subs, err := b.store.TrajectorySubjects(t.ctx, tr.ID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	unis, err := b.store.TrajectoryUniversities(t.ctx, tr.ID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	subjects := make([]string, len(subs))
 	for i, s := range subs {
 		subjects[i] = strings.ToLower(s.Name)
 	}
-	names := make([]string, len(unis))
-	for i, u := range unis {
-		names[i] = uniLabel(u)
+	place := refdata.Short(tr.RegionCode)
+	if tr.HomeCity != nil && *tr.HomeCity != "" {
+		place = *tr.HomeCity
 	}
-	vuzy := strings.Join(names, ", ")
-	if len(names) == 0 {
-		vuzy = v.T("bot.vuz.noneChosen", nil)
+	lines := []string{
+		v.T("bot.summary.grade", voice.Vars{"grade": tr.Grade, "place": place}),
+		v.T("bot.summary.subjects", voice.Vars{"subjects": strings.Join(subjects, ", ")}),
+		v.T("bot.summary.goal", voice.Vars{"direction": goalText(v, tr)}),
 	}
-	region := tr.RegionCode
-	if reg, ok := refdata.ByCode(tr.RegionCode); ok {
-		region = reg.Name
+	if tr.Experience != "" {
+		lines = append(lines, v.T("bot.summary.experience", voice.Vars{"experience": v.T("bot.exp.label."+tr.Experience, nil)}))
 	}
-	return v.T("bot.summary", voice.Vars{"grade": tr.Grade, "region": region,
-		"subject": strings.Join(subjects, ", "), "direction": directionText(v, tr), "names": vuzy}), nil
+	lines = append(lines, v.T("bot.summary.places", voice.Vars{"places": placesText(v, tr.Places)}))
+	if len(unis) > 0 || withEmptyVuz {
+		names := make([]string, len(unis))
+		for i, u := range unis {
+			names[i] = uniLabel(u)
+		}
+		vuzy := strings.Join(names, ", ")
+		if len(names) == 0 {
+			vuzy = v.T("bot.vuz.noneChosen", nil)
+		}
+		lines = append(lines, v.T("bot.summary.universities", voice.Vars{"names": vuzy}))
+	}
+	return lines, nil
+}
+
+// goalText — цель в профиле: направления, «подобрали вместе», если их
+// предложил бот, «ждёт ответа», если родитель передал вопрос ребёнку.
+func goalText(v voice.Voice, tr store.Trajectory) string {
+	if len(tr.Directions) == 0 && tr.GoalByKid {
+		return v.T("bot.summary.waitKid", nil)
+	}
+	text := directionText(v, tr)
+	if tr.GoalStatus == "suggested" && len(tr.Directions) > 0 {
+		text += " · " + v.T("bot.summary.together", nil)
+	}
+	return text
+}
+
+// placesText — «Казань, Москва»; мест нет — «не важно».
+func placesText(v voice.Voice, places []store.Place) string {
+	if len(places) == 0 {
+		return v.T("bot.summary.placesAny", nil)
+	}
+	names := make([]string, len(places))
+	for i, p := range places {
+		names[i] = refdata.Short(p.RegionCode)
+		if p.City != "" {
+			names[i] = p.City
+		}
+	}
+	return strings.Join(names, ", ")
 }
 
 func directionText(v voice.Voice, tr store.Trajectory) string {
@@ -76,9 +119,9 @@ func directionText(v voice.Voice, tr store.Trajectory) string {
 	return strings.Join(names, ", ")
 }
 
-// resultText — «Под твою цель подходят 4 олимпиады и ВсОШ. Ближайший срок —
-// регистрация на олимпиаду «Высшая проба», осталось 4 дня. В мини-приложении…»
-// Цифры — из того же подбора, что экран «Подбор» (core/pick).
+// resultText — «Под твою цель подходят 4 олимпиады и ВсОШ.», затем
+// стартовая олимпиада (SPEC 2.6, 9) и «В мини-приложении…». Цифры — из
+// того же подбора, что экран «Подбор» (core/pick).
 func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, pick.Result, error) {
 	res, err := pick.Recommend(t.ctx, b.store, tr, b.now(), "all")
 	if err != nil {
@@ -115,36 +158,75 @@ func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, p
 		// Цели нет — подбор по предметам.
 		key += "Subjects"
 	}
-	parts := []string{v.T(key, voice.Vars{"count": count})}
-	if nearest != nil && nearest.Stage != nil {
+	head := []string{v.T(key, voice.Vars{"count": count})}
+	start := pick.Start(res)
+	if start == nil && nearest != nil && nearest.Stage != nil {
 		days := voice.DaysUntil(*nearest.Deadline, b.now(), tzOf(tr))
 		if days >= 1 {
 			name := res.Profiles[nearest.ProfileID].OlympiadName
-			parts = append(parts, v.T("bot.result.deadline", voice.Vars{
+			head = append(head, v.T("bot.result.deadline", voice.Vars{
 				"stage": notify.StagePhrase(v, nearest.Stage.Kind, name), "days": voice.Days(days)}))
 		}
+	}
+	blocks := []string{strings.Join(head, " ")}
+	if start != nil {
+		blocks = append(blocks, b.startText(v, tr, res, *start))
 	}
 	tail := "bot.result.tail"
 	if len(res.Set.Universities) == 0 {
 		tail = "bot.result.tailNoVuz"
 	}
-	parts = append(parts, v.T(tail, nil))
-	return strings.Join(parts, " "), res, nil
+	blocks = append(blocks, v.T(tail, nil))
+	if tr.GoalByKid && len(tr.Directions) == 0 {
+		blocks = append(blocks, v.T("bot.result.kidInvite", nil))
+	}
+	return strings.Join(blocks, "\n\n"), res, nil
 }
 
-// resultKeyboard — «Открыть мини-приложение», «Напоминать о сроках», «Пригласить…» (F11).
-func (b *Bot) resultKeyboard(v voice.Voice, m store.Member, remindersOn bool) maxapi.Keyboard {
+// startText — «Для старта советую эту:», олимпиада с предметом и строка
+// «II уровень · до 5 октября, 4 дня · онлайн».
+func (b *Bot) startText(v voice.Voice, tr store.Trajectory, res pick.Result, r match.Result) string {
+	p := res.Profiles[r.ProfileID]
+	lines := []string{
+		v.T("bot.result.start", nil),
+		v.T("bot.result.olympiad", voice.Vars{"olympiad": notify.Short(p.OlympiadName), "subject": p.SubjectName}),
+	}
+	var info []string
+	if r.Kind != "vsosh" && r.Level != nil {
+		info = append(info, v.T("bot.result.level", voice.Vars{"level": *r.Level}))
+	}
+	if r.Deadline != nil {
+		days := voice.DaysUntil(*r.Deadline, b.now(), tzOf(tr))
+		info = append(info, v.T("bot.result.until", voice.Vars{
+			"date": stages.Day(r.Deadline.In(tzOf(tr))), "days": voice.Days(days)}))
+	}
+	if r.Online {
+		info = append(info, v.T("bot.result.online", nil))
+	}
+	if len(info) > 0 {
+		lines = append(lines, strings.Join(info, " · "))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// resultKeyboard — «Открыть подборку», «Напоминать о сроках», «Пригласить…»
+// (F11, SPEC 9). Родитель передал вопросы ребёнку — приглашение первым.
+func (b *Bot) resultKeyboard(v voice.Voice, m store.Member, tr store.Trajectory, remindersOn bool) maxapi.Keyboard {
 	remind := maxapi.CallbackButton(v.T("bot.btn.remind", nil), "rem:on")
 	if remindersOn {
 		remind = maxapi.CallbackButton(v.T("bot.btn.remindOn", nil), "noop")
 	}
-	kb := maxapi.Keyboard{maxapi.Row(b.app(v.T("bot.btn.open", nil), "home")), maxapi.Row(remind)}
+	kb := maxapi.Keyboard{maxapi.Row(b.app(v.T("bot.btn.open", nil), "match")), maxapi.Row(remind)}
 	if permissions(m).Invite {
 		label := v.T("bot.btn.invite", nil)
 		if m.Role == "parent" && !m.HasKid {
 			label = v.T("bot.btn.inviteKid", nil)
 		}
-		kb = append(kb, maxapi.Row(maxapi.CallbackButton(label, "inv:new")))
+		invite := maxapi.Row(maxapi.CallbackButton(label, "inv:new"))
+		if tr.GoalByKid && len(tr.Directions) == 0 && !m.HasKid {
+			return append(maxapi.Keyboard{invite}, kb...)
+		}
+		kb = append(kb, invite)
 	}
 	return kb
 }
@@ -158,7 +240,7 @@ func (b *Bot) sendResult(t *turn, m store.Member, v voice.Voice, tr store.Trajec
 	if prefix != "" {
 		text = prefix + " " + text
 	}
-	_, err = b.send(t, maxapi.WithKeyboard(text, b.resultKeyboard(v, m, false)))
+	_, err = b.send(t, maxapi.WithKeyboard(text, b.resultKeyboard(v, m, tr, false)))
 	return err
 }
 
@@ -205,7 +287,7 @@ func (b *Bot) remindOn(t *turn, cb *maxapi.Callback, question *maxapi.Message) e
 	}
 	answer := maxapi.CallbackAnswer{Notification: v.T("bot.btn.remindOn", nil)}
 	if question != nil {
-		msg := maxapi.WithKeyboard(question.Body.Text, b.resultKeyboard(v, m, true))
+		msg := maxapi.WithKeyboard(question.Body.Text, b.resultKeyboard(v, m, tr, true))
 		answer.Message = &msg
 	}
 	if err := b.max.Answer(t.ctx, cb.CallbackID, answer); err != nil {
@@ -314,7 +396,7 @@ func (b *Bot) join(t *turn, token string) error {
 	return b.ask(t, d)
 }
 
-// joinCheck — «Проверь, всё ли верно: имя, класс, цель» (F42).
+// joinCheck — «Проверь, всё ли верно» профилем списком (F42, SPEC 10).
 func (b *Bot) joinCheck(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	m, ok, err := b.member(t)
 	if err != nil {
@@ -327,12 +409,20 @@ func (b *Bot) joinCheck(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
-	return maxapi.WithKeyboard(v.T("bot.join.check", voice.Vars{"grade": strconv.Itoa(tr.Grade), "direction": directionText(v, tr)}),
+	lines, err := b.profileLines(t, v, tr, false)
+	if err != nil {
+		return maxapi.NewMessage{}, err
+	}
+	msg := maxapi.WithKeyboard(v.T("bot.join.checkTitle", nil)+"\n"+strings.Join(lines, "\n"),
 		maxapi.Keyboard{maxapi.Row(maxapi.CallbackButton(v.T("bot.join.ok", nil), "join:ok"),
-			maxapi.CallbackButton(v.T("bot.join.goal", nil), "join:goal"))}), nil
+			maxapi.CallbackButton(v.T("bot.join.goal", nil), "join:goal"))})
+	msg.Format = "markdown"
+	return msg, nil
 }
 
 // joinCallback — «Да, всё верно» и «Изменить цель» приглашённого ученика.
+// Если родитель передал вопросы об интересах ученику, после «Всё верно»
+// бот ведёт по В1 → В2 → предложенным направлениям (SPEC 10).
 func (b *Bot) joinCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, action string) error {
 	v := kidVoice(t)
 	if action == "goal" {
@@ -344,25 +434,46 @@ func (b *Bot) joinCallback(t *turn, cb *maxapi.Callback, question *maxapi.Messag
 			return nil
 		})
 	}
-	before, err := b.store.Dialog(t.ctx, t.userID)
+	m, ok, err := b.member(t)
 	if err != nil {
+		return err
+	}
+	if !ok {
 		return b.stale(t, cb, nil)
 	}
-	if _, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	tr, err := b.store.Trajectory(t.ctx, m.TrajectoryID)
+	if err != nil {
+		return err
+	}
+	return b.transition(t, cb, question, v.T("bot.join.ok", nil), func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepJoinConfirm); err != nil {
 			return err
 		}
 		d.Step = stepDone
+		d.Draft.Joined = true
+		if tr.GoalByKid && len(tr.Directions) == 0 && m.Role == "kid" {
+			d.Step, d.Draft.Interests, d.Draft.Work = stepInterest, nil, ""
+		}
 		return nil
-	}); errors.Is(err, store.ErrStale) {
-		return b.stale(t, cb, &before)
-	} else if err != nil {
+	})
+}
+
+// kidChoseGoal — родителям: ученик ответил за них на вопросы об интересах.
+func (b *Bot) kidChoseGoal(t *turn) error {
+	m, ok, err := b.member(t)
+	if err != nil || !ok {
 		return err
 	}
-	if err := b.max.Answer(t.ctx, cb.CallbackID, chosen(question, v.T("bot.join.ok", nil))); err != nil {
+	tr, err := b.store.Trajectory(t.ctx, m.TrajectoryID)
+	if err != nil {
 		return err
 	}
-	return b.joinedResult(t)
+	names := make([]string, len(tr.Directions))
+	for i, d := range tr.Directions {
+		names[i] = lowerFirst(d.Name)
+	}
+	b.notify.KidChoseGoal(t.ctx, m, strings.Join(names, ", "))
+	return nil
 }
 
 // joinedResult — итог приглашённому ученику после подтверждения.

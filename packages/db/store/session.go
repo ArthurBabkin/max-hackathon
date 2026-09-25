@@ -86,17 +86,24 @@ type Trajectory struct {
 	Directions []Direction
 	// DirectionSubjects — ключевые предметы всех направлений для подбора, без повторов.
 	DirectionSubjects []string
-	// TargetRegionCode — где ученик хочет учиться; nil — не важно.
-	TargetRegionCode *string
-	GoalStatus       string
-	HasKid           bool
-	MembersCount     int
-	CreatedAt        time.Time
+	// Places — где ученик хочет учиться, в порядке выбора; пусто — не важно.
+	Places     []Place
+	GoalStatus string
+	// Experience — опыт в олимпиадах: none | school | region; "" — не
+	// спрашивали (подбор считает как none).
+	Experience string
+	// HomeCity — город ученика, если известен.
+	HomeCity *string
+	// GoalByKid — интересы ответит ученик, когда войдёт по приглашению.
+	GoalByKid    bool
+	HasKid       bool
+	MembersCount int
+	CreatedAt    time.Time
 }
 
 func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 	var t Trajectory
-	var dirs []byte
+	var dirs, places []byte
 	err := s.db.QueryRow(ctx, `
 		SELECT t.id::text, t.student_name, t.grade, t.region_code, t.tz,
 		       COALESCE((SELECT json_agg(json_build_object('id', d.id, 'name', d.name, 'subject_codes', d.subject_codes)
@@ -106,7 +113,9 @@ func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 		       ARRAY(SELECT DISTINCT c FROM trajectory_directions td
 		             JOIN directions d ON d.id = td.direction_id, unnest(d.subject_codes) AS c
 		             WHERE td.trajectory_id = t.id ORDER BY c),
-		       t.target_region_code, t.goal_status,
+		       COALESCE((SELECT json_agg(json_build_object('region_code', p.region_code, 'city', p.city) ORDER BY p.position)
+		                 FROM trajectory_places p WHERE p.trajectory_id = t.id), '[]'),
+		       t.goal_status, COALESCE(t.experience, ''), t.home_city, t.goal_by_kid,
 		       EXISTS (SELECT 1 FROM members k WHERE k.trajectory_id = t.id AND k.role = 'kid'
 		               AND k.left_at IS NULL AND k.removed_at IS NULL),
 		       (SELECT count(*) FROM members k WHERE k.trajectory_id = t.id
@@ -115,9 +124,13 @@ func (s *Store) Trajectory(ctx context.Context, id string) (Trajectory, error) {
 		FROM trajectories t
 		WHERE t.id = $1 AND t.deleted_at IS NULL`, id).Scan(
 		&t.ID, &t.StudentName, &t.Grade, &t.RegionCode, &t.TZ, &dirs,
-		&t.DirectionSubjects, &t.TargetRegionCode, &t.GoalStatus, &t.HasKid, &t.MembersCount, &t.CreatedAt)
+		&t.DirectionSubjects, &places, &t.GoalStatus, &t.Experience, &t.HomeCity, &t.GoalByKid,
+		&t.HasKid, &t.MembersCount, &t.CreatedAt)
 	if err != nil {
 		return t, wrap(err)
+	}
+	if err := json.Unmarshal(places, &t.Places); err != nil {
+		return t, err
 	}
 	return t, json.Unmarshal(dirs, &t.Directions)
 }

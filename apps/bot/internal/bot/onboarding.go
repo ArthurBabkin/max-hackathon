@@ -7,36 +7,41 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
-// Шаги онбординга (ТЗ §5.1). Шаг — условие перехода: кнопка из старого
-// сообщения не совпадает с текущим шагом и ничего не меняет.
+// Шаги онбординга (ТЗ §5.1, docs/onboarding-v2/SPEC.md). Шаг — условие
+// перехода: кнопка из старого сообщения не совпадает с текущим шагом и
+// ничего не меняет.
 const (
-	stepRole          = "role"
-	stepNameConfirm   = "name_confirm"
-	stepNameInput     = "name_input"
-	stepGrade         = "grade"
-	stepRegion        = "region"
-	stepSubjects      = "subjects"
-	stepDirection     = "direction"
-	stepTarget        = "target"
-	stepUniversities  = "universities"
+	stepRole        = "role"
+	stepNameConfirm = "name_confirm"
+	stepNameInput   = "name_input"
+	stepGrade       = "grade"
+	stepRegion      = "region"
+	stepSubjects    = "subjects"
+	stepDirection   = "direction"
+	// stepInterest, stepWork, stepSuggest — «Не знаю — помоги выбрать»:
+	// В1, В2 и предложенные направления (SPEC 5).
+	stepInterest     = "interest"
+	stepWork         = "work"
+	stepSuggest      = "suggest"
+	stepExperience   = "experience"
+	stepTarget       = "target"
+	stepUniversities = "universities"
+	// stepUniSearch — шаг поиска вуза из v1: поиск теперь прямо на шаге
+	// вузов, старые диалоги ведут себя так же.
 	stepUniSearch     = "university_search"
 	stepJoinConfirm   = "join_confirm"
 	stepJoinDirection = "join_direction"
 	stepDone          = "done"
 )
 
-// districtsOpen — в черновике District < 0: открыт список округов.
-const districtsOpen = -1
-
-// offerLimit — сколько вузов бот предлагает кнопками на шаге «Вузы» (F9).
-const offerLimit = 6
+// multiSelect — шаги, где «Готово» оставляет у вопроса отмеченное.
+var multiSelect = []string{stepSubjects, stepDirection, stepJoinDirection, stepSuggest, stepInterest, stepUniversities, stepTarget}
 
 func dialogVoice(t *turn, d store.Dialog) voice.Voice {
 	role := voice.Kid
@@ -63,7 +68,7 @@ func grid(buttons []maxapi.Button, n int) maxapi.Keyboard {
 }
 
 // prompt — вопрос текущего шага с клавиатурой, собранной из черновика:
-// отмеченные предметы и вузы — с «✓» (F7, F9).
+// отмеченное — с «✓» (F7, F9).
 func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	v := dialogVoice(t, d)
 	cb := maxapi.CallbackButton
@@ -83,7 +88,7 @@ func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		}
 		return maxapi.WithKeyboard(v.T("bot.grade.ask", nil), maxapi.Keyboard{row}), nil
 	case stepRegion:
-		return b.regionPrompt(v, d), nil
+		return regionPrompt(v, d), nil
 	case stepSubjects:
 		subs, err := b.store.AllSubjects(t.ctx)
 		if err != nil {
@@ -95,52 +100,22 @@ func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		}
 		kb := append(grid(buttons, 2), maxapi.Row(cb(v.T("bot.btn.done", nil), "subj:done")))
 		return maxapi.WithKeyboard(v.T("bot.subjects.ask", nil), kb), nil
-	case stepDirection, stepJoinDirection:
+	case stepDirection, stepJoinDirection, stepSuggest:
 		return b.directionPrompt(t, v, d)
+	case stepInterest:
+		return interestPrompt(v, d), nil
+	case stepWork:
+		return workPrompt(v), nil
+	case stepExperience:
+		return experiencePrompt(v, d), nil
 	case stepTarget:
-		return targetPrompt(v, d), nil
-	case stepUniversities:
+		return targetPrompt(v, d, ""), nil
+	case stepUniversities, stepUniSearch:
 		return b.universitiesPrompt(t, v, d)
-	case stepUniSearch:
-		return maxapi.Text(v.T("bot.vuz.search", nil)), nil
 	case stepJoinConfirm:
 		return b.joinCheck(t, d)
 	}
 	return maxapi.NewMessage{}, errors.New("bot: у шага нет вопроса: " + d.Step)
-}
-
-// districtList — список «округ → субъект» для шагов региона и «Где хочешь
-// учиться?»; kind — начало payload: region или target. ok = false — список
-// не открыт.
-func districtList(v voice.Voice, d store.Dialog, kind string) (maxapi.NewMessage, bool) {
-	cb := maxapi.CallbackButton
-	switch {
-	case d.Draft.District == districtsOpen:
-		var buttons []maxapi.Button
-		for _, dist := range refdata.Districts() {
-			buttons = append(buttons, cb(dist.Name, kind+":d:"+strconv.Itoa(dist.N)))
-		}
-		return maxapi.WithKeyboard(v.T("bot.region.district", nil), grid(buttons, 2)), true
-	case d.Draft.District > 0:
-		var buttons []maxapi.Button
-		for _, r := range refdata.InDistrict(d.Draft.District) {
-			buttons = append(buttons, cb(r.Name, kind+":"+r.Code))
-		}
-		kb := append(grid(buttons, 2), maxapi.Row(cb(v.T("bot.region.back", nil), kind+":list")))
-		return maxapi.WithKeyboard(v.T("bot.region.pick", nil), kb), true
-	}
-	return maxapi.NewMessage{}, false
-}
-
-func (b *Bot) regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
-	cb := maxapi.CallbackButton
-	if msg, ok := districtList(v, d, "region"); ok {
-		return msg
-	}
-	return maxapi.WithKeyboard(v.T("bot.region.ask", nil), maxapi.Keyboard{
-		maxapi.Row(maxapi.GeoButton(v.T("bot.region.geo", nil))),
-		maxapi.Row(cb(v.T("bot.region.list", nil), "region:list")),
-	})
 }
 
 // matchingDirections — направления, чьи ключевые предметы пересекаются с
@@ -166,17 +141,28 @@ func matchingDirections(dirs []store.Direction, subjects []string) []store.Direc
 	return out
 }
 
-// directionPrompt — направления с «✓» (F8): сначала подходящие под предметы,
-// по кнопке — все. Выбранное из полного списка остаётся на виду.
+// directionPrompt — направления с «✓» (F8): сначала подходящие под предметы
+// (на шаге suggest — предложенные по интересам), по кнопке — все.
+// Выбранное из полного списка остаётся на виду.
 func (b *Bot) directionPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
 	cb := maxapi.CallbackButton
 	dirs, err := b.store.Directions(t.ctx)
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
-	shown := matchingDirections(dirs, d.Draft.SubjectCodes)
+	var shown []store.Direction
 	text := "bot.direction.ask"
-	if len(shown) == 0 || d.Draft.AllDirections {
+	if d.Step == stepSuggest {
+		for _, id := range d.Draft.Suggested {
+			if i := slices.IndexFunc(dirs, func(x store.Direction) bool { return x.ID == id }); i >= 0 {
+				shown = append(shown, dirs[i])
+			}
+		}
+		text = "bot.suggest.ask"
+	} else {
+		shown = matchingDirections(dirs, d.Draft.SubjectCodes)
+	}
+	if len(shown) == 0 || d.Draft.AllDirections && d.Step != stepSuggest {
 		text = "bot.direction.askAll"
 	}
 	for _, dir := range dirs {
@@ -192,93 +178,57 @@ func (b *Bot) directionPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.Ne
 	if len(shown) < len(dirs) {
 		kb = append(kb, maxapi.Row(cb(v.T("bot.direction.all", nil), "dir:all")))
 	}
-	kb = append(kb, maxapi.Row(cb(v.T("bot.btn.done", nil), "dir:done"), cb(v.T("bot.direction.later", nil), "dir:later")))
+	switch d.Step {
+	case stepSuggest:
+		kb = append(kb, maxapi.Row(cb(v.T("bot.btn.done", nil), "dir:done")),
+			maxapi.Row(cb(v.T("bot.suggest.later", nil), "dir:later")))
+	case stepDirection:
+		kb = append(kb, maxapi.Row(cb(v.T("bot.btn.done", nil), "dir:done"), cb(v.T("bot.direction.later", nil), "dir:later")),
+			maxapi.Row(cb(v.T("bot.direction.help", nil), "dir:help")))
+		if d.Role == "parent" {
+			kb = append(kb, maxapi.Row(cb(v.T("bot.direction.askKid", nil), "dir:kid")))
+		}
+	default:
+		kb = append(kb, maxapi.Row(cb(v.T("bot.btn.done", nil), "dir:done"), cb(v.T("bot.direction.later", nil), "dir:later")))
+	}
 	return maxapi.WithKeyboard(v.T(text, nil), kb), nil
 }
 
-// targetOption — кнопка «Где хочешь учиться?»: подпись и код субъекта.
-type targetOption struct{ key, code string }
-
-// targetOptions — свой регион, Москва и Петербург (если это не свой
-// регион) и «не важно».
-func targetOptions(own string) []targetOption {
-	opts := []targetOption{{"bot.target.own", own}}
-	for _, o := range []targetOption{{"bot.target.moscow", "77"}, {"bot.target.spb", "78"}} {
-		if !slices.Contains(refdata.Metro(own), o.code) {
-			opts = append(opts, o)
-		}
+// interestPrompt — В1 «что нравится», до двух вариантов (SPEC 5.2).
+func interestPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
+	var kb maxapi.Keyboard
+	for _, code := range interestCodes {
+		kb = append(kb, maxapi.Row(maxapi.CallbackButton(
+			check(slices.Contains(d.Draft.Interests, code), v.T("bot.interest."+code, nil)), "int:t:"+code)))
 	}
-	return append(opts, targetOption{"bot.target.any", store.TargetAny})
+	kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.btn.done", nil), "int:done")))
+	return maxapi.WithKeyboard(v.T("bot.interest.ask", nil), kb)
 }
 
-// targetPrompt — «Где хочешь учиться?»; «Другой регион» открывает на месте
-// вопроса тот же список «округ → субъект», что и на шаге региона.
-func targetPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
-	if msg, ok := districtList(v, d, "target"); ok {
-		return msg
+// workPrompt — В2 «какая работа ближе» (SPEC 5.3). «Своими словами» пока
+// только отвечает «скоро».
+func workPrompt(v voice.Voice) maxapi.NewMessage {
+	var kb maxapi.Keyboard
+	for _, code := range workCodes {
+		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.work."+code, nil), "work:"+code)))
 	}
-	var buttons []maxapi.Button
-	for _, o := range targetOptions(d.Draft.RegionCode) {
-		buttons = append(buttons, maxapi.CallbackButton(v.T(o.key, nil), "target:"+o.code))
-	}
-	buttons = append(buttons, maxapi.CallbackButton(v.T("bot.target.other", nil), "target:list"))
-	return maxapi.WithKeyboard(v.T("bot.target.ask", nil), grid(buttons, 2))
+	kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.work.text", nil), "work:text")))
+	return maxapi.WithKeyboard(v.T("bot.work.ask", nil), kb)
 }
 
-// universitiesPrompt — предложенные и найденные вузы с «✓» (F9). Выбирать
-// не обязательно: без вузов подбор покажет, где олимпиады дают льготы.
-func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
+// experiencePrompt — опыт в олимпиадах (SPEC 6); у родителя есть «Не знаю».
+func experiencePrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 	cb := maxapi.CallbackButton
-	unis, err := b.store.FindUniversities(t.ctx, "")
-	if err != nil {
-		return maxapi.NewMessage{}, err
+	kb := maxapi.Keyboard{
+		maxapi.Row(cb(v.T("bot.exp.none", nil), "exp:none")),
+		maxapi.Row(cb(v.T("bot.exp.school", nil), "exp:school")),
+		maxapi.Row(cb(v.T("bot.exp.region", nil), "exp:region")),
 	}
-	var buttons []maxapi.Button
-	for _, id := range d.Draft.Offered {
-		i := slices.IndexFunc(unis, func(u store.University) bool { return u.ID == id })
-		if i >= 0 {
-			buttons = append(buttons, cb(check(slices.Contains(d.Draft.UniversityIDs, id), uniLabel(unis[i])), "vuz:t:"+id))
-		}
+	if d.Role == "parent" {
+		kb = append(kb, maxapi.Row(cb(v.T("bot.exp.idk", nil), "exp:none:idk")))
 	}
-	text := "bot.vuz.ask"
-	if len(buttons) == 0 {
-		text = "bot.vuz.none"
-	}
-	finish := v.T("bot.vuz.skip", nil)
-	if len(d.Draft.UniversityIDs) > 0 {
-		finish = v.T("bot.btn.done", nil)
-	}
-	kb := append(grid(buttons, 2),
-		maxapi.Row(cb(v.T("bot.vuz.other", nil), "vuz:other"), cb(v.T("bot.vuz.city", nil), "vuz:city")),
-		maxapi.Row(cb(finish, "vuz:done")))
-	return maxapi.WithKeyboard(v.T(text, nil), kb), nil
+	return maxapi.WithKeyboard(v.T("bot.exp.ask", nil), kb)
 }
-
-// offer — вузы для кнопок после выбора города: подходящие по городу и
-// направлениям плюс уже отмеченные.
-func offer(t *turn, tx *store.Store, d *store.Dialog) error {
-	var regions []string
-	if d.Draft.Target != store.TargetAny {
-		regions = refdata.Metro(d.Draft.Target)
-	}
-	unis, err := tx.SuggestUniversities(t.ctx, d.Draft.DirectionIDs, regions, offerLimit)
-	if err != nil {
-		return err
-	}
-	d.Draft.Offered = nil
-	for _, u := range unis {
-		d.Draft.Offered = append(d.Draft.Offered, u.ID)
-	}
-	for _, id := range d.Draft.UniversityIDs {
-		if !slices.Contains(d.Draft.Offered, id) {
-			d.Draft.Offered = append(d.Draft.Offered, id)
-		}
-	}
-	return nil
-}
-
-// uniLabel — как вуз подписан на кнопке: коротко, но узнаваемо.
-func uniLabel(u store.University) string { return notify.UniversityLabel(u.ID, u.ShortName) }
 
 func lowerFirst(s string) string {
 	r, size := utf8.DecodeRuneInString(s)
@@ -295,6 +245,10 @@ func (b *Bot) ask(t *turn, d store.Dialog) error {
 	if err != nil {
 		return err
 	}
+	return b.sendPrompt(t, msg)
+}
+
+func (b *Bot) sendPrompt(t *turn, msg maxapi.NewMessage) error {
 	mid, err := b.send(t, msg)
 	if err != nil {
 		return err
@@ -314,6 +268,13 @@ func (e errNotNow) Error() string { return "bot: " + e.key }
 // правит клавиатуру на месте.
 func (b *Bot) transition(t *turn, cb *maxapi.Callback, question *maxapi.Message, label string,
 	apply func(tx *store.Store, d *store.Dialog) error) error {
+	return b.transitionSay(t, cb, question, label, apply, nil)
+}
+
+// transitionSay — transition, после которого до следующего вопроса бот
+// что-то говорит: «Казань → Татарстан ✓» с кнопкой «Не то».
+func (b *Bot) transitionSay(t *turn, cb *maxapi.Callback, question *maxapi.Message, label string,
+	apply func(tx *store.Store, d *store.Dialog) error, say func(d store.Dialog) error) error {
 	before, err := b.store.Dialog(t.ctx, t.userID)
 	if errors.Is(err, store.ErrNotFound) {
 		return b.stale(t, cb, nil)
@@ -340,7 +301,7 @@ func (b *Bot) transition(t *turn, cb *maxapi.Callback, question *maxapi.Message,
 		return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Message: &msg})
 	}
 	answer := chosen(question, label)
-	if question != nil && slices.Contains([]string{stepSubjects, stepDirection, stepJoinDirection, stepUniversities}, before.Step) {
+	if question != nil && slices.Contains(multiSelect, before.Step) {
 		// После «Готово» у вопроса остаётся то, что выбрали, а не «✓ Готово».
 		d := after
 		d.Step = before.Step
@@ -348,10 +309,17 @@ func (b *Bot) transition(t *turn, cb *maxapi.Callback, question *maxapi.Message,
 		if err != nil {
 			return err
 		}
-		answer = maxapi.CallbackAnswer{Message: picked(msg)}
+		if p := picked(msg); len(p.Keyboard()) > 0 {
+			answer = maxapi.CallbackAnswer{Message: p}
+		}
 	}
 	if err := b.max.Answer(t.ctx, cb.CallbackID, answer); err != nil {
 		return err
+	}
+	if say != nil {
+		if err := say(after); err != nil {
+			return err
+		}
 	}
 	return b.next(t, after)
 }
@@ -383,6 +351,9 @@ func chosen(question *maxapi.Message, label string) maxapi.CallbackAnswer {
 // next — что сказать после перехода: вопрос нового шага или итог.
 func (b *Bot) next(t *turn, d store.Dialog) error {
 	if d.Step == stepDone {
+		if d.Draft.Joined {
+			return b.joinedResult(t)
+		}
 		return b.finished(t)
 	}
 	return b.ask(t, d)
@@ -503,63 +474,47 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		})
 	case "dir":
 		return true, b.directionCallback(t, cb, question, arg(0), arg(1))
+	case "int":
+		return true, b.interestCallback(t, cb, question, arg(0), arg(1))
+	case "work":
+		return true, b.workCallback(t, cb, question, arg(0))
+	case "exp":
+		return true, b.experienceCallback(t, cb, question, arg(0), arg(1) == "idk")
+	case "place":
+		return true, b.placeCallback(t, cb, question, arg(0), arg(1))
 	case "target":
-		return true, b.targetCallback(t, cb, question, args)
+		// Кнопки «Где учиться» из v1: места теперь выбираются по-другому.
+		return true, b.staleDialog(t, cb)
 	case "vuz":
 		return true, b.universityCallback(t, cb, question, arg(0), arg(1))
 	}
 	return false, nil
 }
 
-func (b *Bot) regionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, args []string) error {
-	if len(args) == 0 {
+// staleDialog — stale с переспросом текущего шага.
+func (b *Bot) staleDialog(t *turn, cb *maxapi.Callback) error {
+	d, err := b.store.Dialog(t.ctx, t.userID)
+	if err != nil {
 		return b.stale(t, cb, nil)
 	}
-	switch {
-	case args[0] == "list":
-		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepRegion); err != nil {
-				return err
-			}
-			d.Draft.District = districtsOpen
-			return nil
-		})
-	case args[0] == "d" && len(args) > 1:
-		n, err := strconv.Atoi(args[1])
-		if err != nil || len(refdata.InDistrict(n)) == 0 {
-			return b.stale(t, cb, nil)
-		}
-		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepRegion); err != nil {
-				return err
-			}
-			d.Draft.District = n
-			return nil
-		})
+	return b.stale(t, cb, &d)
+}
+
+// dialogVoiceOf — голос текущего диалога; до диалога — голос ученика.
+func (b *Bot) dialogVoiceOf(t *turn) voice.Voice {
+	if d, err := b.store.Dialog(t.ctx, t.userID); err == nil {
+		return dialogVoice(t, d)
 	}
-	reg, ok := refdata.ByCode(args[0])
-	if !ok {
-		return b.stale(t, cb, nil)
-	}
-	return b.transition(t, cb, question, reg.Name, func(_ *store.Store, d *store.Dialog) error {
-		if err := expect(d, stepRegion); err != nil {
-			return err
-		}
-		d.Draft.RegionCode, d.Draft.District, d.Step = reg.Code, 0, stepSubjects
-		return nil
-	})
+	return kidVoice(t)
 }
 
 func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, action, id string) error {
-	v := kidVoice(t)
-	if d, err := b.store.Dialog(t.ctx, t.userID); err == nil {
-		// «Решу позже» у родителя звучит иначе: «Пока не знаем».
-		v = dialogVoice(t, d)
-	}
+	// «Решу позже» у родителя звучит иначе: «Пока не знаем».
+	v := b.dialogVoiceOf(t)
 	switch action {
 	case "t":
 		return b.transition(t, cb, question, "", func(tx *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepDirection, stepJoinDirection); err != nil {
+			if err := expect(d, stepDirection, stepJoinDirection, stepSuggest); err != nil {
 				return err
 			}
 			dirs, err := tx.Directions(t.ctx)
@@ -574,27 +529,52 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 		})
 	case "all":
 		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepDirection, stepJoinDirection); err != nil {
+			if err := expect(d, stepDirection, stepJoinDirection, stepSuggest); err != nil {
 				return err
 			}
 			d.Draft.AllDirections = true
 			return nil
 		})
+	case "help":
+		return b.transition(t, cb, question, v.T("bot.direction.help", nil), func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepDirection); err != nil {
+				return err
+			}
+			d.Draft.DirectionIDs, d.Draft.AllDirections, d.Draft.Interests, d.Draft.Work = nil, false, nil, ""
+			d.Step = stepInterest
+			return nil
+		})
+	case "kid":
+		return b.transitionSay(t, cb, question, v.T("bot.direction.askKid", nil), func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepDirection); err != nil || d.Role != "parent" {
+				return store.ErrStale
+			}
+			d.Draft.DirectionIDs, d.Draft.GoalByKid, d.Step = nil, true, stepExperience
+			return nil
+		}, func(d store.Dialog) error { return b.say(t, dialogVoice(t, d).T("bot.direction.kidLater", nil)) })
 	case "done", "later":
 		label := v.T("bot.btn.done", nil)
 		if action == "later" {
 			label = v.T("bot.direction.later", nil)
+			if d, err := b.store.Dialog(t.ctx, t.userID); err == nil && d.Step == stepSuggest {
+				label = v.T("bot.suggest.later", nil)
+			}
 		}
-		return b.transition(t, cb, question, label, func(tx *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepDirection, stepJoinDirection); err != nil {
+		var chose []string
+		return b.transitionSay(t, cb, question, label, func(tx *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepDirection, stepJoinDirection, stepSuggest); err != nil {
 				return err
 			}
 			if action == "later" {
 				d.Draft.DirectionIDs = nil
 			} else if len(d.Draft.DirectionIDs) == 0 {
+				if d.Step == stepSuggest {
+					return errNotNow{"bot.suggest.need"}
+				}
 				return errNotNow{"bot.direction.need"}
 			}
-			if d.Step == stepJoinDirection {
+			switch {
+			case d.Step == stepJoinDirection:
 				// Приглашённый ученик поправил цель уже созданной траектории (F42).
 				m, err := tx.CurrentMember(t.ctx, t.user.UserID)
 				if err != nil {
@@ -604,112 +584,139 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 					return err
 				}
 				d.Step = stepDone
+			case d.Draft.Joined:
+				// Приглашённый ученик ответил за родителя (SPEC 10).
+				m, err := tx.CurrentMember(t.ctx, t.user.UserID)
+				if err != nil {
+					return err
+				}
+				goal, off := store.GoalStatusOf(d.Draft.DirectionIDs), false
+				if len(d.Draft.DirectionIDs) > 0 {
+					goal = "suggested"
+				}
+				if err := tx.UpdateTrajectory(t.ctx, m.TrajectoryID, m.MemberID, store.TrajectoryPatch{
+					DirectionIDs: nonNilIDs(d.Draft.DirectionIDs), GoalStatus: &goal, GoalByKid: &off}); err != nil {
+					return err
+				}
+				chose = d.Draft.DirectionIDs
+				d.Step = stepDone
+			default:
+				d.Step = stepExperience
+			}
+			return nil
+		}, func(d store.Dialog) error {
+			if len(chose) == 0 {
 				return nil
 			}
-			d.Step = stepTarget
-			return nil
+			return b.kidChoseGoal(t)
 		})
 	}
 	return b.stale(t, cb, nil)
 }
 
-// targetCallback — «Где хочешь учиться?»: город и вузы в нём (F9).
-func (b *Bot) targetCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, args []string) error {
-	if len(args) == 0 {
-		return b.stale(t, cb, nil)
+func nonNilIDs(ids []string) []string {
+	if ids == nil {
+		return []string{}
 	}
-	// Список округов и субъектов правит тот же вопрос.
-	district := 0
-	switch {
-	case args[0] == "list":
-		district = districtsOpen
-	case args[0] == "d" && len(args) > 1:
-		n, err := strconv.Atoi(args[1])
-		if err != nil || len(refdata.InDistrict(n)) == 0 {
-			return b.stale(t, cb, nil)
-		}
-		district = n
-	}
-	if district != 0 {
-		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepTarget); err != nil {
+	return ids
+}
+
+// interestCallback — В1: до двух вариантов, «Готово» от одного.
+func (b *Bot) interestCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, action, code string) error {
+	v := b.dialogVoiceOf(t)
+	if action == "done" {
+		return b.transition(t, cb, question, v.T("bot.btn.done", nil), func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepInterest); err != nil {
 				return err
 			}
-			d.Draft.District = district
+			if len(d.Draft.Interests) == 0 {
+				return errNotNow{"bot.interest.need"}
+			}
+			d.Step = stepWork
 			return nil
 		})
 	}
-	code := args[0]
-	label := kidVoice(t).T("bot.target.any", nil)
-	if reg, ok := refdata.ByCode(code); ok {
-		label = reg.Name
-	} else if code != store.TargetAny {
+	if action != "t" || !slices.Contains(interestCodes, code) {
 		return b.stale(t, cb, nil)
 	}
-	return b.transition(t, cb, question, label, func(tx *store.Store, d *store.Dialog) error {
-		if err := expect(d, stepTarget); err != nil {
+	return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
+		if err := expect(d, stepInterest); err != nil {
 			return err
 		}
-		d.Draft.Target, d.Draft.District, d.Step = code, 0, stepUniversities
-		return offer(t, tx, d)
+		if !slices.Contains(d.Draft.Interests, code) && len(d.Draft.Interests) >= maxInterests {
+			return errNotNow{"bot.interest.max"}
+		}
+		d.Draft.Interests = toggle(d.Draft.Interests, code)
+		return nil
 	})
 }
 
-func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, action, id string) error {
-	v := kidVoice(t)
-	switch action {
-	case "other":
-		return b.transition(t, cb, question, v.T("bot.vuz.other", nil), func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepUniversities); err != nil {
-				return err
-			}
-			d.Step = stepUniSearch
-			return nil
-		})
-	case "city":
-		return b.transition(t, cb, question, v.T("bot.vuz.city", nil), func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepUniversities); err != nil {
-				return err
-			}
-			d.Step, d.Draft.District = stepTarget, 0
-			return nil
-		})
-	case "done":
-		return b.transition(t, cb, question, v.T("bot.btn.done", nil), func(tx *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepUniversities); err != nil {
-				return err
-			}
-			return b.createTrajectory(t, tx, d)
-		})
-	case "t":
-		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepUniversities); err != nil {
-				return err
-			}
-			if !slices.Contains(d.Draft.Offered, id) {
-				return store.ErrStale
-			}
-			d.Draft.UniversityIDs = toggle(d.Draft.UniversityIDs, id)
-			return nil
-		})
+// workCallback — В2 и подсчёт предложенных направлений (SPEC 5.3–5.4).
+func (b *Bot) workCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, code string) error {
+	if code == "text" {
+		d, err := b.store.Dialog(t.ctx, t.userID)
+		if err != nil || d.Step != stepWork {
+			return b.staleDialog(t, cb)
+		}
+		// TODO(onboarding-v2): Jev сопоставит ответ своими словами с направлениями.
+		return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Notification: dialogVoice(t, d).T("bot.work.textSoon", nil)})
 	}
-	return b.stale(t, cb, nil)
+	if !slices.Contains(workCodes, code) {
+		return b.stale(t, cb, nil)
+	}
+	return b.transition(t, cb, question, b.dialogVoiceOf(t).T("bot.work."+code, nil), func(tx *store.Store, d *store.Dialog) error {
+		if err := expect(d, stepWork); err != nil {
+			return err
+		}
+		dirs, err := tx.Directions(t.ctx)
+		if err != nil {
+			return err
+		}
+		d.Draft.Work = code
+		d.Draft.Suggested = suggestDirections(d.Draft.Interests, code, d.Draft.SubjectCodes, dirs)
+		d.Draft.DirectionIDs = slices.Clone(d.Draft.Suggested)
+		d.Draft.AllDirections = false
+		d.Step = stepSuggest
+		return nil
+	})
+}
+
+// experienceCallback — опыт в олимпиадах (SPEC 6), затем «Где учиться».
+func (b *Bot) experienceCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, code string, idk bool) error {
+	if !slices.Contains([]string{"none", "school", "region"}, code) || idk && code != "none" {
+		return b.stale(t, cb, nil)
+	}
+	key := "bot.exp." + code
+	if idk {
+		key = "bot.exp.idk"
+	}
+	return b.transition(t, cb, question, b.dialogVoiceOf(t).T(key, nil), func(_ *store.Store, d *store.Dialog) error {
+		if err := expect(d, stepExperience); err != nil {
+			return err
+		}
+		d.Draft.Experience, d.Step = code, stepTarget
+		d.Draft.PlaceOptions, d.Draft.Found = defaultPlaces(d.Draft), nil
+		return nil
+	})
 }
 
 // createTrajectory — последний шаг: траектория создаётся один раз, в той
 // же транзакции, что закрывает диалог (F2, F38).
 func (b *Bot) createTrajectory(t *turn, tx *store.Store, d *store.Dialog) error {
 	reg, ok := refdata.ByCode(d.Draft.RegionCode)
-	if !ok || d.Draft.Grade == 0 || d.Draft.Name == "" || len(d.Draft.SubjectCodes) == 0 || d.Draft.Target == "" {
+	places, placesOK := draftPlaces(d.Draft)
+	if !ok || d.Draft.Grade == 0 || d.Draft.Name == "" || len(d.Draft.SubjectCodes) == 0 || !placesOK {
 		return store.ErrStale
 	}
 	n := store.NewTrajectory{
 		CreatorUserID: t.userID, Role: d.Role, StudentName: d.Draft.Name, Grade: d.Draft.Grade,
 		RegionCode: reg.Code, TZ: reg.TZ, SourcePayload: d.SourcePayload,
 		DirectionIDs: d.Draft.DirectionIDs, SubjectCodes: d.Draft.SubjectCodes, UniversityIDs: d.Draft.UniversityIDs,
+		Places: places, Experience: d.Draft.Experience, HomeCity: d.Draft.HomeCity,
+		GoalByKid: d.Draft.GoalByKid && len(d.Draft.DirectionIDs) == 0,
 	}
-	if d.Draft.Target != store.TargetAny {
-		n.TargetRegionCode = &d.Draft.Target
+	if len(d.Draft.Suggested) > 0 && len(d.Draft.DirectionIDs) > 0 {
+		n.GoalStatus = "suggested"
 	}
 	if _, err := tx.CreateTrajectory(t.ctx, n); err != nil {
 		return err
@@ -718,30 +725,8 @@ func (b *Bot) createTrajectory(t *turn, tx *store.Store, d *store.Dialog) error 
 	return nil
 }
 
-// location — геопозиция на шаге региона (F6): определяем субъект,
-// координаты не храним.
-func (b *Bot) location(t *turn, lat, lon float64) error {
-	reg := refdata.Nearest(lat, lon)
-	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
-		if err := expect(d, stepRegion); err != nil {
-			return err
-		}
-		d.Draft.RegionCode, d.Draft.District, d.Step = reg.Code, 0, stepSubjects
-		return nil
-	})
-	if errors.Is(err, store.ErrStale) || errors.Is(err, store.ErrNotFound) {
-		return b.unknown(t)
-	}
-	if err != nil {
-		return err
-	}
-	if err := b.say(t, dialogVoice(t, d).T("bot.region.set", voice.Vars{"region": reg.Name})); err != nil {
-		return err
-	}
-	return b.ask(t, d)
-}
-
-// freeText — имя (F4) или поиск вуза (F9); вне этих шагов — подсказка.
+// freeText — имя (F4), поиск места (шаги региона и «Где учиться») или
+// вуза; на остальных шагах — подсказка.
 func (b *Bot) freeText(t *turn, text string) error {
 	d, err := b.store.Dialog(t.ctx, t.userID)
 	if errors.Is(err, store.ErrNotFound) {
@@ -767,35 +752,12 @@ func (b *Bot) freeText(t *turn, text string) error {
 			return err
 		}
 		return b.ask(t, d)
-	case stepUniSearch:
-		found, err := b.store.FindUniversities(t.ctx, strings.TrimSpace(text))
-		if err != nil {
-			return err
-		}
-		d, err = b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
-			if err := expect(d, stepUniSearch); err != nil {
-				return err
-			}
-			for i, u := range found {
-				if i < offerLimit && !slices.Contains(d.Draft.Offered, u.ID) {
-					d.Draft.Offered = append(d.Draft.Offered, u.ID)
-				}
-				if len(found) <= 3 && !slices.Contains(d.Draft.UniversityIDs, u.ID) {
-					d.Draft.UniversityIDs = append(d.Draft.UniversityIDs, u.ID)
-				}
-			}
-			d.Step = stepUniversities
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-		if len(found) == 0 {
-			if err := b.say(t, dialogVoice(t, d).T("bot.vuz.notFound", nil)); err != nil {
-				return err
-			}
-		}
-		return b.ask(t, d)
+	case stepRegion:
+		return b.regionText(t, d, text)
+	case stepTarget:
+		return b.targetText(t, d, text)
+	case stepUniversities, stepUniSearch:
+		return b.universityText(t, d, text)
 	}
 	return b.unknown(t)
 }
