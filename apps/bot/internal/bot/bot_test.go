@@ -261,6 +261,32 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 	}
 }
 
+// Итог: кроме стартовой олимпиады — ближайшая по сроку, если это другая.
+func TestResult_NearestAfterStart(t *testing.T) {
+	h := newHarness(t)
+	h.kidOnboarding()
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 4 || !strings.HasPrefix(blocks[1], "Для старта советую эту:\nInnopolis Open · Информатика\n") ||
+		blocks[2] != "Ближайшая олимпиада:\nФизтех · Математика\nII уровень · до 7 сентября, 6 дней · онлайн" {
+		t.Fatalf("итог: %q", blocks)
+	}
+}
+
+// Стартовая и есть ближайшая — один блок.
+func TestResult_StartIsNearest(t *testing.T) {
+	h := newHarness(t)
+	h.toDirections("inf")
+	h.press(artem, "dir:later")
+	h.press(artem, "exp:none")
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:done")
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 3 || !strings.HasPrefix(blocks[1], "Для старта советую эту — она же ближайшая:\nФизтех · Информатика\n") ||
+		!strings.Contains(blocks[1], "до 7 сентября, 6 дней") {
+		t.Fatalf("итог: %q", blocks)
+	}
+}
+
 func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h := newHarness(t)
 	h.started(olga, "")

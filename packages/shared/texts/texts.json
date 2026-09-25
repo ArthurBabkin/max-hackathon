@@ -1523,13 +1523,17 @@
     "kid": "По твоим предметам подходят {count}.",
     "parent": "По предметам {student_gen} подходят {count}."
   },
-  "bot.result.deadline": {
-    "kid": "Ближайший срок — {stage}, осталось {days}.",
-    "parent": "Ближайший срок — {stage}, осталось {days}."
-  },
   "bot.result.start": {
     "kid": "Для старта советую эту:",
     "parent": "Для старта советую {student_dat} эту:"
+  },
+  "bot.result.nearest": {
+    "kid": "Ближайшая олимпиада:",
+    "parent": "Ближайшая олимпиада:"
+  },
+  "bot.result.startNearest": {
+    "kid": "Для старта советую эту — она же ближайшая:",
+    "parent": "Для старта советую {student_dat} эту — она же ближайшая:"
   },
   "bot.result.olympiad": {
     "kid": "{olympiad} · {subject}",
