@@ -154,7 +154,7 @@ describe('обзор приложения', () => {
     await step('Все олимпиады')
     await next()
     await step('Карточка олимпиады')
-    expect(screen.getByText(/Предложите Артёму/)).toBeInTheDocument()
+    expect(screen.getByText(/Предложите олимпиаду Артёму/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Предложить Артёму' })).toBeInTheDocument()
   })
 
