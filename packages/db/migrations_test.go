@@ -462,3 +462,66 @@ func TestMigration_RealStageDates(t *testing.T) {
 		t.Fatalf("демо-этапы «Ломоносова» тронуты: было %d, стало %d", lomonosov, after)
 	}
 }
+
+// Парсер датасета терял строки приказа Иннополиса там, где pdfplumber режет
+// таблицу на 7 и 11 колонок (стр. 8, 9, 11, 16): помощник отвечал, что
+// Innopolis Open в Иннополисе ничего не даёт. 0016 дописывает эти льготы в
+// накатанные базы, остальные вузы не трогает.
+func TestMigration_InnopolisLostBenefits(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0016_innopolis_lost_benefits.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var others int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM benefits WHERE university_id <> 'innopolis'`).Scan(&others)
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, `DELETE FROM benefits WHERE university_id = 'innopolis'
+		AND olympiad_profile_id IN ('p669-22-informatika', 'p669-22-iskusstvennyy-intellekt', 'p669-52-matematika')`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	type row struct {
+		benefit string
+		ege     int
+		note    string
+		page    string
+	}
+	got := map[string]row{}
+	rows, err := tx.Query(ctx, `SELECT b.olympiad_profile_id, b.benefit, b.ege_min, b.note, substring(s.url from '#page=\d+$')
+		FROM benefits b JOIN sources s ON s.id = b.source_id
+		WHERE b.university_id = 'innopolis'
+		  AND b.olympiad_profile_id IN ('p669-22-informatika', 'p669-22-iskusstvennyy-intellekt', 'p669-52-matematika')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		var r row
+		if err := rows.Scan(&id, &r.benefit, &r.ege, &r.note, &r.page); err != nil {
+			t.Fatal(err)
+		}
+		got[id] = r
+	}
+	rows.Close()
+	want := map[string]row{
+		"p669-22-informatika":             {"bvi", 75, "Подтвердить ЕГЭ: Информатика", "#page=11"},
+		"p669-22-iskusstvennyy-intellekt": {"bvi", 75, "Подтвердить ЕГЭ: Информатика", "#page=11"},
+		"p669-52-matematika":              {"bvi", 75, "Подтвердить ЕГЭ: Математика", "#page=16"},
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("льготы Иннополиса после миграции:\n%v\nожидали:\n%v", got, want)
+	}
+	var after int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM benefits WHERE university_id <> 'innopolis'`).Scan(&after)
+	if others == 0 || after != others {
+		t.Fatalf("льготы других вузов тронуты: было %d, стало %d", others, after)
+	}
+}
