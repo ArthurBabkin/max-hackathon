@@ -246,6 +246,9 @@ func (c clock) schedule(st []stages.Stage) string {
 		switch {
 		case from != nil && to != nil && c.day(*from) != c.day(*to):
 			when = c.day(*from) + "–" + c.day(*to)
+		case from == nil && to != nil:
+			// Известен только крайний срок — «до», как в приложении.
+			when = "до " + c.day(*to)
 		case to != nil:
 			when = c.day(*to)
 		case from != nil:
