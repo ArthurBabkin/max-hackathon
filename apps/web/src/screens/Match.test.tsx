@@ -7,7 +7,7 @@ import { renderApp } from '@/test/render'
 vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
 const { MatchScreen } = await import('./Match')
 
-const NO_UNIVERSITIES = 'Вузы не выбраны, поэтому льготы показаны по всем вузам с этим направлением'
+const NO_UNIVERSITIES = 'Вузы не выбраны — льготы показаны по всем вузам с направлением'
 
 function renderMatch(universities: number, region = { region_code: '16', region_name: 'Республика Татарстан' }) {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
