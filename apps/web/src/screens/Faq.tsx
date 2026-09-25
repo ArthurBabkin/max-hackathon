@@ -78,7 +78,7 @@ export function FaqScreen() {
         ))
       )}
 
-      <section className="block block-card">
+      <section className="block block-card faq-ask">
         <h3 className="block-head">{t('faq.askTitle')}</h3>
         <p className="block-text">{t('faq.askText')}</p>
         <Button stretched iconBefore={<Icon name="spark" size={15} />} onClick={() => sheets.open({ kind: 'ai', id: '' })}>
