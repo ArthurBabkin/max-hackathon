@@ -33,7 +33,11 @@ type Set struct {
 	Subjects     map[string]bool // предметы ученика
 	Universities []store.University
 	Stages       map[string][]stages.Stage
-	Benefits     map[string][]store.BenefitRow // только вузы ученика, в порядке списка вузов
+	// Benefits — льготы в вузах ученика на его направления (store.TargetBenefits),
+	// в порядке списка вузов.
+	Benefits map[string][]store.BenefitRow
+	// Targets — на какие направления ученик смотрит в каждом своём вузе.
+	Targets map[string]store.UniversityTarget
 	// Potential — льготы профилей в вузах с направлениями ученика в
 	// выбранных местах; заполняется, только если вузы не выбраны (SPEC 2.3).
 	Potential map[string][]store.BenefitRow
@@ -69,7 +73,10 @@ func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []s
 	for i, u := range s.Universities {
 		uniIDs[i] = u.ID
 	}
-	rows, err := st.Benefits(ctx, ids, uniIDs)
+	if s.Targets, err = st.TargetsOf(ctx, t.ID, uniIDs); err != nil {
+		return s, err
+	}
+	rows, err := st.TargetBenefits(ctx, t.ID, ids, uniIDs)
 	if err != nil {
 		return s, err
 	}
@@ -94,7 +101,8 @@ func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []s
 
 // potential — лучшая льгота каждого профиля в вузах, где есть хотя бы одно
 // направление траектории (у exploring — в любых), в выбранных местах (нет
-// мест — везде). Так без выбранных вузов фактор Benefit не обнуляется.
+// мест — везде), на направления цели. Так без выбранных вузов фактор
+// Benefit не обнуляется.
 func potential(ctx context.Context, st *store.Store, t store.Trajectory, profileIDs []string) (map[string][]store.BenefitRow, error) {
 	dirIDs := make([]string, len(t.Directions))
 	for i, d := range t.Directions {
@@ -108,7 +116,7 @@ func potential(ctx context.Context, st *store.Store, t store.Trajectory, profile
 	for i, u := range unis {
 		uniIDs[i] = u.ID
 	}
-	rows, err := st.Benefits(ctx, profileIDs, uniIDs)
+	rows, err := st.TargetBenefits(ctx, t.ID, profileIDs, uniIDs)
 	if err != nil {
 		return nil, err
 	}

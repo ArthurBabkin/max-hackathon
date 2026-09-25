@@ -114,6 +114,10 @@ type collected struct {
 	clock        clock
 	subjects     []string // названия предметов ученика
 	universities []string // короткие названия вузов ученика
+	// Для льгот на направления ученика в карточках олимпиад (F65).
+	trajectoryID string
+	myUnis       []string // id вузов ученика
+	myCodes      []string // коды предметов ученика
 	cards        []card
 	// Для отказа: правила упомянутых вузов и сайты упомянутых олимпиад.
 	fallback []store.Source
@@ -132,7 +136,7 @@ func (c collected) has(id string) bool {
 // Текст прошлых реплик не ищется: его видит только Jev, чтобы понять
 // уточнение «а когда у неё регистрация?».
 func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []store.AiMessage, question string) (collected, error) {
-	c := collected{clock: a.clock(t)}
+	c := collected{clock: a.clock(t), trajectoryID: t.ID}
 	b, err := a.loadBase(ctx)
 	if err != nil {
 		return c, err
@@ -156,8 +160,10 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	if err != nil {
 		return c, err
 	}
+	c.myCodes = myCodes
 	for _, u := range myUnis {
 		c.universities = append(c.universities, u.ShortName)
+		c.myUnis = append(c.myUnis, u.ID)
 		c.focus = append(c.focus, u.ID)
 		if m.MyUniversities && !slices.Contains(m.Universities, u.ID) {
 			m.Universities = append(m.Universities, u.ID)
@@ -412,6 +418,16 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock)
 	if err != nil {
 		return err
+	}
+	mine := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+		return !slices.Contains(c.myCodes, x.SubjectCode)
+	})
+	targets, err := a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+	if err != nil {
+		return err
+	}
+	if len(targets) > 0 {
+		text += "\n" + strings.Join(targets, "\n")
 	}
 	// Условия без источника — в охвате карточки и по предметам из вопроса,
 	// если они у олимпиады есть: Jev ошибается с предметом («а в ВШЭ?» после

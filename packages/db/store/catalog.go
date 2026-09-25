@@ -132,6 +132,20 @@ type BenefitRow struct {
 	Note            *string
 	AdmissionYear   int
 	Source          *Source
+	// Цели ученика (TargetBenefits): на каких направлениях вуза льгота —
+	// chosen (выбрал сам), goal (цель), university (вуз целиком).
+	Basis          string
+	DirectionNames []string
+	Varies         bool // льгота разная у программ направления
+	Unverified     bool // льготы на направления цели в вузе ещё уточняются
+	// OtherDirections — более слабые льготы на остальных направлениях цели.
+	OtherDirections []DirectionBenefit
+}
+
+// DirectionBenefit — льгота и направления вуза, на которые она даётся.
+type DirectionBenefit struct {
+	Benefit string
+	Names   []string
 }
 
 // Benefits — по одной строке на пару (профиль, вуз): последний год приёма и

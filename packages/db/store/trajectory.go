@@ -130,8 +130,13 @@ func (s *Store) ReplaceDirections(ctx context.Context, trajectoryID string, ids 
 	return wrap(err)
 }
 
+// ReplaceUniversities заменяет вузы траектории по разнице: убранные уходят
+// вместе с выбранными в них направлениями, оставшиеся не трогаются — иначе
+// каждое сохранение профиля стирало бы выбор направлений.
 func (s *Store) ReplaceUniversities(ctx context.Context, trajectoryID string, ids []string) error {
-	if _, err := s.db.Exec(ctx, `DELETE FROM trajectory_universities WHERE trajectory_id = $1`, trajectoryID); err != nil {
+	if _, err := s.db.Exec(ctx, `
+		DELETE FROM trajectory_universities WHERE trajectory_id = $1 AND university_id <> ALL($2::text[])`,
+		trajectoryID, nonNil(ids)); err != nil {
 		return wrap(err)
 	}
 	if len(ids) == 0 {

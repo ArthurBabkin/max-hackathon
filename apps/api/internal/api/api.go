@@ -168,6 +168,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /profile", s.authed(s.getProfile))
 	s.mux.HandleFunc("PATCH /profile", s.authed(s.patchProfile))
 	s.mux.HandleFunc("PUT /profile/universities", s.authed(s.putUniversities))
+	s.mux.HandleFunc("PUT /profile/universities/{id}/directions", s.authed(s.putUniversityDirections))
 	s.mux.HandleFunc("GET /recommendations", s.authed(s.recommendations))
 	s.mux.HandleFunc("GET /olympiads", s.authed(s.olympiads))
 	s.mux.HandleFunc("GET /olympiads/{id}", s.authed(s.olympiad))

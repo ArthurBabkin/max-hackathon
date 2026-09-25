@@ -442,7 +442,7 @@ route('PATCH', '/profile', ({ body }) => {
   }
   if (Array.isArray(patch.direction_ids)) {
     const ids = patch.direction_ids as string[]
-    state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id))
+    state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id)).map(({ id, name }) => ({ id, name }))
     state.goal_status = state.directions.length > 0 ? 'known' : 'exploring'
   }
   if (Array.isArray(patch.places)) {
@@ -466,6 +466,30 @@ route('PUT', '/profile/universities', ({ body }) => {
     throw new ApiError(400, 'BAD_REQUEST', 'Не передан список вузов')
   }
   state.universities = ids
+  // Как на сервере: выбор направлений уходит вместе с вузом.
+  for (const id of Object.keys(state.chosen)) if (!ids.includes(id)) delete state.chosen[id]
+  return build.profile()
+})
+
+// Направления в вузе (F65): вуз — в мои, новые направления — в цель.
+route('PUT', '/profile/universities/:id/directions', ({ params, body }) => {
+  const u = UNIVERSITIES.find((x) => x.id === params.id)
+  if (!u) throw new ApiError(404, 'NOT_FOUND', 'Вуз не найден.')
+  const ids = (body as { direction_ids?: string[] })?.direction_ids
+  if (!Array.isArray(ids)) throw new ApiError(400, 'BAD_REQUEST', 'Не передан список направлений.')
+  if (ids.some((id) => !u.offered.some((o) => o.id === id))) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Такого направления в вузе нет.')
+  }
+  if (!state.universities.includes(u.id)) state.universities = [...state.universities, u.id]
+  state.chosen[u.id] = [...new Set(ids)]
+  const added = ids.filter((id) => !state.directions.some((d) => d.id === id))
+  if (added.length > 0) {
+    state.directions = [
+      ...state.directions,
+      ...added.flatMap((id) => DIRECTIONS.filter((d) => d.id === id)).map(({ id, name }) => ({ id, name })),
+    ]
+    state.goal_status = 'known'
+  }
   return build.profile()
 })
 

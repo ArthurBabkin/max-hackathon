@@ -231,7 +231,10 @@ paths:
     get:
       tags: [profile]
       summary: Направления — справочник целей для правки профиля
-      x-tz: "F8, F49"
+      description: |
+        Все направления вузов из датасета (72). `popular` — основные 16, те же, что в онбординге
+        бота: их профиль показывает чипами, остальные — в выборе с поиском (F65).
+      x-tz: "F8, F49, F65"
       responses:
         "200":
           description: OK
@@ -243,7 +246,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: "#/components/schemas/Direction" }
+                    items: { $ref: "#/components/schemas/DirectionOption" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /tracker:
@@ -677,6 +680,39 @@ paths:
               schema: { $ref: "#/components/schemas/Profile" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profile/universities/{id}/directions:
+    put:
+      tags: [profile]
+      summary: Выбрать направления в вузе
+      description: |
+        Заменяет выбор направлений ученика в вузе (F65). Вуз становится «моим», новые направления
+        дописываются в цель (`goal_status` → `known`). Пустой список снимает выбор, цель не меняется.
+        Льготы в этом вузе дальше считаются на выбранные направления.
+      x-tz: "F65"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [direction_ids]
+              properties:
+                direction_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /ai/chats:
     get:
@@ -1275,6 +1311,12 @@ components:
           ege_min,
           ege_max,
           source,
+          directions,
+          other_directions,
+          unverified,
+          varies,
+          directions_count,
+          directions_total,
         ]
       properties:
         university_id: { type: string }
@@ -1323,6 +1365,40 @@ components:
             засчитает диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
           items: { type: string }
           examples: [["Призёру — 100 баллов вместо БВИ", "Порог ЕГЭ от 75 до 80 — зависит от программы"]]
+        directions:
+          type: array
+          description: |
+            На какие направления вуза эта льгота (F65): в вузах ученика — его направления (выбранные
+            в вузе или из цели); пусто — льгота вуза целиком. В строке «не учитывает» — направления,
+            на которые льготы нет.
+          items: { type: string }
+          examples: [["Программная инженерия"]]
+        other_directions:
+          type: array
+          description: Более слабые льготы на остальных направлениях ученика в этом вузе.
+          items: { $ref: "#/components/schemas/DirectionBenefit" }
+        unverified:
+          type: boolean
+          description: Льготы на направления ученика в вузе ещё уточняются — показана льгота вуза целиком.
+        varies:
+          type: boolean
+          description: Льгота или порог зависит от программы внутри направления.
+        directions_count:
+          type: integer
+          description: "«Где ещё даёт льготу»: на скольких направлениях вуза есть льгота."
+        directions_total:
+          type: integer
+          description: Сколько направлений у вуза в данных; 0 — данных по направлениям нет.
+
+    DirectionBenefit:
+      type: object
+      required: [benefit, benefit_label, directions]
+      properties:
+        benefit: { $ref: "#/components/schemas/BenefitKind" }
+        benefit_label: { type: string }
+        directions:
+          type: array
+          items: { type: string }
 
     Stage:
       type: object
@@ -1421,6 +1497,51 @@ components:
         id: { type: string, examples: ["napr-09-03-04"] }
         name: { type: string, examples: ["Программная инженерия"] }
 
+    DirectionOption:
+      allOf:
+        - $ref: "#/components/schemas/Direction"
+        - type: object
+          required: [code, groups, popular]
+          properties:
+            code: { type: string, examples: ["09.03.04"] }
+            groups:
+              type: array
+              description: Группы для выбора с поиском — «ИТ», «Экономика».
+              items: { type: string }
+            popular:
+              type: boolean
+              description: Одно из основных направлений — показывается чипом.
+
+    OfferedDirection:
+      type: object
+      required: [id, code, name, status, programs, budget_places, benefit_olympiads_count, is_mine, is_goal]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [offered, to_check]
+          description: to_check — льготы на направлении ещё уточняются.
+        programs: { type: integer }
+        budget_places: { type: [integer, "null"] }
+        benefit_olympiads_count:
+          type: integer
+          description: Сколько олимпиад дают льготу на это направление.
+        is_mine:
+          type: boolean
+          description: Ученик выбрал это направление в вузе.
+        is_goal:
+          type: boolean
+          description: Направление покрывает цель ученика.
+
+    TargetBasis:
+      type: string
+      enum: [chosen, goal, university]
+      description: |
+        На что смотрятся льготы в вузе: chosen — выбранные в вузе направления, goal — направления
+        вуза из цели, university — вуз целиком (ни выбора, ни совпадения с целью).
+
     UniversityListItem:
       type: object
       required: [id, short_name, name, city, benefit_olympiads_count, is_mine]
@@ -1437,15 +1558,58 @@ components:
           type: boolean
           description: Вуз входит в список ученика.
 
+    ProfileUniversity:
+      allOf:
+        - $ref: "#/components/schemas/UniversityListItem"
+        - type: object
+          required: [chosen_directions, target_basis, target_directions]
+          properties:
+            chosen_directions:
+              type: array
+              description: Направления, выбранные в этом вузе (F65); пусто — не выбирали.
+              items: { $ref: "#/components/schemas/Direction" }
+            target_basis: { $ref: "#/components/schemas/TargetBasis" }
+            target_directions:
+              type: array
+              description: На какие направления вуза смотрятся льготы; пусто при `university`.
+              items: { $ref: "#/components/schemas/Direction" }
+
     UniversityDetail:
       allOf:
         - $ref: "#/components/schemas/UniversityListItem"
         - type: object
-          required: [directions, ege_note, rules_url, rules_verified_at, description, site_url, olympiads]
+          required:
+            [
+              directions,
+              ege_note,
+              rules_url,
+              rules_verified_at,
+              description,
+              site_url,
+              olympiads,
+              offered_directions,
+              target_basis,
+              target_directions,
+              target_unverified,
+            ]
           properties:
             directions:
               type: array
+              deprecated: true
+              description: Устарело, вместо него `offered_directions`.
               items: { type: string }
+            offered_directions:
+              type: array
+              description: Направления вуза — выбранные первыми, за ними из цели, дальше по числу олимпиад (F65).
+              items: { $ref: "#/components/schemas/OfferedDirection" }
+            target_basis: { $ref: "#/components/schemas/TargetBasis" }
+            target_directions:
+              type: array
+              description: На какие направления вуза смотрятся льготы; пусто при `university`.
+              items: { $ref: "#/components/schemas/Direction" }
+            target_unverified:
+              type: boolean
+              description: Льготы на направления ученика в вузе ещё уточняются.
             ege_note:
               type: [string, "null"]
               examples: ["от 75 баллов по профильному предмету"]
@@ -1462,7 +1626,18 @@ components:
                 allOf:
                   - $ref: "#/components/schemas/Badge"
                   - type: object
-                    required: [olympiad_profile_id, name, level, benefit]
+                    required:
+                      [
+                        olympiad_profile_id,
+                        name,
+                        level,
+                        benefit,
+                        my_benefit,
+                        my_benefit_label,
+                        my_directions,
+                        directions_count,
+                        directions_total,
+                      ]
                     properties:
                       olympiad_profile_id: { type: string }
                       olympiad_id: { type: string }
@@ -1471,6 +1646,22 @@ components:
                       level: { $ref: "#/components/schemas/Level" }
                       benefit: { $ref: "#/components/schemas/BenefitKind" }
                       benefit_label: { type: string }
+                      my_benefit:
+                        description: Льгота на мои направления в этом вузе; null — на них льготы нет или она уточняется.
+                        oneOf:
+                          - $ref: "#/components/schemas/BenefitKind"
+                          - type: "null"
+                      my_benefit_label: { type: [string, "null"] }
+                      my_directions:
+                        type: array
+                        description: На какие из моих направлений `my_benefit`.
+                        items: { type: string }
+                      directions_count:
+                        type: integer
+                        description: На скольких направлениях вуза олимпиада даёт льготу.
+                      directions_total:
+                        type: integer
+                        description: Сколько направлений у вуза в данных.
 
     TrackerItem:
       allOf:
@@ -1787,7 +1978,7 @@ components:
         universities:
           type: array
           description: Может быть пустым — вузы выбирать не обязательно (F9).
-          items: { $ref: "#/components/schemas/UniversityListItem" }
+          items: { $ref: "#/components/schemas/ProfileUniversity" }
         other_member_names:
           type: array
           description: "Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь»."

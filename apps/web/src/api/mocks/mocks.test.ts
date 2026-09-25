@@ -2,7 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Profile, Tracker, TrackerItem } from '@contract'
+import type {
+  AiChat,
+  AiExchange,
+  AiMessage,
+  CalendarLink,
+  Home,
+  OlympiadDetail,
+  Profile,
+  Tracker,
+  TrackerItem,
+  UniversityDetail,
+} from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -25,6 +36,9 @@ beforeEach(() => {
   ]
   state.aiChats = []
   state.ai = []
+  state.universities = ['inno', 'kfu', 'hse']
+  state.directions = [{ id: 'dir-se', name: 'Программная инженерия' }]
+  state.chosen = {}
 })
 
 describe('диспетчер маршрутов', () => {
@@ -225,8 +239,55 @@ describe('карточка олимпиады', () => {
       detail.benefits.map(
         (r) => `${r.university_nick}: ${r.winner?.label} / ${r.prizer?.label} / ${r.ege_min}–${r.ege_max}`,
       ),
-    ).toEqual(['ВШЭ: БВИ / БВИ / 75–90', 'Иннополис: БВИ / БВИ / 75–null', 'КФУ: 100 баллов / 100 баллов / 75–null'])
+    ).toEqual([
+      'Иннополис: БВИ / БВИ / 75–null',
+      'ВШЭ: 100 баллов / 100 баллов / 75–90',
+      'КФУ: 100 баллов / 100 баллов / 75–null',
+    ])
     expect(detail.benefits.every((r) => r.conditions === undefined)).toBe(true)
+  })
+
+  // Льгота в моих вузах — на мои направления (F65): ВШЭ целиком даёт БВИ,
+  // а на Программную инженерию — 100 баллов, и это зависит от программы.
+  it('льгота в моём вузе — на направления цели, выбор в вузе важнее цели', async () => {
+    const row = async () =>
+      ((await handleMock('GET', '/olympiads/hse:inf')) as OlympiadDetail).benefits.find((r) => r.university_id === 'hse')!
+
+    expect(await row()).toMatchObject({ benefit: 'score100', directions: ['Программная инженерия'], varies: true })
+
+    const profile = (await handleMock('PUT', '/profile/universities/hse/directions', {
+      direction_ids: ['dir-se', 'dir-ami'],
+    })) as Profile
+    expect(profile.directions.map((d) => d.id)).toEqual(['dir-se', 'dir-ami'])
+    expect(profile.universities.find((u) => u.id === 'hse')).toMatchObject({
+      target_basis: 'chosen',
+      chosen_directions: [
+        { id: 'dir-se', name: 'Программная инженерия' },
+        { id: 'dir-ami', name: 'Прикладная математика и информатика' },
+      ],
+    })
+    expect(await row()).toMatchObject({
+      benefit: 'bvi',
+      directions: ['Прикладная математика и информатика'],
+      other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+    })
+
+    const uni = (await handleMock('GET', '/universities/hse')) as UniversityDetail
+    expect(uni.offered_directions.slice(0, 2).map((d) => [d.id, d.is_mine])).toEqual([
+      ['dir-ami', true],
+      ['dir-se', true],
+    ])
+    // Технокубок на ПИ не учитывается, на ПМИ — 100 баллов; всего 4 из 8 направлений.
+    expect(uni.olympiads.find((o) => o.olympiad_id === 'tk')).toMatchObject({
+      my_benefit: 'score100',
+      my_directions: ['Прикладная математика и информатика'],
+      directions_count: 4,
+      directions_total: 8,
+    })
+
+    await expect(
+      handleMock('PUT', '/profile/universities/inno/directions', { direction_ids: ['dir-bio'] }),
+    ).rejects.toMatchObject({ status: 400 })
   })
 
   it('БВИ только победителю — призёр получает 100 баллов, а не БВИ', async () => {

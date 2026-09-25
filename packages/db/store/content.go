@@ -279,18 +279,37 @@ type Direction struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
 	SubjectCodes []string `json:"subject_codes"`
+	Code         string   `json:"code"`
+	Groups       []string `json:"groups"`
+	// Onboarding — одно из шестнадцати основных: клавиатура бота и чипы цели.
+	Onboarding bool `json:"onboarding"`
 }
 
-// Directions — направления подготовки для выбора цели (F8).
+const directionColumns = `id, name, subject_codes, code, groups, onboarding`
+
+func scanDirection(r rowScanner) (Direction, error) {
+	var x Direction
+	return x, r.Scan(&x.ID, &x.Name, &x.SubjectCodes, &x.Code, &x.Groups, &x.Onboarding)
+}
+
+// Directions — основные направления для выбора цели в боте (F8): короткий
+// список клавиатуры. Все направления вузов — AllDirections.
 func (s *Store) Directions(ctx context.Context) ([]Direction, error) {
-	rows, err := s.db.Query(ctx, `SELECT id, name, subject_codes FROM directions ORDER BY name`)
+	rows, err := s.db.Query(ctx, `SELECT `+directionColumns+` FROM directions WHERE onboarding ORDER BY name`)
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return collect(rows, func(r rowScanner) (Direction, error) {
-		var x Direction
-		return x, r.Scan(&x.ID, &x.Name, &x.SubjectCodes)
-	})
+	return collect(rows, scanDirection)
+}
+
+// AllDirections — все направления подготовки, по которым есть программы в
+// вузах: выбор в карточке вуза и цель в профиле мини-приложения.
+func (s *Store) AllDirections(ctx context.Context) ([]Direction, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+directionColumns+` FROM directions ORDER BY name`)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, scanDirection)
 }
 
 // SuggestUniversities — вузы для шага «Вузы» онбординга (F9): в одном из
@@ -334,13 +353,13 @@ func placeFilter(places []Place) (regions, cities []string) {
 	return regions, cities
 }
 
-// DirectionsIn — id направлений, по которым есть программы в вузах мест
-// places, в порядке справочника.
+// DirectionsIn — id основных направлений, по которым есть программы в вузах
+// мест places, в порядке справочника: подсказка к клавиатуре бота.
 func (s *Store) DirectionsIn(ctx context.Context, places []Place) ([]string, error) {
 	regions, cities := placeFilter(places)
 	rows, err := s.db.Query(ctx, `
 		SELECT d.id FROM directions d
-		WHERE EXISTS (SELECT 1 FROM universities u
+		WHERE d.onboarding AND EXISTS (SELECT 1 FROM universities u
 		              WHERE d.name = ANY(u.directions)
 		                AND (cardinality($1::text[]) + cardinality($2::text[]) = 0
 		                     OR u.region_code = ANY($1::text[]) OR u.city = ANY($2::text[])))

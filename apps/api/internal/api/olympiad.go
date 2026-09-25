@@ -73,6 +73,22 @@ type benefitRow struct {
 	EgeMax              *int          `json:"ege_max"`
 	// Conditions — своё у вуза в карточке олимпиады (F19); в других списках пусто.
 	Conditions []string `json:"conditions,omitempty"`
+	// Льгота в моих вузах — на мои направления (F65): на какие направления
+	// вуза (пусто — вуз целиком), более слабые льготы на остальных, «уточняется».
+	Directions      []string              `json:"directions"`
+	OtherDirections []directionBenefitDTO `json:"other_directions"`
+	Unverified      bool                  `json:"unverified"`
+	Varies          bool                  `json:"varies"`
+	// «Где ещё даёт льготу»: на скольких направлениях вуза (0 из 0 — данных
+	// по направлениям нет).
+	DirectionsCount int `json:"directions_count"`
+	DirectionsTotal int `json:"directions_total"`
+}
+
+type directionBenefitDTO struct {
+	Benefit      string   `json:"benefit"`
+	BenefitLabel string   `json:"benefit_label"`
+	Directions   []string `json:"directions"`
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
@@ -83,6 +99,12 @@ func benefitRowOf(b store.BenefitRow) benefitRow {
 		City: b.City, Benefit: &benefit, BenefitLabel: &label, ExtraPoints: b.ExtraPoints, EgeMin: b.EgeMin,
 		DiplomaGrades: b.DiplomaGrades, Note: b.Note, Source: sourceOf(b.Source),
 		UniversityNick: nick(b.UniversityID, b.UniversityShort), Winner: winner, Prizer: prizer,
+		Directions: orEmpty(b.DirectionNames), OtherDirections: []directionBenefitDTO{},
+		Unverified: b.Unverified, Varies: b.Varies,
+	}
+	for _, o := range b.OtherDirections {
+		row.OtherDirections = append(row.OtherDirections, directionBenefitDTO{
+			Benefit: o.Benefit, BenefitLabel: benefitLabels[o.Benefit], Directions: o.Names})
 	}
 	if _, to, ok := egeRange(b.Note); ok {
 		if n, err := strconv.Atoi(to); err == nil {
@@ -184,9 +206,22 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, u := range cs.Universities {
 		own[u.ID] = true
 	}
+	var others []string
 	for _, b := range all {
 		if !own[b.UniversityID] {
-			out.BenefitUniversities = append(out.BenefitUniversities, benefitRowOf(b))
+			others = append(others, b.UniversityID)
+		}
+	}
+	cov, err := s.store.DirectionCoverage(ctx, []string{p.ID}, others)
+	if err != nil {
+		return err
+	}
+	for _, b := range all {
+		if !own[b.UniversityID] {
+			row := benefitRowOf(b)
+			c := cov[p.ID+"/"+b.UniversityID]
+			row.DirectionsCount, row.DirectionsTotal = c.Count, c.Total
+			out.BenefitUniversities = append(out.BenefitUniversities, row)
 		}
 	}
 
@@ -221,6 +256,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		out.Benefits = append(out.Benefits, benefitRow{
 			UniversityID: u.ID, UniversityName: u.Name, UniversityShortName: u.ShortName, City: u.City,
 			UniversityNick: nick(u.ID, u.ShortName),
+			Directions:     orEmpty(cs.Targets[u.ID].DirectionNames), OtherDirections: []directionBenefitDTO{},
 		})
 	}
 	if out.Benefits == nil {

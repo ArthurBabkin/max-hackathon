@@ -88,6 +88,8 @@ export interface DemoState {
   home_city: string | null
   subjects: string[]
   universities: string[]
+  /** Направления, выбранные в вузе (F65): id вуза → id направлений. */
+  chosen: Record<string, string[]>
   members: DemoMember[]
   tracker: DemoTrackerItem[]
   proposals: DemoProposal[]
@@ -119,6 +121,7 @@ export const state: DemoState = {
   home_city: 'Казань',
   subjects: ['inf', 'math'],
   universities: ['inno', 'kfu', 'hse'],
+  chosen: {},
 
   // Траекторию создала Ольга, Артём подключился по ссылке — сценарий из ТЗ §14.
   members: [

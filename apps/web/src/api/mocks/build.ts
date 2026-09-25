@@ -3,6 +3,7 @@
 import {
   BENEFIT_LABELS,
   NO_BENEFIT_LABEL,
+  type BenefitKind,
   type BenefitColumn,
   type BenefitGrant,
   type BenefitRow,
@@ -15,8 +16,10 @@ import {
   type OlympiadCard,
   type OlympiadDetail,
   type OlympiadListItem,
+  type OfferedDirection,
   type Profile,
   type ProfileLevel,
+  type ProfileUniversity,
   type Proposal,
   type Session,
   type Source,
@@ -42,6 +45,7 @@ import {
   inDays,
 } from './fixtures'
 import { progressFields, type MockProgress, type MockStage } from './progress'
+import { coverage, directionById, isGoal, nameOf, onDirection, targetBenefit, targetOf } from './targets'
 import {
   findProfile,
   hasKid,
@@ -83,8 +87,11 @@ const BVI: BenefitGrant = { kind: 'bvi', label: BENEFIT_LABELS.bvi }
 const SCORE100: BenefitGrant = { kind: 'score100', label: BENEFIT_LABELS.score100 }
 
 /** Что получат победитель и призёр — как на сервере (F18). */
-function grants(university: DemoUniversity, olympiadId: string): Pick<BenefitRow, 'winner' | 'prizer'> {
-  const benefit = university.benefits[olympiadId]
+function grants(
+  university: DemoUniversity,
+  olympiadId: string,
+  benefit: BenefitKind | null,
+): Pick<BenefitRow, 'winner' | 'prizer'> {
   const rule = university.rules?.[olympiadId]
   if (!benefit) return { winner: null, prizer: null }
   if (benefit === 'extra_points') {
@@ -99,8 +106,28 @@ function grants(university: DemoUniversity, olympiadId: string): Pick<BenefitRow
   return { winner, prizer: benefit === 'bvi_winners' ? null : winner }
 }
 
-function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow {
-  const benefit = university.benefits[olympiadId] ?? null
+/** Строка льготы в моём вузе — на мои направления (F65), как TargetBenefits. */
+function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRow {
+  const tb = targetBenefit(university, olympiadId)
+  const whole = benefitRow(university, olympiadId)
+  const row: BenefitRow = {
+    ...(tb.benefit === null ? noBenefit(university) : benefitRow(university, olympiadId, tb.benefit)),
+    directions: tb.names,
+    other_directions: tb.others.map((o) => ({ benefit: o.benefit, benefit_label: BENEFIT_LABELS[o.benefit], directions: o.names })),
+    unverified: tb.unverified,
+    varies: tb.varies,
+  }
+  // Разброс порога — от программ; на направлении с одной программой его нет.
+  if (tb.basis !== 'university' && tb.benefit !== whole.benefit && !tb.varies) row.ege_max = null
+  return row
+}
+
+function noBenefit(university: DemoUniversity): BenefitRow {
+  return { ...benefitRow(university, ''), source: null }
+}
+
+function benefitRow(university: DemoUniversity, olympiadId: string, override?: BenefitKind): BenefitRow {
+  const benefit = override ?? university.benefits[olympiadId] ?? null
   const kind = OLYMPIADS.find((o) => o.id === olympiadId)?.kind
   return {
     university_id: university.id,
@@ -111,7 +138,7 @@ function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow 
     color: university.color,
     benefit,
     benefit_label: benefit ? BENEFIT_LABELS[benefit] : NO_BENEFIT_LABEL,
-    ...grants(university, olympiadId),
+    ...grants(university, olympiadId, benefit),
     extra_points: benefit === 'extra_points' ? EXTRA_POINTS : null,
     // У ВсОШ льготу ЕГЭ не подтверждают — порога нет.
     ege_min: benefit && benefit !== 'extra_points' && kind !== 'vsosh' ? DEFAULT_EGE_MIN : null,
@@ -119,6 +146,11 @@ function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow 
     diploma_grades: benefit ? [9, 10, 11] : null,
     note: null,
     source: benefit ? (SOURCES.rules as Source) : null,
+    directions: [],
+    other_directions: [],
+    unverified: false,
+    varies: false,
+    ...coverage(university, olympiadId),
   }
 }
 
@@ -150,7 +182,7 @@ function benefitsSummary(olympiadId: string): string {
   const rows = state.universities
     .map(universityById)
     .filter((u): u is DemoUniversity => u !== null)
-    .map((u) => ({ nick: u.nick, benefit: u.benefits[olympiadId] }))
+    .map((u) => ({ nick: u.nick, benefit: targetBenefit(u, olympiadId).benefit }))
     .filter((r) => r.benefit)
 
   if (rows.length === 0) return t('match.noBenefits')
@@ -270,7 +302,7 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
       .filter((u): u is DemoUniversity => u !== null)
       .map((u) => {
         const notes = u.rules?.[o.id]?.notes
-        return notes ? { ...benefitRow(u, o.id), conditions: notes } : benefitRow(u, o.id)
+        return notes ? { ...myBenefitRow(u, o.id), conditions: notes } : myBenefitRow(u, o.id)
       }),
   )
 
@@ -333,10 +365,54 @@ export function universityListItem(u: DemoUniversity): UniversityListItem {
   }
 }
 
-export function universityDetail(u: DemoUniversity): UniversityDetail {
+/** Мой вуз в профиле: на какие направления смотрятся льготы (F65). */
+function profileUniversity(u: DemoUniversity): ProfileUniversity {
+  const t = targetOf(u)
+  const target = t.ids.map((id) => ({ id, name: nameOf(id) }))
   return {
     ...universityListItem(u),
-    directions: u.directions,
+    chosen_directions: t.basis === 'chosen' ? target : [],
+    target_basis: t.basis,
+    target_directions: target,
+  }
+}
+
+function offeredDirections(u: DemoUniversity): OfferedDirection[] {
+  const chosen = state.chosen[u.id] ?? []
+  const out = u.offered.map((o) => ({
+    id: o.id,
+    code: directionById(o.id)?.code ?? '',
+    name: nameOf(o.id),
+    status: o.status ?? ('offered' as const),
+    programs: o.programs,
+    budget_places: o.budget_places,
+    benefit_olympiads_count: Object.keys(u.benefits).filter((id) => onDirection(u, id, o.id) !== null).length,
+    is_mine: chosen.includes(o.id),
+    is_goal: isGoal(o.id),
+  }))
+  const rank = (d: OfferedDirection) => (d.is_mine ? 0 : d.is_goal ? 1 : 2)
+  return out.sort((a, b) => rank(a) - rank(b) || b.benefit_olympiads_count - a.benefit_olympiads_count)
+}
+
+function myBenefit(u: DemoUniversity, olympiadId: string) {
+  const tb = targetBenefit(u, olympiadId)
+  const benefit = tb.unverified || tb.benefit === 'extra_points' ? null : tb.benefit
+  return {
+    my_benefit: benefit,
+    my_benefit_label: benefit ? BENEFIT_LABELS[benefit] : null,
+    my_directions: benefit ? tb.names : [],
+  }
+}
+
+export function universityDetail(u: DemoUniversity): UniversityDetail {
+  const t = targetOf(u)
+  return {
+    ...universityListItem(u),
+    directions: u.offered.map((o) => nameOf(o.id)),
+    offered_directions: offeredDirections(u),
+    target_basis: t.basis,
+    target_directions: t.ids.map((id) => ({ id, name: nameOf(id) })),
+    target_unverified: t.unverified,
     ege_note: u.ege_note,
     rules_url: u.rules_url,
     description: null,
@@ -356,6 +432,8 @@ export function universityDetail(u: DemoUniversity): UniversityDetail {
           level: primary.level,
           benefit,
           benefit_label: BENEFIT_LABELS[benefit],
+          ...myBenefit(u, o.id),
+          ...coverage(u, o.id),
         },
       ]
     }),
@@ -489,7 +567,7 @@ export function profile(): Profile {
     universities: state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
-      .map(universityListItem),
+      .map(profileUniversity),
     other_member_names: state.members.filter((m) => m.id !== state.viewerId).map((m) => m.name),
   }
 }
