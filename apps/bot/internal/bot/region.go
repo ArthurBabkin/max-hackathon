@@ -55,10 +55,15 @@ func placeOption(m refdata.Match) store.PlaceOption {
 }
 
 // foundMessage — «Казань → Татарстан ✓» с кнопкой «Не то, выбрать другой».
-func foundMessage(v voice.Voice, regionCode, city string) maxapi.NewMessage {
+// Кнопка — только если диалог перешёл к предметам: при правке из карточки
+// профиля он уже вернулся к профилю, и «Не то» было бы устаревшим.
+func foundMessage(v voice.Voice, d store.Dialog, regionCode, city string) maxapi.NewMessage {
 	text := v.T("bot.region.foundRegion", voice.Vars{"region": regionName(regionCode)})
 	if city != "" {
 		text = v.T("bot.region.found", voice.Vars{"place": city, "region": refdata.Short(regionCode)})
+	}
+	if d.Step != stepSubjects {
+		return maxapi.Text(text)
 	}
 	return maxapi.WithKeyboard(text, maxapi.Keyboard{maxapi.Row(
 		maxapi.CallbackButton(v.T("bot.region.change", nil), "region:change"))})
@@ -133,7 +138,7 @@ func (b *Bot) regionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Mess
 			setRegion(d, picked.RegionCode, picked.City)
 			return nil
 		}, func(d store.Dialog) error {
-			_, err := b.send(t, foundMessage(dialogVoice(t, d), picked.RegionCode, picked.City))
+			_, err := b.send(t, foundMessage(dialogVoice(t, d), d, picked.RegionCode, picked.City))
 			return err
 		})
 	case "skip":
@@ -179,7 +184,7 @@ func (b *Bot) regionText(t *turn, d store.Dialog, text string) error {
 	matches := refdata.Search(text, 0)
 	if len(matches) == 1 && !matches[0].Fuzzy {
 		m := matches[0]
-		d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+		d, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 			if err := expect(d, stepRegion); err != nil {
 				return err
 			}
@@ -189,7 +194,7 @@ func (b *Bot) regionText(t *turn, d store.Dialog, text string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := b.send(t, foundMessage(v, m.RegionCode, m.City)); err != nil {
+		if _, err := b.send(t, foundMessage(v, d, m.RegionCode, m.City)); err != nil {
 			return err
 		}
 		return b.ask(t, d)
@@ -201,7 +206,7 @@ func (b *Bot) regionText(t *turn, d store.Dialog, text string) error {
 	if len(matches) > 0 && matches[0].Fuzzy {
 		options = options[:1] // переспрашиваем про лучший вариант
 	}
-	if _, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	if _, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepRegion); err != nil {
 			return err
 		}
@@ -241,7 +246,7 @@ func (b *Bot) regionText(t *turn, d store.Dialog, text string) error {
 // ближе 30 км; координаты не храним. Найденное можно поправить кнопкой «Не то».
 func (b *Bot) location(t *turn, lat, lon float64) error {
 	code, city := refdata.Locate(lat, lon)
-	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepRegion); err != nil {
 			return err
 		}
@@ -254,7 +259,7 @@ func (b *Bot) location(t *turn, lat, lon float64) error {
 	if err != nil {
 		return err
 	}
-	if _, err := b.send(t, foundMessage(dialogVoice(t, d), code, city)); err != nil {
+	if _, err := b.send(t, foundMessage(dialogVoice(t, d), d, code, city)); err != nil {
 		return err
 	}
 	return b.ask(t, d)

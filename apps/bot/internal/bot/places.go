@@ -191,7 +191,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		found = append(found, o)
 	}
 	single := len(matches) == 1 && !matches[0].Fuzzy
-	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepTarget); err != nil {
 			return err
 		}

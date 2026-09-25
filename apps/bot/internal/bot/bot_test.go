@@ -188,6 +188,28 @@ func (h *harness) toDirections(subjects ...string) {
 	h.press(artem, "subj:done")
 }
 
+// toSummary — ученик из Казани (информатика, программная инженерия,
+// школьный этап, Татарстан, без вузов) до карточки профиля.
+func (h *harness) toSummary() {
+	h.t.Helper()
+	h.toDirections("inf")
+	h.press(artem, "dir:t:napr-09-03-04")
+	h.press(artem, "dir:done")
+	h.press(artem, "exp:school")
+	h.press(artem, "place:t:1")
+	h.press(artem, "place:done")
+	h.press(artem, "vuz:done")
+	h.mustContain(artem, "**Артём, сформировали твой профиль**")
+}
+
+// edit открывает меню правки и выбирает поле.
+func (h *harness) edit(field string) {
+	h.t.Helper()
+	h.press(artem, "sum:edit")
+	// Меню — на той же карточке, в последнем сообщении его нет.
+	h.pressAny(artem, "sum:f:"+field, "профиль")
+}
+
 // kidOnboarding проходит онбординг ученика целиком (ТЗ §5.1, SPEC 3–9).
 func (h *harness) kidOnboarding() store.Member {
 	h.t.Helper()
@@ -234,6 +256,18 @@ func (h *harness) kidOnboarding() store.Member {
 		h.t.Fatalf("поиск по алиасу: %q", got)
 	}
 	h.press(artem, "vuz:done")
+	// Профиль на подтверждение: траектории до «Готово» ещё нет (SPEC 9).
+	if _, err := h.st.CurrentMember(context.Background(), artem.UserID); err == nil {
+		h.t.Fatal("траектория создана до «Готово»")
+	}
+	summary := h.fake.Last(artem.UserID)
+	if summary.Text != "**Артём, сформировали твой профиль**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
+		"Цель: программная инженерия, информатика и вычислительная техника\nОпыт: школьный или муниципальный этап\n"+
+		"Где учиться: Татарстан\nВузы: Иннополис, ВШЭ\n\nВсё верно? Если нужно поправить — нажми «Изменить»." ||
+		summary.Format != "markdown" || !slices.Equal(maxtest.Payloads(summary), []string{"sum:edit", "sum:ok"}) {
+		h.t.Fatalf("профиль: %q (%s) %v", summary.Text, summary.Format, maxtest.Payloads(summary))
+	}
+	h.press(artem, "sum:ok")
 	m, err := h.st.CurrentMember(context.Background(), artem.UserID)
 	if err != nil {
 		h.t.Fatalf("траектория создана: %v", err)
@@ -254,23 +288,18 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 		!slices.Equal(tr.Places, []store.Place{{RegionCode: "16"}}) || tr.GoalByKid {
 		t.Fatalf("траектория: %+v", tr)
 	}
-	summary := h.sentBack(artem, 1)
-	if summary.Text != "**Профиль готов, Артём**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
-		"Цель: программная инженерия, информатика и вычислительная техника\nОпыт: школьный или муниципальный этап\n"+
-		"Где учиться: Татарстан\nВузы: ВШЭ, Иннополис" || summary.Format != "markdown" {
-		t.Fatalf("профиль: %q (%s)", summary.Text, summary.Format)
-	}
-	if kb := summary.Keyboard(); kb[0][0].Type != "open_app" || kb[0][0].Text != "Изменить" || kb[0][0].Payload != "profile" {
-		t.Fatalf("кнопка профиля: %+v", kb)
+	// После «Готово» — только итог: профиль уже был на подтверждении.
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**") {
+		t.Fatalf("перед итогом — карточка профиля: %q", s)
 	}
 	result := h.fake.Last(artem.UserID)
-	if !strings.HasPrefix(result.Text, "Под твою цель подходят ") || !strings.Contains(result.Text, "\n\nДля старта советую эту:\n") ||
-		!strings.Contains(result.Text, " уровень · до ") || !strings.HasSuffix(result.Text, "В мини-приложении — льготы в твоих вузах, источники и трекер сроков.") {
+	if result.Text != "Подобрали 7 олимпиад под тебя." {
 		t.Fatalf("итог: %q", result.Text)
 	}
+	// Одна кнопка: приложение на главной, где новичку покажут обучение.
 	kb := result.Keyboard()
-	if kb[0][0].Type != "open_app" || kb[0][0].ContactID != 42 || kb[0][0].Payload != "match" || kb[0][0].Text != "Открыть подборку" ||
-		kb[1][0].Payload != "rem:on" || kb[2][0].Payload != "inv:new" || kb[2][0].Text != "👋 Пригласить родителя" {
+	if len(kb) != 1 || len(kb[0]) != 1 || kb[0][0].Type != "open_app" || kb[0][0].ContactID != 42 ||
+		kb[0][0].Payload != "home" || kb[0][0].Text != "Открыть «Траекторию»" {
 		t.Fatalf("кнопки итога: %s", maxtest.Buttons(result))
 	}
 	d := h.dialog(artem)
@@ -350,6 +379,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.press(olga, "place:any")
 	h.mustContain(olga, "Вот вузы в этих местах. Отметьте, куда хочет поступать Артём")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	m, _ := h.st.CurrentMember(context.Background(), olga.UserID)
 	if m.Role != "parent" || !m.IsCreator || m.HasKid {
@@ -360,16 +390,16 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 		t.Fatalf("цель не выбрана, место не важно: %+v", tr)
 	}
 	summary := h.sentBack(olga, 1).Text
-	if summary != "**Профиль Артёма готов**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
-		"Опыт: первые олимпиады\nГде учиться: не важно\nВузы: не выбраны" {
+	if summary != "**Ольга, сформировали профиль Артёма**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
+		"Опыт: первые олимпиады\nГде учиться: не важно\nВузы: не выбраны\n\nВсё верно? Если нужно поправить — нажмите «Изменить»." {
 		t.Fatalf("профиль родителю: %q", summary)
 	}
 	result := h.fake.Last(olga.UserID)
-	if !strings.HasPrefix(result.Text, "По предметам Артёма подход") {
+	if !strings.HasPrefix(result.Text, "Подобрали ") || !strings.HasSuffix(result.Text, " по предметам Артёма.") {
 		t.Fatalf("итог родителю: %q", result.Text)
 	}
-	if kb := result.Keyboard(); kb[2][0].Text != "👋 Пригласить Артёма" {
-		t.Fatalf("третья кнопка родителя: %s", maxtest.Buttons(result))
+	if p := maxtest.Payloads(result); !slices.Equal(p, []string{"home"}) {
+		t.Fatalf("у родителя одна кнопка: %s", maxtest.Buttons(result))
 	}
 }
 
@@ -498,11 +528,12 @@ func TestRegion_SkipCreatesTrajectory(t *testing.T) {
 	}
 	h.press(artem, "place:any")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	if tr.RegionCode != "" || tr.TZ != "Europe/Moscow" || tr.HomeCity != nil {
 		t.Fatalf("траектория без региона: %+v", tr)
 	}
-	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Профиль готов, Артём**\nКласс: 9\nПредметы: информатика\n") {
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**\nКласс: 9\nПредметы: информатика\n") {
 		t.Fatalf("профиль: %q", s)
 	}
 }
@@ -576,6 +607,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 	h.press(artem, "exp:none")
 	h.press(artem, "place:any")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	if tr.GoalStatus != "suggested" || len(tr.Directions) != 2 || tr.Directions[0].ID != "napr-09-03-04" ||
 		tr.Directions[1].ID != "napr-01-03-02" {
@@ -621,6 +653,7 @@ func TestDirectionHelp_ParentStillUndecided(t *testing.T) {
 	h.press(olga, "place:t:0")
 	h.press(olga, "place:done")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	if tr.GoalStatus != "exploring" || len(tr.Directions) != 0 || tr.Experience != "region" ||
 		!slices.Equal(tr.Places, []store.Place{{RegionCode: "77"}}) {
@@ -654,6 +687,7 @@ func TestTarget_AddPlacesByText(t *testing.T) {
 	h.pressAny(artem, "place:done", "")
 	h.mustContain(artem, "Вот вузы в этих местах.")
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	if tr := h.trajectory(artem); !slices.Equal(tr.Places, []store.Place{{RegionCode: "16", City: "Иннополис"}, {RegionCode: "39", City: "Советск"}}) {
 		t.Fatalf("места: %+v", tr.Places)
 	}
@@ -761,6 +795,7 @@ func TestUniversities_AddNearbyAndAllDirections(t *testing.T) {
 		t.Fatalf("добавлен ближайший вуз: %+v", a.Message)
 	}
 	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
 	tr := h.trajectory(artem)
 	unis, _ := h.st.TrajectoryUniversities(context.Background(), tr.ID)
 	if len(unis) != 1 || unis[0].ID != "itmo" ||
@@ -789,6 +824,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	h.press(olga, "exp:none")
 	h.press(olga, "place:any")
 	h.press(olga, "vuz:done")
+	h.press(olga, "sum:ok")
 	tr := h.trajectory(olga)
 	if !tr.GoalByKid || len(tr.Directions) != 0 {
 		t.Fatalf("цель ждёт ребёнка: %+v", tr)
@@ -826,7 +862,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 		t.Fatalf("цель выбрана ребёнком: %+v", tr)
 	}
 	h.mustContain(olga, "Артём: цель выбрана — лечебное дело")
-	h.mustContain(artem, "Отлично! Под твою цель подход")
+	h.mustContain(artem, "Отлично! Подобрали ")
 }
 
 func TestSuggestDirections(t *testing.T) {
@@ -921,7 +957,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	}
 	h.text(olga, "/menu")
 	h.fake.Sent = append(h.fake.Sent, maxtest.Sent{UserID: olga.UserID, Msg: maxapi.WithKeyboard("итог",
-		h.bot.resultKeyboard(mustVoice(h, olga, parent), parent, store.Trajectory{}, false))})
+		maxapi.Keyboard{maxapi.Row(maxapi.CallbackButton("👋", "inv:new"))})})
 	h.press(olga, "inv:new")
 	link := h.lastText(olga)
 	if !strings.HasPrefix(link, "Перешлите Артёму эту ссылку в MAX.") || !strings.Contains(link, "https://max.ru/test_bot?start=inv_") {
@@ -938,7 +974,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 		t.Fatalf("пригласившему: %q", got)
 	}
 	h.press(artem, "join:ok")
-	h.mustContain(artem, "Отлично! Под твою цель подход")
+	h.mustContain(artem, "Отлично! Подобрали ")
 	m, _ := h.st.CurrentMember(context.Background(), artem.UserID)
 	if m.TrajectoryID != parent.TrajectoryID || m.Role != "kid" || m.IsCreator {
 		t.Fatalf("ученик в траектории Ольги: %+v", m)
@@ -976,7 +1012,7 @@ func TestInvite_KidChangesGoal(t *testing.T) {
 	if len(tr.Directions) != 2 || tr.Directions[1].ID != "napr-01-03-02" || tr.GoalStatus != "known" {
 		t.Fatalf("цель после правки: %+v", tr.Directions)
 	}
-	h.mustContain(artem, "Под твою цель подход")
+	h.mustContain(artem, "Подобрали ")
 }
 
 func ptr(s string) *string { return &s }
@@ -1044,7 +1080,8 @@ func TestSettings_ToggleOffsets(t *testing.T) {
 func TestRemindOn_FillsEmptyTrackerAndPlans(t *testing.T) {
 	h := newHarness(t)
 	m := h.kidOnboarding()
-	h.press(artem, "rem:on")
+	// Кнопка из итога прежних версий: в новом итоге её нет.
+	h.pressAny(artem, "rem:on", "итог")
 	h.mustContain(artem, "Буду напоминать за месяц, неделю, 3 дня и 1 день до каждого срока.")
 	h.mustContain(artem, "Добавил в трекер олимпиады из подборки: 7 олимпиад.")
 	items, _ := h.st.TrackerItems(context.Background(), m.TrajectoryID)
@@ -1142,5 +1179,111 @@ func TestMultiselectDoneKeepsPicked(t *testing.T) {
 	if a.Message == nil || !strings.Contains(maxtest.Buttons(*a.Message), "✓ Иннополис") ||
 		!strings.Contains(maxtest.Buttons(*a.Message), "✓ КФУ · Казань") || strings.Contains(maxtest.Buttons(*a.Message), "Готово") {
 		t.Fatalf("вузы после «Готово»: %+v", a.Message)
+	}
+}
+
+// «Изменить» открывает меню на той же карточке, «Назад» закрывает (SPEC 9).
+func TestSummary_EditMenuAndBack(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	n := len(h.fake.To(artem.UserID))
+	a := h.answered(h.press(artem, "sum:edit"))
+	if a.Message == nil || !strings.HasSuffix(a.Message.Text, "\n\nЧто поменять?") || a.Message.Format != "markdown" ||
+		!slices.Equal(maxtest.Payloads(*a.Message), []string{"sum:f:name", "sum:f:grade", "sum:f:region", "sum:f:subjects",
+			"sum:f:goal", "sum:f:exp", "sum:f:places", "sum:f:vuz", "sum:back"}) {
+		t.Fatalf("меню правки: %+v", a.Message)
+	}
+	a = h.answered(h.pressAny(artem, "sum:back", "профиль"))
+	if a.Message == nil || !slices.Equal(maxtest.Payloads(*a.Message), []string{"sum:edit", "sum:ok"}) {
+		t.Fatalf("«Назад»: %+v", a.Message)
+	}
+	if len(h.fake.To(artem.UserID)) != n {
+		t.Fatal("меню правится на месте, новых сообщений нет")
+	}
+}
+
+// Правка класса: вопрос без счётчика и приветствия, затем снова профиль;
+// траектория создаётся с новым классом только по «Готово».
+func TestSummary_EditGrade(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("grade")
+	if got := h.lastText(artem); got != "В каком ты классе?" {
+		t.Fatalf("вопрос при правке: %q", got)
+	}
+	h.press(artem, "grade:10")
+	h.mustContain(artem, "**Артём, сформировали твой профиль**\nКласс: 10 · Казань\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.EditStage != 0 || d.Draft.RegionCode != "16" {
+		t.Fatalf("после правки — профиль, регион прежний: %+v", d)
+	}
+	h.press(artem, "sum:ok")
+	if tr := h.trajectory(artem); tr.Grade != 10 || len(tr.Directions) != 1 {
+		t.Fatalf("траектория: %+v", tr)
+	}
+}
+
+// «Помоги выбрать» при правке направлений проходит целиком — это тот же шаг.
+func TestSummary_EditDirectionsWithHelp(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("goal")
+	if got := h.lastText(artem); !strings.HasPrefix(got, "Куда думаешь поступать?") {
+		t.Fatalf("вопрос без счётчика: %q", got)
+	}
+	h.press(artem, "dir:help")
+	h.press(artem, "int:t:code")
+	h.press(artem, "int:done")
+	h.press(artem, "work:build")
+	h.mustContain(artem, "Похоже, тебе подойдут эти направления.")
+	h.press(artem, "dir:done")
+	h.mustContain(artem, " · подобрали вместе\nОпыт: школьный или муниципальный этап\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.Experience != "school" {
+		t.Fatalf("опыт не спрашивали заново: %+v", d)
+	}
+}
+
+// Регион при правке: без кнопки «Не то», сразу профиль.
+func TestSummary_EditRegion(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("region")
+	h.text(artem, "Москва")
+	if found := h.sentBack(artem, 1); found.Text != "Москва ✓" || len(found.Keyboard()) != 0 {
+		t.Fatalf("найдено: %q %v", found.Text, maxtest.Payloads(found))
+	}
+	h.mustContain(artem, "Класс: 9 · Москва\n")
+	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.RegionCode != "77" || d.Draft.HomeCity != "" {
+		t.Fatalf("регион: %+v", d)
+	}
+}
+
+// Вузы: «Изменить места» — шаг назад, правка продолжается до «Готово» вузов.
+func TestSummary_EditUniversitiesViaPlaces(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.edit("vuz")
+	h.press(artem, "vuz:places")
+	if d := h.dialog(artem); d.Step != stepTarget || d.Draft.EditStage != 9 {
+		t.Fatalf("места при правке вузов: %+v", d)
+	}
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:t:mipt")
+	h.press(artem, "vuz:done")
+	h.mustContain(artem, "Где учиться: не важно\nВузы: МФТИ\n")
+}
+
+// «Готово» из старой карточки после создания траектории ничего не меняет.
+func TestSummary_StaleDone(t *testing.T) {
+	h := newHarness(t)
+	h.toSummary()
+	h.press(artem, "sum:ok")
+	id := h.pressAny(artem, "sum:ok", "профиль")
+	if a := h.answered(id); a.Notification == "" {
+		t.Fatalf("старая кнопка: %+v", a)
+	}
+	var n int
+	_ = h.db.QueryRow(context.Background(), `SELECT count(*) FROM trajectories`).Scan(&n)
+	if n != 1 {
+		t.Fatalf("траекторий: %d", n)
 	}
 }

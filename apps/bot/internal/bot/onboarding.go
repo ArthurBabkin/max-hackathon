@@ -37,7 +37,10 @@ const (
 	stepUniSearch     = "university_search"
 	stepJoinConfirm   = "join_confirm"
 	stepJoinDirection = "join_direction"
-	stepDone          = "done"
+	// stepSummary — профиль на подтверждение: траектории ещё нет, «Готово»
+	// создаёт её, «Изменить» возвращает к нужному вопросу.
+	stepSummary = "summary"
+	stepDone    = "done"
 )
 
 // multiSelect — шаги, где «Готово» оставляет у вопроса отмеченное.
@@ -81,10 +84,11 @@ var stepNumbers = map[string]int{
 const stepsTotal = 9
 
 // withStep ставит «Шаг N из M» первой строкой вопроса. У приглашённого
-// ученика своя короткая анкета, счётчика там нет.
+// ученика своя короткая анкета, счётчика там нет; при правке из карточки
+// профиля — тоже.
 func withStep(v voice.Voice, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMessage {
 	n, ok := stepNumbers[d.Step]
-	if !ok || d.Draft.Joined {
+	if !ok || d.Draft.Joined || d.Draft.EditStage > 0 {
 		return msg
 	}
 	msg.Text = maxapi.Truncate(v.T("bot.step", voice.Vars{"count": n, "total": stepsTotal})+"\n\n"+msg.Text, maxapi.MaxTextLen)
@@ -119,7 +123,12 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		for g := 8; g <= 11; g++ {
 			row = append(row, cb(strconv.Itoa(g), "grade:"+strconv.Itoa(g)))
 		}
-		return maxapi.WithKeyboard(v.T("bot.grade.ask", nil), maxapi.Keyboard{row}), nil
+		ask := "bot.grade.ask"
+		if d.Draft.EditStage > 0 {
+			// Правка из карточки профиля: знакомились уже.
+			ask = "bot.grade.askAgain"
+		}
+		return maxapi.WithKeyboard(v.T(ask, nil), maxapi.Keyboard{row}), nil
 	case stepRegion:
 		return regionPrompt(v, d), nil
 	case stepSubjects:
@@ -147,6 +156,8 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		return b.universitiesPrompt(t, v, d)
 	case stepJoinConfirm:
 		return b.joinCheck(t, d)
+	case stepSummary:
+		return b.summaryPrompt(t, v, d)
 	}
 	return maxapi.NewMessage{}, errors.New("bot: у шага нет вопроса: " + d.Step)
 }
@@ -315,7 +326,7 @@ func (b *Bot) transitionSay(t *turn, cb *maxapi.Callback, question *maxapi.Messa
 	if err != nil {
 		return err
 	}
-	after, err := b.store.UpdateDialog(t.ctx, t.userID, apply)
+	after, err := b.updateDialog(t, apply)
 	var notNow errNotNow
 	switch {
 	case errors.Is(err, store.ErrStale):
@@ -520,6 +531,8 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		return true, b.staleDialog(t, cb)
 	case "vuz":
 		return true, b.universityCallback(t, cb, question, arg(0), arg(1))
+	case "sum":
+		return true, b.summaryCallback(t, cb, question, arg(0), arg(1))
 	}
 	return false, nil
 }
@@ -778,7 +791,7 @@ func (b *Bot) freeText(t *turn, text string) error {
 		if n := utf8.RuneCountInString(name); n < 1 || n > 40 {
 			return b.say(t, dialogVoice(t, d).T("bot.name.invalid", nil))
 		}
-		d, err = b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+		d, err = b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 			if err := expect(d, stepNameInput); err != nil {
 				return err
 			}

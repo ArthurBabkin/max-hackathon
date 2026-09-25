@@ -5,7 +5,6 @@ package pick
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
@@ -183,30 +182,4 @@ func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now tim
 	}
 	res.Items, res.Outside = match.Recommend(cands, set.Student(), match.DefaultWeights, now, filter)
 	return res, nil
-}
-
-// Start — стартовая олимпиада для итога онбординга (SPEC 2.6): первая по
-// скору, а не по сроку, у которой ближайший срок не раньше чем через день.
-// Новичку ВсОШ стартовой не предлагается, если подходит олимпиада перечня.
-// nil — подходящей нет.
-func Start(res Result) *match.Result {
-	byScore := make([]*match.Result, 0, len(res.Items))
-	for i := range res.Items {
-		r := &res.Items[i]
-		if r.Deadline != nil && r.Deadline.Sub(res.Set.Now) >= 24*time.Hour {
-			byScore = append(byScore, r)
-		}
-	}
-	sort.SliceStable(byScore, func(i, j int) bool { return byScore[i].Score > byScore[j].Score })
-	if exp := res.Set.Trajectory.Experience; exp == "" || exp == "none" {
-		for _, r := range byScore {
-			if r.Kind != "vsosh" {
-				return r
-			}
-		}
-	}
-	if len(byScore) == 0 {
-		return nil
-	}
-	return byScore[0]
 }

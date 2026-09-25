@@ -1147,6 +1147,10 @@
     "kid": "Приятно познакомиться, {student}! В каком ты классе?",
     "parent": "В каком классе {student}?"
   },
+  "bot.grade.askAgain": {
+    "kid": "В каком ты классе?",
+    "parent": "В каком классе {student}?"
+  },
   "bot.region.ask": {
     "kid": "Где ты живёшь? Напиши город или регион — например, «Казань» или «Татарстан». Нужно, чтобы напоминания приходили по твоему времени.",
     "parent": "Где живёт {student}? Напишите город или регион — например, «Казань» или «Татарстан». Нужно, чтобы напоминания приходили по местному времени."
@@ -1480,8 +1484,12 @@
     "parent": "не выбраны"
   },
   "bot.summary.title": {
-    "kid": "**Профиль готов, {student}**",
-    "parent": "**Профиль {student_gen} готов**"
+    "kid": "**{student}, сформировали твой профиль**",
+    "parent": "**{me}, сформировали профиль {student_gen}**"
+  },
+  "bot.summary.titleNoName": {
+    "kid": "**Сформировали твой профиль**",
+    "parent": "**Сформировали профиль {student_gen}**"
   },
   "bot.summary.grade": {
     "kid": "Класс: {grade} · {place}",
@@ -1524,80 +1532,80 @@
     "parent": "не важно"
   },
   "bot.summary.edit": {
-    "kid": "Изменить",
-    "parent": "Изменить"
+    "kid": "✏️ Изменить",
+    "parent": "✏️ Изменить"
   },
-  "bot.result.one": {
-    "kid": "Под твою цель подходит {count}.",
-    "parent": "Под цель {student_gen} подходит {count}."
+  "bot.summary.done": {
+    "kid": "Готово",
+    "parent": "Готово"
   },
-  "bot.result.many": {
-    "kid": "Под твою цель подходят {count}.",
-    "parent": "Под цель {student_gen} подходят {count}."
+  "bot.summary.check": {
+    "kid": "Всё верно? Если нужно поправить — нажми «Изменить».",
+    "parent": "Всё верно? Если нужно поправить — нажмите «Изменить»."
   },
-  "bot.result.oneSubjects": {
-    "kid": "По твоим предметам подходит {count}.",
-    "parent": "По предметам {student_gen} подходит {count}."
+  "bot.edit.ask": {
+    "kid": "Что поменять?",
+    "parent": "Что поменять?"
   },
-  "bot.result.manySubjects": {
-    "kid": "По твоим предметам подходят {count}.",
-    "parent": "По предметам {student_gen} подходят {count}."
+  "bot.edit.name": {
+    "kid": "Имя",
+    "parent": "Имя"
   },
-  "bot.result.deadline": {
-    "kid": "Ближайший срок — {stage}, осталось {days}.",
-    "parent": "Ближайший срок — {stage}, осталось {days}."
+  "bot.edit.grade": {
+    "kid": "Класс",
+    "parent": "Класс"
   },
-  "bot.result.start": {
-    "kid": "Для старта советую эту:",
-    "parent": "Для старта советую {student_dat} эту:"
+  "bot.edit.region": {
+    "kid": "Регион",
+    "parent": "Регион"
   },
-  "bot.result.olympiad": {
-    "kid": "{olympiad} · {subject}",
-    "parent": "{olympiad} · {subject}"
+  "bot.edit.subjects": {
+    "kid": "Предметы",
+    "parent": "Предметы"
   },
-  "bot.result.level": {
-    "kid": "{level} уровень",
-    "parent": "{level} уровень"
+  "bot.edit.goal": {
+    "kid": "Направления",
+    "parent": "Направления"
   },
-  "bot.result.until": {
-    "kid": "до {date}, {days}",
-    "parent": "до {date}, {days}"
+  "bot.edit.exp": {
+    "kid": "Опыт",
+    "parent": "Опыт"
   },
-  "bot.result.online": {
-    "kid": "онлайн",
-    "parent": "онлайн"
+  "bot.edit.places": {
+    "kid": "Где учиться",
+    "parent": "Где учиться"
+  },
+  "bot.edit.vuz": {
+    "kid": "Вузы",
+    "parent": "Вузы"
+  },
+  "bot.edit.back": {
+    "kid": "← Назад",
+    "parent": "← Назад"
+  },
+  "bot.result.found": {
+    "kid": "Подобрали {count} под тебя.",
+    "parent": "Подобрали {count} для {student_gen}."
+  },
+  "bot.result.foundSubjects": {
+    "kid": "Подобрали {count} по твоим предметам.",
+    "parent": "Подобрали {count} по предметам {student_gen}."
   },
   "bot.result.kidInvite": {
     "kid": "Отправь ссылку родителю: вместе проще не пропустить сроки.",
     "parent": "Отправьте ссылку {student_dat}: ответы про интересы уточнят подборку."
   },
-  "bot.result.tail": {
-    "kid": "В мини-приложении — льготы в твоих вузах, источники и трекер сроков.",
-    "parent": "В мини-приложении — льготы в вузах {student_gen}, источники и трекер сроков."
-  },
-  "bot.result.tailNoVuz": {
-    "kid": "В мини-приложении — в каких вузах олимпиады дают льготы, источники и трекер сроков.",
-    "parent": "В мини-приложении — в каких вузах олимпиады дают льготы, источники и трекер сроков."
-  },
   "bot.result.empty": {
     "kid": "Под эти предметы и вузы пока не нашлось олимпиад. Добавь предмет или вуз в профиле мини-приложения — подборка обновится.",
     "parent": "Под эти предметы и вузы пока не нашлось олимпиад. Добавьте предмет или вуз в профиле мини-приложения — подборка обновится."
   },
-  "bot.btn.open": {
-    "kid": "Открыть подборку",
-    "parent": "Открыть подборку"
-  },
-  "bot.btn.remind": {
-    "kid": "🔔 Напоминать о сроках",
-    "parent": "🔔 Напоминать о сроках"
+  "bot.btn.openApp": {
+    "kid": "Открыть «Траекторию»",
+    "parent": "Открыть «Траекторию»"
   },
   "bot.btn.remindOn": {
     "kid": "✓ Напоминания включены",
     "parent": "✓ Напоминания включены"
-  },
-  "bot.btn.invite": {
-    "kid": "👋 Пригласить родителя",
-    "parent": "👋 Пригласить в семью"
   },
   "bot.btn.inviteKid": {
     "kid": "👋 Пригласить {student_acc}",
