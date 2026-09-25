@@ -701,9 +701,13 @@ func (b *Bot) experienceCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 }
 
 // createTrajectory — последний шаг: траектория создаётся один раз, в той
-// же транзакции, что закрывает диалог (F2, F38).
+// же транзакции, что закрывает диалог (F2, F38). Регион «не важен» —
+// пустой код и московское время.
 func (b *Bot) createTrajectory(t *turn, tx *store.Store, d *store.Dialog) error {
 	reg, ok := refdata.ByCode(d.Draft.RegionCode)
+	if d.Draft.RegionCode == "" {
+		reg, ok = refdata.Region{TZ: refdata.DefaultTZ}, true
+	}
 	places, placesOK := draftPlaces(d.Draft)
 	if !ok || d.Draft.Grade == 0 || d.Draft.Name == "" || len(d.Draft.SubjectCodes) == 0 || !placesOK {
 		return store.ErrStale

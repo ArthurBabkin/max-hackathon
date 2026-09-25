@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMock } from './index'
 import { state } from './state'
 import { ApiError } from '../errors'
-import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Tracker, TrackerItem } from '@contract'
+import type { AiChat, AiExchange, AiMessage, CalendarLink, Home, OlympiadDetail, Profile, Tracker, TrackerItem } from '@contract'
 
 const asKid = () => {
   state.viewerId = 'mem-artem'
@@ -190,6 +190,15 @@ describe('главная', () => {
     const home = (await handleMock('GET', '/home')) as Home
     expect(home.next_step).toBeNull()
     expect(home.registered_count).toBe(1)
+  })
+})
+
+describe('профиль', () => {
+  afterEach(() => handleMock('PATCH', '/profile', { region_code: '16' }))
+
+  it('пустой регион — «не указан», без прежнего названия', async () => {
+    const p = (await handleMock('PATCH', '/profile', { region_code: '' })) as Profile
+    expect([p.region_code, p.region_name]).toEqual(['', ''])
   })
 })
 

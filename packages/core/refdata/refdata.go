@@ -24,6 +24,9 @@ import (
 	_ "time/tzdata"
 )
 
+// DefaultTZ — пояс траектории без региона («Не важно»): московское время.
+const DefaultTZ = "Europe/Moscow"
+
 // Region — субъект РФ.
 type Region struct {
 	Code string `json:"code"`
