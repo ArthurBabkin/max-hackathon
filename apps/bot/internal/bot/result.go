@@ -5,9 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
@@ -135,24 +137,94 @@ func placesText(v voice.Voice, places []store.Place) string {
 	return strings.Join(names, ", ")
 }
 
-// resultText — «Подобрали 7 олимпиад под тебя.» (SPEC 9). Число — сколько
-// карточек в «Подборе» мини-приложения: тот же расчёт core/pick, ВсОШ
-// входит в него. Уровни, сроки и стартовую олимпиаду бот не называет:
-// о них рассказывает мини-приложение.
+// resultText — «Под твою цель подходят 4 олимпиады и ВсОШ.», затем
+// стартовая олимпиада (SPEC 2.6, 9), ближайшая по сроку, если это другая, и
+// «В мини-приложении…». Цифры — из того же подбора, что экран «Подбор»
+// (core/pick). Приглашение ребёнку добавляет sendResult.
 func (b *Bot) resultText(t *turn, v voice.Voice, tr store.Trajectory) (string, pick.Result, error) {
 	res, err := pick.Recommend(t.ctx, b.store, tr, b.now(), "all")
 	if err != nil {
 		return "", res, err
 	}
-	if len(res.Items) == 0 {
+	perechen, vsosh := 0, false
+	var nearest *match.Result
+	for i, r := range res.Items {
+		switch r.Kind {
+		case "vsosh":
+			vsosh = true
+		default:
+			perechen++
+		}
+		// Ближайшая — с самым ранним сроком, до которого ещё есть хотя бы день.
+		if r.Deadline != nil && voice.DaysUntil(*r.Deadline, b.now(), tzOf(tr)) >= 1 &&
+			(nearest == nil || r.Deadline.Before(*nearest.Deadline)) {
+			nearest = &res.Items[i]
+		}
+	}
+	if perechen == 0 && !vsosh {
 		return v.T("bot.result.empty", nil), res, nil
 	}
-	key := "bot.result.found"
+	count := voice.Olympiads(perechen)
+	switch {
+	case perechen > 0 && vsosh:
+		count += " и ВсОШ"
+	case vsosh:
+		count = "ВсОШ"
+	}
+	key := "bot.result.many"
+	if perechen == 1 && !vsosh || perechen == 0 {
+		key = "bot.result.one"
+	}
 	if len(tr.Directions) == 0 {
 		// Цели нет — подбор по предметам.
-		key = "bot.result.foundSubjects"
+		key += "Subjects"
 	}
-	return v.T(key, voice.Vars{"count": voice.OlympiadsAcc(len(res.Items))}), res, nil
+	blocks := []string{v.T(key, voice.Vars{"count": count})}
+	start := pick.Start(res)
+	if start != nil && nearest != nil && start.ProfileID == nearest.ProfileID {
+		// Стартовая и есть ближайшая — один блок.
+		blocks = append(blocks, b.olympiadText(v, tr, res, *start, "bot.result.startNearest"))
+	} else {
+		if start != nil {
+			blocks = append(blocks, b.olympiadText(v, tr, res, *start, "bot.result.start"))
+		}
+		if nearest != nil {
+			blocks = append(blocks, b.olympiadText(v, tr, res, *nearest, "bot.result.nearest"))
+		}
+	}
+	tail := "bot.result.tail"
+	if len(res.Set.Universities) == 0 {
+		tail = "bot.result.tailNoVuz"
+	}
+	blocks = append(blocks, v.T(tail, nil))
+	return strings.Join(blocks, "\n\n"), res, nil
+}
+
+// olympiadText — заголовок («Для старта советую эту:», «Ближайшая
+// олимпиада:»), олимпиада с предметом и строка «II уровень · до 5 октября,
+// 4 дня · онлайн».
+func (b *Bot) olympiadText(v voice.Voice, tr store.Trajectory, res pick.Result, r match.Result, title string) string {
+	p := res.Profiles[r.ProfileID]
+	lines := []string{
+		v.T(title, nil),
+		v.T("bot.result.olympiad", voice.Vars{"olympiad": notify.Short(p.OlympiadName), "subject": p.SubjectName}),
+	}
+	var info []string
+	if r.Kind != "vsosh" && r.Level != nil {
+		info = append(info, v.T("bot.result.level", voice.Vars{"level": *r.Level}))
+	}
+	if r.Deadline != nil {
+		days := voice.DaysUntil(*r.Deadline, b.now(), tzOf(tr))
+		info = append(info, v.T("bot.result.until", voice.Vars{
+			"date": stages.Day(r.Deadline.In(tzOf(tr))), "days": voice.Days(days)}))
+	}
+	if r.Online {
+		info = append(info, v.T("bot.result.online", nil))
+	}
+	if len(info) > 0 {
+		lines = append(lines, strings.Join(info, " · "))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // waitsForKid — родитель передал вопросы об интересах ребёнку, а ребёнка в
