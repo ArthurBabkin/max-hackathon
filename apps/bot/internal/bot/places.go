@@ -14,13 +14,14 @@ import (
 // город известен; «Весь регион · <регион>», если это не Москва или
 // Петербург; Москва и Петербург, если их не покрывает свой регион
 // (Московская область включает Москву, Ленинградская — Петербург).
+// Регион «не важен» — только Москва и Петербург.
 func defaultPlaces(dr store.Draft) []store.PlaceOption {
 	own := dr.RegionCode
 	var out []store.PlaceOption
 	if dr.HomeCity != "" && !refdata.Federal(own) {
 		out = append(out, store.PlaceOption{Kind: "city", RegionCode: own, City: dr.HomeCity, Label: dr.HomeCity})
 	}
-	if own != "77" && own != "78" {
+	if own != "" && own != "77" && own != "78" {
 		out = append(out, store.PlaceOption{Kind: "region", RegionCode: own, Label: refdata.Short(own)})
 	}
 	for _, code := range []string{"77", "78"} {

@@ -57,8 +57,12 @@ func (b *Bot) profileLines(t *turn, v voice.Voice, tr store.Trajectory, withEmpt
 	if tr.HomeCity != nil && *tr.HomeCity != "" {
 		place = *tr.HomeCity
 	}
+	grade := v.T("bot.summary.grade", voice.Vars{"grade": tr.Grade, "place": place})
+	if place == "" {
+		grade = v.T("bot.summary.gradeOnly", voice.Vars{"grade": tr.Grade})
+	}
 	lines := []string{
-		v.T("bot.summary.grade", voice.Vars{"grade": tr.Grade, "place": place}),
+		grade,
 		v.T("bot.summary.subjects", voice.Vars{"subjects": strings.Join(subjects, ", ")}),
 		v.T("bot.summary.goal", voice.Vars{"direction": goalText(v, tr)}),
 	}
