@@ -137,6 +137,40 @@ func TestTracker_StageMarkFlow(t *testing.T) {
 	}
 }
 
+// Снятая отметка — не новость: у школьного этапа ВсОШ приложение снимает
+// итог телом {registered: true, result: null}, и семье не должно прийти
+// «регистрация пройдена» — она была и до этого.
+func TestTracker_StageUnmarkIsNotAnnounced(t *testing.T) {
+	e := newEnv(t)
+	e.now = time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	f := e.withParent(e.kidCreator())
+	kid := e.login(artemMax, "Артём")
+	id := e.track(f, "vsosh-informatika", false)
+	school := "vsosh-informatika:school:1"
+	mark := func(body map[string]any) resp {
+		return e.do("PUT", "/api/v1/tracker/"+id+"/stages/"+school, kid, body)
+	}
+
+	if r := mark(map[string]any{"registered": true, "result": "passed"}); r.code != 200 {
+		t.Fatalf("итог школьного этапа: %d %s", r.code, r.raw)
+	}
+	if got := e.fake.To(olgaMax); len(got) != 1 {
+		t.Fatalf("родителю — одно сообщение об итоге: %v", got)
+	}
+	if r := mark(map[string]any{"registered": true, "result": nil}); r.code != 200 ||
+		stageByID(t, r.body, school)["result"] != nil || r.body["registered_at"] == nil {
+		t.Fatalf("итог снят, регистрация осталась: %d %s", r.code, r.raw)
+	}
+	if got := e.fake.To(olgaMax); len(got) != 1 {
+		t.Fatalf("снятие итога — без сообщения семье: %v", got[len(got)-1].Msg.Text)
+	}
+	// Смена итога — новость.
+	mark(map[string]any{"registered": true, "result": "failed"})
+	if got := e.fake.To(olgaMax); len(got) != 2 {
+		t.Fatalf("новый итог — сообщение: %d", len(got))
+	}
+}
+
 // Отборочный закончился, итога нет — строка действия спрашивает итог.
 func TestTracker_ActionAsksResult(t *testing.T) {
 	e := newEnv(t)
