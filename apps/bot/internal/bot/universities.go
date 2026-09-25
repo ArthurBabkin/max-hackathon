@@ -103,11 +103,7 @@ func noDirectionHere(t *turn, tx *store.Store, d *store.Dialog, places []store.P
 	if err != nil {
 		return err
 	}
-	home, _ := refdata.ByCode(d.Draft.RegionCode)
-	lat, lon := home.Lat, home.Lon
-	if la, lo, ok := refdata.CityCoords(d.Draft.HomeCity, d.Draft.RegionCode); ok {
-		lat, lon = la, lo
-	}
+	lat, lon := nearbyOrigin(d.Draft, places)
 	dist := func(u store.University) float64 {
 		r, ok := refdata.ByCode(u.RegionCode)
 		if !ok {
@@ -129,6 +125,20 @@ func noDirectionHere(t *turn, tx *store.Store, d *store.Dialog, places []store.P
 	}
 	d.Draft.Similar = similarDirections(dirs, d.Draft.DirectionIDs, here, similarLimit)
 	return nil
+}
+
+// nearbyOrigin — от какой точки искать ближайшие вузы: свой город или
+// центр своего региона, а без региона («Не важно») — первое выбранное место.
+func nearbyOrigin(dr store.Draft, places []store.Place) (lat, lon float64) {
+	code, city := dr.RegionCode, dr.HomeCity
+	if code == "" && len(places) > 0 {
+		code, city = places[0].RegionCode, places[0].City
+	}
+	if la, lo, ok := refdata.CityCoords(city, code); ok {
+		return la, lo
+	}
+	r, _ := refdata.ByCode(code)
+	return r.Lat, r.Lon
 }
 
 // similarDirections — до limit направлений из here, не выбранных, у которых
@@ -334,8 +344,10 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		}))
 	case "done":
 		label := v.T("bot.btn.done", nil)
-		return b.transition(t, cb, question, label, onStep(func(tx *store.Store, d *store.Dialog) error {
-			return b.createTrajectory(t, tx, d)
+		// Дальше — профиль на подтверждение; траектория создаётся по «Готово» там.
+		return b.transition(t, cb, question, label, onStep(func(_ *store.Store, d *store.Dialog) error {
+			d.Step, d.Draft.EditMenu = stepSummary, false
+			return nil
 		}))
 	case "other", "city":
 		// Кнопки шага вузов из v1.
@@ -364,7 +376,7 @@ func (b *Bot) universityText(t *turn, d store.Dialog, text string) error {
 			return err
 		}
 	}
-	d, err = b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err = b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepUniversities, stepUniSearch); err != nil {
 			return err
 		}

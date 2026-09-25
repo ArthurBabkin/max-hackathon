@@ -94,6 +94,31 @@ it('отправляет пустые направления, вузы и мес
   expect(sent).toEqual([expect.objectContaining({ direction_ids: [], university_ids: [], places: [] })])
 })
 
+// «Не важно» в боте: регион не указан — так и видно в профиле и так и сохраняется.
+it('показывает и сохраняет регион «Не указан»', async () => {
+  const sent: unknown[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((_url: string, init: RequestInit) => {
+      if (init.method === 'PATCH') sent.push(JSON.parse(init.body as string))
+      return new Promise(() => {})
+    }),
+  )
+  renderApp(<ProfileScreen />, {
+    route: '/profile',
+    seed: (c) => {
+      c.setQueryData(keys.profile, { ...profile(), region_code: '', region_name: '' })
+      c.setQueryData(keys.universities('', 'all'), { items: [] })
+      c.setQueryData(keys.directions, { items: [] })
+    },
+  })
+
+  const region = screen.getByRole('combobox', { name: 'Регион' })
+  expect(within(region).getByRole('option', { name: 'Не указан' })).toHaveProperty('selected', true)
+  await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+  expect(sent).toEqual([expect.objectContaining({ region_code: '' })])
+})
+
 /** Профиль в провайдере темы: пустые справочники, сохранение не отвечает. */
 function renderProfile() {
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))

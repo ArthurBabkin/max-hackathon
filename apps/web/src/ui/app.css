@@ -338,7 +338,7 @@
   gap: var(--gap-md);
   width: 100%;
   min-height: var(--tap);
-  padding: 12px var(--gap-md);
+  padding: 12px var(--pad-card);
   border-bottom: 1px solid var(--ln);
   text-align: left;
 }
@@ -521,7 +521,7 @@
   align-items: flex-start;
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: var(--gap-md);
+  padding: var(--gap-md) var(--pad-card);
   margin-bottom: var(--gap-sm);
 }
 
@@ -590,7 +590,7 @@
 .hint {
   background: var(--ps);
   border-radius: var(--r-md);
-  padding: 11px var(--gap-md);
+  padding: 11px var(--pad-card);
   color: var(--tx-2);
 }
 
@@ -623,14 +623,19 @@
   min-height: 24px;
 }
 
+/* Метка или иконка слева, текст переносится в своей колонке, как на C3:
+   при переносе строкой ниже метка отрывалась от пояснения. */
 .info-line {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
   margin: 0 2px var(--gap-md);
   font-size: var(--t-small);
   color: var(--mu);
+}
+
+.info-line > :first-child {
+  flex-shrink: 0;
 }
 
 .info-line-plain {
@@ -645,9 +650,12 @@
   margin-top: var(--gap-sm);
 }
 
+/* Блок-карточка прямо на экране, а не внутри листа: поле как у остальных
+   карточек экрана. */
 .block-card {
   background: var(--surface);
   margin-top: var(--gap-md);
+  padding-inline: var(--pad-card);
 }
 
 .block-head {
@@ -771,7 +779,7 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: var(--gap-md);
+  padding: var(--gap-md) var(--pad-card);
   border: 1.5px solid var(--pks);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -827,7 +835,7 @@
   flex-direction: column;
   gap: var(--gap-sm);
   min-height: 84px;
-  padding: var(--gap-md);
+  padding: var(--gap-md) var(--pad-card);
   border-radius: var(--r-lg);
   background: var(--surface);
   font-size: var(--t-small);
@@ -880,7 +888,7 @@
   align-items: flex-start;
   background: var(--surface);
   border-radius: 20px;
-  padding: var(--gap-md);
+  padding: var(--gap-md) var(--pad-card);
   margin-bottom: var(--gap-sm);
 }
 
@@ -1269,15 +1277,15 @@
   width: 116px;
 }
 
+/* Заголовки переносятся только между словами: «Победите-/лю» на 375 px
+   читалось хуже, чем заголовок, который на пару пикселей шире столбца. */
 .benefit-table thead th {
-  padding: 0 2px 6px;
+  padding: 0 1px 6px;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
   color: var(--mu);
   text-align: center;
-  hyphens: auto;
-  overflow-wrap: break-word;
 }
 
 .benefit-table thead th:first-child {
@@ -1419,6 +1427,14 @@
   background: var(--ams);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--am-ink) 35%, transparent);
   vertical-align: -1px;
+}
+
+/* Уже 390 px «Победителю» не влезает в столбец целиком, а переносить
+   одно слово по слогам хуже, чем чуть уменьшить заголовок. */
+@media (max-width: 389px) {
+  .benefit-table thead th {
+    font-size: 10px;
+  }
 }
 
 /* Самые узкие телефоны: без значков вузов, чтобы «100 баллов» влезали в
@@ -1855,6 +1871,11 @@
   margin-top: var(--gap-md);
 }
 
+/* Список вузов идёт сразу за фильтром, без заголовка группы, как у олимпиад. */
+.filter-row + .list {
+  margin-top: var(--gap-md);
+}
+
 .filter-label {
   flex: 0 0 auto;
   font-size: var(--t-micro);
@@ -1899,7 +1920,7 @@
 .tracker-card {
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: 12px var(--gap-md);
+  padding: 12px var(--pad-card);
   margin-bottom: var(--gap-sm);
 }
 
@@ -1965,7 +1986,7 @@
   border: 1.5px solid var(--p);
   border-radius: var(--r-lg);
   background: var(--surface);
-  padding: 12px var(--gap-md);
+  padding: 12px var(--pad-card);
   margin-bottom: var(--gap-md);
 }
 
@@ -1991,7 +2012,7 @@
 .calendar {
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: var(--gap-md);
+  padding: var(--gap-md) var(--pad-card);
 }
 
 .calendar-head {
@@ -2093,7 +2114,7 @@
 .members {
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: 4px var(--gap-md);
+  padding: 4px var(--pad-card);
   margin-bottom: var(--gap-md);
 }
 
@@ -2163,11 +2184,17 @@
 
 .member-remove {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border-radius: var(--r-pill);
   color: var(--pk-ink);
   font-size: var(--t-micro);
   font-weight: 700;
+}
+
+/* Первое нажатие «взводит» кнопку: заливка показывает, что второе удалит. */
+.member-remove-armed {
+  background: var(--pks);
 }
 
 .invite-box {
@@ -2206,8 +2233,10 @@
   gap: var(--gap-sm);
 }
 
-.leave-button {
+/* Выход не отменить — розовая подпись, как в прототипе. */
+.leave-button.leave-button {
   margin-top: var(--gap-md);
+  color: var(--pk-ink);
 }
 
 .fine-center {
@@ -2227,7 +2256,7 @@
   display: block;
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: 12px var(--gap-md);
+  padding: 12px var(--pad-card);
   margin-bottom: var(--gap-sm);
 }
 
@@ -2358,7 +2387,7 @@
   width: 100%;
   min-height: 56px;
   margin-top: var(--gap-sm);
-  padding: 12px var(--gap-md);
+  padding: 12px var(--pad-card);
   border: 0;
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -2395,8 +2424,12 @@
   min-height: 44px;
 }
 
-.faq-section {
-  padding-bottom: 4px;
+/* Заголовок раздела над карточкой, как «Ближайшие сроки» на главной:
+   внутри карточки он сливался с вопросами того же размера. */
+.faq-list {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .faq-item {
@@ -2440,6 +2473,21 @@
   font-size: var(--t-small);
   line-height: 1.5;
   color: var(--tx-2);
+}
+
+/* Отступ под раскрытым ответом — полем, а не margin последнего элемента:
+   margin схлопывался через <details> и уходил за край карточки, и ответ
+   без ссылки на источник прилипал к её низу. */
+.faq-item[open] {
+  padding-bottom: var(--gap-md);
+}
+
+.faq-item[open] > :last-child {
+  margin-bottom: 0;
+}
+
+.faq-ask .block-text {
+  margin-bottom: var(--gap-md);
 }
 
 .faq-item .source-line {
@@ -2487,11 +2535,14 @@
 }
 
 /* Окно над целью. Затемнение — его огромная тень, поэтому окно и затемнение
-   двигаются как одно целое, а карточка переезжает вместе с ними. */
+   двигаются как одно целое, а карточка переезжает вместе с ними. Анимация
+   у окна одна и не меняется: сменись она — появление проигралось бы заново,
+   и затемнение мигнуло бы. */
 .tour-spot {
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: none;
   box-shadow:
     0 0 0 2px var(--p),
     0 0 0 200vmax var(--tour-scrim);
@@ -2508,18 +2559,38 @@
   box-shadow: 0 0 0 200vmax var(--tour-scrim);
 }
 
-/* Нажатие: обводка вспыхивает и расходится, как круг от пальца. */
-.tour-spot[data-pressing] {
-  animation: tour-press 300ms var(--tour-out);
+/* Ждём нажатия: от окна расходится обводка — «нажми сюда». Своим слоем,
+   чтобы не перерисовывать затемнение; начинается, когда окно доехало. */
+.tour[data-mode='tap'] .tour-spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  will-change: transform;
+  animation: tour-pulse 1400ms var(--tour-out) 440ms infinite;
 }
 
-/* Мгновенный переход «Назад»: окно ждёт на месте, карточки нет. */
-.tour[data-mode='moving'] .tour-card {
-  visibility: hidden;
+/* Прозрачная кнопка над настоящей: нажатие по ней нажимает ту. */
+.tour-hit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tour-hit:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 4px;
 }
 
 .tour-card {
   position: absolute;
+  top: 0;
+  left: 0;
   width: min(calc(100vw - 2 * var(--gap-lg)), 360px);
   padding: var(--gap-md) var(--gap-lg) var(--gap-lg);
   border-radius: var(--r-lg);
@@ -2529,9 +2600,7 @@
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--tx) 8%, transparent),
     0 18px 44px rgba(8, 6, 18, 0.32);
-  transition:
-    top 440ms var(--tour-move),
-    left 440ms var(--tour-move);
+  transition: translate 440ms var(--tour-move);
   animation: tour-card-in 320ms var(--tour-out);
 }
 
@@ -2608,13 +2677,29 @@
   padding: 10px var(--gap-md);
 }
 
+.tour-tap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+/* «Пропустить» в плашке — полная тач-цель, но строку не раздвигает
+   и не сжимается, когда название длинное. */
+.tour-tap-row .tour-skip {
+  flex: none;
+  margin-block: -10px;
+}
+
+/* Длинное название олимпиады переносится, а не обрывается многоточием:
+   «Нажми «ВсОШ по информатик…» не говорит, что нажимать. */
 .tour-tap {
+  min-width: 0;
   margin: 0;
   font-size: var(--t-base);
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 /* Пропуск — второстепенное действие, поэтому приглушён, но тач-цель полная. */
@@ -2710,6 +2795,12 @@
   line-height: 1.2;
 }
 
+/* Кнопка отделена от последнего поля сильнее, чем поля друг от друга:
+   это действие для всей формы. */
+.profile-save.profile-save {
+  margin-top: var(--gap-lg);
+}
+
 .tutorial-replay {
   display: inline-flex;
   align-items: center;
@@ -2730,11 +2821,13 @@
   }
 }
 
-@keyframes tour-press {
-  50% {
-    box-shadow:
-      0 0 0 6px color-mix(in srgb, var(--p) 55%, transparent),
-      0 0 0 200vmax var(--tour-scrim);
+@keyframes tour-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--p) 70%, transparent);
+  }
+
+  to {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--p) 0%, transparent);
   }
 }
 
@@ -2761,7 +2854,7 @@
     transition: none;
   }
 
-  .tour-spot[data-pressing] {
+  .tour[data-mode='tap'] .tour-spot::after {
     animation: none;
   }
 

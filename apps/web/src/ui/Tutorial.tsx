@@ -3,11 +3,13 @@
  * олимпиад и карточка олимпиады, список вузов и карточка вуза, трекер, подбор,
  * помощник.
  *
- * До каждого экрана туториал доходит сам. Между карточками шагов — одно
- * показанное нажатие: подсвечивается вкладка или строка с подписью «Нажимаем
- * «Каталог»», потом нажимается. Так видно, как попасть туда самому, а в
- * карточке шага написан путь: «Каталог → Вузы». Открытый лист закрывается
- * молча — крестик объяснять не нужно. «Назад» переходит сразу, без показа.
+ * Между карточками шагов пользователь сам делает одно нажатие: подсвечивается
+ * вкладка или строка с подписью «Нажми «Каталог»», и туториал ждёт, пока её
+ * нажмут. Нажимается только она — так путь запоминается руками, а в карточке
+ * шага он ещё и написан: «Каталог → Вузы». Цели на карточках шагов («Добавить
+ * в трекер») не нажимаются: это настоящие действия, а не часть обзора.
+ * Открытый лист туториал закрывает молча — крестик объяснять не нужно.
+ * «Назад» переходит сразу, без нажатий.
  *
  * Элементы помечены атрибутом `data-tour`. Нет цели на экране (пустой трекер)
  * — подсвечивается запасная, нет и её — карточка встаёт по центру.
@@ -38,7 +40,7 @@ interface Tap {
   find: () => HTMLElement | null
   /** Нажимать не нужно: уже там, куда она ведёт. */
   done: () => boolean
-  /** Подпись в подсказке «Нажимаем «…»» и в пути шага. */
+  /** Подпись в подсказке «Нажми «…»» и в пути шага. */
   label: (el: HTMLElement) => string
   /** Служебное нажатие (закрыть лист): не показывается и в путь не попадает. */
   quiet?: boolean
@@ -170,19 +172,19 @@ function stepTargets(step: Step): HTMLElement[] {
   return main.length > 0 ? main : (step.fallback?.() ?? [])
 }
 
-/**
- * Паузы показа нажатий, мс: `point` — подсветка кнопки до нажатия, `press` —
- * само нажатие, `wait` — сколько ждать экран или кнопку, пока они грузятся.
- */
+/** Сколько ждать экран или кнопку, пока они грузятся, мс. */
 export interface Pace {
-  point: number
-  press: number
   wait: number
 }
 
-export const TutorialPace = createContext<Pace>({ point: 600, press: 250, wait: 4000 })
+export const TutorialPace = createContext<Pace>({ wait: 4000 })
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+const frame = () =>
+  new Promise<void>((resolve) => {
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(() => resolve())
+    else window.setTimeout(resolve, 16)
+  })
 
 /** Ждёт, пока `find` что-то вернёт. Не дождались или тур отменён — null. */
 async function waitFor<T>(find: () => T | null, timeout: number, alive: () => boolean): Promise<T | null> {
@@ -202,8 +204,10 @@ const EDGE = 16
 const RING = 2
 /** Столько длится исчезновение, прежде чем туториал уйдёт из дерева. */
 const EXIT_MS = 160
-/** Перемеры после смены цели: лист выезжает, экран догружается. */
+/** Перемеры после смены цели: вдруг экран догрузился уже после `settle`. */
 const SETTLE_MS = [120, 300, 600]
+/** Дольше цель ждать не станем, даже если она всё ещё едет. */
+const SETTLE_MAX = 800
 /** Цель выше этой доли экрана — список целиком, см. `measure`. */
 const TALL = 0.45
 
@@ -223,6 +227,24 @@ function unionRect(els: HTMLElement[]): DOMRect | null {
   const right = Math.max(...rects.map((r) => r.right))
   const bottom = Math.max(...rects.map((r) => r.bottom))
   return new DOMRect(left, top, right - left, bottom - top)
+}
+
+/**
+ * Ждёт, пока цель встанет на место: лист выезжает, экран догружается. Окно
+ * поедет к цели один раз и сразу туда, где она остановится, — иначе каждый
+ * перемер на ходу разворачивал бы его переезд, и оно догоняло бы цель рывками.
+ */
+async function settle(els: () => HTMLElement[], alive: () => boolean): Promise<void> {
+  const until = Date.now() + SETTLE_MAX
+  let prev: string | null = null
+  let still = 0
+  while (still < 3 && alive() && Date.now() < until) {
+    await frame()
+    const r = unionRect(els())
+    const now = r ? `${r.x},${r.y},${r.width},${r.height}` : ''
+    still = now === prev ? still + 1 : 0
+    prev = now
+  }
 }
 
 /** Окно над целью и место карточки: под целью, если влезает, иначе над ней. */
@@ -309,21 +331,21 @@ function cardStyle(layout: Layout | null): CSSProperties {
   const { card, caret } = layout
   // Карточка вырастает со стороны цели, как всплывающая подсказка.
   const origin = caret ? `${caret.x}px ${caret.side === 'top' ? '0' : '100%'}` : 'center'
-  return { top: card.top, left: card.left, transformOrigin: origin }
+  // Сдвиг через `translate`, а не top/left: переезд идёт на видеокарте и не
+  // дёргается, пока под туториалом отрисовывается новый экран.
+  return { translate: `${card.left}px ${card.top}px`, transformOrigin: origin }
 }
 
 /**
- * Что сейчас на экране: карточка шага, показ нажатия по дороге к нему или
- * мгновенный переход, пока экран не готов.
+ * Что сейчас на экране: карточка шага, ожидание нажатия по дороге к нему или
+ * переход, пока экран не готов (карточки нет, окно ждёт на месте).
  */
 type View =
   | { mode: 'step'; step: number; path: string[] }
-  | { mode: 'tap'; step: number; el: HTMLElement; label: string; pressing: boolean }
+  | { mode: 'tap'; step: number; el: HTMLElement; label: string }
   | { mode: 'moving'; step: number }
 
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
+const sameLayout = (a: Layout | null, b: Layout) => JSON.stringify(a) === JSON.stringify(b)
 
 export function Tutorial({ onDone }: { onDone: () => void }) {
   const t = useVoice()
@@ -336,14 +358,17 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
   const cardRef = useRef<HTMLDivElement>(null)
   /** Номер текущего прохода: новый проход или закрытие отменяют прежний. */
   const runRef = useRef(0)
-  /** Подсказка о нажатии отрисована — можно выдерживать паузу. */
-  const shownRef = useRef<(() => void) | null>(null)
+  /** Ждём нажатия на подсвеченную кнопку: вызов — нажали. */
+  const tapRef = useRef<(() => void) | null>(null)
 
   const step = view.step
   const last = step === STEPS.length - 1
 
   const finish = useCallback(() => {
     runRef.current += 1
+    // Проход, ждавший нажатия, увидит, что отменён, и завершится.
+    tapRef.current?.()
+    tapRef.current = null
     markTutorialSeen()
     setClosing(true)
   }, [])
@@ -352,7 +377,7 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
     async (to: number, show: boolean) => {
       const run = ++runRef.current
       const alive = () => runRef.current === run
-      const { point, press } = prefersReducedMotion() ? { ...pace, press: 0 } : pace
+      tapRef.current = null
       const path: string[] = []
       setView({ mode: 'moving', step: to })
 
@@ -366,17 +391,24 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
           label = tap.label(el)
           if (!tap.done()) {
             if (show && !tap.quiet) {
+              await settle(() => [el], alive)
+              if (!alive()) return
+              const waiting = () => alive() && tapRef.current !== null
               await new Promise<void>((resolve) => {
-                shownRef.current = resolve
-                setView({ mode: 'tap', step: to, el, label: label!, pressing: false })
+                tapRef.current = resolve
+                setView({ mode: 'tap', step: to, el, label: label! })
+                // Туда пришли и без подсказки (клавиатурой, ссылкой) — ждать нечего.
+                void waitFor(() => tap.done() || null, Infinity, waiting).then(() => {
+                  if (!waiting()) return
+                  tapRef.current = null
+                  resolve()
+                })
               })
-              await sleep(point)
               if (!alive()) return
-              setView({ mode: 'tap', step: to, el, label, pressing: true })
-              await sleep(press)
-              if (!alive()) return
+              // Нажали: подсказка уходит, окно ждёт на месте, пока откроется экран.
+              setView({ mode: 'moving', step: to })
             }
-            el.click()
+            if (!tap.done()) el.click()
             await waitFor(() => tap.done() || null, pace.wait, alive)
             if (!alive()) return
           }
@@ -395,6 +427,8 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
         pace.wait,
         alive,
       )
+      if (!alive()) return
+      await settle(() => stepTargets(target), alive)
       if (!alive()) return
       setView({ mode: 'step', step: to, path })
     },
@@ -422,7 +456,9 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
     const update = () => {
       if (!cardRef.current) return
       const els = view.mode === 'tap' ? [view.el] : stepTargets(STEPS[view.step]!)
-      setLayout(measure(els, cardRef.current))
+      const next = measure(els, cardRef.current)
+      // Тот же замер — без перерисовки: переезд окна не начинается заново.
+      setLayout((prev) => (sameLayout(prev, next) ? prev : next))
     }
     update()
     const timers = SETTLE_MS.map((ms) => window.setTimeout(update, ms))
@@ -436,18 +472,17 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
   }, [view])
 
   useEffect(() => {
-    if (view.mode !== 'tap' || view.pressing) return
-    shownRef.current?.()
-    shownRef.current = null
-  }, [view])
-
-  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [finish])
+
+  const tapped = () => {
+    tapRef.current?.()
+    tapRef.current = null
+  }
 
   const start = () => {
     finish()
@@ -474,7 +509,6 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
         <span
           className="tour-spot"
           aria-hidden="true"
-          data-pressing={(view.mode === 'tap' && view.pressing) || undefined}
           style={{
             width: layout.hole.w,
             height: layout.hole.h,
@@ -484,57 +518,85 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
         />
       ) : null}
 
-      <div ref={cardRef} className="tour-card" style={cardStyle(layout)}>
-        {layout?.caret ? (
-          <span
-            className={`tour-caret tour-caret-${layout.caret.side}`}
-            style={{ left: layout.caret.x }}
-            aria-hidden="true"
-          />
-        ) : null}
+      {/* Слой туториала перехватывает касания, поэтому над кнопкой лежит своя
+          прозрачная кнопка: нажатие по ней нажимает настоящую. Стоит сразу там,
+          где кнопка, а не едет вместе с окном. */}
+      {view.mode === 'tap' && layout ? (
+        <button
+          type="button"
+          className="tour-hit"
+          aria-label={view.label}
+          autoFocus
+          onClick={tapped}
+          style={{
+            width: layout.hole.w,
+            height: layout.hole.h,
+            borderRadius: layout.hole.r,
+            transform: `translate(${layout.hole.x}px, ${layout.hole.y}px)`,
+          }}
+        />
+      ) : null}
 
-        {view.mode === 'tap' ? (
-          <p className="tour-tap" role="status">
-            {t('tutorial.tap', { title: view.label })}
-          </p>
-        ) : null}
+      {/* Карточка появляется заново после каждого перехода: подсказка и карточка
+          шага разного размера, и проявление скрывает смену формы. */}
+      {view.mode === 'moving' ? null : (
+        <div ref={cardRef} className="tour-card" style={cardStyle(layout)}>
+          {layout?.caret ? (
+            <span
+              className={`tour-caret tour-caret-${layout.caret.side}`}
+              style={{ left: layout.caret.x }}
+              aria-hidden="true"
+            />
+          ) : null}
 
-        {view.mode === 'step' ? (
-          <>
-            <div className="tour-top">
-              <span className="tour-dots" role="img" aria-label={t('tutorial.step', { count: n, total: STEPS.length })}>
-                {STEPS.map((_, i) => (
-                  <i key={i} className={i === step ? 'on' : i < step ? 'done' : undefined} />
-                ))}
-              </span>
-              <span className="tour-count" aria-hidden="true">
-                {t('tutorial.count', { count: n, total: STEPS.length })}
-              </span>
+          {view.mode === 'tap' ? (
+            <div className="tour-tap-row">
+              <p className="tour-tap" role="status">
+                {t('tutorial.tap', { title: view.label })}
+              </p>
               <button type="button" className="link tour-skip" onClick={finish}>
                 {t('tutorial.skip')}
               </button>
             </div>
+          ) : null}
 
-            {/* key — чтобы текст нового шага проявлялся заново */}
-            <div key={step} className="tour-body" aria-live="polite">
-              {view.path.length > 0 ? <p className="tour-path">{view.path.join(' → ')}</p> : null}
-              <h2 className="tour-title">{t(titleKey)}</h2>
-              <p className="tour-text">{t(textKey)}</p>
-            </div>
+          {view.mode === 'step' ? (
+            <>
+              <div className="tour-top">
+                <span className="tour-dots" role="img" aria-label={t('tutorial.step', { count: n, total: STEPS.length })}>
+                  {STEPS.map((_, i) => (
+                    <i key={i} className={i === step ? 'on' : i < step ? 'done' : undefined} />
+                  ))}
+                </span>
+                <span className="tour-count" aria-hidden="true">
+                  {t('tutorial.count', { count: n, total: STEPS.length })}
+                </span>
+                <button type="button" className="link tour-skip" onClick={finish}>
+                  {t('tutorial.skip')}
+                </button>
+              </div>
 
-            <div className="tour-actions">
-              {step > 0 ? (
-                <Button className="tour-back" variant="secondary" size="medium" onClick={() => void go(step - 1, false)}>
-                  {t('tutorial.back')}
+              {/* key — чтобы текст нового шага проявлялся заново */}
+              <div key={step} className="tour-body" aria-live="polite">
+                {view.path.length > 0 ? <p className="tour-path">{view.path.join(' → ')}</p> : null}
+                <h2 className="tour-title">{t(titleKey)}</h2>
+                <p className="tour-text">{t(textKey)}</p>
+              </div>
+
+              <div className="tour-actions">
+                {step > 0 ? (
+                  <Button className="tour-back" variant="secondary" size="medium" onClick={() => void go(step - 1, false)}>
+                    {t('tutorial.back')}
+                  </Button>
+                ) : null}
+                <Button size="medium" stretched autoFocus onClick={last ? start : () => void go(step + 1, true)}>
+                  {last ? t('tutorial.start') : t('tutorial.next')}
                 </Button>
-              ) : null}
-              <Button size="medium" stretched autoFocus onClick={last ? start : () => void go(step + 1, true)}>
-                {last ? t('tutorial.start') : t('tutorial.next')}
-              </Button>
-            </div>
-          </>
-        ) : null}
-      </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

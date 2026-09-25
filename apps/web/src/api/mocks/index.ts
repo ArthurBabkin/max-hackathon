@@ -377,7 +377,8 @@ route('PATCH', '/profile', ({ body }) => {
   if (typeof patch.grade === 'number') state.grade = patch.grade as 8 | 9 | 10 | 11
   if (typeof patch.region_code === 'string') {
     state.region_code = patch.region_code
-    state.region_name = REGIONS.find((r) => r.code === patch.region_code)?.name ?? state.region_name
+    // "" — регион не указан.
+    state.region_name = REGIONS.find((r) => r.code === patch.region_code)?.name ?? ''
   }
   if (Array.isArray(patch.subject_codes) && patch.subject_codes.length > 0) {
     state.subjects = patch.subject_codes as string[]

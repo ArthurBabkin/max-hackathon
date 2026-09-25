@@ -14,13 +14,14 @@ import (
 // город известен; «Весь регион · <регион>», если это не Москва или
 // Петербург; Москва и Петербург, если их не покрывает свой регион
 // (Московская область включает Москву, Ленинградская — Петербург).
+// Регион «не важен» — только Москва и Петербург.
 func defaultPlaces(dr store.Draft) []store.PlaceOption {
 	own := dr.RegionCode
 	var out []store.PlaceOption
 	if dr.HomeCity != "" && !refdata.Federal(own) {
 		out = append(out, store.PlaceOption{Kind: "city", RegionCode: own, City: dr.HomeCity, Label: dr.HomeCity})
 	}
-	if own != "77" && own != "78" {
+	if own != "" && own != "77" && own != "78" {
 		out = append(out, store.PlaceOption{Kind: "region", RegionCode: own, Label: refdata.Short(own)})
 	}
 	for _, code := range []string{"77", "78"} {
@@ -190,7 +191,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		found = append(found, o)
 	}
 	single := len(matches) == 1 && !matches[0].Fuzzy
-	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+	d, err := b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {
 		if err := expect(d, stepTarget); err != nil {
 			return err
 		}
@@ -210,7 +211,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		if matches[0].Kind == "region" {
 			place = refdata.Short(matches[0].RegionCode)
 		}
-		return b.sendPrompt(t, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place})))
+		return b.sendPrompt(t, withStep(v, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place}))))
 	}
 	var kb maxapi.Keyboard
 	for i, o := range found {
