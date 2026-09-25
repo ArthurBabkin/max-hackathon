@@ -94,10 +94,17 @@ def rows_msu():
     то есть профильная модель. Игнорировать «*» значило бы потерять большую
     часть льгот МГУ (489 строк из 627).
     """
-    out, faculty, napravlenie = [], None, None
     f = "olymp_list__olymp_benefits.pdf"
-    url = meta("msu", f)["url"]
-    for pg in load_pages("msu", f):
+    return msu_rows(load_pages("msu", f), meta("msu", f)["url"])
+
+
+def msu_rows(pages: list[dict], url: str) -> list[dict]:
+    """Профиль, перечень, класс и предмет ЕГЭ — объединённые ячейки на
+    несколько уровней или статусов («Математика, *: I — БВИ, II — 100 баллов»).
+    pdfplumber кладёт текст в первую строку, у продолжений ячейки пустые, и без
+    переноса вниз терялось 88 строк: химия II уровня на химфаке, призёры и т. п."""
+    out, faculty, napravlenie, above = [], None, None, None
+    for pg in pages:
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
@@ -105,12 +112,16 @@ def rows_msu():
                     continue
                 if c[0] and not any(c[3:]) and len(c[0]) > 8:
                     faculty = c[0]
-                    napravlenie = None
+                    napravlenie = above = None
                     continue
                 if len(c) < 9 or c[0].lower().startswith("направление"):
                     continue
                 if c[0]:
-                    napravlenie = c[0]
+                    napravlenie, above = c[0], None
+                if c[1]:
+                    above = c
+                elif above:
+                    c = [x or (above[i] if i in (1, 2, 3, 5, 7) else x) for i, x in enumerate(c)]
                 benefit = _benefit(c[8])
                 if not benefit or not napravlenie:
                     continue
