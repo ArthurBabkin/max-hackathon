@@ -310,7 +310,7 @@ func TestAsk_CatalogOfAskedSubject(t *testing.T) {
 	st, tr := setup(t)
 	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
 	a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
-	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по информатике есть для 7 класса?"); err != nil {
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по информатике есть?"); err != nil {
 		t.Fatal(err)
 	}
 	c := cardIn(t, f.calls[0][0].Content, "catalog")
@@ -389,5 +389,27 @@ func TestAsk_NoteIgnoresSubjectOlympiadLacks(t *testing.T) {
 	}
 	if want := "ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; !strings.HasSuffix(ans.Text, want) {
 		t.Fatalf("оговорка об условиях ВШЭ: %q", ans.Text)
+	}
+}
+
+// Класс в вопросе — в каталоге только олимпиады, где есть профиль для этого
+// класса: отфильтровать список по классам модель не может сама.
+func TestAsk_CatalogForAskedGrade(t *testing.T) {
+	st, tr := setup(t)
+	for _, q := range []string{"Какие олимпиады по информатике есть для 7 класса?", "Какие олимпиады есть для 7 класса?"} {
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+		if _, err := a.Ask(context.Background(), kid, tr, nil, q); err != nil {
+			t.Fatal(err)
+		}
+		c := cardIn(t, f.calls[0][0].Content, "catalog")
+		for _, want := range []string{"для 7 класса", "Innopolis Open —", "Когнитивные технологии —"} {
+			if !strings.Contains(c, want) {
+				t.Errorf("%s: в каталоге нет %q", q, want)
+			}
+		}
+		if strings.Contains(c, "Бельчонок") || strings.Contains(c, "Высшая проба") {
+			t.Errorf("%s: олимпиады с 8 и 9 класса в каталоге для 7 класса:\n%s", q, c)
+		}
 	}
 }

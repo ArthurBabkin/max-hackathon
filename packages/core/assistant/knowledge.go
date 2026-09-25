@@ -425,9 +425,10 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 // catalogText — что есть в базе: на «какие вузы у тебя есть» и поиск
 // олимпиад по предмету, уровню, классу, городу. subjects — предметы из
 // вопроса: тогда вместо всех олимпиад — только их профили по этим предметам,
-// с уровнем и классами в строке олимпиады. Сводить классы из двух списков по
-// всей базе модель не умеет: называет олимпиады не для того класса.
-func (b base) catalogText(subjects []string) string {
+// с уровнем и классами в строке олимпиады. grade — класс из вопроса: только
+// профили для него. Сводить классы из двух списков по всей базе и
+// фильтровать их модель не умеет: называет олимпиады не для того класса.
+func (b base) catalogText(subjects []string, grade int) string {
 	count := map[string]int{}
 	for _, oid := range b.olympiads {
 		count[b.profiles[oid][0].Kind]++
@@ -443,7 +444,12 @@ func (b base) catalogText(subjects []string) string {
 	}
 	lines = append(lines, fmt.Sprintf("Олимпиад в базе: %d — из перечня Минобрнауки %d, ВсОШ %d, вне перечня %d.",
 		len(b.olympiads), count["perechen"], count["vsosh"], count["other"]))
-	order := slices.Clone(b.olympiads)
+	fits := func(p store.Profile) bool { return grade == 0 || (p.GradesFrom <= grade && grade <= p.GradesTo) }
+	forGrade := ""
+	if grade > 0 {
+		forGrade = fmt.Sprintf(" для %d класса", grade)
+	}
+	order := slices.DeleteFunc(slices.Clone(b.olympiads), func(oid string) bool { return !slices.ContainsFunc(b.profiles[oid], fits) })
 	short := func(oid string) string { return names.Olympiad(b.profiles[oid][0].OlympiadName) }
 	slices.SortFunc(order, func(x, y string) int { return strings.Compare(names.Key(short(x)), names.Key(short(y))) })
 	kinds := map[string]string{"perechen": "перечень", "vsosh": "ВсОШ", "other": "вне перечня"}
@@ -463,7 +469,7 @@ func (b base) catalogText(subjects []string) string {
 		var own []string
 		name := ""
 		for _, oid := range order {
-			if i := slices.IndexFunc(b.profiles[oid], func(p store.Profile) bool { return p.SubjectCode == code }); i >= 0 {
+			if i := slices.IndexFunc(b.profiles[oid], func(p store.Profile) bool { return p.SubjectCode == code && fits(p) }); i >= 0 {
 				own = append(own, oid)
 				name = b.profiles[oid][i].SubjectName
 			}
@@ -472,14 +478,14 @@ func (b base) catalogText(subjects []string) string {
 			continue
 		}
 		found = true
-		lines = append(lines, fmt.Sprintf("Олимпиады по предмету «%s»: %d. По уровням перечня:", name, len(own)))
-		lines = append(lines, b.bySubject(own, code)...)
+		lines = append(lines, fmt.Sprintf("Олимпиады по предмету «%s»%s: %d. По уровням перечня:", name, forGrade, len(own)))
+		lines = append(lines, b.bySubject(own, code, grade)...)
 		lines = append(lines, "По олимпиадам (вид; профили по предмету — уровень, классы; формат; финал):")
 		for _, oid := range own {
 			ps := b.profiles[oid]
 			var profiles []string
 			for _, p := range ps {
-				if p.SubjectCode != code {
+				if p.SubjectCode != code || !fits(p) {
 					continue
 				}
 				about := []string{gradesText(p.GradesFrom, p.GradesTo)}
@@ -495,11 +501,14 @@ func (b base) catalogText(subjects []string) string {
 	if found {
 		return strings.Join(lines, "\n")
 	}
+	if grade > 0 {
+		lines = append(lines, fmt.Sprintf("Олимпиады%s: %d.", forGrade, len(order)))
+	}
 	lines = append(lines, "Олимпиады по предметам и уровням (в скобках — профиль, если он называется иначе, чем предмет):")
-	lines = append(lines, b.bySubject(order, "")...)
+	lines = append(lines, b.bySubject(order, "", grade)...)
 	lines = append(lines, "Олимпиады (вид; классы; формат; финал):")
 	for _, oid := range order {
-		ps := b.profiles[oid]
+		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(p store.Profile) bool { return !fits(p) })
 		from, to := ps[0].GradesFrom, ps[0].GradesTo
 		for _, p := range ps {
 			from, to = min(from, p.GradesFrom), max(to, p.GradesTo)
@@ -525,14 +534,14 @@ func uniTitle(u store.University) string {
 // bySubject — строки «Физика, I уровень: Физтех, Росатом, …»: на поиск
 // по предмету и уровню модель отвечает одной строкой, а не перебором всех
 // олимпиад. order — олимпиады в порядке вывода; subject — только профили
-// этого предмета, "" — все.
-func (b base) bySubject(order []string, subject string) []string {
+// этого предмета, "" — все; grade — только профили для этого класса, 0 — все.
+func (b base) bySubject(order []string, subject string, grade int) []string {
 	type key struct{ subject, level string }
 	rows := map[key][]string{}
 	var keys []key
 	for _, oid := range order {
 		for _, p := range b.profiles[oid] {
-			if subject != "" && p.SubjectCode != subject {
+			if (subject != "" && p.SubjectCode != subject) || (grade > 0 && (grade < p.GradesFrom || grade > p.GradesTo)) {
 				continue
 			}
 			k := key{p.SubjectName, "вне перечня"}
