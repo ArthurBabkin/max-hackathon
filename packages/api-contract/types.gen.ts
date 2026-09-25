@@ -1833,12 +1833,28 @@ export interface components {
             /** @enum {string} */
             goal_status: "known" | "suggested" | "exploring";
             /**
-             * @description Где ученик хочет учиться — код субъекта РФ; null — не важно.
+             * @deprecated
+             * @description Первое место из `places` — код субъекта РФ; null — не важно. Устарело, вместо него `places`.
              * @example 77
              */
             target_region_code: string | null;
-            /** @example Москва */
+            /**
+             * @deprecated
+             * @example Москва
+             */
             target_region_name: string | null;
+            /**
+             * @description Опыт в олимпиадах: none — пока не было, school — школьный или муниципальный этап, region — региональный и выше. null — не спрашивали, подбор считает как none.
+             * @enum {string|null}
+             */
+            experience: "none" | "school" | "region" | null;
+            /**
+             * @description Город ученика, если известен (из поиска или геолокации в боте).
+             * @example Казань
+             */
+            home_city: string | null;
+            /** @description Где ученик хочет учиться, в порядке выбора; пустой список — не важно. */
+            places: components["schemas"]["Place"][];
             /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
             universities: components["schemas"]["UniversityListItem"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
@@ -1852,9 +1868,32 @@ export interface components {
             subject_codes?: string[];
             /** @description Направления в порядке выбора; пустой список — «пока не решил». */
             direction_ids?: string[];
-            /** @description Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно. */
+            /**
+             * @deprecated
+             * @description Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно. Устарело, вместо него `places`; игнорируется, если передан `places`.
+             */
             target_region_code?: string;
+            /** @description Где ученик хочет учиться; пустой список — не важно, повторы отбрасываются. */
+            places?: {
+                /** @example 16 */
+                region_code: string;
+                /** @description Город внутри региона; null — весь регион. */
+                city?: string | null;
+            }[];
+            /** @enum {string} */
+            experience?: "none" | "school" | "region";
             university_ids?: string[];
+        };
+        Place: {
+            /** @example 16 */
+            region_code: string;
+            /** @example Республика Татарстан */
+            region_name: string;
+            /**
+             * @description Город внутри региона; null — весь регион.
+             * @example Казань
+             */
+            city: string | null;
         };
         /** @description Ссылка на карточку нашей базы — кнопка «Карточка «…»» под ответом (F35). */
         AiCardRef: {

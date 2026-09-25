@@ -1547,6 +1547,9 @@ components:
           goal_status,
           target_region_code,
           target_region_name,
+          experience,
+          home_city,
+          places,
           universities,
           other_member_names,
         ]
@@ -1570,9 +1573,22 @@ components:
         goal_status: { type: string, enum: [known, suggested, exploring] }
         target_region_code:
           type: [string, "null"]
-          description: Где ученик хочет учиться — код субъекта РФ; null — не важно.
+          deprecated: true
+          description: Первое место из `places` — код субъекта РФ; null — не важно. Устарело, вместо него `places`.
           examples: ["77"]
-        target_region_name: { type: [string, "null"], examples: ["Москва"] }
+        target_region_name: { type: [string, "null"], deprecated: true, examples: ["Москва"] }
+        experience:
+          type: [string, "null"]
+          enum: [none, school, region, null]
+          description: "Опыт в олимпиадах: none — пока не было, school — школьный или муниципальный этап, region — региональный и выше. null — не спрашивали, подбор считает как none."
+        home_city:
+          type: [string, "null"]
+          description: Город ученика, если известен (из поиска или геолокации в боте).
+          examples: ["Казань"]
+        places:
+          type: array
+          description: Где ученик хочет учиться, в порядке выбора; пустой список — не важно.
+          items: { $ref: "#/components/schemas/Place" }
         universities:
           type: array
           description: Может быть пустым — вузы выбирать не обязательно (F9).
@@ -1599,10 +1615,38 @@ components:
           items: { type: string }
         target_region_code:
           type: string
-          description: Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно.
+          deprecated: true
+          description: Код субъекта РФ, где ученик хочет учиться; пустая строка — не важно. Устарело, вместо него `places`; игнорируется, если передан `places`.
+        places:
+          type: array
+          maxItems: 10
+          description: Где ученик хочет учиться; пустой список — не важно, повторы отбрасываются.
+          items:
+            type: object
+            required: [region_code]
+            properties:
+              region_code: { type: string, examples: ["16"] }
+              city:
+                type: [string, "null"]
+                maxLength: 80
+                description: Город внутри региона; null — весь регион.
+        experience:
+          type: string
+          enum: [none, school, region]
         university_ids:
           type: array
           items: { type: string }
+
+    Place:
+      type: object
+      required: [region_code, region_name, city]
+      properties:
+        region_code: { type: string, examples: ["16"] }
+        region_name: { type: string, examples: ["Республика Татарстан"] }
+        city:
+          type: [string, "null"]
+          description: Город внутри региона; null — весь регион.
+          examples: ["Казань"]
 
     AiCardRef:
       type: object

@@ -5,6 +5,7 @@ package pick
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
@@ -34,9 +35,16 @@ type Set struct {
 	Universities []store.University
 	Stages       map[string][]stages.Stage
 	Benefits     map[string][]store.BenefitRow // только вузы ученика, в порядке списка вузов
-	Tracker      store.TrackerState
-	Now          time.Time
+	// Potential — льготы профилей в вузах с направлениями ученика в
+	// выбранных местах; заполняется, только если вузы не выбраны (SPEC 2.3).
+	Potential map[string][]store.BenefitRow
+	Tracker   store.TrackerState
+	Now       time.Time
 }
+
+// potentialLimit — сколько вузов берётся для «потенциальной» льготы:
+// заведомо больше, чем есть в базе.
+const potentialLimit = 1000
 
 func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []string,
 	profiles []store.Profile, now time.Time) (Set, error) {
@@ -77,19 +85,57 @@ func Load(ctx context.Context, st *store.Store, t store.Trajectory, subjects []s
 			}
 		}
 	}
+	if len(s.Universities) == 0 && len(ids) > 0 {
+		if s.Potential, err = potential(ctx, st, t, ids); err != nil {
+			return s, err
+		}
+	}
 	return s, nil
 }
 
+// potential — лучшая льгота каждого профиля в вузах, где есть хотя бы одно
+// направление траектории (у exploring — в любых), в выбранных местах (нет
+// мест — везде). Так без выбранных вузов фактор Benefit не обнуляется.
+func potential(ctx context.Context, st *store.Store, t store.Trajectory, profileIDs []string) (map[string][]store.BenefitRow, error) {
+	dirIDs := make([]string, len(t.Directions))
+	for i, d := range t.Directions {
+		dirIDs[i] = d.ID
+	}
+	unis, err := st.SuggestUniversities(ctx, dirIDs, t.Places, potentialLimit, 0)
+	if err != nil || len(unis) == 0 {
+		return nil, err
+	}
+	uniIDs := make([]string, len(unis))
+	for i, u := range unis {
+		uniIDs[i] = u.ID
+	}
+	rows, err := st.Benefits(ctx, profileIDs, uniIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]store.BenefitRow{}
+	for _, b := range rows {
+		out[b.ProfileID] = append(out[b.ProfileID], b)
+	}
+	return out, nil
+}
+
 func (s Set) Student() match.Student {
-	return match.Student{DirectionSubjects: s.Trajectory.DirectionSubjects, RegionCode: s.Trajectory.RegionCode}
+	t := s.Trajectory
+	return match.Student{DirectionSubjects: t.DirectionSubjects, RegionCode: t.RegionCode,
+		Experience: t.Experience, Grade: t.Grade}
 }
 
 func (s Set) Candidate(p store.Profile) match.Candidate {
-	return match.Candidate{
+	c := match.Candidate{
 		ProfileID: p.ID, OlympiadID: p.OlympiadID, Kind: p.Kind, SubjectCode: p.SubjectCode, Level: p.Level,
 		BestBenefit: BestBenefit(s.Benefits[p.ID]), Stages: s.Stages[p.ID], Registered: s.Tracker.Registered[p.ID],
 		FinalRegionCode: p.FinalRegionCode,
 	}
+	if best := BestBenefit(s.Potential[p.ID]); c.BestBenefit == "" && best != "" {
+		c.BestBenefit, c.PotentialBenefit = best, true
+	}
+	return c
 }
 
 // SubjectCodes — коды предметов ученика; пустой срез, а не nil: nil в
@@ -137,4 +183,30 @@ func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now tim
 	}
 	res.Items, res.Outside = match.Recommend(cands, set.Student(), match.DefaultWeights, now, filter)
 	return res, nil
+}
+
+// Start — стартовая олимпиада для итога онбординга (SPEC 2.6): первая по
+// скору, а не по сроку, у которой ближайший срок не раньше чем через день.
+// Новичку ВсОШ стартовой не предлагается, если подходит олимпиада перечня.
+// nil — подходящей нет.
+func Start(res Result) *match.Result {
+	byScore := make([]*match.Result, 0, len(res.Items))
+	for i := range res.Items {
+		r := &res.Items[i]
+		if r.Deadline != nil && r.Deadline.Sub(res.Set.Now) >= 24*time.Hour {
+			byScore = append(byScore, r)
+		}
+	}
+	sort.SliceStable(byScore, func(i, j int) bool { return byScore[i].Score > byScore[j].Score })
+	if exp := res.Set.Trajectory.Experience; exp == "" || exp == "none" {
+		for _, r := range byScore {
+			if r.Kind != "vsosh" {
+				return r
+			}
+		}
+	}
+	if len(byScore) == 0 {
+		return nil
+	}
+	return byScore[0]
 }

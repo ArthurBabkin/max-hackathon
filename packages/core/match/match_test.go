@@ -24,7 +24,8 @@ func base() Candidate {
 		Stages: []stages.Stage{{Kind: "final", DeadlineAt: in(200)}}}
 }
 
-var student = Student{DirectionSubjects: []string{"inf", "math"}, RegionCode: "16"}
+// student — опытный ученик 11 класса: уровень и льгота весят полностью.
+var student = Student{DirectionSubjects: []string{"inf", "math"}, RegionCode: "16", Experience: "region", Grade: 11}
 
 func near(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
 
@@ -199,5 +200,94 @@ func TestRecommend_ProfileWithoutStagesStays(t *testing.T) {
 	items, _ := Recommend([]Candidate{bare, dated}, student, DefaultWeights, now, "all")
 	if len(items) != 2 || items[0].ProfileID != "dated" || items[1].ProfileID != "bare" || items[1].Deadline != nil {
 		t.Fatalf("профиль без этапов — в конце списка, без срока: %+v", items)
+	}
+}
+
+func TestScore_LevelByExperience(t *testing.T) {
+	score := func(exp, level string) float64 {
+		c := base()
+		c.Level = lvl(level)
+		s := student
+		s.Experience = exp
+		return Score(c, s, DefaultWeights, now).Score
+	}
+	// Новичку II–III уровень выше I, опытному — наоборот.
+	if !(score("none", "III") > score("none", "I") && score("none", "II") > score("none", "I")) {
+		t.Errorf("новичок: I=%v II=%v III=%v", score("none", "I"), score("none", "II"), score("none", "III"))
+	}
+	if !(score("region", "I") > score("region", "II") && score("region", "II") > score("region", "III")) {
+		t.Errorf("опытный: I=%v II=%v III=%v", score("region", "I"), score("region", "II"), score("region", "III"))
+	}
+	if !(score("school", "II") > score("school", "I") && score("school", "I") > score("school", "III")) {
+		t.Errorf("школьный этап: I=%v II=%v III=%v", score("school", "I"), score("school", "II"), score("school", "III"))
+	}
+	if score("", "II") != score("none", "II") {
+		t.Error("пустой опыт — как none")
+	}
+	// ВсОШ: опытному — как I уровень, новичку — как II.
+	v := base()
+	v.Kind = "vsosh"
+	for exp, want := range map[string]float64{"region": 1.0, "none": 0.8, "school": 1.0} {
+		s := student
+		s.Experience = exp
+		if got := Score(v, s, DefaultWeights, now).Factors[Level]; !near(got, DefaultWeights.Level*want) {
+			t.Errorf("ВсОШ при опыте %s: %v", exp, got)
+		}
+	}
+}
+
+func TestScore_LevelFit(t *testing.T) {
+	c := base()
+	c.Level = lvl("III")
+	s := student
+	s.Experience = "none"
+	if r := Score(c, s, DefaultWeights, now); !r.LevelFit {
+		t.Error("III уровень новичку — под опыт")
+	}
+	c.Level = lvl("I")
+	if r := Score(c, s, DefaultWeights, now); r.LevelFit {
+		t.Error("I уровень новичку — не под опыт")
+	}
+	s.Experience = ""
+	c.Level = lvl("III")
+	if r := Score(c, s, DefaultWeights, now); r.LevelFit {
+		t.Error("опыт не задан — причина по уровню, а не по опыту")
+	}
+}
+
+func TestScore_BenefitByGrade(t *testing.T) {
+	c := base()
+	c.BestBenefit = "bvi"
+	for grade, want := range map[int]float64{8: 0.15, 9: 0.15, 10: 0.30, 11: 0.30, 0: 0.30} {
+		s := student
+		s.Grade = grade
+		if got := Score(c, s, DefaultWeights, now).Factors[Benefit]; !near(got, want) {
+			t.Errorf("%d класс: льгота %v, ждали %v", grade, got, want)
+		}
+	}
+}
+
+func TestRecommend_AtMostTwoPerSubject(t *testing.T) {
+	var cs []Candidate
+	// Четыре сильных по информатике и три слабее — по другим предметам.
+	for i := 0; i < 4; i++ {
+		c := cand(string(rune('a'+i)), "perechen", "inf", lvl("I"), 10)
+		c.BestBenefit = "bvi"
+		cs = append(cs, c)
+	}
+	cs = append(cs, cand("m1", "perechen", "math", lvl("II"), 10), cand("p1", "perechen", "phys", lvl("III"), 10),
+		cand("c1", "perechen", "chem", lvl("III"), 10))
+	items, _ := Recommend(cs, student, DefaultWeights, now, "all")
+	count := map[string]int{}
+	for _, r := range items {
+		count[r.SubjectCode]++
+	}
+	if len(items) != TopN || count["inf"] != 2 {
+		t.Fatalf("топ-5 без трёх олимпиад одного предмета: %v", count)
+	}
+	// Других предметов нет — топ добирается тем, что есть.
+	items, _ = Recommend(cs[:4], student, DefaultWeights, now, "all")
+	if len(items) != 4 {
+		t.Fatalf("один предмет — топ не пустеет: %d", len(items))
 	}
 }
