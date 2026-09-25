@@ -115,6 +115,74 @@ describe('трекер и предложения', () => {
   })
 })
 
+describe('этапы в трекере (F63)', () => {
+  const put = (id: string, stage: string, body: unknown) =>
+    handleMock('PUT', `/tracker/${id}/stages/${stage}`, body) as Promise<TrackerItem>
+  const stage = (item: TrackerItem, id: string) => item.stages.find((s) => s.id === id)!
+  // ВсОШ: школьный этап уже прошёл, отметка о нём ждёт итога.
+  const vsosh = () =>
+    state.tracker.push({
+      id: 'tr-2',
+      profileId: 'vsosh-inf:inf',
+      added_by: 'mem-artem',
+      created_at: '',
+      registered_at: '2026-09-01T00:00:00Z',
+      registered_by: 'mem-artem',
+    })
+
+  it('до регистрации — «нужно зарегистрироваться», итогов у регистрации нет', async () => {
+    const { items } = (await handleMock('GET', '/tracker')) as Tracker
+    const hse = items[0]!
+    expect(hse.status).toBe('open')
+    expect(hse.action).toEqual({ type: 'register', stage_id: 'hse-registration-0' })
+    expect(hse.stages.map((s) => s.results)).toEqual([[], ['passed', 'failed'], ['winner', 'prizer', 'participant']])
+    expect(stage(hse, 'hse-qualifying-1').results_allowed).toEqual([])
+  })
+
+  it('регистрация на этап — участвует, отборочный впереди', async () => {
+    const item = await put('tr-1', 'hse-registration-0', { registered: true, result: null })
+    expect(item.status).toBe('active')
+    expect(item.registered_at).not.toBeNull()
+    expect(stage(item, 'hse-registration-0').registered).toBe(true)
+    expect(stage(item, 'hse-qualifying-1').state).toBe('current')
+  })
+
+  it('итог этапа, который ещё не начался, — 400', async () => {
+    await expect(put('tr-1', 'hse-qualifying-1', { registered: false, result: 'passed' })).rejects.toMatchObject({
+      status: 400,
+    })
+  })
+
+  it('прошедший этап спрашивает итог; «не прошёл» закрывает олимпиаду, снятие возвращает', async () => {
+    vsosh()
+    const { items } = (await handleMock('GET', '/tracker')) as Tracker
+    const asking = items.find((i) => i.id === 'tr-2')!
+    expect(asking.action).toEqual({ type: 'result', stage_id: 'vsosh-inf-school-0' })
+    expect(stage(asking, 'vsosh-inf-school-0').asking).toBe(true)
+
+    const failed = await put('tr-2', 'vsosh-inf-school-0', { registered: true, result: 'failed' })
+    expect(failed.status).toBe('finished')
+    expect(failed.outcome).toBe('failed')
+    expect(failed.action).toBeNull()
+    expect(stage(failed, 'vsosh-inf-municipal-1').state).toBe('locked')
+    // Этап после закрывающего итога не отметить: он серый.
+    await expect(put('tr-2', 'vsosh-inf-municipal-1', { registered: true, result: null })).rejects.toMatchObject({
+      status: 409,
+    })
+    await expect(handleMock('DELETE', '/tracker/tr-2/registered')).rejects.toMatchObject({ status: 409 })
+
+    const back = await put('tr-2', 'vsosh-inf-school-0', { registered: true, result: null })
+    expect(back.status).toBe('active')
+    expect(back.outcome).toBeNull()
+  })
+
+  it('этап чужой олимпиады — 404', async () => {
+    await expect(put('tr-1', 'inno-registration-0', { registered: true, result: null })).rejects.toMatchObject({
+      status: 404,
+    })
+  })
+})
+
 describe('выгрузка календаря', () => {
   afterEach(() => vi.restoreAllMocks())
 

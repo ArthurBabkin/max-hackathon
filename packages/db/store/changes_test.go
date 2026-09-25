@@ -159,3 +159,27 @@ func TestGiveUpOldChanges_AndPurge(t *testing.T) {
 		t.Fatalf("открытое изменение не трогаем: осталось %d", left)
 	}
 }
+
+// Сдвинулись даты олимпиады, участие в которой закончилось итогом, —
+// сообщать об этом семье незачем: сроков для неё больше нет.
+func TestPendingContentChanges_SkipsClosedOlympiadStages(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid")
+	item := bioItem(t, s, f)
+	if _, err := s.db.Exec(ctx, `INSERT INTO content_changes (entity, entity_id, summary)
+		VALUES ('olympiad_profile', $1, 'stages')`, bioProfile); err != nil {
+		t.Fatal(err)
+	}
+	_, items, err := s.PendingContentChanges(ctx, 10)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("до итога семья узнаёт о новых датах: %v %v", items, err)
+	}
+	if _, err := s.db.Exec(ctx, `INSERT INTO tracker_stage_results (tracker_item_id, stage_id, result)
+		VALUES ($1, $2, 'failed')`, item, bioQual); err != nil {
+		t.Fatal(err)
+	}
+	if _, items, _ = s.PendingContentChanges(ctx, 10); len(items) != 0 {
+		t.Fatalf("после «не прошёл» о датах не сообщаем: %v", items)
+	}
+}

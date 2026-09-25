@@ -336,6 +336,62 @@ paths:
               schema: { $ref: "#/components/schemas/TrackerItem" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: На регистрации держатся итоги этапов — сначала снять их
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /tracker/{id}/stages/{stage_id}:
+    put:
+      tags: [tracker]
+      summary: Отметить этап — регистрацию или итог
+      description: |
+        Отметку ставит любой участник, остальные получают сообщение от бота.
+        Тело — вся отметка этапа: `{registered: false, result: null}` снимает её.
+        Итог подразумевает регистрацию на олимпиаду. `failed`, `winner`,
+        `prizer` и `participant` заканчивают участие: следующие этапы
+        становятся `locked`, напоминания по олимпиаде отменяются. Первая
+        регистрация — то же, что `PUT /tracker/{id}/registered`.
+      x-tz: "F63"
+      parameters:
+        - $ref: "#/components/parameters/TrackerItemId"
+        - name: stage_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: "`stages.id` этапа этой олимпиады"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registered:
+                  type: boolean
+                  description: Регистрация на этап; у этапов без регистрации игнорируется.
+                result:
+                  oneOf:
+                    - $ref: "#/components/schemas/StageResult"
+                    - type: "null"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            Отметка противоречит другим: этап после закрывающего итога,
+            закрывающий итог при отметках дальше
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /calendar:
     get:
@@ -1434,6 +1490,10 @@ components:
               registered_at,
               registered_by,
               added_by,
+              status,
+              outcome,
+              stages,
+              action,
             ]
           properties:
             id: { type: string, format: uuid }
@@ -1458,6 +1518,95 @@ components:
                 - $ref: "#/components/schemas/MemberBrief"
                 - type: "null"
               description: Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2).
+            status:
+              type: string
+              enum: [open, active, finished]
+              description: |
+                open — нужно зарегистрироваться, active — участвует,
+                finished — участие закончено (итог или регистрация закрылась).
+            outcome:
+              type: [string, "null"]
+              enum: [failed, winner, prizer, participant, missed, unknown, null]
+              description: |
+                Чем закончилось участие: итог этапа, missed — регистрация
+                закрылась без отметки, unknown — сезон прошёл, итог не отмечен.
+            stages:
+              type: array
+              items: { $ref: "#/components/schemas/TrackerStage" }
+            action:
+              oneOf:
+                - $ref: "#/components/schemas/TrackerAction"
+                - type: "null"
+              description: Одна строка действия в карточке — что отметить сейчас.
+
+    StageResult:
+      type: string
+      enum: [passed, failed, winner, prizer, participant]
+      description: |
+        Итог этапа: passed — прошёл дальше, failed — не прошёл; у последнего
+        заключительного — winner, prizer, participant (без диплома).
+
+    TrackerStage:
+      type: object
+      required:
+        [
+          id,
+          kind,
+          title,
+          subtitle,
+          starts_at,
+          ends_at,
+          deadline_at,
+          state,
+          registered,
+          result,
+          can_register,
+          results,
+          results_allowed,
+          asking,
+        ]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/StageKind" }
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        deadline_at: { type: [string, "null"], format: date-time }
+        state:
+          type: string
+          enum: [past, current, future, locked]
+          description: locked — после закрывающего итога.
+        registered: { type: boolean }
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/StageResult"
+            - type: "null"
+        can_register:
+          type: boolean
+          description: Отметку регистрации можно поставить или снять сейчас.
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/StageResult" }
+          description: Какие итоги бывают у этапа.
+        results_allowed:
+          type: array
+          items: { $ref: "#/components/schemas/StageResult" }
+          description: Какие итоги можно поставить сейчас (этап начался, отметки не противоречат).
+        asking:
+          type: boolean
+          description: Этап закончился, итог ждёт отметки.
+
+    TrackerAction:
+      type: object
+      required: [type, stage_id]
+      properties:
+        type:
+          type: string
+          enum: [register, result]
+        stage_id:
+          type: [string, "null"]
+          description: Без этапа — «участвую» у олимпиады без этапа-регистрации (PUT /tracker/{id}/registered).
 
     Proposal:
       allOf:

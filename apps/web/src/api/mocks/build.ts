@@ -41,6 +41,7 @@ import {
   type DemoUniversity,
   inDays,
 } from './fixtures'
+import { progressFields, type MockProgress, type MockStage } from './progress'
 import {
   findProfile,
   hasKid,
@@ -163,14 +164,8 @@ function benefitsSummary(olympiadId: string): string {
 
 // --- Этапы -------------------------------------------------------------------
 
-function stages(o: DemoOlympiad, registered: boolean): Stage[] {
-  // Текущий этап — ближайший из ещё не прошедших. Если регистрация уже
-  // отмечена, она считается пройденной, и выделяется следующий этап.
-  const upcoming = o.stages.findIndex((s, i) => {
-    if (registered && i === 0) return false
-    return s.offset === null || s.offset >= 0
-  })
-
+/** Этапы демо-олимпиады с датами — от них считаются отметки (progress.ts). */
+export function mockStages(o: DemoOlympiad): MockStage[] {
   return o.stages.map((s, i) => {
     const at = s.offset === null ? null : inDays(s.offset)
     const isRegistration = s.kind === 'registration' || s.kind === 'school'
@@ -185,10 +180,29 @@ function stages(o: DemoOlympiad, registered: boolean): Stage[] {
       starts_at: isRegistration ? null : at,
       ends_at: null,
       deadline_at: isRegistration ? at : null,
-      is_online: s.is_online,
-      state: i === upcoming ? 'current' : i < upcoming || upcoming === -1 ? 'past' : 'future',
     }
   })
+}
+
+/** Отметки пункта трекера по профилю; не в трекере — пустые. */
+export function progressOf(item: DemoTrackerItem | undefined): MockProgress {
+  return { registered: Boolean(item?.registered_at), marks: item?.marks ?? {} }
+}
+
+function stages(o: DemoOlympiad, progress: MockProgress): Stage[] {
+  const { stages: marked } = progressFields(mockStages(o), progress, Date.now())
+  return marked.map((s, i) => ({
+    id: s.id,
+    kind: s.kind,
+    title: s.title,
+    subtitle: s.subtitle,
+    starts_at: s.starts_at,
+    ends_at: s.ends_at,
+    deadline_at: s.deadline_at,
+    is_online: o.stages[i]!.is_online,
+    // В таймлайне карточки этапы после закрывающего итога — просто прошлое.
+    state: s.state === 'locked' ? 'past' : s.state,
+  }))
 }
 
 const deadlineOf = (o: DemoOlympiad) => inDays(o.deadlineIn)
@@ -249,7 +263,7 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     is_mine: p.subject_code === profile.subject_code,
   }))
 
-  const registered = state.tracker.some((i) => i.profileId === profileId && i.registered_at)
+  const progress = progressOf(state.tracker.find((i) => i.profileId === profileId))
   const benefits = sortBenefitRows(
     state.universities
       .map(universityById)
@@ -270,7 +284,7 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     benefit_columns: benefitColumns(o, benefits),
     benefits_source: SOURCES.rules as Source,
     conditions: o.conditions,
-    stages: stages(o, registered),
+    stages: stages(o, progress),
     stages_are_demo: o.stages_are_demo,
     why: o.why[role()],
     // Вузы ученика уже в блоке льгот — здесь только остальные (F23).
@@ -368,11 +382,10 @@ export function trackerItem(item: DemoTrackerItem): TrackerItem | null {
     subject_name: subjectName(profile.subject_code),
     kind: o.kind,
     level: profile.level,
-    deadline_at: deadlineOf(o),
-    next_stage_title: nextStageTitle(o, Boolean(item.registered_at)),
     registered_at: item.registered_at,
     registered_by: brief(item.registered_by),
     added_by: brief(item.added_by),
+    ...progressFields(mockStages(o), progressOf(item), Date.now()),
   }
 }
 
@@ -431,7 +444,7 @@ export function home(): Home {
     .filter((i): i is TrackerItem => i !== null)
     .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
 
-  const open = items.filter((i) => !i.registered_at)
+  const open = items.filter((i) => i.status === 'open')
   const first = open[0]
   const next: NextStep | null = first
     ? {
@@ -447,7 +460,7 @@ export function home(): Home {
   return {
     trajectory: trajectorySummary(),
     tracker_count: items.length,
-    registered_count: items.length - open.length,
+    registered_count: items.filter((i) => i.registered_at).length,
     universities_count: state.universities.length,
     pending_proposals_count: state.proposals.filter((p) => p.status === 'pending').length,
     next_step: next,

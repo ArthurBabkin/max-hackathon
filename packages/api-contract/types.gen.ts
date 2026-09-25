@@ -546,8 +546,90 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                /** @description На регистрации держатся итоги этапов — сначала снять их */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tracker/{id}/stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Отметить этап — регистрацию или итог
+         * @description Отметку ставит любой участник, остальные получают сообщение от бота.
+         *     Тело — вся отметка этапа: `{registered: false, result: null}` снимает её.
+         *     Итог подразумевает регистрацию на олимпиаду. `failed`, `winner`,
+         *     `prizer` и `participant` заканчивают участие: следующие этапы
+         *     становятся `locked`, напоминания по олимпиаде отменяются. Первая
+         *     регистрация — то же, что `PUT /tracker/{id}/registered`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `tracker_items.id` */
+                    id: components["parameters"]["TrackerItemId"];
+                    /** @description `stages.id` этапа этой олимпиады */
+                    stage_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Регистрация на этап; у этапов без регистрации игнорируется. */
+                        registered?: boolean;
+                        result?: components["schemas"]["StageResult"] | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrackerItem"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /**
+                 * @description Отметка противоречит другим: этап после закрывающего итога,
+                 *     закрывающий итог при отметках дальше
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1779,6 +1861,60 @@ export interface components {
             registered_by: components["schemas"]["MemberBrief"] | null;
             /** @description Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2). */
             added_by: components["schemas"]["MemberBrief"] | null;
+            /**
+             * @description open — нужно зарегистрироваться, active — участвует,
+             *     finished — участие закончено (итог или регистрация закрылась).
+             * @enum {string}
+             */
+            status: "open" | "active" | "finished";
+            /**
+             * @description Чем закончилось участие: итог этапа, missed — регистрация
+             *     закрылась без отметки, unknown — сезон прошёл, итог не отмечен.
+             * @enum {string|null}
+             */
+            outcome: "failed" | "winner" | "prizer" | "participant" | "missed" | "unknown" | null;
+            stages: components["schemas"]["TrackerStage"][];
+            /** @description Одна строка действия в карточке — что отметить сейчас. */
+            action: components["schemas"]["TrackerAction"] | null;
+        };
+        /**
+         * @description Итог этапа: passed — прошёл дальше, failed — не прошёл; у последнего
+         *     заключительного — winner, prizer, participant (без диплома).
+         * @enum {string}
+         */
+        StageResult: "passed" | "failed" | "winner" | "prizer" | "participant";
+        TrackerStage: {
+            id: string;
+            kind: components["schemas"]["StageKind"];
+            title: string;
+            subtitle: string | null;
+            /** Format: date-time */
+            starts_at: string | null;
+            /** Format: date-time */
+            ends_at: string | null;
+            /** Format: date-time */
+            deadline_at: string | null;
+            /**
+             * @description locked — после закрывающего итога.
+             * @enum {string}
+             */
+            state: "past" | "current" | "future" | "locked";
+            registered: boolean;
+            result: components["schemas"]["StageResult"] | null;
+            /** @description Отметку регистрации можно поставить или снять сейчас. */
+            can_register: boolean;
+            /** @description Какие итоги бывают у этапа. */
+            results: components["schemas"]["StageResult"][];
+            /** @description Какие итоги можно поставить сейчас (этап начался, отметки не противоречат). */
+            results_allowed: components["schemas"]["StageResult"][];
+            /** @description Этап закончился, итог ждёт отметки. */
+            asking: boolean;
+        };
+        TrackerAction: {
+            /** @enum {string} */
+            type: "register" | "result";
+            /** @description Без этапа — «участвую» у олимпиады без этапа-регистрации (PUT /tracker/{id}/registered). */
+            stage_id: string | null;
         };
         Proposal: components["schemas"]["Badge"] & {
             /** Format: uuid */

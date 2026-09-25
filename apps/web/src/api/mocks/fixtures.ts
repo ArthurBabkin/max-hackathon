@@ -108,11 +108,13 @@ export const OLYMPIADS: DemoOlympiad[] = [
     final_city: null,
     format: 'Первый этап в школе',
     is_online: false,
-    deadlineIn: 10,
+    // Школьный этап уже прошёл — в трекере он ждёт итога, а срок
+    // олимпиады — муниципальный этап.
+    deadlineIn: 45,
     profiles: [{ subject_code: 'inf', level: null }],
     stages: [
-      { kind: 'school', title: 'Школьный этап', subtitle: 'в школе', offset: 10, is_online: false },
-      { kind: 'municipal', title: 'Муниципальный этап', subtitle: 'ноябрь — декабрь', offset: null, is_online: false },
+      { kind: 'school', title: 'Школьный этап', subtitle: 'в школе', offset: -4, is_online: false },
+      { kind: 'municipal', title: 'Муниципальный этап', subtitle: 'ноябрь — декабрь', offset: 45, is_online: false },
       { kind: 'regional', title: 'Региональный этап', subtitle: 'январь — февраль', offset: null, is_online: false },
       { kind: 'final', title: 'Заключительный этап', subtitle: 'март — апрель', offset: null, is_online: false },
     ],

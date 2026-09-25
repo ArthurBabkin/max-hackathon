@@ -43,6 +43,17 @@ func planned(t *testing.T, s *Store, itemID string) map[string]plannedRow {
 	return out
 }
 
+// deadlines — только напоминания о сроках, без вопросов об итоге.
+func deadlines(rows map[string]plannedRow) map[string]plannedRow {
+	out := map[string]plannedRow{}
+	for k, r := range rows {
+		if r.offset >= 0 {
+			out[k] = r
+		}
+	}
+	return out
+}
+
 func countStatus(rows map[string]plannedRow, status string) int {
 	n := 0
 	for _, r := range rows {
@@ -106,7 +117,7 @@ func TestSyncReminders_FollowsRegistrationAndTimeZone(t *testing.T) {
 	if r := got["p669-8-informatika:registration:1/1"]; r.status != "cancelled" {
 		t.Fatalf("после отметки напоминания о регистрации отменены: %+v", r)
 	}
-	if countStatus(got, "planned") != 12 {
+	if countStatus(deadlines(got), "planned") != 12 {
 		t.Fatalf("остальные этапы на месте: %v", got)
 	}
 
@@ -115,7 +126,7 @@ func TestSyncReminders_FollowsRegistrationAndTimeZone(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = s.SyncReminders(ctx, f.trajectoryID, 10, now)
-	if got := planned(t, s, item); countStatus(got, "planned") != 15 {
+	if got := deadlines(planned(t, s, item)); countStatus(got, "planned") != 15 {
 		t.Fatalf("после снятия отметки: %v", got)
 	}
 

@@ -67,6 +67,9 @@ func (s *Store) PendingContentChanges(ctx context.Context, limit int) (ids []str
 			         p.change_ids
 			  FROM pending p JOIN tracker_items ti ON ti.olympiad_profile_id = p.entity_id
 			  WHERE p.entity = 'olympiad_profile'
+			    -- Участие закончилось итогом — новые даты этой семье не нужны.
+			    AND NOT EXISTS (SELECT 1 FROM tracker_stage_results r WHERE r.tracker_item_id = ti.id
+			                    AND r.result IN ('failed', 'winner', 'prizer', 'participant'))
 			  UNION
 			  SELECT t.id, split_part(p.entity_id, '@', 1), split_part(p.entity_id, '@', 2), 'benefits',
 			         p.change_ids

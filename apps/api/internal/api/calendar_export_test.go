@@ -98,6 +98,19 @@ func TestCalendarExport(t *testing.T) {
 		t.Fatalf("после отметки:\n%s", strings.Join(got, "\n"))
 	}
 
+	// Итог «не прошёл» у ВсОШ закрывает олимпиаду — её дальнейших сроков
+	// в файле нет.
+	if _, err := e.pool.Exec(context.Background(), `INSERT INTO tracker_stage_results (tracker_item_id, stage_id, result)
+		SELECT id, 'vsosh-informatika:school:1', 'failed' FROM tracker_items WHERE olympiad_profile_id = 'vsosh-informatika'`); err != nil {
+		t.Fatal(err)
+	}
+	if got := icsEvents(t, e.do("GET", "/api/v1"+e.calendarLink(token), "", nil).raw); len(got) != 2 {
+		t.Fatalf("после «не прошёл» у ВсОШ:\n%s", strings.Join(got, "\n"))
+	}
+	if _, err := e.pool.Exec(context.Background(), `DELETE FROM tracker_stage_results`); err != nil {
+		t.Fatal(err)
+	}
+
 	// Прошедшие сроки не выгружаются.
 	e.now = time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)
 	token = e.login(900000002, "Ольга") // прежняя сессия за месяц истекла

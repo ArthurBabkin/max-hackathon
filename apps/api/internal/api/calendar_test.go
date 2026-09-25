@@ -55,3 +55,29 @@ func TestCalendar(t *testing.T) {
 		}
 	}
 }
+
+// Отмеченный итог и закрывающая отметка убирают сроки из календаря: после
+// «не прошёл» у олимпиады больше нет дат, которые нужно помнить.
+func TestCalendar_SkipsSettledStages(t *testing.T) {
+	e := newEnv(t)
+	f := e.withParent(e.kidCreator())
+	bio := e.track(f, bioProfile, true)
+	token := e.login(artemMax, "Артём")
+	month := func(m string) int {
+		n := 0
+		for _, d := range list(t, e.do("GET", "/api/v1/calendar?month="+m, token, nil).body["days"]) {
+			n += len(list(t, d["items"]))
+		}
+		return n
+	}
+	if month("2026-11") != 1 || month("2027-03") != 2 {
+		t.Fatalf("до отметок: отборочный в ноябре, регистрация и финал в марте: %d %d", month("2026-11"), month("2027-03"))
+	}
+	if _, err := e.pool.Exec(context.Background(), `INSERT INTO tracker_stage_results (tracker_item_id, stage_id, result)
+		VALUES ($1, $2, 'failed')`, bio, bioQual); err != nil {
+		t.Fatal(err)
+	}
+	if month("2026-11") != 0 || month("2027-03") != 0 {
+		t.Fatalf("не прошёл — сроков больше нет: %d %d", month("2026-11"), month("2027-03"))
+	}
+}

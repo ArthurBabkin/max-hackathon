@@ -675,17 +675,17 @@
     "kid": "Нужно зарегистрироваться",
     "parent": "Нужно зарегистрироваться"
   },
-  "tracker.groupDone": {
-    "kid": "Зарегистрирован",
-    "parent": "Зарегистрирован"
-  },
   "tracker.registeredCta": {
-    "kid": "Я зарегистрировался",
-    "parent": "{student} зарегистрирован"
+    "kid": "Регистрация пройдена",
+    "parent": "Регистрация пройдена"
   },
   "tracker.markedBy": {
     "kid": "Отметил(а) {name}",
     "parent": "Отметил(а) {name}"
+  },
+  "tracker.markedByInline": {
+    "kid": "отметил(а) {name}",
+    "parent": "отметил(а) {name}"
   },
   "tracker.addedBy": {
     "kid": "Добавил(а) {name}",
@@ -730,6 +730,198 @@
   "tracker.nextStage": {
     "kid": "Дальше: {stage}",
     "parent": "Дальше: {stage}"
+  },
+  "tracker.groupActive": {
+    "kid": "Участвую",
+    "parent": "Участвует"
+  },
+  "tracker.groupFinished": {
+    "kid": "Завершено",
+    "parent": "Завершено"
+  },
+  "tracker.registeredNextCta": {
+    "kid": "Регистрация на следующий этап пройдена",
+    "parent": "Регистрация на следующий этап пройдена"
+  },
+  "tracker.participatingCta": {
+    "kid": "Участвую",
+    "parent": "{student} участвует"
+  },
+  "tracker.askResult": {
+    "kid": "Как прошёл {stage}?",
+    "parent": "Как у {student_gen} прошёл {stage}?"
+  },
+  "tracker.stageKind.school": {
+    "kid": "школьный этап",
+    "parent": "школьный этап"
+  },
+  "tracker.stageKind.municipal": {
+    "kid": "муниципальный этап",
+    "parent": "муниципальный этап"
+  },
+  "tracker.stageKind.regional": {
+    "kid": "региональный этап",
+    "parent": "региональный этап"
+  },
+  "tracker.stageKind.qualifying": {
+    "kid": "отборочный этап",
+    "parent": "отборочный этап"
+  },
+  "tracker.stageKind.final": {
+    "kid": "заключительный этап",
+    "parent": "заключительный этап"
+  },
+  "tracker.stageKind.registration": {
+    "kid": "этап регистрации",
+    "parent": "этап регистрации"
+  },
+  "tracker.stageShort.registration": {
+    "kid": "Регистрация",
+    "parent": "Регистрация"
+  },
+  "tracker.stageShort.school": {
+    "kid": "Школьный",
+    "parent": "Школьный"
+  },
+  "tracker.stageShort.municipal": {
+    "kid": "Муниципальный",
+    "parent": "Муниципальный"
+  },
+  "tracker.stageShort.regional": {
+    "kid": "Региональный",
+    "parent": "Региональный"
+  },
+  "tracker.stageShort.qualifying": {
+    "kid": "Отбор",
+    "parent": "Отбор"
+  },
+  "tracker.stageShort.final": {
+    "kid": "Финал",
+    "parent": "Финал"
+  },
+  "tracker.result.passed": {
+    "kid": "Прохожу дальше",
+    "parent": "Проходит дальше"
+  },
+  "tracker.result.failed": {
+    "kid": "Не прохожу",
+    "parent": "Не проходит"
+  },
+  "tracker.result.winner": {
+    "kid": "Диплом победителя",
+    "parent": "Диплом победителя"
+  },
+  "tracker.result.prizer": {
+    "kid": "Диплом призёра",
+    "parent": "Диплом призёра"
+  },
+  "tracker.result.participant": {
+    "kid": "Без диплома",
+    "parent": "Без диплома"
+  },
+  "tracker.mark.registered": {
+    "kid": "регистрация есть",
+    "parent": "регистрация есть"
+  },
+  "tracker.mark.passed": {
+    "kid": "пройден",
+    "parent": "пройден"
+  },
+  "tracker.mark.failed": {
+    "kid": "не пройден",
+    "parent": "не пройден"
+  },
+  "tracker.mark.winner": {
+    "kid": "победитель",
+    "parent": "победитель"
+  },
+  "tracker.mark.prizer": {
+    "kid": "призёр",
+    "parent": "призёр"
+  },
+  "tracker.mark.participant": {
+    "kid": "без диплома",
+    "parent": "без диплома"
+  },
+  "tracker.pill.asking": {
+    "kid": "ждёт итога",
+    "parent": "ждёт итога"
+  },
+  "tracker.pill.finished": {
+    "kid": "завершено",
+    "parent": "завершено"
+  },
+  "tracker.outcome.failed": {
+    "kid": "Итог: {stage} не пройден",
+    "parent": "Итог: {stage} не пройден"
+  },
+  "tracker.outcome.winner": {
+    "kid": "Итог: диплом победителя",
+    "parent": "Итог: диплом победителя"
+  },
+  "tracker.outcome.prizer": {
+    "kid": "Итог: диплом призёра",
+    "parent": "Итог: диплом призёра"
+  },
+  "tracker.outcome.participant": {
+    "kid": "Итог: без диплома",
+    "parent": "Итог: без диплома"
+  },
+  "tracker.outcome.missed": {
+    "kid": "Регистрация закрылась без отметки",
+    "parent": "Регистрация закрылась без отметки"
+  },
+  "tracker.outcome.unknown": {
+    "kid": "Сезон прошёл, итог не отмечен",
+    "parent": "Сезон прошёл, итог не отмечен"
+  },
+  "tracker.waitNext": {
+    "kid": "Ждём даты следующего этапа",
+    "parent": "Ждём даты следующего этапа"
+  },
+  "tracker.showStages": {
+    "kid": "Все этапы",
+    "parent": "Все этапы"
+  },
+  "tracker.hideStages": {
+    "kid": "Свернуть",
+    "parent": "Свернуть"
+  },
+  "tracker.markRegistration": {
+    "kid": "Отметить регистрацию",
+    "parent": "Отметить регистрацию"
+  },
+  "tracker.unmark": {
+    "kid": "Снять",
+    "parent": "Снять"
+  },
+  "tracker.resultLater": {
+    "kid": "итог — после этапа",
+    "parent": "итог — после этапа"
+  },
+  "tracker.undoHint": {
+    "kid": "Отметку можно снять — этапы и напоминания вернутся.",
+    "parent": "Отметку можно снять — этапы и напоминания вернутся."
+  },
+  "tracker.diplomaBenefits": {
+    "kid": "Что даёт диплом в твоих вузах",
+    "parent": "Что даёт диплом в вузах {student_gen}"
+  },
+  "tracker.remove": {
+    "kid": "Убрать из трекера",
+    "parent": "Убрать из трекера"
+  },
+  "tracker.removeConfirm": {
+    "kid": "Убрать «{title}» из трекера? Напоминаний по ней больше не будет.",
+    "parent": "Убрать «{title}» из трекера? Напоминаний по ней больше не будет."
+  },
+  "tracker.removeYes": {
+    "kid": "Убрать",
+    "parent": "Убрать"
+  },
+  "tracker.removeNo": {
+    "kid": "Оставить",
+    "parent": "Оставить"
   },
   "tracker.calendarEmpty": {
     "kid": "Сроков нет",
@@ -1891,6 +2083,50 @@
     "kid": "Этой олимпиады уже нет в трекере.",
     "parent": "Этой олимпиады уже нет в трекере."
   },
+  "bot.stageResult.ask": {
+    "kid": "📝 Как прошёл {stage}? Отметь итог — трекер покажет, что дальше.",
+    "parent": "📝 Как у {student_gen} прошёл {stage}? Отметьте итог — трекер покажет, что дальше."
+  },
+  "bot.stageResult.passed": {
+    "kid": "✅ Прохожу дальше",
+    "parent": "✅ Проходит дальше"
+  },
+  "bot.stageResult.failed": {
+    "kid": "Дальше не прохожу",
+    "parent": "Дальше не проходит"
+  },
+  "bot.stageResult.winner": {
+    "kid": "🏆 Диплом победителя",
+    "parent": "🏆 Диплом победителя"
+  },
+  "bot.stageResult.prizer": {
+    "kid": "🏅 Диплом призёра",
+    "parent": "🏅 Диплом призёра"
+  },
+  "bot.stageResult.participant": {
+    "kid": "Без диплома",
+    "parent": "Без диплома"
+  },
+  "bot.stageResult.notYet": {
+    "kid": "Итогов ещё нет",
+    "parent": "Итогов ещё нет"
+  },
+  "bot.stageResult.saved": {
+    "kid": "✅ Записал в трекер.",
+    "parent": "✅ Записал в трекер."
+  },
+  "bot.stageResult.later": {
+    "kid": "Хорошо, спрошу ещё раз через неделю.",
+    "parent": "Хорошо, спрошу ещё раз через неделю."
+  },
+  "bot.stageResult.laterLast": {
+    "kid": "Хорошо. Когда итоги появятся, отметь их в трекере.",
+    "parent": "Хорошо. Когда итоги появятся, отметьте их в трекере."
+  },
+  "bot.stageResult.already": {
+    "kid": "Уже отмечено в трекере — изменить можно там.",
+    "parent": "Уже отмечено в трекере — изменить можно там."
+  },
   "bot.stage.registration": {
     "kid": "регистрация на олимпиаду «{title}»",
     "parent": "регистрация на олимпиаду «{title}»"
@@ -1962,6 +2198,34 @@
   "notify.registered": {
     "kid": "✅ {name} отмечает: регистрация на «{title}» пройдена.",
     "parent": "✅ {name} отмечает: регистрация на «{title}» пройдена. Статус обновился в общей траектории."
+  },
+  "notify.stage.registered": {
+    "kid": "✅ {name} отмечает в трекере «{title}»: {stage} — пройдена.",
+    "parent": "✅ {name} отмечает в трекере «{title}»: {stage} — пройдена."
+  },
+  "notify.stage.passed": {
+    "kid": "🎉 {name} отмечает в трекере «{title}»: {stage} — пройден.",
+    "parent": "🎉 {name} отмечает в трекере «{title}»: {stage} — пройден."
+  },
+  "notify.stage.failed": {
+    "kid": "{name} отмечает в трекере «{title}»: {stage} — не пройден.",
+    "parent": "{name} отмечает в трекере «{title}»: {stage} — не пройден."
+  },
+  "notify.stage.winner": {
+    "kid": "🏆 {name} отмечает в трекере «{title}»: {stage} — диплом победителя!",
+    "parent": "🏆 {name} отмечает в трекере «{title}»: {stage} — диплом победителя!"
+  },
+  "notify.stage.prizer": {
+    "kid": "🏅 {name} отмечает в трекере «{title}»: {stage} — диплом призёра!",
+    "parent": "🏅 {name} отмечает в трекере «{title}»: {stage} — диплом призёра!"
+  },
+  "notify.stage.participant": {
+    "kid": "{name} отмечает в трекере «{title}»: {stage} — без диплома.",
+    "parent": "{name} отмечает в трекере «{title}»: {stage} — без диплома."
+  },
+  "notify.stage.untitled": {
+    "kid": "этап",
+    "parent": "этап"
   },
   "notify.joined": {
     "kid": "✓ {name} теперь в траектории.",

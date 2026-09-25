@@ -1964,6 +1964,311 @@
   margin-top: var(--gap-md);
 }
 
+/* Полоска этапов в карточке трекера — E1, вариант B */
+.strip {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.strip-item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.strip-label {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.strip-label b,
+.strip-caption {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.strip-label b {
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.strip-caption {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.strip-done {
+  background: var(--grs);
+  color: var(--gr-ink);
+}
+
+.strip-gold,
+.strip-ask {
+  background: var(--ams);
+  color: var(--am-ink);
+}
+
+.strip-now {
+  background: var(--pks);
+  color: var(--pk-ink);
+}
+
+.strip-done .strip-caption,
+.strip-gold .strip-caption,
+.strip-ask .strip-caption,
+.strip-now .strip-caption {
+  color: inherit;
+}
+
+.strip-fail b {
+  text-decoration: line-through;
+  color: var(--mu);
+}
+
+.strip-off {
+  opacity: 0.45;
+}
+
+/* Строка действия: вопрос об итоге этапа */
+.tracker-ask {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln);
+}
+
+.tracker-ask-question {
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.result-button {
+  flex: 1 1 auto;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--ps);
+  color: var(--p);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.result-button-quiet {
+  border-color: var(--ln-strong);
+  background: var(--surface);
+  color: var(--tx);
+}
+
+.result-button[aria-pressed='true'] {
+  border-color: var(--gr);
+  background: var(--grs);
+  color: var(--gr-ink);
+}
+
+.result-button:disabled {
+  opacity: 0.45;
+}
+
+.result-button[aria-pressed='true']:disabled {
+  opacity: 1;
+}
+
+/* Раскрытая карточка — все этапы с отметками, E4 */
+.tracker-expanded {
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--ln);
+}
+
+.stage-marks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage-mark {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+
+.stage-mark-dot {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--ln-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.stage-mark-past .stage-mark-dot {
+  border-color: var(--gr);
+  background: var(--gr);
+}
+
+.stage-mark-current .stage-mark-dot {
+  border-color: var(--pk);
+  background: var(--pk);
+  box-shadow: 0 0 0 3px var(--pks);
+}
+
+.stage-mark-ask .stage-mark-dot {
+  border-color: var(--am);
+  background: var(--am);
+  box-shadow: 0 0 0 3px var(--ams);
+}
+
+.stage-mark-off {
+  opacity: 0.45;
+}
+
+.stage-mark-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-mark-main b {
+  display: block;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.stage-mark-main > span {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.stage-mark-main > .stage-mark-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--grs);
+  color: var(--gr-ink);
+  font-weight: 700;
+}
+
+.stage-mark-chip::first-letter {
+  text-transform: uppercase;
+}
+
+.stage-mark-link {
+  display: block;
+  min-height: 32px;
+  color: var(--p2);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.stage-mark-link:disabled {
+  opacity: 0.45;
+}
+
+.tracker-note {
+  margin: 4px 0 0;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.tracker-remove {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 6px;
+  border-top: 1px dashed var(--ln);
+  color: var(--pk-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.tracker-confirm {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln);
+}
+
+.tracker-confirm p {
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-small);
+}
+
+.tracker-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-sm);
+}
+
+.tracker-diploma {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 10px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: var(--ams);
+  color: var(--am-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+  text-align: left;
+}
+
+.tracker-diploma svg:last-child {
+  margin-left: auto;
+}
+
+.tracker-more {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  color: var(--mu);
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
+
+.tracker-more-down {
+  transform: rotate(90deg);
+}
+
+.tracker-more-up {
+  transform: rotate(-90deg);
+}
+
 /* Предложение от родителя — E1 */
 .proposal {
   border: 1.5px solid var(--p);

@@ -227,3 +227,29 @@ func TestKnowledge_MyUniversitiesStudentSubjects(t *testing.T) {
 		t.Fatalf("строка ВШЭ — только информатика и математика: %s", hse)
 	}
 }
+
+// Итоги этапов — в карточке ученика: после «не прошёл» помощник не
+// должен советовать готовиться к заключительному.
+func TestKnowledge_StudentCardHasStageResults(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	m, _ := st.CurrentMember(ctx, 900000001)
+	item, _, _ := st.AddTrackerItem(ctx, tr.ID, "p669-14-biologiya", m.MemberID)
+	if _, err := st.SetStageMark(ctx, tr.ID, item, "p669-14-biologiya:qualifying:1", m.MemberID,
+		stages.Mark{Result: stages.Failed}, time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	a := &Assistant{Store: st}
+	b, err := a.loadBase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := collected{clock: a.clock(tr)}
+	if err := a.studentCard(ctx, b, tr, &c); err != nil {
+		t.Fatal(err)
+	}
+	card := c.cards[0].text
+	if !strings.Contains(card, "отборочный этап — не прошёл") || !strings.Contains(card, "участие завершено") {
+		t.Fatalf("итог этапа в карточке ученика:\n%s", card)
+	}
+}
