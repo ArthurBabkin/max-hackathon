@@ -1,4 +1,7 @@
-/** Подбор (экран C3): 3–5 олимпиад под цель, фильтры, блок «Вне перечня». */
+/**
+ * Подбор (экраны C3, C7): подходящие олимпиады, которых ещё нет в трекере,
+ * фильтры, «Показать ещё» и блок «Вне перечня». Когда добавлено всё — C7.
+ */
 
 import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
@@ -13,6 +16,7 @@ import { useSheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
 import { ErrorState } from '@/ui/ErrorState'
+import { showInfoToast } from '@/ui/toast'
 
 const FILTER_LABELS: Record<MatchFilter, TextKey> = {
   all: 'match.filterAll',
@@ -26,6 +30,7 @@ export function MatchScreen() {
   const navigate = useNavigate()
   const sheets = useSheetStack()
   const [filter, setFilter] = useState<MatchFilter>('all')
+  const [showMore, setShowMore] = useState(false)
 
   const { data: session } = useSession()
   const { data: home } = useHome()
@@ -36,9 +41,12 @@ export function MatchScreen() {
   const action = session ? trackerAction(session) : 'add'
   const busy = add.isPending || propose.isPending
 
+  // Добавленная карточка уходит из подбора, её место занимает следующая —
+  // подтверждение говорит, куда она делась.
   const onTrack = (card: CardData) => {
-    if (action === 'propose') propose.mutate(card.olympiad_profile_id)
-    else add.mutate(card.olympiad_profile_id)
+    if (action === 'propose')
+      propose.mutate(card.olympiad_profile_id, { onSuccess: () => showInfoToast(t('toast.proposalSent')) })
+    else add.mutate(card.olympiad_profile_id, { onSuccess: () => showInfoToast(t('toast.trackAdded')) })
   }
 
   const openOlympiad = (id: string) => sheets.open({ kind: 'oly', id })
@@ -63,7 +71,14 @@ export function MatchScreen() {
   const chips = (
     <div className="chips" role="group" aria-label="Фильтры подбора">
       {MATCH_FILTERS.map((key) => (
-        <Chip key={key} active={filter === key} onClick={() => setFilter(key)}>
+        <Chip
+          key={key}
+          active={filter === key}
+          onClick={() => {
+            setFilter(key)
+            setShowMore(false)
+          }}
+        >
           {t(FILTER_LABELS[key])}
         </Chip>
       ))}
@@ -93,13 +108,69 @@ export function MatchScreen() {
     )
   }
 
-  const { items, outside, note } = recommendations.data
+  const { items, more, outside, note, tracked_count, proposed_count, state } = recommendations.data
+  const filtered = filter !== 'all'
+
+  const resetFilter = (
+    <Button stretched variant="secondary" onClick={() => setFilter('all')}>
+      {t('match.emptyReset')}
+    </Button>
+  )
+
+  // Что спрятано: добавленное и ждущее ответа на предложение (C3).
+  const hidden =
+    tracked_count > 0 || proposed_count > 0 ? (
+      <div className="match-hidden">
+        {tracked_count > 0 ? (
+          <button type="button" className="match-hidden-row" onClick={() => navigate('/tracker')}>
+            <Icon name="check" size={13} strokeWidth={2.6} />
+            <span>{t('match.hiddenTracked', { count: tracked_count })}</span>
+            <Icon name="chevron" size={14} />
+          </button>
+        ) : null}
+        {proposed_count > 0 ? (
+          <button type="button" className="match-hidden-row" onClick={() => navigate('/tracker')}>
+            <Icon name="clock" size={13} />
+            <span>{t('match.hiddenProposed', { count: proposed_count })}</span>
+            <Icon name="chevron" size={14} />
+          </button>
+        ) : null}
+      </div>
+    ) : null
 
   if (items.length === 0) {
-    return (
-      <div className="screen">
-        {header}
-        {chips}
+    let block
+    if (state === 'all_tracked') {
+      block = (
+        <StateBlock
+          icon="award"
+          tone="ok"
+          title={t(filtered ? 'match.allTrackedFilterTitle' : 'match.allTrackedTitle')}
+          text={filtered ? undefined : t('match.allTrackedText')}
+        >
+          <Button stretched onClick={() => navigate('/tracker')}>
+            {t('match.openTracker')}
+          </Button>
+          {filtered ? (
+            resetFilter
+          ) : (
+            <Button stretched variant="secondary" onClick={() => navigate('/catalog')}>
+              {t('match.openCatalog')}
+            </Button>
+          )}
+        </StateBlock>
+      )
+    } else if (state === 'all_proposed') {
+      block = (
+        <StateBlock icon="clock" title={t('match.allProposedTitle')} text={t('match.allProposedText')}>
+          <Button stretched onClick={() => navigate('/tracker')}>
+            {t('match.openTracker')}
+          </Button>
+          {filtered ? resetFilter : null}
+        </StateBlock>
+      )
+    } else if (filtered) {
+      block = (
         <StateBlock icon="search" title={t('match.emptyTitle')} text={t('match.emptyText')}>
           <Button stretched onClick={() => setFilter('all')}>
             {t('match.emptyReset')}
@@ -108,9 +179,29 @@ export function MatchScreen() {
             {t('match.emptyProfile')}
           </Button>
         </StateBlock>
+      )
+    } else {
+      block = (
+        <StateBlock icon="search" title={t('match.noneTitle')} text={t('match.noneText')}>
+          <Button stretched onClick={() => navigate('/catalog?segment=universities')}>
+            {t('match.findUniversities')}
+          </Button>
+          <Button stretched variant="secondary" onClick={() => navigate('/profile')}>
+            {t('match.emptyProfile')}
+          </Button>
+        </StateBlock>
+      )
+    }
+    return (
+      <div className="screen">
+        {header}
+        {chips}
+        {block}
       </div>
     )
   }
+
+  const shown = showMore ? [...items, ...more] : items
 
   return (
     <div className="screen">
@@ -125,9 +216,10 @@ export function MatchScreen() {
       {home?.universities_count === 0 ? (
         <p className="info-line info-line-plain">{t('match.noUniversities')}</p>
       ) : null}
+      {hidden}
 
       <div className="match-list" data-tour="match-list">
-        {items.map((card) => (
+        {shown.map((card) => (
           <OlympiadCard
             key={card.olympiad_profile_id}
             card={card}
@@ -138,6 +230,12 @@ export function MatchScreen() {
           />
         ))}
       </div>
+      {!showMore && more.length > 0 ? (
+        <button type="button" className="match-more" onClick={() => setShowMore(true)}>
+          {t('match.showMore', { count: more.length })}
+          <Icon name="down" size={14} />
+        </button>
+      ) : null}
 
       {outside.length > 0 ? (
         <>

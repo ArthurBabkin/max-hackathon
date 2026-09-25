@@ -91,8 +91,10 @@ func TestScore_TopFactorsAreTheTwoStrongest(t *testing.T) {
 	}
 }
 
+// cand — подходящий кандидат: перечневой нужна льгота в вузах ученика,
+// дополнительные баллы не меняют скор.
 func cand(id, kind, subject string, level *string, deadlineDays float64) Candidate {
-	return Candidate{ProfileID: id, Kind: kind, SubjectCode: subject, Level: level,
+	return Candidate{ProfileID: id, Kind: kind, SubjectCode: subject, Level: level, BestBenefit: "extra_points",
 		Stages: []stages.Stage{{Kind: "qualifying", DeadlineAt: in(deadlineDays), IsOnline: true}}}
 }
 
@@ -143,7 +145,7 @@ func TestRecommend_Filters(t *testing.T) {
 	cs := []Candidate{
 		cand("i-soon", "perechen", "inf", lvl("I"), 10),
 		cand("ii-late", "perechen", "inf", lvl("II"), 40),
-		{ProfileID: "offline", Kind: "perechen", SubjectCode: "inf", Level: lvl("III"),
+		{ProfileID: "offline", Kind: "perechen", SubjectCode: "inf", Level: lvl("III"), BestBenefit: "extra_points",
 			Stages: []stages.Stage{{Kind: "final", DeadlineAt: in(12)}}},
 		cand("vsosh-inf", "vsosh", "inf", nil, 15),
 	}
@@ -195,7 +197,8 @@ func TestRecommend_OneProfilePerOlympiad(t *testing.T) {
 func TestRecommend_ProfileWithoutStagesStays(t *testing.T) {
 	// 14 профилей из missing_in_C без дат: «данные уточняются», но из подбора
 	// они не выпадают — срок просто не добавляет им очков.
-	bare := Candidate{ProfileID: "bare", OlympiadID: "bare", Kind: "perechen", SubjectCode: "inf", Level: lvl("I")}
+	bare := Candidate{ProfileID: "bare", OlympiadID: "bare", Kind: "perechen", SubjectCode: "inf", Level: lvl("I"),
+		BestBenefit: "extra_points"}
 	dated := cand("dated", "perechen", "inf", lvl("I"), 10)
 	items, _ := Recommend([]Candidate{bare, dated}, student, DefaultWeights, now, "all")
 	if len(items) != 2 || items[0].ProfileID != "dated" || items[1].ProfileID != "bare" || items[1].Deadline != nil {
@@ -289,5 +292,135 @@ func TestRecommend_AtMostTwoPerSubject(t *testing.T) {
 	items, _ = Recommend(cs[:4], student, DefaultWeights, now, "all")
 	if len(items) != 4 {
 		t.Fatalf("один предмет — топ не пустеет: %d", len(items))
+	}
+}
+
+func ids(rs []Result) []string {
+	out := make([]string, len(rs))
+	for i, r := range rs {
+		out[i] = r.ProfileID
+	}
+	return out
+}
+
+// Подходит только то, во что ещё можно вступить: регистрация закрылась —
+// олимпиады нет в подборе, даже если отборочный ещё идёт.
+func TestPick_OnlyJoinable(t *testing.T) {
+	closed := cand("closed", "perechen", "inf", lvl("I"), 20)
+	closed.Stages = append(closed.Stages, stages.Stage{Kind: "registration", StartsAt: in(-30), DeadlineAt: in(-1)})
+	open := cand("open", "perechen", "inf", lvl("I"), 20)
+	p := Pick([]Candidate{closed, open}, student, DefaultWeights, now, Options{})
+	if got := ids(p.Items); len(got) != 1 || got[0] != "open" {
+		t.Fatalf("закрытая регистрация не рекомендуется: %v", got)
+	}
+}
+
+// Перечневая олимпиада без льготы в вузах ученика не подходит: иначе
+// кандидатов десятки и «ты следишь за всеми» недостижимо. Потенциальная
+// льгота (вузы не выбраны) считается.
+func TestPick_PerechenNeedsBenefit(t *testing.T) {
+	none := cand("none", "perechen", "inf", lvl("I"), 10)
+	none.BestBenefit = ""
+	potential := cand("potential", "perechen", "inf", lvl("I"), 10)
+	potential.BestBenefit, potential.PotentialBenefit = "bvi", true
+	vsosh := cand("vsosh", "vsosh", "inf", nil, 10)
+	vsosh.BestBenefit = ""
+	other := cand("other", "other", "inf", nil, 10)
+	other.BestBenefit = ""
+	p := Pick([]Candidate{none, potential, vsosh, other}, student, DefaultWeights, now, Options{})
+	got := map[string]bool{}
+	for _, id := range ids(p.Items) {
+		got[id] = true
+	}
+	if got["none"] || !got["potential"] || !got["vsosh"] || len(p.Outside) != 1 {
+		t.Fatalf("items %v, outside %v", ids(p.Items), ids(p.Outside))
+	}
+	if p.State() != StateOK {
+		t.Fatalf("есть что показать — ok, получили %s", p.State())
+	}
+}
+
+// Уже добавленные олимпиады прячутся до ранжирования: их место занимают
+// следующие по скору, а не остаётся четыре карточки вместо пяти.
+func TestPick_HidesTrackedBeforeRanking(t *testing.T) {
+	var cs []Candidate
+	for i, subject := range []string{"inf", "math", "phys", "chem", "bio", "econ", "soc"} {
+		c := cand(string(rune('a'+i)), "perechen", subject, lvl("I"), 10)
+		c.OlympiadID = "o-" + c.ProfileID
+		cs = append(cs, c)
+	}
+	cs[0].BestBenefit = "bvi" // лучший скор
+	second := cand("a2", "perechen", "inf", lvl("II"), 10)
+	second.OlympiadID = "o-a" // второй профиль той же олимпиады тоже прячется
+	cs = append(cs, second)
+
+	all := Pick(cs, student, DefaultWeights, now, Options{})
+	if len(all.Items) != TopN || len(all.More) != 2 {
+		t.Fatalf("без трекера: топ %v, ещё %v", ids(all.Items), ids(all.More))
+	}
+
+	p := Pick(cs, student, DefaultWeights, now, Options{Tracked: map[string]bool{"o-a": true}})
+	for _, r := range append(append([]Result{}, p.Items...), p.More...) {
+		if r.OlympiadID == "o-a" {
+			t.Fatalf("олимпиада в трекере не показывается: %v / %v", ids(p.Items), ids(p.More))
+		}
+	}
+	if len(p.Items) != TopN || len(p.More) != 1 || p.Tracked != 1 || p.Proposed != 0 {
+		t.Fatalf("место занял следующий: топ %v, ещё %v, в трекере %d", ids(p.Items), ids(p.More), p.Tracked)
+	}
+}
+
+// Ещё N — остальные подходящие перечня по убыванию скора.
+func TestPick_MoreByScore(t *testing.T) {
+	var cs []Candidate
+	for i, level := range []string{"III", "III", "II", "II", "I", "I", "I", "III"} {
+		c := cand(string(rune('a'+i)), "perechen", []string{"inf", "math", "phys", "chem"}[i%4], lvl(level), 10)
+		cs = append(cs, c)
+	}
+	p := Pick(cs, student, DefaultWeights, now, Options{})
+	for i := 1; i < len(p.More); i++ {
+		if p.More[i].Score > p.More[i-1].Score {
+			t.Fatalf("ещё — по убыванию скора: %v", ids(p.More))
+		}
+	}
+	if len(p.Items)+len(p.More) != len(cs) {
+		t.Fatalf("ничего не теряется: %d + %d", len(p.Items), len(p.More))
+	}
+}
+
+func TestPick_States(t *testing.T) {
+	a := cand("a", "perechen", "inf", lvl("I"), 10)
+	a.OlympiadID = "oa"
+	b := cand("b", "vsosh", "inf", nil, 10)
+	b.OlympiadID = "ob"
+	late := cand("late", "perechen", "inf", lvl("II"), 40)
+	late.OlympiadID = "olate"
+	cs := []Candidate{a, b, late}
+	pick := func(filter string, tracked, proposed []string) Picked {
+		set := func(xs []string) map[string]bool {
+			m := map[string]bool{}
+			for _, x := range xs {
+				m[x] = true
+			}
+			return m
+		}
+		return Pick(cs, student, DefaultWeights, now, Options{Filter: filter, Tracked: set(tracked), Proposed: set(proposed)})
+	}
+	if s := pick("all", []string{"oa", "ob", "olate"}, nil); s.State() != StateAllTracked || s.Tracked != 3 {
+		t.Errorf("всё в трекере: %s, %d", s.State(), s.Tracked)
+	}
+	if s := pick("all", []string{"oa", "ob"}, []string{"olate"}); s.State() != StateAllProposed || s.Proposed != 1 {
+		t.Errorf("остальное ждёт ответа: %s, %d", s.State(), s.Proposed)
+	}
+	if s := pick("all", nil, nil); s.State() != StateOK {
+		t.Errorf("есть что показать: %s", s.State())
+	}
+	if s := Pick(nil, student, DefaultWeights, now, Options{}); s.State() != StateNoneSuitable {
+		t.Errorf("подходящих нет: %s", s.State())
+	}
+	// Под фильтром «Срок скоро» дальний срок не в счёт: всё подходящее под
+	// фильтр уже в трекере.
+	if s := pick("soon", []string{"oa", "ob"}, nil); s.State() != StateAllTracked || s.Tracked != 2 {
+		t.Errorf("фильтр: %s, в трекере %d", s.State(), s.Tracked)
 	}
 }

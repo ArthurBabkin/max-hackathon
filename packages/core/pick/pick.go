@@ -151,17 +151,36 @@ func SubjectCodes(ctx context.Context, st *store.Store, trajectoryID string) ([]
 	return codes, nil
 }
 
-// Result — подбор: перечень и ВсОШ, «вне перечня» отдельно.
+// Result — подбор: перечень и ВсОШ, «вне перечня» отдельно. More,
+// Tracked, Proposed и State — для экрана C3/C7 (см. match.Picked).
 type Result struct {
 	Items    []match.Result
+	More     []match.Result
 	Outside  []match.Result
+	Tracked  int
+	Proposed int
+	State    string
 	Profiles map[string]store.Profile
 	Set      Set
 }
 
-// Recommend — подбор F13–F16: кандидаты — профили по предметам ученика, в
-// которых участвует его класс; скоринг и отбор — в core/match.
+// Options — фильтр подбора и HideTracked: спрятать олимпиады, которые уже
+// в трекере или ждут ответа на предложение (только в приложении; бот
+// показывает подбор целиком).
+type Options struct {
+	Filter      string
+	HideTracked bool
+}
+
+// Recommend — подбор F13–F16 без сокрытия добавленного: итог онбординга и
+// «Напоминать о сроках» в боте.
 func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now time.Time, filter string) (Result, error) {
+	return Pick(ctx, st, t, now, Options{Filter: filter})
+}
+
+// Pick — подбор: кандидаты — профили по предметам ученика, в которых
+// участвует его класс; что подходит и в каком порядке — в core/match.
+func Pick(ctx context.Context, st *store.Store, t store.Trajectory, now time.Time, o Options) (Result, error) {
 	codes, err := SubjectCodes(ctx, st, t.ID)
 	if err != nil {
 		return Result{}, err
@@ -180,6 +199,12 @@ func Recommend(ctx context.Context, st *store.Store, t store.Trajectory, now tim
 		res.Profiles[p.ID] = p
 		cands[i] = set.Candidate(p)
 	}
-	res.Items, res.Outside = match.Recommend(cands, set.Student(), match.DefaultWeights, now, filter)
+	mo := match.Options{Filter: o.Filter}
+	if o.HideTracked {
+		mo.Tracked, mo.Proposed = set.Tracker.TrackedOlympiads, set.Tracker.PendingOlympiads
+	}
+	p := match.Pick(cands, set.Student(), match.DefaultWeights, now, mo)
+	res.Items, res.More, res.Outside, res.Tracked, res.Proposed, res.State =
+		p.Items, p.More, p.Outside, p.Tracked, p.Proposed, p.State()
 	return res, nil
 }

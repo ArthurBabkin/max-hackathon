@@ -108,6 +108,9 @@ export interface paths {
          * Подбор олимпиад под цель плюс блок «вне перечня»
          * @description Скоринг и сортировка — на сервере (ТЗ §6.1). Клиент показывает `items`
          *     в том порядке, в котором они пришли, и не пересчитывает ничего сам.
+         *     Подходящая олимпиада — та, во что ещё можно вступить (срок первого этапа
+         *     не прошёл); перечневая — только с льготой в вузах ученика. Уже добавленное
+         *     в трекер и предложенное не показывается.
          */
         get: {
             parameters: {
@@ -1511,8 +1514,28 @@ export interface components {
             upcoming: components["schemas"]["TrackerItem"][];
         };
         Recommendations: {
-            /** @description Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет. */
+            /**
+             * @description Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+             *     Только то, чего нет в трекере и что не ждёт ответа на предложение:
+             *     места добавленных занимают следующие по скору (C3).
+             */
             items: components["schemas"]["OlympiadCard"][];
+            /**
+             * @description Остальные подходящие олимпиады перечня по убыванию скора — «Показать ещё N».
+             *     Добавленные сюда тоже не попадают.
+             */
+            more: components["schemas"]["OlympiadCard"][];
+            /** @description Сколько подходящих под фильтр олимпиад спрятано, потому что они уже в трекере. */
+            tracked_count: number;
+            /** @description Сколько подходящих под фильтр олимпиад спрятано, потому что ждут ответа на предложение. */
+            proposed_count: number;
+            /**
+             * @description `ok` — есть что показать; `all_tracked` — всё подходящее уже в трекере (C7);
+             *     `all_proposed` — остальное ждёт ответа на предложение; `none_suitable` — подходящих
+             *     нет: регистрации закрыты или в вузах ученика нет льгот по его предметам.
+             * @enum {string}
+             */
+            state: "ok" | "all_tracked" | "all_proposed" | "none_suitable";
             /** @description Олимпиады вне перечня — отдельный блок, с основным списком не смешиваются (F16). */
             outside: components["schemas"]["OlympiadCard"][];
             /** @example Сначала ближайшие сроки и точное совпадение профиля */
@@ -1554,6 +1577,11 @@ export interface components {
              * @enum {string|null}
              */
             proposal_status: "pending" | null;
+            /**
+             * @description Срок первого этапа (регистрации) прошёл — вступить в этом сезоне нельзя, хотя следующий
+             *     этап может быть ещё впереди. В «Подборе» всегда `false`: закрытые туда не попадают.
+             */
+            registration_closed: boolean;
         };
         OlympiadListItem: components["schemas"]["Badge"] & {
             olympiad_id: string;
@@ -1569,6 +1597,8 @@ export interface components {
                 level: components["schemas"]["Level"];
             };
             profiles_count?: number;
+            /** @description По основному профилю — срок первого этапа прошёл. */
+            registration_closed: boolean;
         };
         /** @description Строка блока «Уровень по профилям». */
         ProfileLevel: {

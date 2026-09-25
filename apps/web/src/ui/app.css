@@ -216,6 +216,10 @@
   padding-top: 1px;
 }
 
+.toast-info .toast-icon {
+  color: var(--toast-ok);
+}
+
 .toast-close {
   flex: 0 0 auto;
   display: grid;
@@ -2468,6 +2472,44 @@
   display: contents;
 }
 
+/* Что спрятано из подбора: уже в трекере и ждущее ответа (C3). Тихая
+   строка-ссылка, а не баннер: главное на экране — новые олимпиады. */
+.match-hidden {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px 0 var(--gap-md);
+}
+
+.match-hidden-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 2px;
+  font-size: var(--t-small);
+  color: var(--mu);
+  text-align: left;
+}
+
+.match-hidden-row span {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--p);
+}
+
 /* Слой перехватывает касания: пока идёт тур, интерфейс под ним не нажимается.
    Кривые — «сильные»: встроенные ease слишком вялые для переезда. */
 .tour {
@@ -2807,4 +2849,38 @@
   .tour-body {
     animation: tour-fade 160ms ease-out;
   }
+}
+
+/* Регистрация закрылась, а следующий этап впереди (карточка олимпиады). */
+.closed-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: var(--gap-sm);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--mu);
+  font-size: var(--t-small);
+}
+
+.closed-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.closed-note p {
+  margin: 0;
+}
+
+.closed-note b {
+  display: block;
+  color: var(--tx);
+}
+
+.row-closed {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--t-micro);
+  color: var(--mu);
 }

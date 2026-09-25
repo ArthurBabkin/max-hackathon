@@ -78,6 +78,7 @@
   --toast-bg: #17142a;
   --toast-tx: #f4f4f9;
   --toast-icon: #ff7aae;
+  --toast-ok: #4ed6a0;
 
   --shadow-sheet: 0 -10px 30px rgba(20, 10, 50, 0.18);
   --shadow-fab: 0 8px 20px rgba(20, 10, 50, 0.3);
@@ -155,6 +156,7 @@
     --toast-bg: #2c2642;
     --toast-tx: #f1eefa;
     --toast-icon: #ff7aae;
+    --toast-ok: #4ed6a0;
 
     --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
     --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);
@@ -198,6 +200,7 @@
   --toast-bg: #2c2642;
   --toast-tx: #f1eefa;
   --toast-icon: #ff7aae;
+  --toast-ok: #4ed6a0;
 
   --shadow-sheet: 0 -10px 30px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 8px 24px rgba(107, 43, 255, 0.5);

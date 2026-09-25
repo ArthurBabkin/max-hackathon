@@ -187,27 +187,97 @@ func deadlineValue(deadline *time.Time, now time.Time) float64 {
 	}
 }
 
-// Recommend — подбор для экрана C3. Профили, у которых все этапы в
-// прошлом, исключаются. Из перечня — топ-5 по скору; ВсОШ — всегда, если
-// предмет связан с целью; вне перечня — отдельным списком. Оба списка
-// отсортированы по близости срока.
-func Recommend(cands []Candidate, s Student, w Weights, now time.Time, filter string) (items, outside []Result) {
+// Options — параметры подбора. Tracked и Proposed — ключи олимпиад (Key),
+// которые уже в трекере или ждут ответа на предложение: в приложении они
+// прячутся до ранжирования, их места занимают следующие по скору.
+type Options struct {
+	Filter   string
+	Tracked  map[string]bool
+	Proposed map[string]bool
+}
+
+// Состояния подбора для экрана C3/C7.
+const (
+	StateOK           = "ok"
+	StateAllTracked   = "all_tracked"
+	StateAllProposed  = "all_proposed"
+	StateNoneSuitable = "none_suitable"
+)
+
+// Picked — подбор. Items — ВсОШ по предметам цели и топ перечня, по сроку;
+// More — остальные подходящие перечня по скору («Показать ещё»); Outside —
+// вне перечня. Tracked и Proposed — сколько подходящих под фильтр олимпиад
+// спрятано, потому что они уже в трекере или предложены.
+type Picked struct {
+	Items, More, Outside []Result
+	Tracked, Proposed    int
+}
+
+// State — что показать, когда список пуст: всё подходящее уже в трекере,
+// часть ждёт ответа на предложение или подходящих нет вовсе.
+func (p Picked) State() string {
+	switch {
+	case len(p.Items) > 0:
+		return StateOK
+	case p.Proposed > 0:
+		return StateAllProposed
+	case p.Tracked > 0:
+		return StateAllTracked
+	}
+	return StateNoneSuitable
+}
+
+// Key — ключ олимпиады кандидата: профили одной олимпиады прячутся вместе.
+func Key(c Candidate) string {
+	if c.OlympiadID == "" {
+		return "profile:" + c.ProfileID
+	}
+	return c.OlympiadID
+}
+
+// Pick — подбор для экрана C3 и бота. Подходящая олимпиада: во что ещё
+// можно вступить (stages.Joinable); перечневая — только с льготой в вузах
+// ученика (или потенциальной, если вузы не выбраны); ВсОШ — по предметам
+// цели. Из перечня — топ-5 по скору; ВсОШ — всегда; вне перечня —
+// отдельным списком. Items и Outside отсортированы по близости срока.
+func Pick(cands []Candidate, s Student, w Weights, now time.Time, o Options) Picked {
+	var p Picked
 	var perechen []Result
+	tracked, proposed := map[string]bool{}, map[string]bool{}
 	for _, c := range cands {
-		if stages.AllPassed(c.Stages, now) {
-			continue
-		}
-		r := Score(c, s, w, now)
-		if !passes(r, filter, now) {
+		if !stages.Joinable(c.Stages, now) {
 			continue
 		}
 		switch c.Kind {
 		case "other":
-			outside = append(outside, r)
 		case "vsosh":
-			if len(s.DirectionSubjects) == 0 || contains(s.DirectionSubjects, c.SubjectCode) {
-				items = append(items, r)
+			if len(s.DirectionSubjects) > 0 && !contains(s.DirectionSubjects, c.SubjectCode) {
+				continue
 			}
+		default:
+			if c.BestBenefit == "" {
+				continue
+			}
+		}
+		r := Score(c, s, w, now)
+		if !passes(r, o.Filter, now) {
+			continue
+		}
+		if key := Key(c); o.Tracked[key] || o.Proposed[key] {
+			if c.Kind != "other" {
+				if o.Tracked[key] {
+					tracked[key] = true
+				} else {
+					proposed[key] = true
+				}
+			}
+			continue
+		}
+		switch c.Kind {
+		case "other":
+			p.Outside = append(p.Outside, r)
+		case "vsosh":
+			p.Items = append(p.Items, r)
 		default:
 			perechen = append(perechen, r)
 		}
@@ -218,11 +288,19 @@ func Recommend(cands []Candidate, s Student, w Weights, now time.Time, filter st
 		}
 		return perechen[i].ProfileID < perechen[j].ProfileID
 	})
-	perechen = diverse(bestPerOlympiad(perechen), TopN, MaxPerSubject)
-	items = append(items, perechen...)
-	byDeadline(items)
-	byDeadline(outside)
-	return items, outside
+	top, more := diverse(bestPerOlympiad(perechen), TopN, MaxPerSubject)
+	p.Items = append(p.Items, top...)
+	p.More = more
+	p.Tracked, p.Proposed = len(tracked), len(proposed)
+	byDeadline(p.Items)
+	byDeadline(p.Outside)
+	return p
+}
+
+// Recommend — Pick без трекера: подбор для итога онбординга в боте.
+func Recommend(cands []Candidate, s Student, w Weights, now time.Time, filter string) (items, outside []Result) {
+	p := Pick(cands, s, w, now, Options{Filter: filter})
+	return p.Items, p.Outside
 }
 
 // bestPerOlympiad оставляет у каждой олимпиады первый (лучший) профиль:
@@ -250,28 +328,40 @@ const MaxPerSubject = 2
 // diverse — первые n по скору, но не больше perSubject олимпиад одного
 // предмета: лишние сдвигаются вниз, их места занимают следующие по скору
 // (SPEC 2.4). Если других предметов не хватает, топ добирается лишними —
-// у ученика с одним предметом иначе осталось бы две олимпиады.
-func diverse(sorted []Result, n, perSubject int) []Result {
-	var top, rest []Result
+// у ученика с одним предметом иначе осталось бы две олимпиады. rest —
+// всё, что не вошло в топ, в исходном порядке.
+func diverse(sorted []Result, n, perSubject int) (top, rest []Result) {
+	in := make([]bool, len(sorted))
 	count := map[string]int{}
-	for _, r := range sorted {
-		if len(top) == n {
+	taken := 0
+	for i, r := range sorted {
+		if taken == n {
 			break
 		}
 		if count[r.SubjectCode] >= perSubject {
-			rest = append(rest, r)
 			continue
 		}
 		count[r.SubjectCode]++
-		top = append(top, r)
+		in[i] = true
+		taken++
 	}
-	for _, r := range rest {
-		if len(top) == n {
+	for i := range sorted {
+		if taken == n {
 			break
 		}
-		top = append(top, r)
+		if !in[i] {
+			in[i] = true
+			taken++
+		}
 	}
-	return top
+	for i, r := range sorted {
+		if in[i] {
+			top = append(top, r)
+		} else {
+			rest = append(rest, r)
+		}
+	}
+	return top, rest
 }
 
 func passes(r Result, filter string, now time.Time) bool {

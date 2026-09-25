@@ -1,5 +1,6 @@
 /** Каталог — экраны D1 и D2. Функции F24, F25, F27. */
 
+import { useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
 import { useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
@@ -45,7 +46,9 @@ export function CatalogScreen() {
   const t = useVoice()
   const sheets = useSheetStack()
 
-  const [segment, setSegment] = useState<Segment>('olympiads')
+  // «Найти вузы» из «Подбора» открывает каталог сразу на вузах.
+  const [params] = useSearchParams()
+  const [segment, setSegment] = useState<Segment>(params.get('segment') === 'universities' ? 'universities' : 'olympiads')
   const [query, setQuery] = useState('')
   // Пока пользователь не выбрал сам — предмет ученика, как на макете D1:
   // семьдесят олимпиад разом никто не читает.
@@ -124,6 +127,8 @@ export function CatalogScreen() {
                         <Icon name="check" size={12} />
                         {t('catalog.inTracker')}
                       </span>
+                    ) : item.registration_closed ? (
+                      <span className="row-closed">{t('catalog.registrationClosed')}</span>
                     ) : null}
                   </span>
                   <span

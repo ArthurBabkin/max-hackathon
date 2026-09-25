@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -355,4 +356,26 @@ func grantOf(g *benefitGrant) string {
 		return ""
 	}
 	return g.Kind + " " + g.Label
+}
+
+// Регистрация закрылась, а отборочный ещё идёт: срок в карточке — уже про
+// отборочный, и без пометки казалось бы, что вступить ещё можно.
+func TestOlympiad_RegistrationClosed(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	for id, want := range map[string]bool{"p669-54-informatika-i-programmirovanie": true, "p669-8-informatika": false} {
+		r := e.do("GET", "/api/v1/olympiads/"+id, token, nil)
+		if r.code != 200 || r.body["registration_closed"] != want {
+			t.Fatalf("%s: registration_closed = %v, ждали %v", id, r.body["registration_closed"], want)
+		}
+	}
+	items := list(t, e.do("GET", "/api/v1/olympiads?q="+url.QueryEscape("Физтех"), token, nil).body["items"])
+	if len(items) == 0 || items[0]["registration_closed"] != true {
+		t.Fatalf("в каталоге — та же пометка: %v", items)
+	}
+	hse := list(t, e.do("GET", "/api/v1/olympiads?q="+url.QueryEscape("Высшая проба"), token, nil).body["items"])
+	if len(hse) == 0 || hse[0]["registration_closed"] != false {
+		t.Fatalf("открытая регистрация: %v", hse)
+	}
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"net/http"
 	"sort"
 	"strings"
@@ -39,6 +40,8 @@ type olympiadListItem struct {
 	FinalCity      *string        `json:"final_city"`
 	PrimaryProfile primaryProfile `json:"primary_profile"`
 	ProfilesCount  int            `json:"profiles_count"`
+	// RegistrationClosed — по основному профилю: вступить в этом сезоне нельзя.
+	RegistrationClosed bool `json:"registration_closed"`
 }
 
 type listResponse[T any] struct {
@@ -77,6 +80,7 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 		groups[p.OlympiadID] = append(groups[p.OlympiadID], p)
 	}
 	out := listResponse[olympiadListItem]{Items: []olympiadListItem{}}
+	var primaries []store.Profile
 	for _, id := range order {
 		ps := groups[id]
 		candidates := ps
@@ -92,12 +96,25 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 			}
 		}
 		p := primaryOf(candidates, mine)
+		primaries = append(primaries, p)
 		out.Items = append(out.Items, olympiadListItem{
 			OlympiadID: p.OlympiadID, Name: names.Olympiad(p.OlympiadName), Organizer: p.Organizer, Kind: p.Kind, FinalCity: p.FinalCity,
 			PrimaryProfile: primaryProfile{OlympiadProfileID: p.ID, SubjectCode: p.SubjectCode,
 				SubjectName: profileLabel(p.SubjectName, p.ProfileName), Level: p.Level},
 			ProfilesCount: len(ps),
 		})
+	}
+	ids := make([]string, len(primaries))
+	for i, p := range primaries {
+		ids[i] = p.ID
+	}
+	st, err := s.store.StagesFor(ctx, ids)
+	if err != nil {
+		return err
+	}
+	now := s.now()
+	for i, p := range primaries {
+		out.Items[i].RegistrationClosed = !stages.Joinable(st[p.ID], now)
 	}
 	// По алфавиту того названия, что видно в списке, а не официального:
 	// иначе «Высшая проба» стояла бы среди «Всероссийских…».

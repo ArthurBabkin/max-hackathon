@@ -72,6 +72,15 @@ func TestRecommendations_Composition(t *testing.T) {
 	if perechen != 5 {
 		t.Fatalf("из перечня — топ-5, получили %d", perechen)
 	}
+	if more := cards(t, r, "more"); len(more) == 0 || r.body["state"] != "ok" {
+		t.Fatalf("остальные подходящие — в «ещё»: %s", r.raw)
+	} else {
+		for _, c := range more {
+			if c["kind"] != "perechen" || olympiads[c["olympiad_id"].(string)] {
+				t.Fatalf("в «ещё» — перечень, которого нет в топе: %v", c)
+			}
+		}
+	}
 
 	vsosh := byProfile(items, "vsosh-informatika")
 	if vsosh == nil || byProfile(items, "vsosh-matematika") == nil {
@@ -96,31 +105,79 @@ func TestRecommendations_Composition(t *testing.T) {
 	}
 }
 
-func TestRecommendations_TrackerStateAndParentVoice(t *testing.T) {
+// Уже добавленное и предложенное в «Подборе» не показывается (C3): их
+// места занимают следующие по скору, а счётчики говорят, сколько спрятано.
+func TestRecommendations_HidesTrackedAndProposed(t *testing.T) {
 	e := newEnv(t)
 	f := e.withParent(e.kidCreator())
+	parent := e.login(900000002, "Ольга")
+	before := e.do("GET", "/api/v1/recommendations", parent, nil)
+	perechenBefore := 0
+	for _, c := range cards(t, before, "items") {
+		if c["kind"] == "perechen" {
+			perechenBefore++
+		}
+	}
+	top := ""
+	for _, c := range cards(t, before, "items") {
+		if c["kind"] == "perechen" {
+			top = c["olympiad_profile_id"].(string)
+			break
+		}
+	}
 	e.track(f, "vsosh-informatika", false)
+	e.track(f, top, false)
 	if _, err := e.pool.Exec(context.Background(),
 		`INSERT INTO proposals (trajectory_id, olympiad_profile_id, proposed_by_member_id) VALUES ($1, 'vsosh-matematika', $2)`,
 		f.trajectoryID, f.parent.MemberID); err != nil {
 		t.Fatal(err)
 	}
-	r := e.do("GET", "/api/v1/recommendations", e.login(900000002, "Ольга"), nil)
+	r := e.do("GET", "/api/v1/recommendations", parent, nil)
 	items := cards(t, r, "items")
-	if c := byProfile(items, "vsosh-informatika"); c["in_tracker"] != true || c["proposal_status"] != nil {
-		t.Fatalf("пункт трекера: %v", c)
+	for _, id := range []string{"vsosh-informatika", "vsosh-matematika", top} {
+		if byProfile(items, id) != nil || byProfile(cards(t, r, "more"), id) != nil {
+			t.Fatalf("%s уже в трекере или предложена — в подборе её нет: %s", id, r.raw)
+		}
 	}
-	if c := byProfile(items, "vsosh-matematika"); c["in_tracker"] != false || c["proposal_status"] != "pending" {
-		t.Fatalf("ожидающее предложение: %v", c)
-	}
+	perechen := 0
 	for _, c := range items {
+		if c["kind"] == "perechen" {
+			perechen++
+		}
+		if c["in_tracker"] != false || c["proposal_status"] != nil {
+			t.Fatalf("в подборе только недобавленное: %v", c)
+		}
 		s := c["benefits_summary"].(string)
 		if strings.Contains(s, "твоих") {
 			t.Fatalf("родителю — голос родителя: %q", s)
 		}
-		if strings.HasPrefix(s, "В вузах") && s != "В вузах Артёма льгот нет" {
-			t.Fatalf("нет льгот — с именем ученика: %q", s)
-		}
+	}
+	if perechen != perechenBefore {
+		t.Fatalf("место добавленной заняла следующая: было %d, стало %d", perechenBefore, perechen)
+	}
+	if r.body["tracked_count"] != 2.0 || r.body["proposed_count"] != 1.0 || r.body["state"] != "ok" {
+		t.Fatalf("счётчики: %v %v %v", r.body["tracked_count"], r.body["proposed_count"], r.body["state"])
+	}
+}
+
+// Добавить всё подходящее — «ты уже следишь за всеми» (C7): список пуст,
+// state = all_tracked, «ещё» тоже пусто.
+func TestRecommendations_AllTracked(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	token := e.login(900000001, "Артём")
+	r := e.do("GET", "/api/v1/recommendations", token, nil)
+	if r.body["state"] != "ok" || r.body["tracked_count"] != 0.0 || r.body["proposed_count"] != 0.0 {
+		t.Fatalf("новичок: %s", r.raw)
+	}
+	all := append(cards(t, r, "items"), cards(t, r, "more")...)
+	for _, c := range all {
+		e.track(f, c["olympiad_profile_id"].(string), false)
+	}
+	r = e.do("GET", "/api/v1/recommendations", token, nil)
+	if len(cards(t, r, "items")) != 0 || len(cards(t, r, "more")) != 0 || r.body["state"] != "all_tracked" ||
+		r.body["tracked_count"] != float64(len(all)) {
+		t.Fatalf("всё добавлено (%d): %s", len(all), r.raw)
 	}
 }
 
