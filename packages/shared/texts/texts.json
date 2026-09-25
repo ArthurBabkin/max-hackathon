@@ -2256,8 +2256,8 @@
     "parent": "{count} из {total}"
   },
   "tutorial.tap": {
-    "kid": "Нажимаем «{title}»",
-    "parent": "Нажимаем «{title}»"
+    "kid": "Нажми «{title}»",
+    "parent": "Нажмите «{title}»"
   },
   "tutorial.1.title": {
     "kid": "Это главная",
