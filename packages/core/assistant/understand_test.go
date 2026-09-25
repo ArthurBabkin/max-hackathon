@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/jev"
@@ -329,5 +330,48 @@ func TestAsk_CatalogOfAskedSubject(t *testing.T) {
 	}
 	if !strings.Contains(c, "Информатика, I уровень:") || strings.Contains(c, "Потомки Менделеева") || strings.Contains(c, "Химия, ") {
 		t.Errorf("каталог — только информатика:\n%s", c)
+	}
+}
+
+// Вопрос о сроках — под ответом сайт олимпиады, без правил приёма вузов:
+// даты и регистрация — на сайте, а правила здесь ни при чём.
+func TestAsk_DatesQuestionSourcesWithoutRules(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "Регистрация идёт до 11.10.2026.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("olympiad_info", map[string]float64{"p669-8": 0.9, none: 0.1}, map[string]float64{none: 1})}
+	ans, err := a.Ask(context.Background(), kid, tr, nil, "Когда регистрация на «Высшую пробу»?")
+	if err != nil || ans.Refused || len(ans.Sources) == 0 || ans.Sources[0].Kind != "site" {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	for _, s := range ans.Sources {
+		if s.Kind == "rules" {
+			t.Errorf("правила вуза под ответом о сроках: %s", s.Title)
+		}
+	}
+}
+
+// Вопрос о трекере — под ответом сайты олимпиад трекера, ближайшие по
+// срокам первыми: там регистрация и даты.
+func TestAsk_TrackerQuestionSourcesAreOlympiadSites(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	fam, err := st.FamilyMembers(ctx, tr.ID)
+	if err != nil || len(fam) == 0 {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"vsosh-informatika", "p669-8-informatika"} {
+		if _, _, err := st.AddTrackerItem(ctx, tr.ID, p, fam[0].ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := &fakeLLM{reply: `{"answer": "Ближайшее — «Высшая проба».", "card_ids": ["student"], "no_data": false}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("personal", map[string]float64{none: 1}, map[string]float64{none: 1}),
+		Now: func() time.Time { return time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC) }}
+	ans, err := a.Ask(ctx, kid, tr, nil, "Что у меня ближайшее в трекере?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if len(ans.Sources) != 2 || ans.Sources[0].Title != "Высшая проба: сайт олимпиады" || ans.Sources[1].Title != "ВсОШ по информатике: сайт олимпиады" {
+		t.Fatalf("сайты олимпиад трекера, «Высшая проба» (до 11.10) раньше ВсОШ (до 28.10): %+v", ans.Sources)
 	}
 }
