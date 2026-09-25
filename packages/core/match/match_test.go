@@ -424,3 +424,23 @@ func TestPick_States(t *testing.T) {
 		t.Errorf("фильтр: %s, в трекере %d", s.State(), s.Tracked)
 	}
 }
+
+// Ближайший этап карточки — с учётом отметок трекера: после «Не прошёл» на
+// отборочном срока впереди нет, как и в таймлайне.
+func TestScore_StageRespectsMarks(t *testing.T) {
+	c := base()
+	c.Stages = []stages.Stage{
+		{ID: "r", Kind: "registration", StartsAt: in(-40), DeadlineAt: in(-20)},
+		{ID: "q", Kind: "qualifying", StartsAt: in(-10), DeadlineAt: in(-5)},
+		{ID: "r2", Kind: "registration", Title: "Регистрация на заключительный", DeadlineAt: in(30)},
+		{ID: "f", Kind: "final", DeadlineAt: in(60)},
+	}
+	c.Progress = stages.Progress{Registered: true}
+	if r := Score(c, student, DefaultWeights, now); r.Stage == nil || r.Stage.ID != "r2" {
+		t.Fatalf("прошёл отборочный — дальше регистрация на финал: %+v", r.Stage)
+	}
+	c.Progress.Marks = map[string]stages.Mark{"q": {Result: stages.Failed}}
+	if r := Score(c, student, DefaultWeights, now); r.Stage != nil || r.Deadline != nil {
+		t.Fatalf("не прошёл — ближайшего этапа нет: %+v", r.Stage)
+	}
+}

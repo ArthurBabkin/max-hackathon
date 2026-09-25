@@ -41,9 +41,10 @@ type Candidate struct {
 	SubjectCode string
 	Level       *string
 	// BestBenefit — лучшая льгота в вузах ученика: bvi | bvi_winners | score100 | extra_points | "".
-	BestBenefit     string
-	Stages          []stages.Stage
-	Registered      bool
+	BestBenefit string
+	Stages      []stages.Stage
+	// Progress — отметки трекера: ближайший этап считается с ними.
+	Progress        stages.Progress
 	FinalRegionCode *string
 	// PotentialBenefit — вузы у ученика не выбраны, BestBenefit посчитан по
 	// вузам с его направлениями в выбранных местах (SPEC 2.3).
@@ -132,7 +133,7 @@ func Score(c Candidate, s Student, w Weights, now time.Time) Result {
 	st := append([]stages.Stage(nil), c.Stages...)
 	stages.Sort(st)
 	r := Result{Candidate: c, Factors: map[Factor]float64{}}
-	if cur := stages.Current(st, stages.Progress{Registered: c.Registered}, now); cur >= 0 {
+	if cur := stages.Current(st, c.Progress, now); cur >= 0 {
 		r.Stage = &st[cur]
 		r.Deadline = st[cur].DeadlineAt
 	}
