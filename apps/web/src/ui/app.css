@@ -1871,6 +1871,11 @@
   margin-top: var(--gap-md);
 }
 
+/* Список вузов идёт сразу за фильтром, без заголовка группы, как у олимпиад. */
+.filter-row + .list {
+  margin-top: var(--gap-md);
+}
+
 .filter-label {
   flex: 0 0 auto;
   font-size: var(--t-micro);
@@ -2736,6 +2741,12 @@
   text-overflow: clip;
   text-align: center;
   line-height: 1.2;
+}
+
+/* Кнопка отделена от последнего поля сильнее, чем поля друг от друга:
+   это действие для всей формы. */
+.profile-save.profile-save {
+  margin-top: var(--gap-lg);
 }
 
 .tutorial-replay {
