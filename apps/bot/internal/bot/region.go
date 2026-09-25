@@ -37,11 +37,24 @@ func regionPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 		kb := append(grid(buttons, 2), maxapi.Row(cb(v.T("bot.region.otherLetter", nil), "region:abc")))
 		return maxapi.WithKeyboard(v.T("bot.region.onLetter", voice.Vars{"letter": d.Draft.Letter})+hint, kb)
 	}
-	return maxapi.WithKeyboard(v.T("bot.region.ask", nil), maxapi.Keyboard{
+	kb := maxapi.Keyboard{
 		maxapi.Row(cb(refdata.Short("77"), "region:77"), cb(refdata.Short("78"), "region:78")),
 		maxapi.Row(cb(refdata.Short("50"), "region:50"), cb(v.T("bot.region.alphabet", nil), "region:abc")),
-		maxapi.Row(cb(v.T("bot.region.skip", nil), "region:skip")),
-	})
+		maxapi.Row(cb(check(d.Draft.RegionAny, v.T("bot.region.skip", nil)), "region:skip")),
+	}
+	if d.Draft.RegionCode != "" {
+		// Вернулись «Назад»: найденное раньше место — первой кнопкой.
+		kb = append(maxapi.Keyboard{maxapi.Row(cb(check(true, homeLabel(d.Draft)), "region:keep"))}, kb...)
+	}
+	return maxapi.WithKeyboard(v.T("bot.region.ask", nil), kb)
+}
+
+// homeLabel — место ученика на кнопке: «Казань · Татарстан» или «Татарстан».
+func homeLabel(dr store.Draft) string {
+	if dr.HomeCity != "" {
+		return dr.HomeCity + " · " + refdata.Short(dr.RegionCode)
+	}
+	return refdata.Short(dr.RegionCode)
 }
 
 // placeOption — найденное место как кнопка: город с кратким регионом
@@ -71,9 +84,9 @@ func regionName(code string) string {
 	return code
 }
 
-// setRegion — регион выбран: дальше предметы.
+// setRegion — регион выбран (пустой — «Не важно»): дальше предметы.
 func setRegion(d *store.Dialog, code, city string) {
-	d.Draft.RegionCode, d.Draft.HomeCity = code, city
+	d.Draft.RegionCode, d.Draft.HomeCity, d.Draft.RegionAny = code, city, code == ""
 	d.Draft.Letter, d.Draft.PlaceOptions, d.Draft.District = "", nil, 0
 	d.Step = stepSubjects
 }
@@ -147,6 +160,19 @@ func (b *Bot) regionCallback(t *turn, cb *maxapi.Callback, question *maxapi.Mess
 		}, func(d store.Dialog) error {
 			_, err := b.send(t, maxapi.Text(dialogVoice(t, d).T("bot.region.skipped", nil)))
 			return err
+		})
+	case "keep":
+		// Место, выбранное до «Назад».
+		label := ""
+		if d, err := b.store.Dialog(t.ctx, t.userID); err == nil && d.Draft.RegionCode != "" {
+			label = homeLabel(d.Draft)
+		}
+		return b.transition(t, cb, question, label, func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepRegion); err != nil || d.Draft.RegionCode == "" {
+				return store.ErrStale
+			}
+			setRegion(d, d.Draft.RegionCode, d.Draft.HomeCity)
+			return nil
 		})
 	case "change":
 		// «Не то»: пока предметы не отмечены — назад к региону, позже — stale.
