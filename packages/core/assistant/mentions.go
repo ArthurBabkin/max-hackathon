@@ -97,8 +97,12 @@ var glossaryStems = [][]string{
 	{"перечн"}, {"уровн"}, {"льгот"}, {"особ", "прав"}, {"призер"}, {"победител"}, {"подтвержд"}, {"егэ"},
 }
 
-// myWords — начала слов «мои вузы», «в моих вузах», «в выбранных вузах».
-var myWords = []string{"мой", "мои", "моем", "моег", "выбранн"}
+// myWords — начала слов «мои вузы», «в моих вузах», «в выбранных вузах»;
+// родитель — «в его вузах», «её вузы».
+var myWords = []string{"мой", "мои", "моем", "моег", "выбранн", "его", "ее"}
+
+// childWords — «в вузах ребёнка», «вузы сына», «вузы дочери».
+var childWords = []string{"ребенк", "сын", "доч"}
 
 // vsoshWords — разговорные названия ВсОШ, словом целиком: «всерос»
 // префиксом поймал бы и «Всероссийскую олимпиаду «Высшая проба»».
@@ -211,12 +215,37 @@ func Find(question string, olympiads, universities []Named) Mentions {
 	m.Grade = grade(question)
 	for i := 0; i+1 < len(tokens); i++ {
 		next := tokens[i+1]
-		if slices.ContainsFunc(myWords, func(w string) bool { return strings.HasPrefix(tokens[i], w) }) &&
-			(strings.HasPrefix(next, "вуз") || strings.HasPrefix(next, "универс")) {
+		mine := slices.ContainsFunc(myWords, func(w string) bool { return strings.HasPrefix(tokens[i], w) }) && isUniversityWord(next)
+		child := isUniversityWord(tokens[i]) && slices.ContainsFunc(childWords, func(w string) bool { return strings.HasPrefix(next, w) })
+		if mine || child {
 			m.MyUniversities = true
 		}
 	}
 	return m
+}
+
+func isUniversityWord(w string) bool {
+	return strings.HasPrefix(w, "вуз") || strings.HasPrefix(w, "универс")
+}
+
+// studentsUniversities — «в вузах Артёма»: слово «вуз» и следом имя ученика
+// в любом падеже — основа имени без последней гласной.
+func studentsUniversities(question, name string) bool {
+	n := tokenize(name)
+	if len(n) == 0 {
+		return false
+	}
+	base := []rune(n[0])
+	if len(base) > 3 && strings.ContainsRune("аеиоуыэюяйь", base[len(base)-1]) {
+		base = base[:len(base)-1]
+	}
+	tokens := tokenize(question)
+	for i := 0; i+1 < len(tokens); i++ {
+		if isUniversityWord(tokens[i]) && strings.HasPrefix(tokens[i+1], string(base)) {
+			return true
+		}
+	}
+	return false
 }
 
 // olympiadNames — полное название и все названия в кавычках:

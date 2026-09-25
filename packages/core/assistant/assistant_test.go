@@ -315,3 +315,16 @@ func TestAsk_CardIDsNotInText(t *testing.T) {
 		t.Fatalf("%q %v", ans.Text, err)
 	}
 }
+
+// «В вузах Артёма» — вузы ученика по имени: так спрашивает родитель.
+func TestAsk_UniversitiesByStudentName(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	if _, err := (&Assistant{Store: st, LLM: f}).Ask(context.Background(), kid, tr, nil, "Какие льготы даёт «Высшая проба» в вузах Артёма?"); err != nil {
+		t.Fatal(err)
+	}
+	c := cardIn(t, f.calls[0][0].Content, "olympiad:p669-8")
+	if !strings.Contains(c, `\n  ВШЭ — `) || !strings.Contains(c, `\n  Иннополис — `) || strings.Contains(c, `\n  МФТИ — `) {
+		t.Fatalf("условия — только вузов ученика:\n%s", c)
+	}
+}
