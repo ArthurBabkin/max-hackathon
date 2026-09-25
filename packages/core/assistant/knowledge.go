@@ -1058,7 +1058,7 @@ func trackerStatus(x store.TrackerRow, st []stages.Stage, marks map[string]stage
 	case outcome == stages.OutcomeUnknown:
 		line += "; сезон прошёл, итог не отмечен"
 	case status == stages.StatusFinished:
-		line += "; участие завершено"
+		line += "; участие завершено: следующие этапы уже не для ученика"
 	}
 	return line, p
 }
