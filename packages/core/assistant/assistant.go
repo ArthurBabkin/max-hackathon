@@ -238,7 +238,8 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		}
 		c.cards = append(c.cards, card{id: "glossary", text: strings.Join(glossary, "\n"), sources: []store.Source{*order}})
 	}
-	if c.intent == intentOverview || c.intent == intentSearch {
+	// Обзор про направление — его карточка: каталог о направлениях не знает.
+	if (c.intent == intentOverview && len(m.Directions) == 0) || c.intent == intentSearch {
 		order, err := a.Store.OrderSource(ctx)
 		if err != nil {
 			return c, err
@@ -464,6 +465,13 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	}
 	if len(targets) > 0 {
 		text += "\n" + strings.Join(targets, "\n")
+	}
+	tracked, err := a.trackerText(ctx, b, c.trajectoryID, oid, c.clock.now)
+	if err != nil {
+		return err
+	}
+	if len(tracked) > 0 {
+		text += "\n" + strings.Join(tracked, "\n")
 	}
 	// Условия без источника — в охвате карточки и по предметам из вопроса,
 	// если они у олимпиады есть: Jev ошибается с предметом («а в ВШЭ?» после

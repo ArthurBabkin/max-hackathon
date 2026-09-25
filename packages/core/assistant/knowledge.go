@@ -730,6 +730,9 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 					if r.EgeMin != nil {
 						line += fmt.Sprintf(", ЕГЭ от %d", *r.EgeMin)
 					}
+					if len(r.DiplomaGrades) > 0 {
+						line += ", диплом за " + gradesList(r.DiplomaGrades) + " класс"
+					}
 					if n := strings.TrimPrefix(directionNotes(r, false), "; "); n != "" {
 						line += " (" + n + ")"
 					}
@@ -751,6 +754,9 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 func (a *Assistant) directionText(ctx context.Context, b base, t store.Trajectory, myUnis []string, id string) (string, error) {
 	d := b.direction[id]
 	head := "Направление " + d.Code + " " + d.Name
+	if short := shortOf(d.Code); len(short) > 0 {
+		head += " (сокращённо: " + strings.Join(short, ", ") + ")"
+	}
 	if slices.ContainsFunc(t.Directions, func(x store.Direction) bool { return x.ID == id }) {
 		head += " — в цели ученика"
 	}
@@ -1027,6 +1033,70 @@ var resultText = map[string]string{
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
 // ответа. Источники — сайты олимпиад трекера, ближайшие по срокам первыми:
 // там регистрация и даты.
+// trackerStatus — что отмечено в трекере по профилю: регистрации, итоги
+// этапов и статус, как группа в трекере приложения.
+func trackerStatus(x store.TrackerRow, st []stages.Stage, marks map[string]stages.Mark, now time.Time) (string, stages.Progress) {
+	var line string
+	if x.RegisteredAt != nil {
+		line += " (регистрация отмечена)"
+	}
+	p := stages.Progress{Registered: x.RegisteredAt != nil, Marks: marks}
+	first := stages.FirstRegistration(st)
+	for i, s := range st {
+		m := p.Marks[s.ID]
+		if m.Registered && i != first {
+			line += "; " + strings.ToLower(stageName(s)) + " — отмечена"
+		}
+		if m.Result != "" {
+			line += "; " + strings.ToLower(stageName(s)) + " — " + resultText[m.Result]
+		}
+	}
+	status, outcome := stages.Status(st, p, now)
+	switch {
+	case outcome == stages.OutcomeMissed:
+		line += "; регистрация закрылась без отметки"
+	case outcome == stages.OutcomeUnknown:
+		line += "; сезон прошёл, итог не отмечен"
+	case status == stages.StatusFinished:
+		line += "; участие завершено"
+	}
+	return line, p
+}
+
+// trackerText — профили олимпиады в трекере ученика и что там отмечено,
+// как в листе олимпиады в приложении.
+func (a *Assistant) trackerText(ctx context.Context, b base, trajectoryID, oid string, now time.Time) ([]string, error) {
+	if trajectoryID == "" {
+		return nil, nil
+	}
+	items, err := a.Store.TrackerItems(ctx, trajectoryID)
+	if err != nil {
+		return nil, err
+	}
+	items = slices.DeleteFunc(items, func(x store.TrackerRow) bool { return x.OlympiadID != oid })
+	if len(items) == 0 {
+		return nil, nil
+	}
+	ids, itemIDs := make([]string, len(items)), make([]string, len(items))
+	for i, x := range items {
+		ids[i], itemIDs[i] = x.ProfileID, x.ID
+	}
+	byProfile, err := a.Store.StagesFor(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	marks, err := a.Store.StageMarks(ctx, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	var lines []string
+	for _, x := range items {
+		status, _ := trackerStatus(x, byProfile[x.ProfileID], marks[x.ID], now)
+		lines = append(lines, "В трекере ученика: "+profileTitle(b.profile[x.ProfileID])+status)
+	}
+	return lines, nil
+}
+
 // otherText — более слабая льгота на других направлениях ученика в вузе.
 var otherText = map[string]string{"bvi": "БВИ", "bvi_winners": "БВИ победителю", "score100": "100 баллов"}
 
@@ -1162,32 +1232,9 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 	var soon []next
 	lines = append(lines, "Трекер:")
 	for _, x := range items {
-		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName})
-		if x.RegisteredAt != nil {
-			line += " (регистрация отмечена)"
-		}
 		st := byProfile[x.ProfileID]
-		p := stages.Progress{Registered: x.RegisteredAt != nil, Marks: marks[x.ID]}
-		first := stages.FirstRegistration(st)
-		for i, s := range st {
-			m := p.Marks[s.ID]
-			if m.Registered && i != first {
-				line += "; " + strings.ToLower(stageName(s)) + " — отмечена"
-			}
-			if m.Result != "" {
-				line += "; " + strings.ToLower(stageName(s)) + " — " + resultText[m.Result]
-			}
-		}
-		// Статус — как группа в трекере приложения.
-		status, outcome := stages.Status(st, p, c.clock.now)
-		switch {
-		case outcome == stages.OutcomeMissed:
-			line += "; регистрация закрылась без отметки"
-		case outcome == stages.OutcomeUnknown:
-			line += "; сезон прошёл, итог не отмечен"
-		case status == stages.StatusFinished:
-			line += "; участие завершено"
-		}
+		status, p := trackerStatus(x, st, marks[x.ID], c.clock.now)
+		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName}) + status
 		// Регистрация закрылась без отметки, а ближайший этап всё равно
 		// нужен: вдруг ученик записался и не отметил.
 		if i := slices.IndexFunc(stages.States(st, p, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
