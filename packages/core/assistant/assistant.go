@@ -221,7 +221,7 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		if err != nil {
 			return c, err
 		}
-		c.cards = append(c.cards, card{id: "catalog", text: b.catalogText(m.Subjects), sources: []store.Source{*order}})
+		c.cards = append(c.cards, card{id: "catalog", text: b.catalogText(m.Subjects, m.Grade), sources: []store.Source{*order}})
 	}
 	if c.intent == intentPersonal {
 		if err := a.studentCard(ctx, b, t, &c); err != nil {
