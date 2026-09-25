@@ -81,5 +81,43 @@ class InnopolisTablesTest(unittest.TestCase):
         self.assertEqual([p for *_, p in parsed([page(n, row) for n in (3, 5, 16, 17)])], [5, 16])
 
 
+
+def msu(*rows):
+    return [(r["match"]["napravlenie"], r["profile"], r.get("olympiad_name"), r["level"], r["statuses"],
+             r["benefit"], r["ege_subject"], r["grades"])
+            for r in bb.msu_rows([{"page": 9, "tables": [list(rows)]}], URL)]
+
+
+class MsuTablesTest(unittest.TestCase):
+    """olymp_benefits.pdf МГУ: профиль, перечень, класс и предмет ЕГЭ —
+    объединённые ячейки на несколько уровней или статусов. pdfplumber кладёт
+    текст в первую строку, у продолжений ячейки пустые."""
+
+    FACULTY = ["ГЕОЛОГИЧЕСКИЙ ФАКУЛЬТЕТ", "", "", "", "", "", "", "", ""]
+    HEAD = ["Направление подготовки", "Профиль олимпиады", "Общеобразовательные предметы", "Перечень олимпиад",
+            "Уровень олимпиады", "Класс", "Победитель / призер", "Предмет", "Льгота"]
+    BVI_CELL = "Зачисление без вступительных испытаний"
+    MAX_CELL = "Максимальное количество баллов по ЕГЭ"
+
+    def test_continuation_rows_take_merged_cells_from_above(self):
+        got = msu(self.FACULTY, self.HEAD,
+                  ["Геология", "Математика", "Математика", "*", "I", "11", "Победитель, призер", "Математика", self.BVI_CELL],
+                  ["", "", "", "", "II", "", "Победитель, призер", "", self.MAX_CELL],
+                  ["", "Информатика", "Информатика", "Московская олимпиада школьников", "I", "11", "Победитель", "Информатика", self.BVI_CELL],
+                  ["", "", "", "", "I", "", "Призер", "", self.MAX_CELL])
+        self.assertEqual(got, [
+            ("Геология", "Математика", None, "I", ["pobeditel", "prizyor"], "БВИ", "Математика", [11]),
+            ("Геология", "Математика", None, "II", ["pobeditel", "prizyor"], "100_ballov", "Математика", [11]),
+            ("Геология", "Информатика", "Московская олимпиада школьников", "I", ["pobeditel"], "БВИ", "Информатика", [11]),
+            ("Геология", "Информатика", "Московская олимпиада школьников", "I", ["prizyor"], "100_ballov", "Информатика", [11]),
+        ])
+
+    def test_no_carry_into_next_direction(self):
+        got = msu(self.FACULTY,
+                  ["Геология", "Математика", "Математика", "*", "I", "11", "Победитель, призер", "Математика", self.BVI_CELL],
+                  ["Геофизика", "", "", "", "II", "", "Победитель, призер", "", self.MAX_CELL])
+        self.assertEqual([(n, p) for n, p, *_ in got], [("Геология", "Математика"), ("Геофизика", "")])
+
+
 if __name__ == "__main__":
     unittest.main()

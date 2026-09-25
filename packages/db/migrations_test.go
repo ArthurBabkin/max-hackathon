@@ -525,3 +525,60 @@ func TestMigration_InnopolisLostBenefits(t *testing.T) {
 		t.Fatalf("льготы других вузов тронуты: было %d, стало %d", others, after)
 	}
 }
+
+// У МГУ профиль, перечень, класс и предмет ЕГЭ — объединённые ячейки на
+// несколько уровней или статусов, и парсер терял строки-продолжения: химия
+// II уровня на химфаке, призёры по экологии. 0017 дописывает и уточняет эти
+// льготы в накатанных базах.
+func TestMigration_MsuMergedCells(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw, err := os.ReadFile(filepath.Join(dbtest.MigrationsDir(), "0017_msu_merged_cells.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var others int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM benefits WHERE university_id <> 'msu'`).Scan(&others)
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, `DELETE FROM benefits WHERE id = 'p669-26-himiya__msu__2026__score100'`)
+	mustExec(t, tx.Exec, `UPDATE benefits SET note = 'БВИ только победителю. Подтвердить ЕГЭ: Биология'
+		WHERE id = 'p669-50-ekologiya__msu__2026__bvi_winners'`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(string(raw)))
+
+	type row struct{ benefit, note, page string }
+	got := map[string]row{}
+	rows, err := tx.Query(ctx, `SELECT b.olympiad_profile_id, b.benefit, b.note, substring(s.url from '#page=\d+$')
+		FROM benefits b JOIN sources s ON s.id = b.source_id
+		WHERE b.university_id = 'msu' AND b.olympiad_profile_id IN ('p669-26-himiya', 'p669-50-ekologiya')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var id string
+		var r row
+		if err := rows.Scan(&id, &r.benefit, &r.note, &r.page); err != nil {
+			t.Fatal(err)
+		}
+		got[id] = r
+	}
+	rows.Close()
+	want := map[string]row{
+		"p669-26-himiya":    {"score100", "Подтвердить ЕГЭ: Химия", "#page=34"},
+		"p669-50-ekologiya": {"bvi_winners", "Победителю — БВИ, призёру — 100 баллов. Подтвердить ЕГЭ: Биология", "#page=7"},
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("льготы МГУ после миграции:\n%v\nожидали:\n%v", got, want)
+	}
+	var after int
+	_ = tx.QueryRow(ctx, `SELECT count(*) FROM benefits WHERE university_id <> 'msu'`).Scan(&after)
+	if others == 0 || after != others {
+		t.Fatalf("льготы других вузов тронуты: было %d, стало %d", others, after)
+	}
+}
