@@ -396,11 +396,15 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 		return err
 	}
 	// Условия без источника — у вузов из вопроса (в карточке только они) и
-	// по предметам из вопроса, если их назвали.
+	// по предметам из вопроса, если они у олимпиады есть: Jev ошибается с
+	// предметом («а в ВШЭ?» после Технокубка — биология).
+	subjects := slices.DeleteFunc(slices.Clone(c.mentions.Subjects), func(code string) bool {
+		return !slices.ContainsFunc(b.profiles[oid], func(x store.Profile) bool { return x.SubjectCode == code })
+	})
 	var unverified []uniName
 	for _, bn := range benefits {
 		if bn.Source != nil || (len(c.asked) > 0 && !slices.Contains(c.asked, bn.UniversityID)) ||
-			(len(c.mentions.Subjects) > 0 && !slices.Contains(c.mentions.Subjects, b.profile[bn.ProfileID].SubjectCode)) {
+			(len(subjects) > 0 && !slices.Contains(subjects, b.profile[bn.ProfileID].SubjectCode)) {
 			continue
 		}
 		if n := (uniName{pick.Nick(bn.UniversityID, bn.UniversityShort), bn.UniversityShort}); !slices.Contains(unverified, n) {
