@@ -349,8 +349,8 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.mustContain(olga, "Где живёт Артём? Напишите город или регион")
 	// Геолокации кнопкой нет: в MAX она работает только в мобильном
 	// приложении, в вебе и на компьютере не нажимается.
-	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно" ||
-		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip"}) {
+	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно | ← Назад" ||
+		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip", "back:region"}) {
 		t.Fatalf("кнопки региона: %s %v", maxtest.Buttons(last), maxtest.Payloads(last))
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
@@ -397,7 +397,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	// Город не известен — подсказка его написать; Москва и Петербург — не свой регион.
 	h.mustContain(olga, "Где Артём хочет учиться? Можно выбрать несколько мест или написать город. Если важно учиться именно в своём городе")
 	last := h.fake.Last(olga.UserID)
-	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово" {
+	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово | ← Назад" {
 		t.Fatalf("варианты мест: %s", b)
 	}
 	id = h.press(olga, "place:done")
@@ -1285,12 +1285,19 @@ func TestSummary_EditRegion(t *testing.T) {
 	}
 }
 
-// Вузы: «Изменить места» — шаг назад, правка продолжается до «Готово» вузов.
+// Вузы: «← Назад» при правке — к меню «Что поменять?», места правятся своим
+// полем. «Изменить места» со старого сообщения — шаг назад, правка
+// продолжается до «Готово» вузов.
 func TestSummary_EditUniversitiesViaPlaces(t *testing.T) {
 	h := newHarness(t)
 	h.toSummary()
 	h.edit("vuz")
-	h.press(artem, "vuz:places")
+	h.press(artem, "back:universities")
+	if d := h.dialog(artem); d.Step != stepSummary || !d.Draft.EditMenu || d.Draft.EditStage != 0 {
+		t.Fatalf("назад с вузов при правке: %+v", d)
+	}
+	h.pressAny(artem, "sum:f:vuz", "профиль")
+	h.pressAny(artem, "vuz:places", "")
 	if d := h.dialog(artem); d.Step != stepTarget || d.Draft.EditStage != 9 {
 		t.Fatalf("места при правке вузов: %+v", d)
 	}

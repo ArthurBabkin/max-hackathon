@@ -32,6 +32,48 @@ func defaultPlaces(dr store.Draft) []store.PlaceOption {
 	return out
 }
 
+// targetOptions — варианты шага target: по умолчанию, затем добавленные
+// раньше и выбранные места, которых среди них нет. Так после «Назад» к
+// опыту город, добавленный текстом, остаётся на кнопке и с «✓».
+func targetOptions(dr store.Draft) []store.PlaceOption {
+	out := defaultPlaces(dr)
+	has := func(p store.Place) bool {
+		return slices.ContainsFunc(out, func(o store.PlaceOption) bool { return o.Place() == p })
+	}
+	for _, o := range dr.PlaceOptions {
+		if !has(o.Place()) {
+			out = append(out, o)
+		}
+	}
+	for _, p := range dr.Places {
+		if !has(p) {
+			out = append(out, placeOf(p))
+		}
+	}
+	return out
+}
+
+// placeOf — выбранное место как вариант на кнопке.
+func placeOf(p store.Place) store.PlaceOption {
+	if p.City != "" {
+		return store.PlaceOption{Kind: "city", RegionCode: p.RegionCode, City: p.City, Label: p.City + " · " + refdata.Short(p.RegionCode)}
+	}
+	return store.PlaceOption{Kind: "region", RegionCode: p.RegionCode, Label: refdata.Short(p.RegionCode)}
+}
+
+// toTarget — обратно к «Где учиться» с шага вузов: варианты на месте, у
+// диалогов v1 место из Target переносится в Places.
+func toTarget(dr *store.Draft) {
+	dr.PlaceOptions, dr.Found = placeOptions(*dr), nil
+	if places, _ := draftPlaces(*dr); len(dr.Places) == 0 {
+		dr.Places = places
+	}
+	if dr.Target == store.TargetAny {
+		dr.PlacesAny = true
+	}
+	dr.Target = ""
+}
+
 // placeOptions — варианты на кнопках шага target. У диалогов, начатых до
 // онбординга v2, их нет в черновике — собираются так же, как при переходе.
 func placeOptions(dr store.Draft) []store.PlaceOption {
@@ -72,7 +114,7 @@ func targetPrompt(v voice.Voice, d store.Dialog, text string) maxapi.NewMessage 
 			"place:t:"+strconv.Itoa(i))))
 	}
 	kb = append(kb,
-		maxapi.Row(cb(v.T("bot.target.other", nil), "place:other"), cb(v.T("bot.target.any", nil), "place:any")),
+		maxapi.Row(cb(v.T("bot.target.other", nil), "place:other"), cb(check(d.Draft.PlacesAny, v.T("bot.target.any", nil)), "place:any")),
 		maxapi.Row(cb(v.T("bot.btn.done", nil), "place:done")))
 	return maxapi.WithKeyboard(text, kb)
 }
@@ -211,7 +253,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		if matches[0].Kind == "region" {
 			place = refdata.Short(matches[0].RegionCode)
 		}
-		return b.sendPrompt(t, withStep(v, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place}))))
+		return b.sendPrompt(t, withBack(t, d, withStep(v, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place})))))
 	}
 	var kb maxapi.Keyboard
 	for i, o := range found {
