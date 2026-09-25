@@ -311,8 +311,9 @@ describe('карточка олимпиады', () => {
 
     expect((await list('')).every((o) => o.my_benefits.length === 0)).toBe(true)
     expect((await list('?mine=true')).find((o) => o.olympiad_id === 'hse')?.my_benefits).toEqual([
-      { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'] },
-      { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'] },
+      { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'], partial_universities: [] },
+      // На Программную инженерию в ВШЭ — не на все программы.
+      { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: ['ВШЭ'] },
     ])
 
     // Только ВШЭ: Технокубок даёт там льготу, но не на Программную инженерию.

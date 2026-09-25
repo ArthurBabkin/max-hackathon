@@ -1767,6 +1767,8 @@ export interface components {
             benefit_label: string;
             /** @description Короткие названия моих вузов, в их порядке в профиле. */
             universities: string[];
+            /** @description Из universities — вузы, где на мои направления льгота не на все программы («Зависит от программы» в карточке олимпиады). */
+            partial_universities: string[];
         };
         /** @description Строка блока «Уровень по профилям». */
         ProfileLevel: {

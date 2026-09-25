@@ -342,11 +342,15 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
 export function myBenefits(olympiadId: string): OlympiadListItem['my_benefits'] {
   const mine = state.universities.map(universityById).filter((u): u is DemoUniversity => u !== null)
   return (['bvi', 'bvi_winners', 'score100'] as const)
-    .map((benefit) => ({
-      benefit,
-      benefit_label: BENEFIT_LABELS[benefit],
-      universities: mine.filter((u) => targetBenefit(u, olympiadId).benefit === benefit).map((u) => u.nick),
-    }))
+    .map((benefit) => {
+      const here = mine.filter((u) => targetBenefit(u, olympiadId).benefit === benefit)
+      return {
+        benefit,
+        benefit_label: BENEFIT_LABELS[benefit],
+        universities: here.map((u) => u.nick),
+        partial_universities: here.filter((u) => targetBenefit(u, olympiadId).varies).map((u) => u.nick),
+      }
+    })
     .filter((g) => g.universities.length > 0)
 }
 

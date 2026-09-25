@@ -243,6 +243,10 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 					t.Fatalf("вузы — мои, короткими названиями: %v", g)
 				}
 			}
+			// На ИБ в ВШЭ льготы от программы не зависят.
+			if p, ok := g["partial_universities"]; !ok || len(strs(p)) != 0 {
+				t.Fatalf("льгота на все программы — partial_universities пуст: %v", g)
+			}
 		}
 	}
 	if len(got) != len(want) {
@@ -259,6 +263,32 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 		if len(list(t, it["my_benefits"])) != 0 {
 			t.Fatalf("без mine — пусто: %v", it)
 		}
+	}
+
+	// На ПИ в ВШЭ льгота зависит от программы — вуз помечен: «БВИ» не
+	// должно читаться как «на любую программу направления».
+	if r := e.do("PUT", "/api/v1/profile/universities/hse/directions", token, map[string]any{"direction_ids": []string{dirSE}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	targetRows, _ = e.st.TargetBenefits(ctx, f.trajectoryID, ids, unis)
+	varies := map[string]bool{}
+	for _, b := range targetRows {
+		varies[olympiadOf[b.ProfileID]] = varies[olympiadOf[b.ProfileID]] || b.Varies
+	}
+	marked := 0
+	for _, it := range list(t, e.do("GET", "/api/v1/olympiads?mine=true&subject=inf", token, nil).body["items"]) {
+		for _, g := range list(t, it["my_benefits"]) {
+			partial := strs(g["partial_universities"])
+			if len(partial) > 0 {
+				marked++
+			}
+			if varies[it["olympiad_id"].(string)] != slices.Equal(partial, []string{"ВШЭ"}) {
+				t.Fatalf("%s: зависит от программы — %v, в ответе %v", it["olympiad_id"], varies[it["olympiad_id"].(string)], g)
+			}
+		}
+	}
+	if marked == 0 {
+		t.Fatal("в сиде на ПИ в ВШЭ льготы зависят от программы — пометка должна быть")
 	}
 
 	// Льготы на выбранные в НГУ направления ещё уточняются: вести туда

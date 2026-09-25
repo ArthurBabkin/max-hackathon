@@ -58,14 +58,19 @@ function MyBenefitLine({ groups, allMine }: { groups: OlympiadListItem['my_benef
   const t = useVoice()
   const [first, ...rest] = groups
   if (!first) return null
-  const where = allMine && rest.length === 0 ? t('catalog.mineAll') : first.universities.join(', ')
+  // Где льгота не на все программы моих направлений — так и помечено.
+  const names = (g: (typeof groups)[number]) =>
+    g.universities
+      .map((u) => (g.partial_universities.includes(u) ? `${u} (${t('catalog.minePartial')})` : u))
+      .join(', ')
+  const whole = allMine && rest.length === 0 && first.partial_universities.length === 0
   return (
     <span className="row-benefit">
       <span className={`benefit-value ${first.benefit === 'score100' ? 'benefit-score' : 'benefit-bvi'}`}>
         {first.benefit_label}
       </span>{' '}
-      {where}
-      {rest.map((g) => ` · ${g.benefit_label}: ${g.universities.join(', ')}`).join('')}
+      {whole ? t('catalog.mineAll') : names(first)}
+      {rest.map((g) => ` · ${g.benefit_label}: ${names(g)}`).join('')}
     </span>
   )
 }
