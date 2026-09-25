@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -181,6 +182,7 @@ func TestPrompt_RoleAndRules(t *testing.T) {
 		"не обобщай по отдельным олимпиадам",
 		"«Регистрация закрыта» — в этом сезоне в олимпиаду уже не вступить",
 		"олимпиады из строки «Только на другие направления вуза» на направления ученика льготы не дают",
+		"Если в вопросе названо направление — отвечай про льготы на него",
 	} {
 		if !strings.Contains(sys, want) {
 			t.Errorf("в промпте нет %q", want)
@@ -511,5 +513,82 @@ func TestKnowledge_DirectionCard(t *testing.T) {
 		if !strings.Contains(pi, want) {
 			t.Errorf("в карточке ПИ нет %q:\n%s", want, pi)
 		}
+	}
+}
+
+// Направление в вопросе — льготы олимпиады на него, а не на цель ученика
+// (ПИ): Innopolis Open по информационной безопасности в ВШЭ на ИБ даёт БВИ.
+// Вуз из вопроса без направления — так и сказано.
+func TestKnowledge_OlympiadCardOnQuestionDirection(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Что даёт Innopolis Open на ИБ в ВШЭ?"), "olympiad:p669-22")
+	i := strings.Index(c, "Льгота на направление из вопроса (Информационная безопасность) — главнее льготы вуза целиком:")
+	if i < 0 {
+		t.Fatalf("льгота на направление из вопроса:\n%s", c)
+	}
+	sec := c[i:]
+	for _, want := range []string{`\n  Информационная безопасность:\n    ВШЭ: победителю и призёру — БВИ`, `\n  Робототехника:\n    ВШЭ: победителю и призёру — 100 баллов`} {
+		if !strings.Contains(sec, want) {
+			t.Errorf("нет %q:\n%s", want, sec)
+		}
+	}
+	if strings.Contains(c, "направления ученика") {
+		t.Errorf("вопрос про ИБ — цель ученика ни при чём:\n%s", c)
+	}
+
+	all := cardIn(t, contextFor(t, "Что даёт Innopolis Open на ИБ?"), "olympiad:p669-22")
+	sec = all[strings.Index(all, "Льгота на направление из вопроса"):]
+	for _, want := range []string{"КФУ: победителю и призёру — БВИ", "ИТМО: льготы нет"} {
+		if !strings.Contains(sec, want) {
+			t.Errorf("все вузы с ИБ: нет %q:\n%s", want, sec)
+		}
+	}
+	if strings.Contains(sec, "Иннополис:") {
+		t.Errorf("в Иннополисе ИБ нет:\n%s", sec)
+	}
+
+	// На ПИ в ВШЭ льгота «Высшей пробы» зависит от программы.
+	pi := cardIn(t, contextFor(t, "Что даёт Высшая проба по информатике на ПИ в ВШЭ?"), "olympiad:p669-8")
+	varies := regexp.MustCompile(`Информатика:\\n    ВШЭ: победителю и призёру — БВИ[^\\]*\(зависит от программы\)`)
+	if sec := pi[strings.Index(pi, "Льгота на направление из вопроса"):]; !varies.MatchString(sec) {
+		t.Errorf("зависит от программы:\n%s", sec)
+	}
+
+	// Предмет из вопроса важнее предметов ученика (информатика, математика).
+	econ := cardIn(t, contextFor(t, "Что даёт Высшая проба по экономике на ПМИ в ВШЭ?"), "olympiad:p669-8")
+	if sec := econ[strings.Index(econ, "Льгота на направление из вопроса"):]; strings.Contains(sec, "Информатика") || !strings.Contains(sec, "ВШЭ: ") {
+		t.Errorf("профили по экономике:\n%s", sec)
+	}
+
+	mipt := cardIn(t, contextFor(t, "Что даёт Innopolis Open на ИБ в МФТИ?"), "olympiad:p669-22")
+	if !strings.Contains(mipt, "Нет этого направления: МФТИ") {
+		t.Errorf("вуз из вопроса без направления:\n%s", mipt)
+	}
+}
+
+// Направление в вопросе — карточка вуза про него: направление помечено,
+// олимпиады — с льготой на него. Нет направления в вузе — только шапка.
+func TestKnowledge_UniversityCardOnQuestionDirection(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Какие олимпиады дают льготу на ИБ в ВШЭ?"), "university:hse")
+	for _, want := range []string{
+		"Льготы здесь считаются на направление из вопроса: Информационная безопасность.",
+		`\n  10.03.01 Информационная безопасность — 1 программа, 45 олимпиад с льготой; направление из вопроса`,
+		"Льготы по уровню олимпиады на направление из вопроса",
+		"Олимпиады с льготой на направление из вопроса (Информационная безопасность)",
+		"Только на другие направления вуза, не на направление из вопроса",
+	} {
+		if !strings.Contains(c, want) {
+			t.Errorf("нет %q:\n%s", want, c)
+		}
+	}
+	if strings.Contains(c, "Льготы ученику здесь считаются") || strings.Contains(c, "направление ученика") {
+		t.Errorf("вопрос про ИБ — цель ученика ни при чём:\n%s", c)
+	}
+
+	itmo := cardIn(t, contextFor(t, "Есть ли лечебное дело в ИТМО?"), "university:itmo")
+	if !strings.Contains(itmo, "Направления из вопроса (Лечебное дело) в этом вузе нет.") {
+		t.Errorf("направления нет:\n%s", itmo)
+	}
+	if strings.Contains(itmo, "Олимпиады с льгот") || strings.Contains(itmo, "Льготы по уровню") {
+		t.Errorf("без направления — только шапка:\n%s", itmo)
 	}
 }
