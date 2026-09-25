@@ -570,38 +570,53 @@ def rows_innopolis():
     """Приказ от 19.01.2026. Приложение 2 (стр.4) — ВсОШ, приложение 3 (стр.5-16) —
     перечень 2025/26. Приложения 4-6 — перечни прошлых лет (диплом действует 4 года),
     для кампании 2026 они дублируют льготу и в датасет не берутся."""
-    out = []
     f = "olymp_list____2026.pdf"
-    url = meta("innopolis", f)["url"]
+    return innopolis_rows(load_pages("innopolis", f), meta("innopolis", f)["url"])
+
+
+def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
+    """Одну и ту же таблицу приложения 3 pdfplumber режет на 5, 7 или 11
+    колонок, смотря по странице, и по номеру колонки на стр. 8, 9, 11 и 16
+    терялось 40 строк, среди них Innopolis Open. Поэтому ячейки берутся вокруг
+    ячейки уровня: до неё название (если есть), профиль и предмет олимпиады,
+    после — предмет вступительного испытания. Название, разорванное на две
+    строки, склеивается: у всех строк олимпиады оно общее."""
+    out = []  # (название, строка): название — [текст], продолжение дописывается
     name = None
-    for pg in load_pages("innopolis", f):
+    for pg in pages:
         page = pg["page"]
         if page not in range(4, 17):
             continue
         for table in pg["tables"]:
+            name_col = None
             for row in table:
                 c = [clean(x) for x in row]
                 if page == 4:
                     if len(c) < 3 or not c[1] or not profile_slug(c[1].lower()):
                         continue
-                    out.append({"match": None, "vsosh": True, "olympiad_name": None,
-                                "profile": c[1].lower(), "level": "ВсОШ",
-                                "statuses": [POB, PRIZ], "benefit": BVI,
-                                "ege_subject": c[2] or c[1], "ege_score": None,
-                                "grades": [9, 10, 11], "page": page, "url": url})
+                    out.append((None, {"match": None, "vsosh": True, "olympiad_name": None,
+                                       "profile": c[1].lower(), "level": "ВсОШ",
+                                       "statuses": [POB, PRIZ], "benefit": BVI,
+                                       "ege_subject": c[2] or c[1], "ege_score": None,
+                                       "grades": [9, 10, 11], "page": page, "url": url}))
                     continue
-                if len(c) < 5:
+                lv = next((i for i, x in enumerate(c) if x in ("I", "II", "III", "1", "2", "3")), None)
+                cells = [(i, x) for i, x in enumerate(c[:lv]) if x]
+                if lv is None:
+                    if name and len(cells) == 1 and cells[0][0] == name_col:
+                        name[0] += " " + cells[0][1]
                     continue
-                if c[0] and len(c[0]) > 6:
-                    name = c[0]
-                profile, level = c[1], _level(c[3])
-                if not (name and profile and level) or "профиль олимпиады" in profile.lower():
+                if len(cells) >= 3 and len(cells[0][1]) > 6:
+                    name_col, name = cells[0][0], [cells[0][1]]
+                    cells = cells[1:]
+                if not (name and cells):
                     continue
-                out.append({"match": None, "olympiad_name": name, "profile": profile,
-                            "level": level, "statuses": [POB, PRIZ], "benefit": BVI,
-                            "ege_subject": c[4] or profile, "ege_score": 75,
-                            "grades": [9, 10, 11], "page": page, "url": url})
-    return out
+                profile = cells[0][1]
+                out.append((name, {"match": None, "profile": profile, "level": _level(c[lv]),
+                                   "statuses": [POB, PRIZ], "benefit": BVI,
+                                   "ege_subject": next((x for x in c[lv + 1:] if x), profile),
+                                   "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}))
+    return [dict(r, olympiad_name=n[0]) if n else r for n, r in out]
 
 
 PARSERS = {"msu": rows_msu, "msu_vsosh": rows_msu_vsosh, "hse_vsosh": rows_hse_vsosh, "spbu": rows_spbu, "hse": rows_hse, "mipt": rows_mipt,
