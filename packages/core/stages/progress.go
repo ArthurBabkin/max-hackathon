@@ -148,7 +148,8 @@ func Status(st []Stage, p Progress, now time.Time) (status, outcome string) {
 		}
 		return StatusFinished, OutcomeMissed
 	}
-	if Current(st, p, now) >= 0 {
+	// Этапов в данных нет — отмеченное участие продолжается.
+	if len(st) == 0 || Current(st, p, now) >= 0 {
 		return StatusActive, ""
 	}
 	// Прошёл дальше последний известный этап — следующий ещё не опубликован.
@@ -210,7 +211,8 @@ func Apply(st []Stage, p Progress, stageID string, m Mark, now time.Time) (Progr
 		out.Registered = registered || m.Result != ""
 		registered = false // первая регистрация живёт в пункте трекера
 	}
-	if m.Result != "" {
+	// Итог и регистрация на следующий этап подразумевают участие.
+	if m.Result != "" || registered {
 		out.Registered = true
 	}
 	if x := (Mark{Registered: registered, Result: m.Result}); x == (Mark{}) {
