@@ -193,3 +193,20 @@ func TestSchedule_NearestStageNotStarted(t *testing.T) {
 		t.Fatalf("расписание:\n%q\nждали\n%q", got, want)
 	}
 }
+
+// «В моих вузах» без предмета — условия по предметам ученика: пересказать
+// все профили олимпиады в шести вузах модель не может без ошибок.
+func TestKnowledge_MyUniversitiesStudentSubjects(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Какие льготы даёт «Высшая проба» в моих вузах?"), "olympiad:p669-8")
+	i := strings.Index(c, `\n  ВШЭ — `)
+	if i < 0 || !strings.Contains(c, "по предметам ученика: информатика, математика") {
+		t.Fatalf("условия по предметам ученика:\n%s", c)
+	}
+	hse := c[i+3:]
+	if end := strings.Index(hse, `\n`); end > 0 {
+		hse = hse[:end]
+	}
+	if !strings.Contains(hse, "Информатика") || strings.Contains(hse, "Экономика") {
+		t.Fatalf("строка ВШЭ — только информатика и математика: %s", hse)
+	}
+}

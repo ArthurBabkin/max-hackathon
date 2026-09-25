@@ -108,9 +108,9 @@ type collected struct {
 	// focus — вузы, чьи правила идут первоисточником к олимпиаде: из
 	// вопроса, а если там их нет — вузы ученика.
 	focus []string
-	// asked — вузы, названные в вопросе: карточки олимпиад — с условиями
-	// только этих вузов.
-	asked        []string
+	// scope — чьи условия в карточках олимпиад: вузов из вопроса и по
+	// предметам ученика на «в моих вузах».
+	scope        scope
 	clock        clock
 	subjects     []string // названия предметов ученика
 	universities []string // короткие названия вузов ученика
@@ -178,7 +178,10 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		return c, err
 	}
 	if len(m.Universities) > 0 {
-		c.focus, c.asked = m.Universities, m.Universities
+		c.focus, c.scope.universities = m.Universities, m.Universities
+	}
+	if m.MyUniversities && len(m.Subjects) == 0 {
+		c.scope.subjects = myCodes
 	}
 
 	// Порядок карточек — по уверенности: названное в вопросе, затем то, на
@@ -392,19 +395,20 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if c.has("olympiad:" + oid) {
 		return nil
 	}
-	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.asked, c.clock)
+	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock)
 	if err != nil {
 		return err
 	}
-	// Условия без источника — у вузов из вопроса (в карточке только они) и
-	// по предметам из вопроса, если они у олимпиады есть: Jev ошибается с
-	// предметом («а в ВШЭ?» после Технокубка — биология).
-	subjects := slices.DeleteFunc(slices.Clone(c.mentions.Subjects), func(code string) bool {
-		return !slices.ContainsFunc(b.profiles[oid], func(x store.Profile) bool { return x.SubjectCode == code })
-	})
+	// Условия без источника — в охвате карточки и по предметам из вопроса,
+	// если они у олимпиады есть: Jev ошибается с предметом («а в ВШЭ?» после
+	// Технокубка — биология).
+	subjects := c.scope.subjectsOf(b.profiles[oid])
+	if len(subjects) == 0 {
+		subjects = scope{subjects: c.mentions.Subjects}.subjectsOf(b.profiles[oid])
+	}
 	var unverified []uniName
 	for _, bn := range benefits {
-		if bn.Source != nil || (len(c.asked) > 0 && !slices.Contains(c.asked, bn.UniversityID)) ||
+		if bn.Source != nil || (len(c.scope.universities) > 0 && !slices.Contains(c.scope.universities, bn.UniversityID)) ||
 			(len(subjects) > 0 && !slices.Contains(subjects, b.profile[bn.ProfileID].SubjectCode)) {
 			continue
 		}
