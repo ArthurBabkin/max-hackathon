@@ -223,11 +223,9 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		c.cards = append(c.cards, card{id: "catalog", text: b.catalogText(m.Subjects), sources: []store.Source{*order}})
 	}
 	if c.intent == intentPersonal {
-		text, d, err := a.studentText(ctx, t, c.subjects, c.universities, c.clock)
-		if err != nil {
+		if err := a.studentCard(ctx, b, t, &c); err != nil {
 			return c, err
 		}
-		c.cards = append(c.cards, card{id: "student", text: text, dates: d})
 	}
 	return c, nil
 }
@@ -410,9 +408,10 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	}
 	// Сайт олимпиады — первым: на нём даты и регистрация; дальше правила
 	// о льготах по этому профилю в вузах, о которых речь, и приказ о перечне.
+	// На вопрос о сроках правила вузов ни при чём.
 	sources := appendSite(nil, p)
 	for _, bn := range benefits {
-		if bn.ProfileID == p.ID && bn.Source != nil && slices.Contains(c.focus, bn.UniversityID) {
+		if c.intent != intentOlympiad && bn.ProfileID == p.ID && bn.Source != nil && slices.Contains(c.focus, bn.UniversityID) {
 			sources = append(sources, *bn.Source)
 		}
 	}

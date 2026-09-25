@@ -577,10 +577,11 @@ var goalText = map[string]string{
 	"exploring": "ученик пока выбирает цель",
 }
 
-// studentText — карточка ученика: класс, цель, предметы, вузы и трекер с
+// studentCard — карточка ученика: класс, цель, предметы, вузы и трекер с
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
-// ответа.
-func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subjects, unis []string, c clock) (string, dates, error) {
+// ответа. Источники — сайты олимпиад трекера, ближайшие по срокам первыми:
+// там регистрация и даты.
+func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory, c *collected) error {
 	lines := []string{fmt.Sprintf("Класс: %d", t.Grade)}
 	goal := goalText[t.GoalStatus]
 	if len(t.Directions) > 0 {
@@ -590,13 +591,14 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 		}
 		goal += "; направления: " + strings.Join(directions, ", ")
 	}
-	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(subjects, ", ")), "Вузы: "+orDash(strings.Join(unis, ", ")))
+	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(c.universities, ", ")))
 	items, err := a.Store.TrackerItems(ctx, t.ID)
 	if err != nil {
-		return "", dates{}, err
+		return err
 	}
 	if len(items) == 0 {
-		return strings.Join(append(lines, "Трекер: пусто"), "\n"), dates{}, nil
+		c.cards = append(c.cards, card{id: "student", text: strings.Join(append(lines, "Трекер: пусто"), "\n")})
+		return nil
 	}
 	ids := make([]string, len(items))
 	for i, x := range items {
@@ -604,9 +606,14 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 	}
 	byProfile, err := a.Store.StagesFor(ctx, ids)
 	if err != nil {
-		return "", dates{}, err
+		return err
 	}
 	var d dates
+	type next struct {
+		p    store.Profile
+		ends time.Time
+	}
+	var soon []next
 	lines = append(lines, "Трекер:")
 	for _, x := range items {
 		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName})
@@ -614,13 +621,24 @@ func (a *Assistant) studentText(ctx context.Context, t store.Trajectory, subject
 			line += " (регистрация отмечена)"
 		}
 		st := byProfile[x.ProfileID]
-		if i := slices.IndexFunc(stages.States(st, x.RegisteredAt != nil, c.now), func(s string) bool { return s != "past" }); i >= 0 {
-			line += "; ближайший этап — " + c.dated(st[i:i+1])
+		if i := slices.IndexFunc(stages.States(st, x.RegisteredAt != nil, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
+			line += "; ближайший этап — " + c.clock.dated(st[i:i+1])
 			d.add(names.Olympiad(x.OlympiadName), st[i:i+1])
+			if p, ok := b.profile[x.ProfileID]; ok {
+				soon = append(soon, next{p, *cmp.Or(st[i].EndsAt, st[i].DeadlineAt, st[i].StartsAt, &c.clock.now)})
+			}
 		}
 		lines = append(lines, line)
 	}
-	return strings.Join(lines, "\n"), d, nil
+	slices.SortStableFunc(soon, func(x, y next) int { return x.ends.Compare(y.ends) })
+	var sources []store.Source
+	for _, n := range soon {
+		if !slices.ContainsFunc(sources, func(s store.Source) bool { return s.ID == "site-"+n.p.OlympiadID }) {
+			sources = appendSite(sources, n.p)
+		}
+	}
+	c.cards = append(c.cards, card{id: "student", text: strings.Join(lines, "\n"), dates: d, sources: sources})
+	return nil
 }
 
 // profileTitle — «Информатика», «Промышленное программирование»: название
