@@ -33,6 +33,8 @@ type Mentions struct {
 	MyUniversities bool
 	// Grade — класс из вопроса («для 7 класса»); 0 — не назван.
 	Grade int
+	// Directions — направления подготовки из вопроса (FindDirections).
+	Directions []string
 }
 
 func (m Mentions) Empty() bool {
@@ -353,4 +355,101 @@ func matchAt(tokens, stems []string) []int {
 		}
 	}
 	return out
+}
+
+// Direction — направление подготовки для поиска в вопросе.
+type Direction struct{ ID, Code, Name string }
+
+// directionAliases — сокращения направлений, по кодам. «ПИ» — и программная
+// инженерия, и прикладная информатика.
+var directionAliases = map[string][]string{
+	"пми": {"01.03.02"}, "пмии": {"01.03.02"}, "пи": {"09.03.04", "09.03.03"},
+	"иб": {"10.03.01"}, "инфобез": {"10.03.01"}, "ивт": {"09.03.01"}, "фиит": {"02.03.02"},
+	"пмф": {"03.03.01"}, "пмиф": {"03.03.01"}, "моаис": {"02.03.03"}, "исит": {"09.03.02"},
+}
+
+var directionCodeRe = regexp.MustCompile(`\b\d{2}\.\d{2}\.\d{2}\b`)
+
+// FindDirections — направления из вопроса по коду, сокращению или названию
+// в любом падеже, в порядке упоминания. Название из одного слова,
+// совпадающее с предметом («математика»), — предмет, не направление.
+// Длинное название побеждает короткое на тех же словах, одноимённая
+// укрупнённая группа (09.00.00) уступает направлению. Из неоднозначного
+// сокращения берутся направления цели ученика goal, если они там есть.
+func FindDirections(question string, dirs []Direction, goal []string) []string {
+	byCode := map[string]Direction{}
+	for _, d := range dirs {
+		byCode[d.Code] = d
+	}
+	type hit struct {
+		id         string
+		start, end int
+	}
+	var hits []hit
+	// Код — позиция в байтах, остальное — в словах: порядок нужен только
+	// относительный, код ставим по числу слов перед ним.
+	for _, loc := range directionCodeRe.FindAllStringIndex(question, -1) {
+		if d, ok := byCode[question[loc[0]:loc[1]]]; ok {
+			at := len(tokenize(question[:loc[0]]))
+			hits = append(hits, hit{d.ID, at, at + 3})
+		}
+	}
+	tokens := tokenize(question)
+	for i, tok := range tokens {
+		var ids []string
+		for _, code := range directionAliases[tok] {
+			if d, ok := byCode[code]; ok {
+				ids = append(ids, d.ID)
+			}
+		}
+		if mine := slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !slices.Contains(goal, id) }); len(mine) > 0 {
+			ids = mine
+		}
+		for _, id := range ids {
+			hits = append(hits, hit{id, i, i + 1})
+		}
+	}
+	for _, d := range dirs {
+		words := tokenize(d.Name)
+		if len(words) == 1 && isSubjectWord(words[0]) {
+			continue
+		}
+		stems := stemAll(words)
+		for _, at := range matchAt(tokens, stems) {
+			hits = append(hits, hit{d.ID, at, at + len(stems)})
+		}
+	}
+	slices.SortStableFunc(hits, func(a, b hit) int { return a.start - b.start })
+	var out []string
+	for _, h := range hits {
+		shadowed := slices.ContainsFunc(hits, func(o hit) bool {
+			return o.end-o.start > h.end-h.start && o.start < h.end && h.start < o.end
+		})
+		if !shadowed && !slices.Contains(out, h.id) {
+			out = append(out, h.id)
+		}
+	}
+	// Укрупнённая группа с тем же названием, что у найденного направления.
+	name := map[string]Direction{}
+	for _, d := range dirs {
+		name[d.ID] = d
+	}
+	return slices.DeleteFunc(out, func(id string) bool {
+		d := name[id]
+		return strings.HasSuffix(d.Code, ".00.00") && slices.ContainsFunc(out, func(o string) bool {
+			return o != id && name[o].Name == d.Name
+		})
+	})
+}
+
+// isSubjectWord — слово — название предмета: «математика», «экономике».
+func isSubjectWord(w string) bool {
+	for _, stems := range subjectStems {
+		for _, st := range stems {
+			if len(matchAt([]string{w}, []string{st})) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
