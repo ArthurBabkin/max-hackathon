@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
 // contextFor — системное сообщение модели на вопрос.
@@ -126,5 +128,16 @@ func TestPrompt_RoleAndRules(t *testing.T) {
 		if !strings.Contains(sys, want) {
 			t.Errorf("в промпте нет %q", want)
 		}
+	}
+}
+
+// Этап только с крайним сроком — «до 14.10.2026», как в приложении, а не
+// просто дата: иначе «приём заявок 14 октября» читается как день приёма.
+func TestSchedule_DeadlineOnlyStage(t *testing.T) {
+	deadline := time.Date(2026, 10, 14, 20, 59, 0, 0, time.UTC)
+	c := clock{now: time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC), loc: time.UTC}
+	got := c.schedule([]stages.Stage{{Kind: "registration", Title: "Приём заявок", DeadlineAt: &deadline}})
+	if !strings.HasPrefix(got, "Приём заявок до 14.10.2026") {
+		t.Fatalf("этап с крайним сроком: %q", got)
 	}
 }
