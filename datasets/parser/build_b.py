@@ -437,55 +437,185 @@ def rows_kfu_vsosh():
 
 
 def rows_itmo_vsosh():
-    """Соотнесение профилей ВсОШ с направлениями. Вёрстка рваная: коды и
-    предметы вытаскиваем регулярками из ячеек, а не по позициям."""
-    out = []
+    import pdfplumber
     f = "vsosh_list__vsosh_2026.pdf"
-    url = meta("itmo", f)["url"]
-    for page_no, c in _itmo_rows(SNAP / "itmo" / f, cols=[36, 172, 425, 439, 530, 551]):
-        codes = CODE_RE.findall(" ".join(c[:2]))
-        tail = " ".join(c[2:])
-        if not codes:
-            continue
-        for word in re.findall(r"[А-ЯЁ][а-яё]{4,}", tail):
-            if not profile_slug(word.lower()):
+    pages = []
+    with pdfplumber.open(SNAP / "itmo" / f) as pdf:
+        for page in pdf.pages:
+            lines = [r["top"] for r in page.rects if r["height"] < 3 and r["width"] > 3
+                     and r["x0"] >= ITMO_VSOSH_SPLIT - 4]
+            pages.append((page.page_number, page.extract_words(), lines))
+    return itmo_vsosh_rows(pages, meta("itmo", f)["url"])
+
+
+ITMO_VSOSH_SPLIT = 426    # граница колонок «направление» и «предмет олимпиады»
+
+
+def itmo_vsosh_rows(pages, url: str) -> list[dict]:
+    """Соотнесение предметов ВсОШ с направлениями. Предмет — объединённая
+    ячейка на блок направлений, блоки разделены отрезками в колонке
+    предмета. Часть блока в начале страницы без предмета — продолжение
+    блока с прошлой страницы. Пояснение в скобках («Информатика
+    (Искусственный интеллект …)») предметом не считается.
+
+    pages — [(номер, слова pdfplumber, [y отрезков колонки предмета])]."""
+    blocks = []                        # [коды, текст предмета]
+    for page_no, words, lines in pages:
+        ys = sorted(lines)
+        edges = [float("-inf"), *ys, float("inf")]
+        first = True
+        for lo, hi in zip(edges, edges[1:]):
+            inside = sorted((w for w in words if lo <= w["top"] < hi), key=lambda w: (round(w["top"]), w["x0"]))
+            left = " ".join(w["text"] for w in inside if w["x0"] < ITMO_VSOSH_SPLIT)
+            right = " ".join(w["text"] for w in inside if w["x0"] >= ITMO_VSOSH_SPLIT)
+            codes = CODE_RE.findall(left)
+            if not codes:
+                continue
+            if first and not right.strip() and blocks:
+                blocks[-1][0] += codes
+            else:
+                blocks.append([codes, right])
+            first = False
+    out = []
+    for codes, subjects in blocks:
+        subjects = re.sub(r"\([^)]*\)?", " ", subjects)
+        for word in dict.fromkeys(w.lower() for w in re.findall(r"[А-ЯЁ][а-яё]{4,}", subjects)):
+            if not profile_slug(word):
                 continue
             out.append({"match": {"codes": codes}, "vsosh": True, "olympiad_name": None,
-                        "profile": word.lower(), "level": "ВсОШ", "statuses": [POB, PRIZ],
-                        "benefit": BVI, "ege_subject": word, "ege_score": None,
-                        "grades": None, "page": page_no, "url": url, "score_is_demo": True})
+                        "profile": word, "level": "ВсОШ", "statuses": [POB, PRIZ],
+                        "benefit": BVI, "ege_subject": word.capitalize(), "ege_score": None,
+                        "grades": None, "page": None, "url": url, "score_is_demo": True})
     return out
 
 
+# Колонки перечней ИТМО: направление, название, профиль, предмет ЕГЭ, уровень,
+# статус диплома. У файлов разная сетка; прежняя общая начиналась с x=136 и
+# отрезала направление, а файл «100 баллов» читала вообще не по его колонкам.
+ITMO_LISTS = (("olymp_list__rsosh_bvi_2026.pdf", BVI, [36, 136, 248, 369, 425, 461, 551]),
+              ("olymp_list__rsosh_100_2026.pdf", HUNDRED, [44, 163, 234, 347, 418, 467, 538]))
+ITMO_LEVEL_COL = 4
+
+
+def itmo_merged_rows(pages) -> list[tuple[int, list[str]]]:
+    """Строки перечня ИТМО с объединёнными ячейками.
+
+    Таблица нарисована отрезками. Строка — промежуток между отрезками в
+    колонке уровня; объединённая ячейка другой колонки — промежуток между её
+    собственными отрезками, текст собирается из всех её частей («Все из
+    перечня олимпиад» + «школьников», направление на десяток строк).
+
+    Блок направлений, разорванный страницей, режется на две части. Текст
+    блока всегда начинается с кода, поэтому часть в начале страницы без
+    кода в начале текста (или пустая) — продолжение блока с прошлой
+    страницы, как и часть после текста, оборванного на запятой или коде;
+    пустая часть в конце страницы — начало блока со следующей.
+    У склеенного блока текст обеих частей.
+
+    pages — [(номер, [(top, bottom, [ячейки])], {колонка: [y отрезков]})]."""
+    rows, parts = [], []               # части блоков направлений: [страница, текст]
+    for page_no, fine, lines in pages:
+        if not fine:
+            continue
+        top, bottom = fine[0][0], fine[-1][1]
+
+        def spans(col):
+            ys = sorted({top, bottom, *[y for y in lines.get(col, []) if top <= y <= bottom]})
+            return list(zip(ys, ys[1:]))
+
+        col_spans = {j: spans(j) for j in range(6)}
+
+        def span_of(j, y):
+            return next((sp for sp in col_spans[j] if sp[0] <= y < sp[1]), None)
+
+        def text(j, lo, hi):
+            return clean(" ".join(cells[j] for t, b, cells in fine
+                                  if lo <= (t + b) / 2 < hi and j < len(cells) and cells[j]))
+
+        page_parts = {}
+        for sp in col_spans[ITMO_LEVEL_COL]:
+            mid = (sp[0] + sp[1]) / 2
+            # Направление и название — объединённые ячейки на блок строк.
+            # Остальное — в пределах строки: у колонки статуса отрезков
+            # местами нет, и статусы соседних строк склеивались бы.
+            row = [text(j, *span_of(j, mid)) if j < 2 else
+                   (text(j, *sp) or text(j, *span_of(j, mid))) for j in range(6)]
+            if not _level(row[ITMO_LEVEL_COL]):
+                continue                  # шапка документа и таблицы
+            dsp = span_of(0, mid)
+            if dsp not in page_parts:
+                page_parts[dsp] = len(parts)
+                parts.append([page_no, row[0]])
+            rows.append((page_no, row, page_parts[dsp]))
+    group = list(range(len(parts)))
+    for i in range(1, len(parts)):
+        (pg, text), (prev_pg, prev_text) = parts[i], parts[i - 1]
+        if pg == prev_pg:
+            continue                      # внутри страницы блоки разделены отрезком
+        cut = re.search(r"(,|\d{2}\.\d{2}\.\d{2})\s*$", prev_text)   # оборвано на полуслове
+        if not CODE_RE.match(text) or not prev_text or cut:
+            group[i] = group[i - 1]
+    merged = defaultdict(list)
+    for i, g in enumerate(group):
+        merged[g].append(parts[i][1])
+    return [(page_no, [clean(" ".join(merged[group[k]]))] + row[1:]) for page_no, row, k in rows]
+
+
+def _itmo_pages(pdf_path, cols):
+    import pdfplumber
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_no, page in enumerate(pdf.pages, start=1):
+            ys = sorted({round(v) for r in page.rects for v in (r["top"], r["bottom"])})
+            ys = [y for i, y in enumerate(ys) if i == 0 or y - ys[i - 1] > 3]
+            if len(ys) < 3:
+                continue
+            t = page.find_table({"vertical_strategy": "explicit", "explicit_vertical_lines": cols,
+                                 "horizontal_strategy": "explicit", "explicit_horizontal_lines": ys})
+            if not t:
+                continue
+            fine = [(row.bbox[1], row.bbox[3], [clean(c) for c in cells])
+                    for row, cells in zip(t.rows, t.extract())]
+            lines = {}
+            for j in range(len(cols) - 1):
+                left, right = cols[j], cols[j + 1]
+                lines[j] = [r["top"] for r in page.rects
+                            if r["height"] < 3 and r["width"] > 3
+                            and r["x0"] <= left + 4 and r["x1"] >= right - 4]
+            yield page_no, fine, lines
+
+
 def rows_itmo():
-    """Два плоских перечня на весь вуз: один даёт БВИ, другой — 100 баллов.
-    Название олимпиады задано один раз на блок профилей, переносим вниз."""
     out = []
-    for f, benefit in (("olymp_list__rsosh_bvi_2026.pdf", BVI),
-                       ("olymp_list__rsosh_100_2026.pdf", HUNDRED)):
-        url = meta("itmo", f)["url"]
-        name = None
-        for page_no, c in _itmo_rows(SNAP / "itmo" / f):
-            if len(c) < 5:
-                continue
-            junk = ("Министерст", "государственное", "федеральное", "ыдаипмило",
-                    "Наименование", "победителей", "Приложение", "УТВЕРЖДАЮ",
-                    "учрежде", "университет", "ИТМО")
-            if c[0] and not any(x in c[0] for x in junk):
-                name = c[0]
-            profile, subject, level, status = c[1], c[2], c[3], c[4]
-            if not (name and profile and level and status):
-                continue
-            # «Все из перечня олимпиад школьников» — не название, а правило:
-            # подходит любая перечневая олимпиада этого профиля.
-            by_profile = name.lower().startswith("все из перечня")
-            out.append({"match": None,
-                        "by_profile": by_profile,
-                        "olympiad_name": None if by_profile else name,
-                        "profile": profile,
-                        "level": _level(level), "statuses": _statuses(status),
-                        "benefit": benefit, "ege_subject": subject or profile,
-                        "ege_score": 75, "grades": None, "page": page_no, "url": url})
+    for f, benefit, cols in ITMO_LISTS:
+        out += itmo_rows(itmo_merged_rows(_itmo_pages(SNAP / "itmo" / f, cols)),
+                         meta("itmo", f)["url"], benefit)
+    return out
+
+
+def itmo_rows(rows, url: str, benefit: str) -> list[dict]:
+    """Два перечня: один даёт БВИ, другой — 100 баллов. Льгота адресована
+    направлениям из первой колонки; «(только на направление 10.03.01)» в
+    профиле сужает блок."""
+    out = []
+    for page_no, c in rows:
+        direction, name, profile, subject, level, status = c
+        codes = CODE_RE.findall(direction)
+        if not (codes and name and profile and _level(level) and _statuses(status) and "ыдаипмило" not in name):
+            continue
+        only = re.search(r"\((?:только|учитывается только) на[^)]*\)", profile)
+        if only:
+            codes = CODE_RE.findall(only.group(0)) or codes
+            profile = clean(profile.replace(only.group(0), ""))
+        # «Все из перечня олимпиад школьников» — не название, а правило:
+        # подходит любая перечневая олимпиада этого профиля.
+        by_profile = name.lower().startswith("все из перечня")
+        out.append({"match": {"codes": codes},
+                    "by_profile": by_profile,
+                    "olympiad_name": None if by_profile else name,
+                    "profile": profile,
+                    "level": _level(level), "statuses": _statuses(status),
+                    "benefit": benefit, "ege_subject": subject or profile,
+                    "ege_score": 75, "grades": None, "page": page_no, "url": url})
     return out
 
 
@@ -846,18 +976,28 @@ def mipt_link(school: str, groups: list[str] | None, programs: list[dict]) -> li
 def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, str]]:
     """Вуз задал профиль, а не название: подходит любая перечневая олимпиада
     с этим профилем. Уровень I сильнее II и III, поэтому требование «не ниже
-    уровня N» пропускает олимпиады с уровнем N и выше."""
-    want = clean(profile).lower()
+    уровня N» пропускает олимпиады с уровнем N и выше.
+
+    Если точного профиля нет, вуз мог назвать часть составного профиля НТО
+    («Аэрокосмические системы» — из «беспилотный транспорт: аэрокосмические
+    системы, …») или чуть иначе его записать («… финансовых технологий»)."""
+    want = re.sub(r"(\w)- (\w)", r"\1-\2", clean(profile).lower())   # перенос «бизнес- процессов»
     rank = {"I": 1, "II": 2, "III": 3}
     cap = rank.get(min_level or "III", 3)
-    hits = []
-    for row in _index:
-        if row["profile"].strip().lower() != want:
-            continue
-        if rank.get(row["level"], 3) > cap:
-            continue
-        hits.append((row["olympiad_id"], row["name"], row["level"]))
-    return hits
+
+    def fits(row, loose):
+        have = row["profile"].strip().lower()
+        if not loose:
+            return have == want
+        parts = [clean(x) for x in re.split(r"[:,]", have)]
+        return want in parts or SequenceMatcher(None, want, have).ratio() > 0.9
+
+    for loose in (False, True):
+        hits = [(row["olympiad_id"], row["name"], row["level"]) for row in _index
+                if fits(row, loose) and rank.get(row["level"], 3) <= cap]
+        if hits or any(fits(row, loose) for row in _index):
+            return hits
+    return []
 
 
 def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:

@@ -217,5 +217,96 @@ class MiptMatrixTest(unittest.TestCase):
         self.assertEqual(sorted(got), [["ekn", "mmtu"], ["fbmf", "vshbi"]])
 
 
+def words(*lines):
+    """(top, левая колонка, правая колонка) -> слова pdfplumber."""
+    out = []
+    for top, left, right in lines:
+        out += [{"x0": 41 + i, "top": top, "text": w} for i, w in enumerate(left.split())]
+        out += [{"x0": 432 + i, "top": top, "text": w} for i, w in enumerate(right.split())]
+    return out
+
+
+class ItmoVsoshTest(unittest.TestCase):
+    """Соотнесение ВсОШ ИТМО: предмет — объединённая ячейка на блок
+    направлений, а не текст в строке с кодом."""
+
+    def test_subject_covers_whole_block_and_continues_on_next_page(self):
+        pages = [
+            (1, words((240, "Направление подготовки", "Предмет олимпиады"),
+                      (260, "03.03.02 Физика", "Физика, Астрономия,"),
+                      (272, "12.03.03 Фотоника и оптоинформатика", "Технология"),
+                      (284, "16.03.01 Техническая физика", ""),
+                      (710, "27.03.05 Инноватика", "Химия, Биология")), [232, 249, 700]),
+            (2, words((160, "38.03.05 Бизнес-информатика", ""),
+                      (210, "01.03.02 Прикладная математика и информатика", "Информатика"),
+                      (222, "02.03.03 Математическое обеспечение", "(Искусственный интеллект)")), [154, 204, 266]),
+        ]
+        got = {(code, r["profile"]) for r in bb.itmo_vsosh_rows(pages, URL) for code in r["match"]["codes"]}
+        self.assertEqual(got, {
+            ("03.03.02", "физика"), ("12.03.03", "физика"), ("16.03.01", "физика"),
+            ("03.03.02", "астрономия"), ("12.03.03", "астрономия"), ("16.03.01", "астрономия"),
+            ("27.03.05", "химия"), ("38.03.05", "химия"), ("27.03.05", "биология"), ("38.03.05", "биология"),
+            ("01.03.02", "информатика"), ("02.03.03", "информатика"),
+        })
+
+
+class ItmoListsTest(unittest.TestCase):
+    """Перечни ИТМО: направление и название — объединённые ячейки на блок
+    строк, блок направлений бывает разорван страницей."""
+
+    @staticmethod
+    def page(n, rows, dir_lines, name_lines=None):
+        fine, top = [], 100
+        for cells in rows:
+            fine.append((top, top + 20, cells))
+            top += 20
+        level = [100 + 20 * i for i in range(len(rows) + 1)]
+        lines = {0: dir_lines, 1: name_lines if name_lines is not None else level,
+                 2: level, 3: level, 4: level, 5: []}
+        return n, fine, lines
+
+    def test_blocks_across_pages(self):
+        got = bb.itmo_merged_rows([
+            self.page(1, [["01.03.02 ПМИ", "Все из перечня олимпиад", "Информатика", "Информатика", "1, 2 или 3", "Победитель"],
+                          ["", "школьников", "Математика", "Математика", "1", "или призер"],
+                          ["02.03.03 МОАИС,", "Московская олимпиада школьников", "Информатика", "Информатика", "1", "Победитель"]],
+                      [100, 140, 160], [100, 140, 160]),
+            self.page(2, [["09.03.04 Программная", "Олимпиада «Высшая проба»", "Математика", "Математика", "1", "Победитель"]],
+                      [100, 120]),
+            self.page(3, [["", "Турнир городов", "Математика", "Математика", "1", "Победитель"],
+                          ["10.03.01 ИБ", "Олимпиада «Физтех»", "Физика", "Физика", "2", "Победитель"]],
+                      [100, 120, 140]),
+        ])
+        self.assertEqual([(c[0], c[1], c[5]) for _, c in got], [
+            ("01.03.02 ПМИ", "Все из перечня олимпиад школьников", "Победитель"),
+            ("01.03.02 ПМИ", "Все из перечня олимпиад школьников", "или призер"),
+            ("02.03.03 МОАИС, 09.03.04 Программная", "Московская олимпиада школьников", "Победитель"),
+            ("02.03.03 МОАИС, 09.03.04 Программная", "Олимпиада «Высшая проба»", "Победитель"),
+            ("02.03.03 МОАИС, 09.03.04 Программная", "Турнир городов", "Победитель"),
+            ("10.03.01 ИБ", "Олимпиада «Физтех»", "Победитель"),
+        ])
+
+    def test_only_on_direction(self):
+        rows = bb.itmo_rows([(2, ["09.03.01 ИВТ, 10.03.01 ИБ", "Все из перечня олимпиад школьников",
+                                  "Информационная безопасность (только на направление 10.03.01)",
+                                  "Информатика", "1, 2 или 3", "Победитель или призер"])], URL, "100_ballov")
+        self.assertEqual([(r["match"]["codes"], r["profile"]) for r in rows],
+                         [(["10.03.01"], "Информационная безопасность")])
+
+
+class ExpandProfileTest(unittest.TestCase):
+    def test_part_of_composite_nto_profile(self):
+        got = [oid for oid, *_ in bb.expand_profile("Аэрокосмические системы", "II")]
+        self.assertEqual(len(got), 1)
+        self.assertTrue(got[0].startswith("p669-5-bespilotnyy-transport-aerokosmicheskie-sistemy"))
+
+    def test_hyphen_split_by_line_break(self):
+        self.assertEqual([o for o, *_ in bb.expand_profile("Автоматизация бизнес- процессов", "II")],
+                         ["p669-5-avtomatizaciya-biznes-processov"])
+
+    def test_profile_missing_from_perechen(self):
+        self.assertEqual(bb.expand_profile("Нанотехнологии", "I"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
