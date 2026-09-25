@@ -177,3 +177,17 @@ func TestSchedule_DeadlineOnlyStage(t *testing.T) {
 		t.Fatalf("этап с крайним сроком: %q", got)
 	}
 }
+
+// Ближайший этап, который ещё не начался, помечен «ещё не идёт»: без пометки
+// модель видит «Регистрация 05.10–25.10» и пишет «регистрация открыта».
+func TestSchedule_NearestStageNotStarted(t *testing.T) {
+	day := func(m time.Month, d int) *time.Time { x := time.Date(2026, m, d, 9, 0, 0, 0, time.UTC); return &x }
+	c := clock{now: *day(9, 25), loc: time.UTC}
+	got := c.schedule([]stages.Stage{
+		{Kind: "registration", Title: "Регистрация", StartsAt: day(10, 5), EndsAt: day(10, 25)},
+		{Kind: "final", Title: "Заключительный этап", StartsAt: day(12, 14), EndsAt: day(12, 16)},
+	})
+	if want := "Регистрация 05.10.2026–25.10.2026 (ещё не идёт) → Заключительный этап 14.12.2026–16.12.2026"; got != want {
+		t.Fatalf("расписание:\n%q\nждали\n%q", got, want)
+	}
+}
