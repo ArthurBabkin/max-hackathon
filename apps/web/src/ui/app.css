@@ -2683,19 +2683,23 @@
   gap: var(--gap-sm);
 }
 
-/* «Пропустить» в плашке — полная тач-цель, но строку не раздвигает. */
+/* «Пропустить» в плашке — полная тач-цель, но строку не раздвигает
+   и не сжимается, когда название длинное. */
 .tour-tap-row .tour-skip {
+  flex: none;
   margin-block: -10px;
 }
 
+/* Длинное название олимпиады переносится, а не обрывается многоточием:
+   «Нажми «ВсОШ по информатик…» не говорит, что нажимать. */
 .tour-tap {
   min-width: 0;
   margin: 0;
   font-size: var(--t-base);
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 /* Пропуск — второстепенное действие, поэтому приглушён, но тач-цель полная. */
