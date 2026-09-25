@@ -285,9 +285,12 @@ func (c clock) schedule(st []stages.Stage) string {
 			tags = append(tags, "прошёл")
 		case "current":
 			// Текущий в приложении — ближайший непрошедший; идёт он, только
-			// если уже начался.
+			// если уже начался. Не начался — говорим прямо: по одним датам
+			// модель пишет «регистрация открыта».
 			if s.StartsAt == nil || !s.StartsAt.After(c.now) {
 				tags = append(tags, "идёт сейчас")
+			} else {
+				tags = append(tags, "ещё не идёт")
 			}
 		}
 		parts[i] = stageName(s) + " " + when
