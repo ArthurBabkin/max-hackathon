@@ -248,7 +248,8 @@ func (a *Assistant) clock(t store.Trajectory) clock {
 }
 
 // understand дополняет найденное по названиям тем, что понял Jev: тип
-// вопроса, олимпиады с вероятностью от 0,15, вузы — от 0,25, предмет. ВсОШ
+// вопроса, олимпиады с вероятностью от 0,15, вузы — от 0,25, кроме
+// организаторов олимпиад вопроса, если их не назвали, и предмет. ВсОШ
 // от Jev не берём: «олимпиада по информатике» для него похожа на ВсОШ по
 // информатике, а ВсОШ, названную словами, находит поиск. Её вероятность
 // делится между остальными классами — иначе она отнимает долю у названной
@@ -282,9 +283,22 @@ func (a *Assistant) understand(ctx context.Context, b base, c *collected, histor
 	for _, oid := range m.Olympiads[named:] {
 		c.guessed[oid] = true
 	}
+	// Вуз-организатор олимпиады вопроса Jev принимает за вуз, о котором
+	// спрашивают («Покори Воробьёвы горы» → МГУ). Такой вуз берём, только
+	// если его назвали словами — в прошлом вопросе (в этом его нашёл поиск).
+	_, unis := b.named()
+	organizers := map[string]bool{}
+	for _, oid := range m.Olympiads {
+		if o := b.profiles[oid][0].Organizer; o != nil {
+			for _, uid := range Find(*o, nil, unis).Universities {
+				organizers[uid] = true
+			}
+		}
+	}
+	earlier := Find(state["previous_question"], nil, unis).Universities
 	m.Universities = above(m.Universities, probs["university"], universityThreshold, func(id string) bool {
 		_, ok := b.uni[id]
-		return ok
+		return ok && (!organizers[id] || slices.Contains(earlier, id))
 	})
 	if s := top(probs["subject"]); s != none && jevSubjects[s] != "" && !slices.Contains(m.Subjects, s) {
 		m.Subjects = append(m.Subjects, s)
