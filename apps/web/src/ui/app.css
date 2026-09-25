@@ -2335,6 +2335,13 @@
   color: var(--gr-ink);
 }
 
+/* «Не прошёл» и «Без диплома» — не успех: нажатая кнопка нейтральная, не зелёная. */
+.result-button-quiet[aria-pressed='true'] {
+  border-color: var(--mu);
+  background: var(--surface-2);
+  color: var(--tx);
+}
+
 .result-button:disabled {
   opacity: 0.45;
 }
@@ -2867,6 +2874,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Список под чипами («+ Добавить регион»): рамка фокуса не налезает на чипы. */
+.wrap-chips + .field-select {
+  margin-top: var(--gap-sm);
 }
 
 /* --- Каталог: группы по уровню ---------------------------------------------- */
