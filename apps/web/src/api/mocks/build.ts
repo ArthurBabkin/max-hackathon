@@ -27,6 +27,7 @@ import {
   type TrackerItem,
   type TrajectorySummary,
   type UniversityDetail,
+  type CatalogUniversity,
   type UniversityListItem,
 } from '@contract'
 import { regions as REGIONS } from '@regions'
@@ -45,7 +46,7 @@ import {
   inDays,
 } from './fixtures'
 import { progressFields, type MockProgress, type MockStage } from './progress'
-import { coverage, directionById, isGoal, nameOf, onDirection, targetBenefit, targetOf } from './targets'
+import { coverage, covers, directionById, isGoal, nameOf, onDirection, targetBenefit, targetOf } from './targets'
 import {
   findProfile,
   hasKid,
@@ -376,6 +377,22 @@ export function olympiadListItem(o: DemoOlympiad, withMine = false): OlympiadLis
 const benefitOlympiadsCount = (u: DemoUniversity) =>
   Object.values(u.benefits).filter((b) => b === 'bvi' || b === 'score100' || b === 'bvi_winners')
     .length
+
+/**
+ * Чем вуз подходит под направление каталога (F67): покрывающие его
+ * направления вуза и олимпиады с льготой на них; null — не подходит.
+ */
+export function directionMatch(u: DemoUniversity, directionId: string): CatalogUniversity['direction_match'] | null {
+  const code = directionById(directionId)?.code ?? ''
+  const offered = u.offered.filter((o) => covers(directionById(o.id)?.code ?? '', code))
+  if (offered.length === 0) return null
+  const verified = offered.filter((o) => o.status !== 'to_check')
+  return {
+    direction_ids: offered.map((o) => o.id),
+    olympiads_count: OLYMPIADS.filter((o) => verified.some((d) => onDirection(u, o.id, d.id) !== null)).length,
+    status: verified.length > 0 ? 'offered' : 'to_check',
+  }
+}
 
 export function universityListItem(u: DemoUniversity): UniversityListItem {
   return {

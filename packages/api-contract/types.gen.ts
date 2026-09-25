@@ -261,6 +261,13 @@ export interface paths {
                 query?: {
                     q?: string;
                     city?: string;
+                    /**
+                     * @description `directions.id`: только вузы, где есть направление, покрывающее
+                     *     это (коды равны или один — укрупнённая группа XX.00.00). Сначала —
+                     *     где больше олимпиад с льготой на нём, вузы с непроверенными
+                     *     льготами — в конце. Нет направления — 400.
+                     */
+                    direction?: string;
                 };
                 header?: never;
                 path?: never;
@@ -275,10 +282,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: components["schemas"]["UniversityListItem"][];
+                            items: components["schemas"]["CatalogUniversity"][];
                         };
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -1950,6 +1958,20 @@ export interface components {
             benefit_olympiads_count: number;
             /** @description Вуз входит в список ученика. */
             is_mine: boolean;
+        };
+        CatalogUniversity: components["schemas"]["UniversityListItem"] & {
+            /** @description Только с фильтром `direction` — чем вуз под него подходит. */
+            direction_match?: {
+                /** @description Направления вуза, покрывающие искомое. */
+                direction_ids: string[];
+                /** @description Олимпиады с БВИ или 100 баллами на них, последний год приёма. */
+                olympiads_count: number;
+                /**
+                 * @description to_check — льготы на всех таких направлениях ещё проверяются.
+                 * @enum {string}
+                 */
+                status: "offered" | "to_check";
+            };
         };
         ProfileUniversity: components["schemas"]["UniversityListItem"] & {
             /** @description Направления, выбранные в этом вузе (F65); пусто — не выбирали. */

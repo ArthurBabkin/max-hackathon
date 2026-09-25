@@ -230,3 +230,57 @@ func TestDirectionCoverage(t *testing.T) {
 		t.Fatalf("Иннополис: %+v", c)
 	}
 }
+
+// Каталог вузов по направлению (F67): вузы, где есть направление, покрывающее
+// искомое, и сколько олимпиад дают на нём льготу.
+func TestUniversitiesByDirection(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid") // вузы Иннополис, ВШЭ, КФУ
+
+	us, m, err := s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirSE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, len(us))
+	for i, u := range us {
+		ids[i] = u.ID
+	}
+	if slices.Contains(ids, "kazan-gmu") || !slices.Contains(ids, "hse") || !slices.Contains(ids, "innopolis") {
+		t.Fatalf("вузы с ПИ: %v", ids)
+	}
+	// Иннополис — через укрупнённую группу 09.00.00.
+	if x := m["innopolis"]; !slices.Equal(x.DirectionIDs, []string{dirIVT}) || x.Olympiads == 0 || x.Unverified {
+		t.Fatalf("Иннополис: %+v", x)
+	}
+	hseDirs, _ := s.UniversityDirections(ctx, f.trajectoryID, "hse")
+	se := hseDirs[slices.IndexFunc(hseDirs, func(d UniversityDirection) bool { return d.ID == dirSE })]
+	if x := m["hse"]; !slices.Equal(x.DirectionIDs, []string{dirSE}) || x.Olympiads != se.BenefitOlympiads {
+		t.Fatalf("ВШЭ: %+v, ждём %d олимпиад", x, se.BenefitOlympiads)
+	}
+	if !us[slices.Index(ids, "hse")].IsMine {
+		t.Fatal("отметка «мой» сохраняется")
+	}
+	// Сначала — где больше олимпиад на это направление.
+	for i := 1; i < len(us); i++ {
+		if m[us[i-1].ID].Olympiads < m[us[i].ID].Olympiads {
+			t.Fatalf("по числу олимпиад: %v", ids)
+		}
+	}
+
+	// Льготы на ПМИ в НГУ ещё проверяются — вуз в конце, «уточняется».
+	us, m, _ = s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirAMI)
+	if x := m["nsu"]; !x.Unverified || x.Olympiads != 0 || us[len(us)-1].ID != "nsu" {
+		t.Fatalf("НГУ: %+v, последний %s", x, us[len(us)-1].ID)
+	}
+
+	// Поиск и город — вместе с направлением.
+	us, _, _ = s.UniversitiesByDirection(ctx, f.trajectoryID, "", "Казань", dirSE)
+	if len(us) != 1 || us[0].ID != "kfu" {
+		t.Fatalf("Казань и ПИ: %+v", us)
+	}
+
+	if _, _, err := s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", "нет-такого"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("нет направления — ErrNotFound: %v", err)
+	}
+}

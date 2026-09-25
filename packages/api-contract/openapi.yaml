@@ -194,7 +194,7 @@ paths:
     get:
       tags: [universities]
       summary: Каталог вузов
-      x-tz: "F25, F27"
+      x-tz: "F25, F27, F67"
       parameters:
         - name: q
           in: query
@@ -202,6 +202,14 @@ paths:
         - name: city
           in: query
           schema: { type: string }
+        - name: direction
+          in: query
+          schema: { type: string }
+          description: |
+            `directions.id`: только вузы, где есть направление, покрывающее
+            это (коды равны или один — укрупнённая группа XX.00.00). Сначала —
+            где больше олимпиад с льготой на нём, вузы с непроверенными
+            льготами — в конце. Нет направления — 400.
       responses:
         "200":
           description: OK
@@ -213,7 +221,8 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: "#/components/schemas/UniversityListItem" }
+                    items: { $ref: "#/components/schemas/CatalogUniversity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /universities/{id}:
@@ -1587,6 +1596,28 @@ components:
         is_mine:
           type: boolean
           description: Вуз входит в список ученика.
+
+    CatalogUniversity:
+      allOf:
+        - $ref: "#/components/schemas/UniversityListItem"
+        - type: object
+          properties:
+            direction_match:
+              type: object
+              description: Только с фильтром `direction` — чем вуз под него подходит.
+              required: [direction_ids, olympiads_count, status]
+              properties:
+                direction_ids:
+                  type: array
+                  description: Направления вуза, покрывающие искомое.
+                  items: { type: string }
+                olympiads_count:
+                  type: integer
+                  description: Олимпиады с БВИ или 100 баллами на них, последний год приёма.
+                status:
+                  type: string
+                  enum: [offered, to_check]
+                  description: to_check — льготы на всех таких направлениях ещё проверяются.
 
     ProfileUniversity:
       allOf:

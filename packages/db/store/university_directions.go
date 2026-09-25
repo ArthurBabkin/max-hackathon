@@ -398,3 +398,94 @@ func (s *Store) directionBenefits(ctx context.Context, profileIDs, unis, dirs []
 	}
 	return out, nil
 }
+
+// DirectionMatch — чем вуз подходит под направление из фильтра каталога (F67).
+type DirectionMatch struct {
+	DirectionIDs []string // направления вуза, покрывающие искомое (targets.Covers)
+	Olympiads    int      // олимпиады с льготой на них, последний год приёма
+	Unverified   bool     // льготы на всех таких направлениях ещё проверяются
+}
+
+// UniversitiesByDirection — каталог вузов (поиск и город — как в
+// Universities), где есть направление, покрывающее directionID: сначала
+// где больше олимпиад с льготой на нём, вузы с непроверенными льготами —
+// в конце. Нет направления — ErrNotFound.
+func (s *Store) UniversitiesByDirection(ctx context.Context, trajectoryID, search, city, directionID string) ([]University, map[string]DirectionMatch, error) {
+	var code string
+	if err := s.db.QueryRow(ctx, `SELECT code FROM directions WHERE id = $1`, directionID).Scan(&code); err != nil {
+		return nil, nil, wrap(err)
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT ud.university_id, ud.direction_id, d.code, ud.status
+		FROM university_directions ud JOIN directions d ON d.id = ud.direction_id
+		ORDER BY ud.university_id, d.code`)
+	if err != nil {
+		return nil, nil, wrap(err)
+	}
+	type offer struct{ uni, dir, code, status string }
+	offers, err := collect(rows, func(r rowScanner) (offer, error) {
+		var o offer
+		return o, r.Scan(&o.uni, &o.dir, &o.code, &o.status)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	matches := map[string]DirectionMatch{}
+	var pairUnis, pairDirs []string
+	for _, o := range offers {
+		if !targets.Covers(o.code, code) {
+			continue
+		}
+		m, seen := matches[o.uni]
+		if !seen {
+			m.Unverified = true
+		}
+		m.DirectionIDs = append(m.DirectionIDs, o.dir)
+		if o.status != "to_check" {
+			m.Unverified = false
+			pairUnis, pairDirs = append(pairUnis, o.uni), append(pairDirs, o.dir)
+		}
+		matches[o.uni] = m
+	}
+
+	rows, err = s.db.Query(ctx, `
+		SELECT db.university_id, count(DISTINCT p.olympiad_id)
+		FROM direction_benefits db JOIN olympiad_profiles p ON p.id = db.olympiad_profile_id
+		WHERE (db.university_id, db.direction_id) IN (SELECT * FROM unnest($1::text[], $2::text[]))
+		  AND db.admission_year = (SELECT max(admission_year) FROM direction_benefits x
+		                           WHERE x.university_id = db.university_id)
+		GROUP BY 1`, pairUnis, pairDirs)
+	if err != nil {
+		return nil, nil, wrap(err)
+	}
+	type count struct {
+		uni string
+		n   int
+	}
+	counts, err := collect(rows, func(r rowScanner) (count, error) {
+		var c count
+		return c, r.Scan(&c.uni, &c.n)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, c := range counts {
+		m := matches[c.uni]
+		m.Olympiads = c.n
+		matches[c.uni] = m
+	}
+
+	all, err := s.Universities(ctx, trajectoryID, search, city)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := slices.DeleteFunc(all, func(u University) bool { _, ok := matches[u.ID]; return !ok })
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := matches[out[i].ID], matches[out[j].ID]
+		if a.Unverified != b.Unverified {
+			return b.Unverified
+		}
+		return a.Olympiads > b.Olympiads
+	})
+	return out, matches, nil
+}

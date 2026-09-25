@@ -203,19 +203,49 @@ func primaryOf(ps []store.Profile, mine map[string]bool) store.Profile {
 	return best
 }
 
-// universities — GET /universities (F25, F27).
+// catalogUniversity — строка каталога вузов; с фильтром по направлению —
+// чем вуз под него подходит.
+type catalogUniversity struct {
+	universityItem
+	DirectionMatch *directionMatch `json:"direction_match,omitempty"`
+}
+
+type directionMatch struct {
+	DirectionIDs   []string `json:"direction_ids"`
+	OlympiadsCount int      `json:"olympiads_count"`
+	Status         string   `json:"status"`
+}
+
+// universities — GET /universities (F25, F27, F67).
 func (s *Server) universities(w http.ResponseWriter, r *http.Request) error {
 	q, err := searchQuery(r)
 	if err != nil {
 		return err
 	}
-	us, err := s.store.Universities(r.Context(), me(r).TrajectoryID, q, r.URL.Query().Get("city"))
+	ctx, city, direction := r.Context(), r.URL.Query().Get("city"), r.URL.Query().Get("direction")
+	var us []store.University
+	var matches map[string]store.DirectionMatch
+	if direction == "" {
+		us, err = s.store.Universities(ctx, me(r).TrajectoryID, q, city)
+	} else {
+		us, matches, err = s.store.UniversitiesByDirection(ctx, me(r).TrajectoryID, q, city, direction)
+		if errors.Is(err, store.ErrNotFound) {
+			return badRequest("Нет такого направления.")
+		}
+	}
 	if err != nil {
 		return err
 	}
-	out := listResponse[universityItem]{Items: make([]universityItem, len(us))}
+	out := listResponse[catalogUniversity]{Items: make([]catalogUniversity, len(us))}
 	for i, u := range us {
-		out.Items[i] = universityItemOf(u)
+		out.Items[i] = catalogUniversity{universityItem: universityItemOf(u)}
+		if m, ok := matches[u.ID]; ok {
+			status := "offered"
+			if m.Unverified {
+				status = "to_check"
+			}
+			out.Items[i].DirectionMatch = &directionMatch{DirectionIDs: m.DirectionIDs, OlympiadsCount: m.Olympiads, Status: status}
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 	return nil

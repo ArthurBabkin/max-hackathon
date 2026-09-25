@@ -25,15 +25,26 @@ type Olympiads = 'mine' | 'all'
 
 /**
  * Направления вуза (D3, F65): галочка — «моё», выбор сохраняется сразу. Мои
- * сверху, за ними из цели, дальше — где больше олимпиад с льготой.
+ * сверху, за ними из цели, дальше — где больше олимпиад с льготой. Открыта
+ * из каталога с фильтром (F67) — направление фильтра первым.
  */
-function Directions({ university, canEdit }: { university: UniversityDetail; canEdit: boolean }) {
+function Directions({
+  university,
+  canEdit,
+  focus,
+}: {
+  university: UniversityDetail
+  canEdit: boolean
+  focus?: string
+}) {
   const t = useVoice()
   const [showAll, setShowAll] = useState(false)
   const save = useSetUniversityDirections(university.id)
   // Порядок запоминается при открытии: отмеченная строка не уезжает из-под
   // пальца, хотя сервер ставит выбранное первым.
-  const order = useRef<string[]>([])
+  const order = useRef<string[]>(
+    focus && university.offered_directions.some((d) => d.id === focus) ? [focus] : [],
+  )
   for (const d of university.offered_directions) if (!order.current.includes(d.id)) order.current.push(d.id)
   const all = [...university.offered_directions].sort(
     (a, b) => order.current.indexOf(a.id) - order.current.indexOf(b.id),
@@ -101,7 +112,7 @@ function Directions({ university, canEdit }: { university: UniversityDetail; can
   )
 }
 
-export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack }) {
+export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: string; sheets: SheetStack }) {
   const t = useVoice()
   const [showAll, setShowAll] = useState(false)
   const [mode, setMode] = useState<Olympiads | null>(null)
@@ -206,7 +217,7 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
         ) : null}
       </section>
 
-      <Directions university={university} canEdit={session?.permissions.edit_profile !== false} />
+      <Directions university={university} canEdit={session?.permissions.edit_profile !== false} focus={focus} />
 
       {/* Олимпиады, дающие льготу в этом вузе, с переходом в карточку — F26. */}
       <section className="block" data-tour="university-olympiads">

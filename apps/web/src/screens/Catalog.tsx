@@ -1,10 +1,10 @@
-/** Каталог — экраны D1, D2 и D5. Функции F24, F25, F27, F66. */
+/** Каталог — экраны D1, D2 и D5. Функции F24, F25, F27, F66, F67. */
 
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
 import type { OlympiadListItem, Profile } from '@contract'
-import { useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
+import { useDirections, useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
 import { groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
 import { Icon } from '@/ui/Icon'
@@ -14,6 +14,7 @@ import type { TextKey } from '@/voice/texts'
 import { useVoice } from '@/voice/useVoice'
 import { plural } from '@/lib/deadline'
 import { ErrorState } from '@/ui/ErrorState'
+import { DirectionPicker } from './DirectionPicker'
 
 type Segment = 'olympiads' | 'universities'
 
@@ -71,7 +72,9 @@ export function CatalogScreen() {
   const sheets = useSheetStack()
 
   // «Найти вузы» из «Подбора» открывает каталог сразу на вузах.
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [segment, setSegment] = useState<Segment>(params.get('segment') === 'universities' ? 'universities' : 'olympiads')
   const [query, setQuery] = useState('')
   // Пока пользователь не выбрал сам — предмет ученика, как на макете D1:
@@ -87,6 +90,28 @@ export function CatalogScreen() {
   // Туториал открывает олимпиаду, у которой кнопка «Добавить» ещё есть.
   const taken = new Set([...tracked, ...(tracker.data?.proposals.map((p) => p.olympiad_id) ?? [])])
   const [city, setCity] = useState('all')
+  // Направление в каталоге вузов (F67): '' — все. Выбор «Другое…» — в
+  // адресе, чтобы системная «Назад» закрывала его, а не каталог.
+  const [direction, setDirection] = useState('')
+  const directions = useDirections()
+  const picking = params.get('pick') === 'direction'
+  const openPicker = () => {
+    const next = new URLSearchParams(params)
+    next.set('pick', 'direction')
+    navigate({ search: `?${next}` }, { state: { picker: true } })
+  }
+  const closePicker = () => {
+    if ((location.state as { picker?: boolean } | null)?.picker) navigate(-1)
+    else {
+      const next = new URLSearchParams(params)
+      next.delete('pick')
+      setParams(next, { replace: true })
+    }
+  }
+  const goalIds = profile.data?.directions.map((d) => d.id) ?? []
+  const directionChips = (directions.data?.items ?? []).filter(
+    (d) => goalIds.includes(d.id) || d.id === direction,
+  )
   // «Ведут в мои вузы и на мои направления» (F66); без вузов не включить.
   const [mineOn, setMine] = useState(false)
   const myUniversities = profile.data?.universities ?? []
@@ -95,13 +120,14 @@ export function CatalogScreen() {
   const debouncedQuery = useDebounced(query)
 
   const olympiads = useOlympiads(debouncedQuery, subject, mine)
-  const universities = useUniversities(debouncedQuery, city)
+  const universities = useUniversities(debouncedQuery, city, direction)
   const active = segment === 'olympiads' ? olympiads : universities
 
   const reset = () => {
     setQuery('')
     setSubject('all')
     setCity('all')
+    setDirection('')
   }
 
   const switchSegment = (next: Segment) => {
@@ -195,14 +221,33 @@ export function CatalogScreen() {
             type="button"
             className="row"
             data-tour="university-row"
-            onClick={() => sheets.open({ kind: 'vuz', id: item.id })}
+            // С фильтром карточка открывается на этом направлении вуза.
+            onClick={() =>
+              sheets.open({
+                kind: 'vuz',
+                id: item.direction_match ? `${item.id}:${item.direction_match.direction_ids[0]}` : item.id,
+              })
+            }
           >
             <Tile id={item.id} name={item.name} shortName={item.short_name} color={item.color} />
             <span className="row-main">
               <span className="row-title">{item.name}</span>
               <span className="row-subtitle">
-                {item.city}, {item.benefit_olympiads_count}{' '}
-                {plural(item.benefit_olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')} с льготой
+                {item.city},{' '}
+                {!item.direction_match ? (
+                  <>
+                    {item.benefit_olympiads_count}{' '}
+                    {plural(item.benefit_olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')} с льготой
+                  </>
+                ) : item.direction_match.status === 'to_check' ? (
+                  t('catalog.directionToCheck')
+                ) : (
+                  <>
+                    {item.direction_match.olympiads_count}{' '}
+                    {plural(item.direction_match.olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')}{' '}
+                    {t('catalog.onDirection')}
+                  </>
+                )}
               </span>
             </span>
             {item.is_mine ? <span className="mine-badge">{t('catalog.mineBadge')}</span> : null}
@@ -307,6 +352,33 @@ export function CatalogScreen() {
             ))}
           </div>
         </div>
+      ) : null}
+
+      {segment === 'universities' ? (
+        <div className="filter-row">
+          <span className="filter-label">{t('catalog.filterDirection')}</span>
+          <div className="chips" role="group" aria-label={t('catalog.filterDirection')}>
+            <Chip active={direction === ''} onClick={() => setDirection('')}>
+              Все
+            </Chip>
+            {directionChips.map((d) => (
+              <Chip key={d.id} active={direction === d.id} onClick={() => setDirection(d.id)}>
+                {d.name}
+              </Chip>
+            ))}
+            <Chip onClick={openPicker}>{t('catalog.directionOther')}</Chip>
+          </div>
+        </div>
+      ) : null}
+      {picking ? (
+        <DirectionPicker
+          single
+          directions={directions.data?.items ?? []}
+          selected={direction ? [direction] : []}
+          goal={goalIds}
+          onToggle={setDirection}
+          onClose={closePicker}
+        />
       ) : null}
 
       {segment === 'universities' ? (

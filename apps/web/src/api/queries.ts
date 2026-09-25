@@ -20,6 +20,7 @@ import type {
   AiMessage,
   CalendarLink,
   CalendarMonth,
+  CatalogUniversity,
   DirectionOption,
   Family,
   Home,
@@ -37,7 +38,6 @@ import type {
   StageResult,
   TrackerItem,
   UniversityDetail,
-  UniversityListItem,
 } from '@contract'
 import { api, request, setReauth, setToken } from './client'
 import { getWebApp } from '@/bridge'
@@ -49,7 +49,7 @@ export const keys = {
   recommendations: (filter: MatchFilter) => ['recommendations', filter] as const,
   olympiads: (q: string, subject: string, mine: boolean) => ['olympiads', q, subject, mine] as const,
   olympiad: (id: string) => ['olympiad', id] as const,
-  universities: (q: string, city: string) => ['universities', q, city] as const,
+  universities: (q: string, city: string, direction = '') => ['universities', q, city, direction] as const,
   university: (id: string) => ['university', id] as const,
   tracker: ['tracker'] as const,
   calendar: (month: string) => ['calendar', month] as const,
@@ -146,13 +146,14 @@ export const useOlympiad = (id: string | null) =>
     enabled: id !== null,
   })
 
-export const useUniversities = (q: string, city: string) =>
+export const useUniversities = (q: string, city: string, direction = '') =>
   useQuery({
-    queryKey: keys.universities(q, city),
+    queryKey: keys.universities(q, city, direction),
     queryFn: () =>
-      api.get<{ items: UniversityListItem[] }>('/universities', {
+      api.get<{ items: CatalogUniversity[] }>('/universities', {
         q,
         city: city === 'all' ? undefined : city,
+        direction: direction || undefined,
       }),
   })
 
