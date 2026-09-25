@@ -211,6 +211,18 @@ async function main() {
   const uniIds = (profile.universities ?? []).map((u) => u.id)
   await call('PUT', '/profile/universities', { token: kid, body: { university_ids: uniIds }, expect: 200 })
   await call('PUT', '/profile/universities', { token: kid, body: {}, expect: 400 })
+  // Направления в вузе (F65) — прежним выбором: демо-данные не меняются.
+  const DIRECTIONS = '/profile/universities/{id}/directions'
+  const [firstUni] = profile.universities ?? []
+  if (firstUni) {
+    const chosen = firstUni.chosen_directions.map((d) => d.id)
+    await call('PUT', DIRECTIONS, { token: kid, params: { id: firstUni.id }, body: { direction_ids: chosen }, expect: 200 })
+    await call('PUT', DIRECTIONS, { token: kid, params: { id: firstUni.id }, body: { direction_ids: ['nope'] }, expect: 400 })
+    await call('PUT', DIRECTIONS, { token: kid, params: { id: firstUni.id }, body: {}, expect: 400 })
+  } else {
+    failures.push('у демо-ученика нет вузов — проверить направления в вузе нечем')
+  }
+  await call('PUT', DIRECTIONS, { token: kid, params: { id: 'nope' }, body: { direction_ids: [] }, expect: 404 })
 
   for (const filter of ['all', 'level1', 'soon', 'online']) {
     await call('GET', '/recommendations', { token: kid, query: { filter }, expect: 200 })
@@ -221,6 +233,8 @@ async function main() {
   const list = (await call('GET', '/olympiads', { token: kid, expect: 200 })).data
   await call('GET', '/olympiads', { token: kid, query: { q: 'проба' }, expect: 200 })
   await call('GET', '/olympiads', { token: kid, query: { q: 'ничего-такого-нет' }, expect: 200 })
+  await call('GET', '/olympiads', { token: kid, query: { mine: 'true' }, expect: 200 })
+  await call('GET', '/olympiads', { token: kid, query: { mine: 'maybe' }, expect: 400 })
   const profileId = list.items[0]?.primary_profile?.olympiad_profile_id ?? 'p669-8-informatika'
   await call('GET', '/olympiads/{id}', { token: kid, params: { id: profileId }, expect: 200 })
   await call('GET', '/olympiads/{id}', { token: parent, params: { id: 'p669-8-informatika' }, expect: 200 })
@@ -230,10 +244,13 @@ async function main() {
   await call('GET', '/universities', { token: kid, query: { city: 'Москва' }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: unis.items[0].id }, expect: 200 })
   await call('GET', '/universities/{id}', { token: kid, params: { id: 'nope' }, expect: 404 })
-  await call('GET', '/directions', { token: kid, expect: 200 })
+  const directions = (await call('GET', '/directions', { token: kid, expect: 200 })).data
+  await call('GET', '/universities', { token: kid, query: { direction: directions.items[0].id }, expect: 200 })
+  await call('GET', '/universities', { token: kid, query: { direction: 'nope' }, expect: 400 })
 
   // Трекер: добавить то, чего там нет, отметить, снять отметку, удалить.
   const tracker = (await call('GET', '/tracker', { token: kid, expect: 200 })).data
+  const STAGE = '/tracker/{id}/stages/{stage_id}'
   const inTracker = new Set(tracker.items.map((i) => i.olympiad_profile_id))
   const candidate = [...(recs.items ?? []), ...(recs.outside ?? [])]
     .map((i) => i.olympiad_profile_id)
@@ -244,6 +261,30 @@ async function main() {
     await call('PUT', '/tracker/{id}/registered', { token: kid, params: { id: added.id }, expect: 200 })
     await call('DELETE', '/tracker/{id}/registered', { token: kid, params: { id: added.id }, expect: 200 })
     await call('POST', '/tracker', { token: parent, body: { olympiad_profile_id: candidate }, expect: 403 })
+
+    // Отметки этапов (F63): регистрация на этап и её снятие, неверный итог, чужой этап.
+    const at = (item, stage) => ({ id: item.id, stage_id: stage.id })
+    const reg = added.stages.find((s) => s.can_register)
+    if (reg) {
+      await call('PUT', STAGE, { token: kid, params: at(added, reg), body: { registered: true, result: null }, expect: 200 })
+      await call('PUT', STAGE, { token: kid, params: at(added, reg), body: { registered: false, result: null }, expect: 200 })
+    }
+    await call('PUT', STAGE, { token: kid, params: at(added, added.stages[0]), body: { result: 'maybe' }, expect: 400 })
+    await call('PUT', STAGE, { token: kid, params: { id: added.id, stage_id: 'nope' }, body: {}, expect: 404 })
+    // Этап после закрывающего итога — 409. Итог ставится и снимается обратно.
+    const closable = [added, ...tracker.items]
+      .flatMap((item) => item.stages.slice(0, -1).map((stage, i) => ({ item, stage, next: item.stages[i + 1] })))
+      .find(({ stage }) => stage.results_allowed.includes('failed'))
+    if (closable) {
+      const { item, stage, next } = closable
+      await call('PUT', STAGE, { token: kid, params: at(item, stage), body: { result: 'failed' }, expect: 200 })
+      await call('PUT', STAGE, { token: kid, params: at(item, next), body: { registered: true }, expect: 409 })
+      await call('PUT', STAGE, { token: kid, params: at(item, stage), body: { result: null }, expect: 200 })
+      if (!item.registered_at) await call('DELETE', '/tracker/{id}/registered', { token: kid, params: { id: item.id }, expect: 200 })
+    } else {
+      failures.push('ни одному этапу нельзя поставить итог — проверить 409 нечем')
+    }
+
     await call('DELETE', '/tracker/{id}', { token: kid, params: { id: added.id }, expect: 204 })
   } else {
     failures.push('нет олимпиады вне трекера — проверить добавление нечем')
@@ -253,6 +294,7 @@ async function main() {
   await call('DELETE', '/tracker/{id}', { token: kid, params: { id: '00000000-0000-4000-8000-000000000000' }, expect: 404 })
   await call('PUT', '/tracker/{id}/registered', { token: kid, params: { id: 'nope' }, expect: 404 })
   await call('DELETE', '/tracker/{id}/registered', { token: kid, params: { id: 'nope' }, expect: 404 })
+  await call('PUT', STAGE, { token: kid, params: { id: 'nope', stage_id: 'nope' }, body: {}, expect: 404 })
 
   const month = new Date().toISOString().slice(0, 7)
   await call('GET', '/calendar', { token: kid, query: { month }, expect: 200 })
