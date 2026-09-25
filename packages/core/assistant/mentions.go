@@ -360,12 +360,25 @@ func matchAt(tokens, stems []string) []int {
 // Direction — направление подготовки для поиска в вопросе.
 type Direction struct{ ID, Code, Name string }
 
-// directionAliases — сокращения направлений, по кодам. «ПИ» — и программная
+// directionShort — как сокращают направления. «ПИ» — и программная
 // инженерия, и прикладная информатика.
-var directionAliases = map[string][]string{
-	"пми": {"01.03.02"}, "пмии": {"01.03.02"}, "пи": {"09.03.04", "09.03.03"},
-	"иб": {"10.03.01"}, "инфобез": {"10.03.01"}, "ивт": {"09.03.01"}, "фиит": {"02.03.02"},
-	"пмф": {"03.03.01"}, "пмиф": {"03.03.01"}, "моаис": {"02.03.03"}, "исит": {"09.03.02"},
+var directionShort = []struct {
+	code  string
+	short []string
+}{
+	{"01.03.02", []string{"ПМИ", "ПМиИ"}}, {"09.03.04", []string{"ПИ"}}, {"09.03.03", []string{"ПИ"}},
+	{"10.03.01", []string{"ИБ", "инфобез"}}, {"09.03.01", []string{"ИВТ"}}, {"02.03.02", []string{"ФИИТ"}},
+	{"03.03.01", []string{"ПМФ", "ПМиФ"}}, {"02.03.03", []string{"МОАИС"}}, {"09.03.02", []string{"ИСиТ"}},
+}
+
+// shortOf — сокращения направления по коду.
+func shortOf(code string) []string {
+	for _, d := range directionShort {
+		if d.code == code {
+			return d.short
+		}
+	}
+	return nil
 }
 
 var directionCodeRe = regexp.MustCompile(`\b\d{2}\.\d{2}\.\d{2}\b`)
@@ -397,9 +410,10 @@ func FindDirections(question string, dirs []Direction, goal []string) []string {
 	tokens := tokenize(question)
 	for i, tok := range tokens {
 		var ids []string
-		for _, code := range directionAliases[tok] {
-			if d, ok := byCode[code]; ok {
-				ids = append(ids, d.ID)
+		for _, d := range directionShort {
+			x, ok := byCode[d.code]
+			if ok && slices.ContainsFunc(d.short, func(s string) bool { return strings.Join(tokenize(s), "") == tok }) {
+				ids = append(ids, x.ID)
 			}
 		}
 		if mine := slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !slices.Contains(goal, id) }); len(mine) > 0 {

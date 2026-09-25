@@ -496,7 +496,9 @@ func TestKnowledge_UniversityCardUnverifiedDirections(t *testing.T) {
 func TestKnowledge_DirectionCard(t *testing.T) {
 	c := cardIn(t, contextFor(t, "В каких вузах есть ПМИ?"), "direction:napr-01-03-02")
 	for _, want := range []string{
-		"Направление 01.03.02 Прикладная математика и информатика",
+		// Сокращение из вопроса — рядом с названием: иначе модель сама
+		// расшифровывала «ПМИ» как программную инженерию.
+		"Направление 01.03.02 Прикладная математика и информатика (сокращённо: ПМИ, ПМиИ)",
 		"Вузы базы с этим направлением (7), олимпиад с льготой на нём:",
 		`\n  ВШЭ, Москва — 49 олимпиад с льготой; вуз ученика`,
 		`\n  НГУ, Новосибирск — льготы уточняются`,
@@ -512,7 +514,7 @@ func TestKnowledge_DirectionCard(t *testing.T) {
 
 	pi := cardIn(t, contextFor(t, "Где учат на программную инженерию?"), "direction:napr-09-03-04")
 	for _, want := range []string{
-		"Направление 09.03.04 Программная инженерия — в цели ученика",
+		"Направление 09.03.04 Программная инженерия (сокращённо: ПИ) — в цели ученика",
 		`Иннополис — как 09.00.00 Информатика и вычислительная техника (укрупнённая группа), `,
 	} {
 		if !strings.Contains(pi, want) {
@@ -531,7 +533,7 @@ func TestKnowledge_OlympiadCardOnQuestionDirection(t *testing.T) {
 		t.Fatalf("льгота на направление из вопроса:\n%s", c)
 	}
 	sec := c[i:]
-	for _, want := range []string{`\n  Информационная безопасность:\n    ВШЭ: победителю и призёру — БВИ`, `\n  Робототехника:\n    ВШЭ: победителю и призёру — 100 баллов`} {
+	for _, want := range []string{`\n  Информационная безопасность:\n    ВШЭ: победителю и призёру — БВИ, ЕГЭ от 75, диплом за 11 класс`, `\n  Робототехника:\n    ВШЭ: победителю и призёру — 100 баллов`} {
 		if !strings.Contains(sec, want) {
 			t.Errorf("нет %q:\n%s", want, sec)
 		}
@@ -595,5 +597,28 @@ func TestKnowledge_UniversityCardOnQuestionDirection(t *testing.T) {
 	}
 	if strings.Contains(itmo, "Олимпиады с льгот") || strings.Contains(itmo, "Льготы по уровню") {
 		t.Errorf("без направления — только шапка:\n%s", itmo)
+	}
+}
+
+// Олимпиада в трекере — её карточка говорит, что там отмечено, как лист
+// олимпиады в приложении: на «что у ребёнка с Высшей пробой?» Jev видит
+// вопрос о льготах, карточки ученика нет, и модель советовала отбор после
+// «не прошёл».
+func TestKnowledge_OlympiadCardHasTrackerStatus(t *testing.T) {
+	c := cardIn(t, contextAfter(t, "Что у меня с Высшей пробой?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
+		item, _, err := st.AddTrackerItem(ctx, tr.ID, "p669-8-informatika", m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := st.SetStageMark(ctx, tr.ID, item, "p669-8-informatika:qualifying:1", m,
+			stages.Mark{Result: stages.Failed}, time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)); err != nil {
+			t.Fatal(err)
+		}
+	}), "olympiad:p669-8")
+	if want := "В трекере ученика: Информатика (регистрация отмечена); отборочный этап, 1 тур — не прошёл; участие завершено"; !strings.Contains(c, want) {
+		t.Fatalf("нет %q:\n%s", want, c)
+	}
+	if c := cardIn(t, contextFor(t, "Что даёт «Высшая проба»?"), "olympiad:p669-8"); strings.Contains(c, "В трекере ученика") {
+		t.Fatalf("олимпиады нет в трекере:\n%s", c)
 	}
 }

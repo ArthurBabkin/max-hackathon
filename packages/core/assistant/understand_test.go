@@ -502,3 +502,19 @@ func TestPickText_AllTracked(t *testing.T) {
 		t.Fatalf("подходящих нет:\n%s", got)
 	}
 }
+
+// Обзорный вопрос про направление («в каких вузах есть ПМИ?») — карточка
+// направления без каталога олимпиад: каталог про направления ничего не
+// знает, а 14 тысяч символов уводили модель от ответа.
+func TestAsk_OverviewOfDirectionWithoutCatalog(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("overview", map[string]float64{none: 1}, map[string]float64{none: 1})}
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "В каких вузах есть ПМИ?"); err != nil {
+		t.Fatal(err)
+	}
+	sys := f.calls[0][0].Content
+	if !strings.Contains(sys, `"id":"direction:napr-01-03-02"`) || strings.Contains(sys, `"id":"catalog"`) {
+		t.Fatalf("карточки:\n%s", sys[strings.Index(sys, "Карточки:"):])
+	}
+}
