@@ -408,31 +408,40 @@ def mipt_vsosh_rows(html: str, url: str) -> list[dict]:
     return out
 
 
+KFU_OLYMP = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
+KFU_PLAN_DOC = "programs__plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf"
+
+
 def rows_kfu_vsosh():
-    """Страницы 4-6 приложения 3: предмет ВсОШ -> направления подготовки."""
-    out = []
-    f = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
-    url = meta("kfu", f)["url"]
+    """Страницы 4-6 приложения 3: предмет ВсОШ -> направления подготовки.
+    Список направлений предмета продолжается на следующих строках; пустой
+    список — «все направления, где этот предмет — первое ВИ»."""
+    url = meta("kfu", KFU_OLYMP)["url"]
+    subjects: dict[str, dict] = {}
     subject = None
-    for pg in load_pages("kfu", f):
+    for pg in load_pages("kfu", KFU_OLYMP):
         if pg["page"] not in (4, 5, 6):
             continue
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
-                if len(c) < 4:
+                if len(c) < 4 or c[1].lower().startswith("предмет"):
                     continue
-                if c[1] and not c[1].lower().startswith("предмет"):
+                if c[1]:
                     subject = c[1]
-                codes = CODE_RE.findall(c[3])
-                if not subject or not codes or not profile_slug(subject.lower()):
-                    continue
-                out.append({"match": {"codes": codes}, "vsosh": True,
-                            "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
-                            "statuses": [POB, PRIZ], "benefit": BVI,
-                            "ege_subject": c[2] or subject, "ege_score": None,
-                            "grades": None, "page": pg["page"], "url": url,
-                            "score_is_demo": True})
+                    subjects.setdefault(subject, {"vi": c[2], "targets": [], "page": pg["page"]})
+                if subject and c[3]:
+                    subjects[subject]["targets"].append(c[3])
+    out = []
+    for subject, d in subjects.items():
+        if not profile_slug(subject.lower()) or d["vi"] in ("", "-"):
+            continue
+        targets = " ".join(d["targets"])
+        out.append({"match": kfu_match(targets or KFU_ALL, d["vi"]), "vsosh": True,
+                    "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
+                    "statuses": [POB, PRIZ], "benefit": BVI,
+                    "ege_subject": d["vi"], "ege_score": None,
+                    "grades": None, "page": d["page"], "url": url, "score_is_demo": True})
     return out
 
 
@@ -705,12 +714,15 @@ def rows_nsu():
 
 def rows_kfu():
     """Приложение 3: 7 колонок. № и название олимпиады заданы один раз на блок
-    строк-профилей, поэтому их надо переносить вниз, иначе теряется почти всё."""
+    строк-профилей, поэтому их надо переносить вниз, иначе теряется почти всё.
+    Берётся только перечень 2025/26 (стр. 7–38): дальше перечни прошлых лет со
+    своей нумерацией, номер из них указал бы на другую олимпиаду №669."""
     out = []
-    f = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
-    url = meta("kfu", f)["url"]
+    url = meta("kfu", KFU_OLYMP)["url"]
     num = name = None
-    for pg in load_pages("kfu", f):
+    for pg in load_pages("kfu", KFU_OLYMP):
+        if not 7 <= pg["page"] <= 38:
+            continue
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
@@ -721,17 +733,103 @@ def rows_kfu():
                 profile, level, targets = c[2], _level(c[4]), c[6]
                 if not (name and profile and level and targets):
                     continue
-                codes = CODE_RE.findall(targets)
-                all_directions = "на все направления" in targets.lower()
-                if not codes and not all_directions:
+                if not CODE_RE.search(targets) and "на все направления" not in targets.lower():
                     continue
                 out.append({
-                    "match": {"codes": codes, "all": all_directions},
+                    "match": kfu_match(targets, c[5] or c[3]),
                     "olympiad_name": name, "profile": profile, "level": level,
                     "statuses": [POB, PRIZ], "benefit": BVI,
                     "ege_subject": c[5] or c[3], "ege_score": 75,
                     "grades": None, "page": pg["page"], "url": url, "number": num,
                 })
+    return out
+
+
+KFU_ALL = "На все направления"
+SUBJECT_STEMS = {"информатик": "Информатика", "математик": "Математика", "физик": "Физика",
+                 "хими": "Химия", "биолог": "Биология", "обществозн": "Обществознание",
+                 "истори": "История", "иностран": "Иностранный язык", "русск": "Русский язык",
+                 "литератур": "Литература", "географ": "География", "эконом": "Экономика"}
+
+
+def subject_keys(text: str) -> set[str]:
+    """«Математика / Информатика и ИКТ*» -> {Математика, Информатика}."""
+    t = re.sub(r"\s+", "", clean(text).lower())
+    return {v for k, v in SUBJECT_STEMS.items() if k in t}
+
+
+def kfu_plan(pages) -> dict[tuple[str, str], dict]:
+    """План приёма КФУ (приложение 1): программа -> институт и ВИ по
+    приоритету. Ключ — (код, название программы), как в датасете A."""
+    out, institute = {}, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if c and c[0] and not CODE_RE.fullmatch(c[0]) and not any(c[1:]):
+                    institute = c[0]
+                    continue
+                if len(c) < 10 or not CODE_RE.fullmatch(c[0]):
+                    continue
+                items = re.split(r"\s*\d\)\s*", (row[9] or "").replace("\n", " "))[1:]
+                out.setdefault((c[0], (c[2] or c[1]).lower()), {
+                    "institute": institute or "", "vi": [subject_keys(x) for x in items]})
+    return out
+
+
+_KFU_PLAN = None
+
+
+def kfu_program(p: dict) -> dict | None:
+    global _KFU_PLAN
+    if _KFU_PLAN is None:
+        _KFU_PLAN = kfu_plan(load_pages("kfu", KFU_PLAN_DOC))
+    return _KFU_PLAN.get((p["napravlenie_code"], clean(p["program_name"]).lower()))
+
+
+def kfu_match(targets: str, vi: str) -> dict:
+    """Графа 7 приложения 3: либо направления («КОД Название (профиль: A;
+    B)»), либо «На все направления, где вступительные испытания
+    соответствуют графе 6 … и являются первыми в Плане приема», и
+    возможно «кроме 09.03.04 …» / «кроме Института …»."""
+    head, _, excl = clean(targets).partition("кроме")
+    starts = [m.start() for m in CODE_RE.finditer(head)]
+    entries = []
+    for a, b in zip(starts, starts[1:] + [len(head)]):
+        entry = head[a:b]
+        prof = re.search(r"\(профил[ья]:?\s*[\"«]?([^)]*?)[\"»]?\)", entry)
+        entries.append((CODE_RE.match(entry).group(1),
+                        [_norm_prog(x) for x in prof.group(1).split(";")] if prof else []))
+    inst = re.search(r"институт\w*\s+(.+)", excl, re.I)
+    return {"kfu": True, "entries": entries,
+            "all": not entries and "на все направления" in head.lower(),
+            "first_vi": sorted(subject_keys(vi)),
+            "except_codes": CODE_RE.findall(excl),
+            "except_institute": clean(inst.group(1)).lower() if inst else None}
+
+
+def kfu_link(m: dict, programs: list[dict]) -> list[dict]:
+    out = []
+    for p in programs:
+        info = kfu_program(p)
+        if m["entries"]:
+            # Код без профиля покрывает все программы направления, но не ту,
+            # где предмета олимпиады нет даже среди ВИ: 44.03.05 указан у
+            # биологии целиком, а «Математику и информатику» биология не касается.
+            name = _norm_prog(p["program_name"])
+            exams = set().union(*info["vi"]) if info and info["vi"] else None
+            ok = any(code == p["napravlenie_code"] and
+                     (any(x == name or x in name or name in x for x in profs) if profs
+                      else exams is None or bool(exams & set(m["first_vi"])))
+                     for code, profs in m["entries"])
+        else:
+            ok = bool(m["all"] and info and info["vi"] and info["vi"][0] & set(m["first_vi"]))
+        if p["napravlenie_code"] in m["except_codes"]:
+            ok = False
+        if m["except_institute"] and info and m["except_institute"] in info["institute"].lower():
+            ok = False
+        if ok:
+            out.append(p)
     return out
 
 
@@ -896,7 +994,9 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
         return programs
     if "school" in m:                               # МФТИ: льгота адресована физтех-школе
         return mipt_link(m["school"], m.get("groups"), programs)
-    if "codes" in m:                                # КФУ: перечислены коды направлений
+    if m.get("kfu"):                                # КФУ: коды, профили, «первое ВИ», «кроме»
+        return kfu_link(m, programs)
+    if "codes" in m:                                # ИТМО: перечислены коды направлений
         if m.get("all"):
             return programs
         return [p for p in programs if p["napravlenie_code"] in m["codes"]]
@@ -1069,7 +1169,8 @@ def main() -> int:
                 reasons[vuz_id]["профиль олимпиады вне скоупа 4 групп (как и в датасете C)"] += 1
                 continue
             targets = link(vuz_id, row, programs)
-            if row.get("match") is None or (row.get("match") or {}).get("all"):
+            # КФУ проверяет «первое ВИ» по плану приёма — точнее, чем группа.
+            if row.get("match") is None or (row["match"].get("all") and not row["match"].get("kfu")):
                 subj = row.get("ege_subject") or row.get("profile")
                 before = len(targets)
                 targets = [t for t in targets if subject_fits(subj, t["profile_group"])]
