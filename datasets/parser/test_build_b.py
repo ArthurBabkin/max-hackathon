@@ -119,5 +119,103 @@ class MsuTablesTest(unittest.TestCase):
         self.assertEqual([(n, p) for n, p, *_ in got], [("Геология", "Математика"), ("Геофизика", "")])
 
 
+SCHOOLS = ["ФРКТ", "ЛФИ", "ФАКТ", "ПИШ ФАЛТ", "ФЭФМ", "ФПМИ", "ФБМФ/ ВШБИ", "КНТ", "ФБВТ", "ВШПИ", "ВШ М"]
+
+
+def prog(pid, name, faculty, code="01.03.02", group="ИТ"):
+    return {"program_id": pid, "program_name": name, "faculty": faculty,
+            "napravlenie_code": code, "napravlenie_name": name, "profile_group": group}
+
+
+MIPT_PROGRAMS = [
+    prog("pmi", "Прикладная математика и информатика", "ФПМИ"),
+    prog("ekn", "Естественные и компьютерные науки", "ФПМИ", "09.03.01"),
+    prog("mmtu", "Математическое моделирование и теория управления", "ФПМИ", "09.03.01"),
+    prog("lfi", "Общая и прикладная физика", "ЛФИ", "03.03.01", "Физика"),
+    prog("fbmf", "Биофизика и биоинформатика (ФБМФ)", "ФБМФ, ВШБИ", "03.03.01", "Физика"),
+    prog("vshbi", "Биоинженерия и биотехнология (ВШБИ)", "ФБМФ, ВШБИ", "03.03.01", "Физика"),
+    prog("frkt-rt", "Радиотехника и компьютерные технологии", "ФРКТ", "03.03.01", "Физика"),
+    prog("frkt-kt", "Компьютерные технологии и вычислительная техника", "ФРКТ", "09.03.01"),
+    prog("falt-av", "Авиационные технологии", "ПИШ ФАЛТ", "03.03.01", "Физика"),
+    prog("falt-bas", "Беспилотные авиационные системы", "ПИШ ФАЛТ", "03.03.01", "Физика"),
+    prog("vshm", "Фундаментальная математика", "ВШМ", "01.03.01"),
+]
+
+
+def html_table(*rows):
+    tr = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>" for r in rows)
+    return f"<table>{tr}</table>"
+
+
+def mipt_targets(rows):
+    """(олимпиада, льгота, статусы, предмет ЕГЭ, порог) -> программы."""
+    return {(r.get("olympiad_name") or r["profile"], r["benefit"], tuple(r["statuses"]),
+             r["ege_subject"], r["ege_score"]):
+            sorted(p["program_id"] for p in bb.link("mipt", r, MIPT_PROGRAMS))
+            for r in rows}
+
+
+class MiptMatrixTest(unittest.TestCase):
+    """Матрица МФТИ «олимпиада × физтех-школа»: БВИ дают не вузу, а школе,
+    а внутри школы — иногда только названным конкурсным группам."""
+
+    HEAD = ["№ в перечне", "Полное наименование олимпиады", "Профиль олимпиады", "Уровень",
+            "Особое право получения 100 баллов"] + SCHOOLS
+
+    def rows(self, *cells):
+        html = html_table(self.HEAD, ["54", "Олимпиада школьников \"Физтех\"", "биология", "2",
+                                      "100 баллов по биологии при наличии результата ЕГЭ или ВИ по биологии 75 баллов и выше"]
+                          + list(cells))
+        return [r for r in bb.mipt_rows(html, URL) if r["benefit"] == "БВИ"]
+
+    def test_school_is_read_from_its_own_column(self):
+        cells = [""] * 11
+        cells[6] = "Все конкурсные группы ФБМФ, ВШБИ Победителям при наличии результата ЕГЭ или ВИ по биологии 75 баллов и выше"
+        got = mipt_targets(self.rows(*cells))
+        self.assertEqual(list(got.values()), [["fbmf", "vshbi"]])
+
+    def test_only_named_competition_groups(self):
+        cells = [""] * 11
+        cells[5] = ('"Естественные и компьютерные науки", "Математическое моделирование и теория управления" '
+                    "Победителям при наличии результата ЕГЭ или ВИ по математике 85 баллов и выше")
+        got = mipt_targets(self.rows(*cells))
+        self.assertEqual(got, {("Олимпиада школьников \"Физтех\"", "БВИ", ("pobeditel",), "Математика", 85): ["ekn", "mmtu"]})
+
+    def test_clauses_with_own_conditions(self):
+        cells = [""] * 11
+        cells[0] = ('"Компьютерные технологии и вычислительная техника" Победителям при наличии результата ЕГЭ или ВИ '
+                    'по информатике 75 баллов и выше; "Радиотехника и компьютерные технологии" Победителям и призерам '
+                    "при наличии результата ЕГЭ или ВИ по физике 80 баллов и выше")
+        got = mipt_targets(self.rows(*cells))
+        self.assertEqual(got, {
+            ("Олимпиада школьников \"Физтех\"", "БВИ", ("pobeditel",), "Информатика", 75): ["frkt-kt"],
+            ("Олимпиада школьников \"Физтех\"", "БВИ", ("pobeditel", "prizyor"), "Физика", 80): ["frkt-rt"],
+        })
+
+    def test_school_named_in_cell_narrows_joint_column(self):
+        cells = [""] * 11
+        cells[6] = "Все конкурсные группы ФБМФ Победителям и призерам"
+        self.assertEqual(list(mipt_targets(self.rows(*cells)).values()), [["fbmf"]])
+
+    def test_group_name_covers_two_programs(self):
+        cells = [""] * 11
+        cells[3] = '"Авиационные технологии и беспилотные авиационные системы" Победителям и призерам'
+        self.assertEqual(list(mipt_targets(self.rows(*cells)).values()), [["falt-av", "falt-bas"]])
+
+    def test_last_school_column(self):
+        cells = [""] * 11
+        cells[10] = "Все конкурсные группы ВШМ Победителям и призерам"
+        self.assertEqual(list(mipt_targets(self.rows(*cells)).values()), [["vshm"]])
+
+    def test_vsosh_table(self):
+        html = html_table(["Общеобразовательный предмет"] + [s.replace("ВШ М", "ВШМ") for s in SCHOOLS],
+                          ["Биология", "", "", "", "", "",
+                           '"Естественные и компьютерные науки", "Математическое моделирование и теория управления" Победителям и призерам',
+                           "Все конкурсные группы ФБМФ, ВШБИ Победителям и призерам", "", "", "", ""])
+        got = [sorted(p["program_id"] for p in bb.link("mipt", r, MIPT_PROGRAMS))
+               for r in bb.mipt_vsosh_rows(html, URL)]
+        self.assertEqual(sorted(got), [["ekn", "mmtu"], ["fbmf", "vshbi"]])
+
+
 if __name__ == "__main__":
     unittest.main()

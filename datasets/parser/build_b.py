@@ -10,6 +10,7 @@
 """
 import json, re, sys
 from collections import defaultdict
+from difflib import SequenceMatcher
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -290,16 +291,45 @@ def rows_hse():
     return out
 
 
+MIPT_URL = "https://pk.mipt.ru/bachelor/2026_olympiads/"
+
+
 def rows_mipt():
-    """Матрица 146x16: 11 правых колонок — физтех-школы, БВИ зависит от школы."""
+    return mipt_rows(load_html("mipt", "olymp_list__2026_olympiads"), MIPT_URL)
+
+
+def _mipt_schools(header: list[str]) -> tuple[int, list[str]] | None:
+    """Колонки физтех-школ начинаются с «ФРКТ». Школа — по позиции в той же
+    строке заголовка: срез непустых ячеек сдвигал каждую школу на соседнюю."""
+    if "ФРКТ" not in header or "ФПМИ" not in header:
+        return None
+    first = header.index("ФРКТ")
+    return first, header[first:first + 11]
+
+
+def _mipt_clauses(school: str, cell: str) -> list[dict]:
+    """Ячейка школы: «Все конкурсные группы ФБМФ, ВШБИ Победителям …» или
+    конкурсные группы в кавычках, иногда несколько условий через «;»."""
     out = []
-    url = "https://pk.mipt.ru/bachelor/2026_olympiads/"
-    rows = html_rows(load_html("mipt", "olymp_list__2026_olympiads"))
-    schools = None
-    for c in rows:
-        if schools is None and "ФПМИ" in c and "ФРКТ" in c:
-            schools = [x for x in c if x][:11]
+    for clause in clean(cell).split(";"):
+        clause = clause.strip()
+        if not clause:
             continue
+        m = re.match(r"Все конкурсные группы (.+?)\s+(?:Победител|победител|Призер|призер|Член)", clause)
+        out.append({
+            "match": {"school": m.group(1) if m else school,
+                      "groups": None if m else re.findall(r"[\"«]([^\"»]+)[\"»]", clause)},
+            "statuses": _statuses(clause), "ege_subject": _subject_from(clause),
+            "ege_score": _score(clause),
+        })
+    return out
+
+
+def mipt_rows(html: str, url: str) -> list[dict]:
+    """Матрица 146x16: 11 правых колонок — физтех-школы, БВИ зависит от школы."""
+    out, cols = [], None
+    for c in html_rows(html):
+        cols = cols or _mipt_schools(c)
         if not (c and c[0].isdigit() and len(c) >= 6):
             continue
         num, name, profile, level = int(c[0]), c[1], c[2], _level(c[3])
@@ -308,14 +338,14 @@ def rows_mipt():
                         "level": level, "statuses": _statuses(c[4]), "benefit": HUNDRED,
                         "ege_subject": _subject_from(c[4]), "ege_score": _score(c[4]),
                         "grades": None, "page": None, "url": url, "number": num})
-        for i, cell in enumerate(c[5:16]):
-            if not clean(cell) or not schools:
-                continue
-            out.append({"match": {"school": schools[i] if i < len(schools) else None},
-                        "olympiad_name": name, "profile": profile, "level": level,
-                        "statuses": _statuses(cell), "benefit": BVI,
-                        "ege_subject": _subject_from(cell), "ege_score": _score(cell),
-                        "grades": None, "page": None, "url": url, "number": num})
+        if not cols:
+            continue
+        first, schools = cols
+        for school, cell in zip(schools, c[first:first + len(schools)]):
+            for cl in _mipt_clauses(school, cell):
+                out.append({**cl, "olympiad_name": name, "profile": profile, "level": level,
+                            "benefit": BVI, "grades": None, "page": None, "url": url,
+                            "number": num})
     return out
 
 
@@ -352,31 +382,29 @@ def _itmo_rows(pdf_path, cols=None):
 
 
 def rows_mipt_vsosh():
+    return mipt_vsosh_rows(load_html("mipt", "olymp_list__2026_olympiads"), MIPT_URL)
+
+
+def mipt_vsosh_rows(html: str, url: str) -> list[dict]:
     """Приложение 2 на той же странице: предмет ВсОШ x физтех-школы.
     Лежит отдельной таблицей от перечневых олимпиад — легко пропустить."""
-    out = []
-    url = "https://pk.mipt.ru/bachelor/2026_olympiads/"
-    tables = re.findall(r"<table.*?</table>", load_html("mipt", "olymp_list__2026_olympiads"), re.S)
-    if len(tables) < 3:
-        return out
-    schools = None
-    for c in html_rows(tables[2]):
-        if schools is None and "ФПМИ" in c and "ФРКТ" in c:
-            schools = [x for x in c if x][:11]
+    out, cols = [], None
+    for c in html_rows(html):
+        if c and c[0] == "Общеобразовательный предмет":
+            cols = _mipt_schools(c)
             continue
-        if not schools or len(c) < 2 or not c[0]:
+        if not cols or len(c) < 2 or not c[0]:
             continue
         subject = c[0].split(";")[0].split(",")[0]
         if not profile_slug(subject.lower()):
             continue
-        for i, cell in enumerate(c[1:12]):
-            if not clean(cell) or i >= len(schools):
-                continue
-            out.append({"match": {"school": schools[i]}, "vsosh": True,
-                        "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
-                        "statuses": _statuses(cell), "benefit": BVI,
-                        "ege_subject": subject, "ege_score": None, "grades": None,
-                        "page": None, "url": url, "score_is_demo": True})
+        first, schools = cols
+        for school, cell in zip(schools, c[first:first + len(schools)]):
+            for cl in _mipt_clauses(school, cell):
+                out.append({**cl, "vsosh": True, "olympiad_name": None,
+                            "profile": subject.lower(), "level": "ВсОШ", "benefit": BVI,
+                            "ege_subject": subject, "ege_score": None, "grades": None,
+                            "page": None, "url": url, "score_is_demo": True})
     return out
 
 
@@ -737,10 +765,7 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
     if m is None:                                   # плоский перечень на весь вуз
         return programs
     if "school" in m:                               # МФТИ: льгота адресована физтех-школе
-        school = clean(m["school"])
-        if not school:
-            return []
-        return [p for p in programs if school.split()[0] in (p["faculty"] or "")]
+        return mipt_link(m["school"], m.get("groups"), programs)
     if "codes" in m:                                # КФУ: перечислены коды направлений
         if m.get("all"):
             return programs
@@ -788,6 +813,34 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
                 return hit
         return pool
     return []
+
+
+def _school_tags(text: str) -> set[str]:
+    """«ФБМФ/ ВШБИ», «ФБМФ, ВШБИ» -> {ФБМФ, ВШБИ}; «ВШ М» -> {ВШМ}."""
+    return {t for t in re.split(r"[,/]", re.sub(r"\s+", "", text or "")) if t}
+
+
+def mipt_link(school: str, groups: list[str] | None, programs: list[dict]) -> list[dict]:
+    """Программы физтех-школы. У ФБМФ и ВШБИ факультет в A общий, а школа —
+    в скобках названия: «Все конкурсные группы ФБМФ» ВШБИ не касается.
+    Названные конкурсные группы сужают школу; группа может объединять две
+    программы («Авиационные технологии и беспилотные авиационные системы»)."""
+    want = _school_tags(school)
+    pool = []
+    for p in programs:
+        if not want & _school_tags(p["faculty"]):
+            continue
+        tag = re.search(r"\((ФБМФ|ВШБИ)\)", p["program_name"])
+        if tag and tag.group(1) not in want:
+            continue
+        pool.append(p)
+    if groups is None:
+        return pool
+    names = [_norm_prog(g) for g in groups]
+    return [p for p in pool if any(
+        _norm_prog(p["program_name"]) in g or g in _norm_prog(p["program_name"])
+        or SequenceMatcher(None, g, _norm_prog(p["program_name"])).ratio() > 0.9
+        for g in names)]
 
 
 def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, str]]:
