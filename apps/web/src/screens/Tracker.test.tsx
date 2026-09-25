@@ -366,3 +366,30 @@ it('олимпиада без этапа-регистрации — галочк
 
   expect(put).toHaveBeenCalledWith('/tracker/hse/registered')
 })
+
+// «Участвую» ставится одной галочкой, и снять её тоже можно: у такой
+// олимпиады нет этапа-регистрации, где была бы ссылка «Снять». Пока итогов
+// нет — галочка в раскрытой карточке; у олимпиады совсем без этапов тоже.
+it('«Участвую» снимается в раскрытой карточке', async () => {
+  const del = vi.spyOn(api, 'delete').mockResolvedValue(hse())
+  const participating = { status: 'active', registered_at: '2030-01-01T00:00:00Z', action: null } as const
+  setup([
+    hse({ ...participating, stages: [stage('q', 'qualifying', { state: 'current' })] }),
+    hse({ ...participating, id: 'bare', olympiad_name: 'Без этапов', stages: [] }),
+  ])
+
+  for (const card of screen.getAllByRole('article')) {
+    await userEvent.click(within(card).getByRole('button', { name: /Все этапы/ }))
+    expect(within(card).getByRole('checkbox', { name: 'Участвую' })).toHaveAttribute('aria-checked', 'true')
+  }
+  await userEvent.click(within(screen.getAllByRole('article')[1]!).getByRole('checkbox', { name: 'Участвую' }))
+  expect(del).toHaveBeenCalledWith('/tracker/bare/registered')
+})
+
+it('итог держит участие — «Участвую» не снять', async () => {
+  const passed = stage('q', 'qualifying', { state: 'past', result: 'passed' })
+  setup([hse({ status: 'active', registered_at: '2030-01-01T00:00:00Z', action: null, stages: [passed] })])
+
+  await userEvent.click(screen.getByRole('button', { name: /Все этапы/ }))
+  expect(screen.queryByRole('checkbox', { name: 'Участвую' })).toBeNull()
+})

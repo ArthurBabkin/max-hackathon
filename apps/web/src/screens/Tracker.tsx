@@ -182,48 +182,54 @@ function ActionRow({ item, onMark, disabled }: { item: TrackerItem; onMark: Mark
 function StageList({ item, onMark, disabled }: { item: TrackerItem; onMark: Mark; disabled: boolean }) {
   const t = useVoice()
   const first = item.stages.find((s) => registrationLike(s.kind))
+  // Без этапа-регистрации «Участвую» — единственная отметка участия: здесь
+  // её и снимают, пока на ней не держатся итоги.
+  const participating = !first && !item.stages.some((s) => s.result)
   return (
-    <ol className="stage-marks">
-      {item.stages.map((s) => {
-        const tone = s.state === 'locked' ? 'off' : s.asking ? 'ask' : s.state
-        // Итог — у этапа, который идёт или прошёл. Этапы впереди кнопок не
-        // показывают, даже если дат нет и сервер отметку бы принял.
-        const open = s.state !== 'locked' && s.state !== 'future'
-        const notYet = s.results.length > 0 && !s.result && s.state !== 'locked' && (!open || s.results_allowed.length === 0)
-        const subtitle = [s.subtitle, notYet ? t('tracker.resultLater') : null].filter(Boolean).join(' · ')
-        return (
-          <li key={s.id} className={`stage-mark stage-mark-${tone}`}>
-            <span className="stage-mark-dot" aria-hidden />
-            <div className="stage-mark-main">
-              <b>{s.title}</b>
-              {subtitle ? <span>{subtitle}</span> : null}
-              {registrationLike(s.kind) && s.registered ? (
-                <span className="stage-mark-chip">
-                  <Icon name="check" size={11} strokeWidth={3} />
-                  {t('tracker.mark.registered')}
-                  {s.id === first?.id && item.registered_by
-                    ? ` · ${t('tracker.markedByInline', { name: item.registered_by.name })}`
-                    : null}
-                </span>
-              ) : null}
-              {s.can_register ? (
-                <button
-                  type="button"
-                  className="stage-mark-link"
-                  disabled={disabled}
-                  onClick={() => onMark(s.id, !s.registered, s.result)}
-                >
-                  {s.registered ? t('tracker.unmark') : t('tracker.markRegistration')}
-                </button>
-              ) : null}
-              {open && (s.result || s.results_allowed.length > 0) ? (
-                <ResultButtons stage={s} onMark={onMark} disabled={disabled} />
-              ) : null}
-            </div>
-          </li>
-        )
-      })}
-    </ol>
+    <>
+      {participating ? <RegisterCheck item={item} stage={null} onMark={onMark} disabled={disabled} /> : null}
+      <ol className="stage-marks">
+        {item.stages.map((s) => {
+          const tone = s.state === 'locked' ? 'off' : s.asking ? 'ask' : s.state
+          // Итог — у этапа, который идёт или прошёл. Этапы впереди кнопок не
+          // показывают, даже если дат нет и сервер отметку бы принял.
+          const open = s.state !== 'locked' && s.state !== 'future'
+          const notYet = s.results.length > 0 && !s.result && s.state !== 'locked' && (!open || s.results_allowed.length === 0)
+          const subtitle = [s.subtitle, notYet ? t('tracker.resultLater') : null].filter(Boolean).join(' · ')
+          return (
+            <li key={s.id} className={`stage-mark stage-mark-${tone}`}>
+              <span className="stage-mark-dot" aria-hidden />
+              <div className="stage-mark-main">
+                <b>{s.title}</b>
+                {subtitle ? <span>{subtitle}</span> : null}
+                {registrationLike(s.kind) && s.registered ? (
+                  <span className="stage-mark-chip">
+                    <Icon name="check" size={11} strokeWidth={3} />
+                    {t('tracker.mark.registered')}
+                    {s.id === first?.id && item.registered_by
+                      ? ` · ${t('tracker.markedByInline', { name: item.registered_by.name })}`
+                      : null}
+                  </span>
+                ) : null}
+                {s.can_register ? (
+                  <button
+                    type="button"
+                    className="stage-mark-link"
+                    disabled={disabled}
+                    onClick={() => onMark(s.id, !s.registered, s.result)}
+                  >
+                    {s.registered ? t('tracker.unmark') : t('tracker.markRegistration')}
+                  </button>
+                ) : null}
+                {open && (s.result || s.results_allowed.length > 0) ? (
+                  <ResultButtons stage={s} onMark={onMark} disabled={disabled} />
+                ) : null}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </>
   )
 }
 
