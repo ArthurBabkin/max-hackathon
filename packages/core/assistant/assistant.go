@@ -102,7 +102,10 @@ type collected struct {
 	guessed map[string]bool
 	// focus — вузы, чьи правила идут первоисточником к олимпиаде: из
 	// вопроса, а если там их нет — вузы ученика.
-	focus        []string
+	focus []string
+	// asked — вузы, названные в вопросе: карточки олимпиад — с условиями
+	// только этих вузов.
+	asked        []string
 	clock        clock
 	subjects     []string // названия предметов ученика
 	universities []string // короткие названия вузов ученика
@@ -169,7 +172,7 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		return c, err
 	}
 	if len(m.Universities) > 0 {
-		c.focus = m.Universities
+		c.focus, c.asked = m.Universities, m.Universities
 	}
 
 	// Порядок карточек — по уверенности: названное в вопросе, затем то, на
@@ -385,7 +388,7 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if c.has("olympiad:" + oid) {
 		return nil
 	}
-	text, benefits, err := a.olympiadText(ctx, b, oid, c.clock)
+	text, benefits, err := a.olympiadText(ctx, b, oid, c.asked, c.clock)
 	if err != nil {
 		return err
 	}

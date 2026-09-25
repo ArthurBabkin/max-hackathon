@@ -97,8 +97,10 @@ var conditionsText = map[string]string{
 }
 
 // olympiadText — карточка олимпиады, как её лист в приложении, только сразу
-// по всем профилям и всем вузам базы.
-func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, c clock) (string, []store.BenefitRow, error) {
+// по всем профилям и всем вузам базы. asked — вузы из вопроса: тогда условия
+// только их, остальные вузы с льготами — списком. Строки соседних вузов
+// модель путает с условиями того, о котором спросили.
+func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked []string, c clock) (string, []store.BenefitRow, error) {
 	ps := slices.Clone(b.profiles[oid])
 	slices.SortStableFunc(ps, func(x, y store.Profile) int { return strings.Compare(profileTitle(x), profileTitle(y)) })
 	ids := make([]string, len(ps))
@@ -174,22 +176,40 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, c cloc
 		lines = append(lines, fmt.Sprintf("Льготы при поступлении в %d году (вуз — профили: условие):", year))
 	}
 	byUni := map[string][]grouped{}
-	var nicks []string
+	var nicks, others []string
 	for _, x := range ps {
 		for _, bn := range benefits {
 			if bn.ProfileID != x.ID {
 				continue
 			}
 			nick := pick.Nick(bn.UniversityID, bn.UniversityShort)
+			if len(asked) > 0 && !slices.Contains(asked, bn.UniversityID) {
+				if !slices.Contains(others, nick) {
+					others = append(others, nick)
+				}
+				continue
+			}
 			if _, ok := byUni[nick]; !ok {
 				nicks = append(nicks, nick)
 			}
 			byUni[nick] = group(byUni[nick], grantText(bn), profileTitle(x))
 		}
 	}
-	slices.SortFunc(nicks, func(x, y string) int { return strings.Compare(names.Key(x), names.Key(y)) })
+	byName := func(x, y string) int { return strings.Compare(names.Key(x), names.Key(y)) }
+	slices.SortFunc(nicks, byName)
 	for _, nick := range nicks {
 		lines = append(lines, "  "+nick+" — "+joinGroups(byUni[nick]))
+	}
+	if len(benefits) > 0 {
+		for _, id := range asked {
+			if u, ok := b.uni[id]; ok && !slices.Contains(nicks, pick.Nick(id, u.ShortName)) {
+				lines = append(lines, "  "+pick.Nick(id, u.ShortName)+" — по этой олимпиаде ничего не даёт")
+			}
+		}
+	}
+	if len(others) > 0 {
+		slices.SortFunc(others, byName)
+		lines = append(lines, "Льготы по ней есть и в других вузах базы (условия не показаны, вопрос не про них): "+strings.Join(others, ", "))
 	}
 	lines = append(lines, conditionsText[p.Kind])
 	return strings.Join(lines, "\n"), benefits, nil
