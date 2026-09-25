@@ -132,7 +132,7 @@ func Score(c Candidate, s Student, w Weights, now time.Time) Result {
 	st := append([]stages.Stage(nil), c.Stages...)
 	stages.Sort(st)
 	r := Result{Candidate: c, Factors: map[Factor]float64{}}
-	if cur := stages.Current(st, c.Registered, now); cur >= 0 {
+	if cur := stages.Current(st, stages.Progress{Registered: c.Registered}, now); cur >= 0 {
 		r.Stage = &st[cur]
 		r.Deadline = st[cur].DeadlineAt
 	}

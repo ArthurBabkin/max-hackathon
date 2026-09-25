@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
 // Source — источник факта. VerifiedAt пуст — показывать без метки «Факт».
@@ -173,11 +175,13 @@ type TrackerState struct {
 	Registered       map[string]bool
 	TrackedOlympiads map[string]bool
 	PendingOlympiads map[string]bool
+	// Progress — отметки этапов по профилям в трекере.
+	Progress map[string]stages.Progress
 }
 
 func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerState, error) {
 	st := TrackerState{InTracker: map[string]bool{}, Pending: map[string]bool{}, Registered: map[string]bool{},
-		TrackedOlympiads: map[string]bool{}, PendingOlympiads: map[string]bool{}}
+		TrackedOlympiads: map[string]bool{}, PendingOlympiads: map[string]bool{}, Progress: map[string]stages.Progress{}}
 	rows, err := s.db.Query(ctx, `
 		SELECT ti.olympiad_profile_id, p.olympiad_id, ti.registered_at IS NOT NULL, false
 		FROM tracker_items ti JOIN olympiad_profiles p ON p.id = ti.olympiad_profile_id
@@ -205,8 +209,30 @@ func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerS
 		st.InTracker[pid] = true
 		st.Registered[pid] = registered
 		st.TrackedOlympiads[oid] = true
+		st.Progress[pid] = stages.Progress{Registered: registered, Marks: map[string]stages.Mark{}}
 	}
-	return st, wrap(rows.Err())
+	if err := rows.Err(); err != nil {
+		return st, wrap(err)
+	}
+	marks, err := s.db.Query(ctx, `
+		SELECT ti.olympiad_profile_id, r.stage_id, r.registered, COALESCE(r.result, '')
+		FROM tracker_stage_results r JOIN tracker_items ti ON ti.id = r.tracker_item_id
+		WHERE ti.trajectory_id = $1`, trajectoryID)
+	if err != nil {
+		return st, wrap(err)
+	}
+	defer marks.Close()
+	for marks.Next() {
+		var pid, stage string
+		var m stages.Mark
+		if err := marks.Scan(&pid, &stage, &m.Registered, &m.Result); err != nil {
+			return st, wrap(err)
+		}
+		if p, ok := st.Progress[pid]; ok {
+			p.Marks[stage] = m
+		}
+	}
+	return st, wrap(marks.Err())
 }
 
 // Universities — каталог вузов с отметкой «мой».

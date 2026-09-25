@@ -34,6 +34,7 @@ import type {
   Role,
   Session,
   SessionResponse,
+  StageResult,
   TrackerItem,
   UniversityDetail,
   UniversityListItem,
@@ -232,34 +233,57 @@ export function useRemoveFromTracker() {
   })
 }
 
-export function useToggleRegistered() {
+/** Отметка этапа: регистрация или итог. Без этапа — «участвую» (F46). */
+export interface StageMark {
+  item: TrackerItem
+  stageId: string | null
+  registered: boolean
+  result: StageResult | null
+}
+
+type TrackerCache = { items: TrackerItem[]; proposals: Proposal[] }
+
+/** Пункт с отметкой, какой она станет, — до ответа сервера. */
+function withMark(item: TrackerItem, { stageId, registered, result }: StageMark): TrackerItem {
+  if (stageId === null) return { ...item, registered_at: registered ? new Date().toISOString() : null }
+  return {
+    ...item,
+    stages: item.stages.map((s) => (s.id === stageId ? { ...s, registered, result } : s)),
+  }
+}
+
+/**
+ * Отметить этап (F63). Как и галочка регистрации — оптимистично: отметку
+ * видно сразу, а ответ сервера приносит всё, что из неё следует (статус,
+ * серые этапы, следующее действие). Отказ (409 — отметка противоречит
+ * другим) откатывает карточку, текст сервера показывает всплывашка.
+ */
+export function useSetStageMark() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, registered }: { id: string; registered: boolean }) =>
-      registered
-        ? api.put<TrackerItem>(`/tracker/${encodeURIComponent(id)}/registered`)
-        : api.delete<TrackerItem>(`/tracker/${encodeURIComponent(id)}/registered`),
-
-    // Оптимистично: это кнопка, которую жмут на демонстрации, и ждать ответа
-    // ради галочки незачем. При ошибке состояние откатывается.
-    onMutate: async ({ id, registered }) => {
+    mutationFn: ({ item, stageId, registered, result }: StageMark) => {
+      const id = encodeURIComponent(item.id)
+      if (stageId === null) {
+        return registered
+          ? api.put<TrackerItem>(`/tracker/${id}/registered`)
+          : api.delete<TrackerItem>(`/tracker/${id}/registered`)
+      }
+      return api.put<TrackerItem>(`/tracker/${id}/stages/${encodeURIComponent(stageId)}`, { registered, result })
+    },
+    onMutate: async (mark) => {
       await qc.cancelQueries({ queryKey: keys.tracker })
-      const previous = qc.getQueryData(keys.tracker)
-      qc.setQueryData<{ items: TrackerItem[]; proposals: Proposal[] }>(keys.tracker, (old) =>
-        old
-          ? {
-              ...old,
-              items: old.items.map((item) =>
-                item.id === id
-                  ? { ...item, registered_at: registered ? new Date().toISOString() : null }
-                  : item,
-              ),
-            }
-          : old,
+      const previous = qc.getQueryData<TrackerCache>(keys.tracker)
+      qc.setQueryData<TrackerCache>(keys.tracker, (old) =>
+        old ? { ...old, items: old.items.map((i) => (i.id === mark.item.id ? withMark(i, mark) : i)) } : old,
       )
       return { previous }
     },
-    onError: (_error, _vars, context) => {
+    onSuccess: (updated) => {
+      qc.setQueryData<TrackerCache>(keys.tracker, (old) =>
+        old ? { ...old, items: old.items.map((i) => (i.id === updated.id ? updated : i)) } : old,
+      )
+    },
+    onError: (_error, _mark, context) => {
       if (context?.previous) qc.setQueryData(keys.tracker, context.previous)
     },
     onSettled: () => invalidateTracker(qc),

@@ -73,14 +73,18 @@ func (s *Server) calendarFile(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	progress, err := s.progressOf(ctx, rows)
+	if err != nil {
+		return err
+	}
 
 	v := voice.New(voice.Role(m.Role), "", m.FirstName)
 	today := now.In(moscow).Format(time.DateOnly)
 	var events []ics.Event
 	for _, row := range rows {
-		item := trackerItemOf(row, st[row.ProfileID], now)
-		for _, x := range st[row.ProfileID] {
-			if x.DeadlineAt == nil || (row.RegisteredAt != nil && stages.RegistrationLike(x.Kind)) {
+		item := trackerItemOf(row, st[row.ProfileID], progress[row.ID], now)
+		for i, x := range st[row.ProfileID] {
+			if x.DeadlineAt == nil || stages.Settled(st[row.ProfileID], progress[row.ID], i) {
 				continue
 			}
 			day := x.DeadlineAt.In(moscow)

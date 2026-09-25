@@ -24,8 +24,8 @@ type calendarMonth struct {
 // calendar — GET /calendar?month=YYYY-MM (F32): все сроки этапов пунктов
 // трекера за месяц, а не только ближайший. Запись — пункт трекера, у
 // которого срок и название этапа — того этапа, что приходится на день.
-// Даты — по Москве, как опубликованы сроки. Этапы, закрытые отметкой
-// «зарегистрирован», в календарь не попадают.
+// Даты — по Москве, как опубликованы сроки. Отмеченные этапы и всё после
+// закрывающего итога в календарь не попадают.
 func (s *Server) calendar(w http.ResponseWriter, r *http.Request) error {
 	month := r.URL.Query().Get("month")
 	start, err := time.ParseInLocation("2006-01", month, moscow)
@@ -47,15 +47,19 @@ func (s *Server) calendar(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	progress, err := s.progressOf(ctx, rows)
+	if err != nil {
+		return err
+	}
 	now := s.now()
 	byDate := map[string][]trackerItem{}
 	for _, row := range rows {
-		base := trackerItemOf(row, st[row.ProfileID], now)
-		for _, x := range st[row.ProfileID] {
+		base := trackerItemOf(row, st[row.ProfileID], progress[row.ID], now)
+		for i, x := range st[row.ProfileID] {
 			if x.DeadlineAt == nil || x.DeadlineAt.Before(start) || !x.DeadlineAt.Before(end) {
 				continue
 			}
-			if row.RegisteredAt != nil && stages.RegistrationLike(x.Kind) {
+			if stages.Settled(st[row.ProfileID], progress[row.ID], i) {
 				continue
 			}
 			it := base

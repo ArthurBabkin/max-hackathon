@@ -287,7 +287,7 @@ func (c clock) schedule(st []stages.Stage) string {
 	if len(st) == 0 {
 		return "этапов нет"
 	}
-	states := stages.States(st, false, c.now)
+	states := stages.States(st, stages.Progress{}, c.now)
 	parts := make([]string, len(st))
 	for i, s := range st {
 		from, to := s.StartsAt, s.EndsAt
@@ -669,6 +669,15 @@ var goalText = map[string]string{
 	"exploring": "ученик пока выбирает цель",
 }
 
+// resultText — итог этапа для модели.
+var resultText = map[string]string{
+	stages.Passed:      "прошёл дальше",
+	stages.Failed:      "не прошёл",
+	stages.Winner:      "победитель",
+	stages.Prizer:      "призёр",
+	stages.Participant: "участник без диплома",
+}
+
 // studentCard — карточка ученика: класс, цель, предметы, вузы и трекер с
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
 // ответа. Источники — сайты олимпиад трекера, ближайшие по срокам первыми:
@@ -700,6 +709,14 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 	if err != nil {
 		return err
 	}
+	itemIDs := make([]string, len(items))
+	for i, x := range items {
+		itemIDs[i] = x.ID
+	}
+	marks, err := a.Store.StageMarks(ctx, itemIDs)
+	if err != nil {
+		return err
+	}
 	var d dates
 	type next struct {
 		p    store.Profile
@@ -713,7 +730,16 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 			line += " (регистрация отмечена)"
 		}
 		st := byProfile[x.ProfileID]
-		if i := slices.IndexFunc(stages.States(st, x.RegisteredAt != nil, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
+		p := stages.Progress{Registered: x.RegisteredAt != nil, Marks: marks[x.ID]}
+		for _, s := range st {
+			if r := p.Marks[s.ID].Result; r != "" {
+				line += "; " + strings.ToLower(s.Title) + " — " + resultText[r]
+			}
+		}
+		if stages.ClosedAt(st, p) >= 0 {
+			line += "; участие завершено"
+		}
+		if i := slices.IndexFunc(stages.States(st, p, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
 			line += "; ближайший этап — " + c.clock.dated(st[i:i+1])
 			d.add(names.Olympiad(x.OlympiadName), st[i:i+1])
 			if p, ok := b.profile[x.ProfileID]; ok {

@@ -173,7 +173,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	out := olympiadDetail{
 		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, Description: p.Description, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
-		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
+		Stages: stagesOf(st, cs.Tracker.Progress[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
 		Why: cs.why(p, res, mine, all), BenefitUniversities: []benefitRow{}, BenefitColumns: benefitColumns(p, mine),
 	}
 	for _, x := range st {
@@ -231,8 +231,8 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func stagesOf(st []stages.Stage, registered bool, now time.Time) []stageDTO {
-	states := stages.States(st, registered, now)
+func stagesOf(st []stages.Stage, p stages.Progress, now time.Time) []stageDTO {
+	states := stages.States(st, p, now)
 	out := make([]stageDTO, len(st))
 	for i, x := range st {
 		out[i] = stageDTO{

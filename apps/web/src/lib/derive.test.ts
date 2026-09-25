@@ -15,6 +15,10 @@ const item = (id: string, over: Partial<TrackerItem> = {}): TrackerItem =>
     registered_at: null,
     registered_by: null,
     added_by: null,
+    status: 'open',
+    outcome: null,
+    stages: [],
+    action: null,
     ...over,
   }) as TrackerItem
 
@@ -33,11 +37,16 @@ const proposal = (id: string): Proposal =>
 
 describe('trackerBadgeCount — счётчик на вкладке (F31)', () => {
   const tracker = {
-    items: [item('a'), item('b', { registered_at: '2026-09-01T00:00:00Z' })],
+    items: [
+      item('a'),
+      item('b', { status: 'active', registered_at: '2026-09-01T00:00:00Z' }),
+      // Регистрация закрылась без отметки — это уже не дело на сегодня.
+      item('c', { status: 'finished', outcome: 'missed' }),
+    ],
     proposals: [proposal('p1')],
   }
 
-  it('ученику: незарегистрированные плюс ждущие ответа предложения', () => {
+  it('ученику: пункты «нужно зарегистрироваться» плюс ждущие ответа предложения', () => {
     expect(trackerBadgeCount(tracker, 'kid')).toBe(2)
   })
 
@@ -46,12 +55,7 @@ describe('trackerBadgeCount — счётчик на вкладке (F31)', () =>
   })
 
   it('всё отмечено и предложений нет — счётчика нет', () => {
-    expect(
-      trackerBadgeCount(
-        { items: [item('b', { registered_at: '2026-09-01T00:00:00Z' })], proposals: [] },
-        'kid',
-      ),
-    ).toBe(0)
+    expect(trackerBadgeCount({ items: [item('b', { status: 'active' })], proposals: [] }, 'kid')).toBe(0)
   })
 
   it('пустой трекер не ломает счёт', () => {
@@ -60,14 +64,24 @@ describe('trackerBadgeCount — счётчик на вкладке (F31)', () =>
 })
 
 describe('groupTracker', () => {
-  it('делит на «нужно зарегистрироваться» и «зарегистрирован»', () => {
-    const { open, done } = groupTracker([
+  it('делит на «нужно зарегистрироваться», «участвую» и «завершено» по статусу', () => {
+    const { open, active, finished } = groupTracker([
       item('a'),
-      item('b', { registered_at: '2026-09-01T00:00:00Z' }),
-      item('c'),
+      item('b', { status: 'active' }),
+      item('c', { status: 'finished', outcome: 'prizer' }),
+      item('d'),
     ])
-    expect(open.map((i) => i.id)).toEqual(['a', 'c'])
-    expect(done.map((i) => i.id)).toEqual(['b'])
+    expect(open.map((i) => i.id)).toEqual(['a', 'd'])
+    expect(active.map((i) => i.id)).toEqual(['b'])
+    expect(finished.map((i) => i.id)).toEqual(['c'])
+  })
+
+  it('в «участвую» первыми — те, что ждут отметки итога', () => {
+    const { active } = groupTracker([
+      item('b', { status: 'active' }),
+      item('asks', { status: 'active', action: { type: 'result', stage_id: 's' } }),
+    ])
+    expect(active.map((i) => i.id)).toEqual(['asks', 'b'])
   })
 })
 

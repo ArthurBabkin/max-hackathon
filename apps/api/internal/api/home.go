@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
 type nextStep struct {
@@ -39,10 +41,14 @@ func (s *Server) trackerItems(ctx context.Context, trajectoryID string) ([]track
 	if err != nil {
 		return nil, err
 	}
+	progress, err := s.progressOf(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
 	now := s.now()
 	items := make([]trackerItem, 0, len(rows))
 	for _, r := range rows {
-		items = append(items, trackerItemOf(r, st[r.ProfileID], now))
+		items = append(items, trackerItemOf(r, st[r.ProfileID], progress[r.ID], now))
 	}
 	sortByDeadline(items)
 	return items, nil
@@ -76,10 +82,10 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) error {
 			out.RegisteredCount++
 		}
 	}
-	// Следующий шаг (ТЗ §6.6) — ближайший по сроку пункт без отметки о
-	// регистрации, у которого ещё есть что делать. Всё отмечено — null.
+	// Следующий шаг (ТЗ §6.6) — ближайший по сроку пункт, на который ещё
+	// нужно зарегистрироваться. Всё отмечено или регистрации закрылись — null.
 	for _, it := range items {
-		if it.RegisteredAt == nil && it.NextStageTitle != nil {
+		if it.Status == stages.StatusOpen && it.NextStageTitle != nil {
 			out.NextStep = &nextStep{
 				TrackerItemID: it.ID, OlympiadProfileID: it.OlympiadProfileID, OlympiadName: it.OlympiadName,
 				StageTitle: *it.NextStageTitle, StageKind: it.nextKind, DeadlineAt: it.DeadlineAt,

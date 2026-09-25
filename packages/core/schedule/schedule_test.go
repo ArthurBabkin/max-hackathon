@@ -87,3 +87,17 @@ func TestTomorrow_NotLaterThanDeadline(t *testing.T) {
 		t.Fatal("напомнить завтра после срока нельзя")
 	}
 }
+
+// Итог этапа спрашиваем на следующий день после окончания в 10:00 по зоне
+// ученика и повторяем через неделю. У Владивостока московский вечер —
+// уже следующий день, поэтому «завтра» там наступает на день позже.
+func TestAfter_NextDayAndWeekLater(t *testing.T) {
+	got := After(deadline, moscow, 10)
+	want := []Threshold{{-1, at(moscow, 10, 23, 10)}, {-8, at(moscow, 10, 30, 10)}}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("After = %v, ожидали %v", got, want)
+	}
+	if vl := After(deadline, vladivostok, 10); !vl[0].FireAt.Equal(at(vladivostok, 10, 24, 10)) {
+		t.Fatalf("Владивосток: %v", vl)
+	}
+}

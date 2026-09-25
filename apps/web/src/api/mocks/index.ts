@@ -31,6 +31,9 @@ import {
   viewer,
 } from './state'
 import * as build from './build'
+import { mockStages, progressOf } from './build'
+import { MarkError, apply, hasResults } from './progress'
+import type { StageResult } from '@contract'
 import { daysLeft, isSoon, moscowDay } from '@/lib/deadline'
 
 const LATENCY_MS = 200
@@ -247,8 +250,35 @@ route('PUT', '/tracker/:id/registered', ({ params }) => {
 route('DELETE', '/tracker/:id/registered', ({ params }) => {
   const item = state.tracker.find((i) => i.id === params.id)
   if (!item) throw notFound()
+  if (hasResults(progressOf(item))) {
+    throw new ApiError(409, 'CONFLICT', 'На регистрации держатся итоги этапов — сначала снимите их')
+  }
   item.registered_at = null
   item.registered_by = null
+  return build.trackerItem(item)
+})
+
+route('PUT', '/tracker/:id/stages/:stage_id', ({ params, body }) => {
+  const item = state.tracker.find((i) => i.id === params.id)
+  const found = item && findProfile(item.profileId)
+  if (!item || !found) throw notFound()
+  const mark = body as { registered?: boolean; result?: StageResult | null }
+  try {
+    const next = apply(mockStages(found.olympiad), progressOf(item), decodeURIComponent(params.stage_id!), {
+      registered: Boolean(mark?.registered),
+      result: mark?.result ?? null,
+    }, Date.now())
+    if (next.registered !== Boolean(item.registered_at)) {
+      item.registered_at = next.registered ? new Date().toISOString() : null
+      item.registered_by = next.registered ? state.viewerId : null
+    }
+    item.marks = next.marks
+  } catch (e) {
+    if (!(e instanceof MarkError)) throw e
+    if (e.status === 404) throw notFound()
+    if (e.status === 400) throw new ApiError(400, 'BAD_REQUEST', 'Такой итог у этапа поставить нельзя')
+    throw new ApiError(409, 'CONFLICT', 'Отметка противоречит другим отметкам')
+  }
   return build.trackerItem(item)
 })
 
