@@ -1591,13 +1591,57 @@
     "kid": "← Назад",
     "parent": "← Назад"
   },
-  "bot.result.found": {
-    "kid": "Подобрали {count} под тебя.",
-    "parent": "Подобрали {count} для {student_gen}."
+  "bot.result.one": {
+    "kid": "Под твою цель подходит {count}.",
+    "parent": "Под цель {student_gen} подходит {count}."
   },
-  "bot.result.foundSubjects": {
-    "kid": "Подобрали {count} по твоим предметам.",
-    "parent": "Подобрали {count} по предметам {student_gen}."
+  "bot.result.many": {
+    "kid": "Под твою цель подходят {count}.",
+    "parent": "Под цель {student_gen} подходят {count}."
+  },
+  "bot.result.oneSubjects": {
+    "kid": "По твоим предметам подходит {count}.",
+    "parent": "По предметам {student_gen} подходит {count}."
+  },
+  "bot.result.manySubjects": {
+    "kid": "По твоим предметам подходят {count}.",
+    "parent": "По предметам {student_gen} подходят {count}."
+  },
+  "bot.result.start": {
+    "kid": "Для старта советую эту:",
+    "parent": "Для старта советую {student_dat} эту:"
+  },
+  "bot.result.nearest": {
+    "kid": "Ближайшая олимпиада:",
+    "parent": "Ближайшая олимпиада:"
+  },
+  "bot.result.startNearest": {
+    "kid": "Для старта советую эту — она же ближайшая:",
+    "parent": "Для старта советую {student_dat} эту — она же ближайшая:"
+  },
+  "bot.result.olympiad": {
+    "kid": "{olympiad} · {subject}",
+    "parent": "{olympiad} · {subject}"
+  },
+  "bot.result.level": {
+    "kid": "{level} уровень",
+    "parent": "{level} уровень"
+  },
+  "bot.result.until": {
+    "kid": "до {date}, {days}",
+    "parent": "до {date}, {days}"
+  },
+  "bot.result.online": {
+    "kid": "онлайн",
+    "parent": "онлайн"
+  },
+  "bot.result.tail": {
+    "kid": "В мини-приложении — льготы в твоих вузах, источники и трекер сроков.",
+    "parent": "В мини-приложении — льготы в вузах {student_gen}, источники и трекер сроков."
+  },
+  "bot.result.tailNoVuz": {
+    "kid": "В мини-приложении — в каких вузах олимпиады дают льготы, источники и трекер сроков.",
+    "parent": "В мини-приложении — в каких вузах олимпиады дают льготы, источники и трекер сроков."
   },
   "bot.result.kidInvite": {
     "kid": "Отправь ссылку родителю: вместе проще не пропустить сроки.",
