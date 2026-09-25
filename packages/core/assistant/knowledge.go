@@ -31,6 +31,9 @@ type base struct {
 	profile   map[string]store.Profile   // профиль по id
 	unis      []store.University
 	uni       map[string]store.University
+	// Направления подготовки: для поиска в вопросе и карточки направления.
+	directions []Direction
+	direction  map[string]Direction
 }
 
 func (a *Assistant) loadBase(ctx context.Context) (base, error) {
@@ -51,6 +54,16 @@ func (a *Assistant) loadBase(ctx context.Context) (base, error) {
 	}
 	for _, u := range b.unis {
 		b.uni[u.ID] = u
+	}
+	ds, err := a.Store.AllDirections(ctx)
+	if err != nil {
+		return b, err
+	}
+	b.direction = make(map[string]Direction, len(ds))
+	for _, d := range ds {
+		x := Direction{ID: d.ID, Code: d.Code, Name: d.Name}
+		b.directions = append(b.directions, x)
+		b.direction[d.ID] = x
 	}
 	return b, nil
 }
@@ -618,6 +631,66 @@ func (b base) sortOlympiads(order []string) {
 		}
 		return strings.Compare(names.Key(short(x)), names.Key(short(y)))
 	})
+}
+
+// directionText — карточка направления: в каких вузах базы оно есть (с
+// укрупнённой группой — тоже), сколько олимпиад дают на нём льготу или
+// «льготы уточняются», вузы ученика помечены; вузы без направления —
+// списком.
+func (a *Assistant) directionText(ctx context.Context, b base, t store.Trajectory, myUnis []string, id string) (string, error) {
+	d := b.direction[id]
+	head := "Направление " + d.Code + " " + d.Name
+	if slices.ContainsFunc(t.Directions, func(x store.Direction) bool { return x.ID == id }) {
+		head += " — в цели ученика"
+	}
+	lines := []string{head}
+	unis, match, err := a.Store.UniversitiesByDirection(ctx, t.ID, "", "", id)
+	if err != nil {
+		return "", err
+	}
+	if len(unis) == 0 {
+		lines = append(lines, "В вузах базы этого направления нет.")
+	} else {
+		lines = append(lines, fmt.Sprintf("Вузы базы с этим направлением (%d), олимпиад с льготой на нём:", len(unis)))
+	}
+	for _, u := range unis {
+		m := match[u.ID]
+		line := "  " + pick.Nick(u.ID, u.ShortName)
+		if u.City != nil && *u.City != line[2:] {
+			line += ", " + *u.City
+		}
+		line += " — "
+		for _, other := range m.DirectionIDs {
+			if other == id {
+				continue
+			}
+			x := b.direction[other]
+			line += "как " + x.Code + " " + x.Name
+			if strings.HasSuffix(x.Code, ".00.00") {
+				line += " (укрупнённая группа)"
+			}
+			line += ", "
+		}
+		if m.Unverified {
+			line += "льготы уточняются"
+		} else {
+			line += fmt.Sprintf("%d %s с льготой", m.Olympiads, voice.Plural(m.Olympiads, "олимпиада", "олимпиады", "олимпиад"))
+		}
+		if slices.Contains(myUnis, u.ID) {
+			line += "; вуз ученика"
+		}
+		lines = append(lines, line)
+	}
+	var without []string
+	for _, u := range b.unis {
+		if _, ok := match[u.ID]; !ok {
+			without = append(without, pick.Nick(u.ID, u.ShortName))
+		}
+	}
+	if len(without) > 0 {
+		lines = append(lines, "Этого направления нет: "+strings.Join(without, ", "))
+	}
+	return strings.Join(lines, "\n"), nil
 }
 
 // byLevel — льготы вуза по уровням перечня: сколько профилей что дают. Без

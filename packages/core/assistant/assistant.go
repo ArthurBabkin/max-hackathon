@@ -144,6 +144,11 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 	olympiads, unis := b.named()
 	c.mentions = Find(question, olympiads, unis)
 	c.mentions.MyUniversities = c.mentions.MyUniversities || studentsUniversities(question, t.StudentName)
+	goal := make([]string, len(t.Directions))
+	for i, d := range t.Directions {
+		goal[i] = d.ID
+	}
+	c.mentions.Directions = FindDirections(question, b.directions, goal)
 	a.understand(ctx, b, &c, history, question)
 	m := &c.mentions
 
@@ -218,6 +223,13 @@ func (a *Assistant) collect(ctx context.Context, t store.Trajectory, history []s
 		if err := a.universityCard(ctx, b, &c, t.ID, uid, len(m.Olympiads) == 0); err != nil {
 			return c, err
 		}
+	}
+	for _, id := range m.Directions {
+		text, err := a.directionText(ctx, b, t, c.myUnis, id)
+		if err != nil {
+			return c, err
+		}
+		c.cards = append(c.cards, card{id: "direction:" + id, text: text})
 	}
 	if m.Glossary || c.intent == intentGlossary {
 		order, err := a.Store.OrderSource(ctx)
