@@ -41,6 +41,42 @@ func TestKnowledge_OlympiadCardIsWholeOlympiad(t *testing.T) {
 	}
 }
 
+// cardIn — текст карточки id из системного сообщения, до следующей карточки.
+func cardIn(t *testing.T, sys, id string) string {
+	t.Helper()
+	i := strings.Index(sys, `"id":"`+id+`"`)
+	if i < 0 {
+		t.Fatalf("нет карточки %s:\n%s", id, sys)
+	}
+	c := sys[i:]
+	if end := strings.Index(c, `},{`); end > 0 {
+		c = c[:end]
+	}
+	return c
+}
+
+// Вуз в вопросе — в карточке олимпиады только его условия: строки соседних
+// вузов модель путает (МГУ «победителю и призёру — БВИ» приписала МФТИ).
+// Остальные вузы с льготами — списком, без условий.
+func TestKnowledge_OlympiadCardOnlyUniversitiesInQuestion(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Что даёт «Высшая проба» в ИТМО?"), "olympiad:p669-8")
+	if !strings.Contains(c, `\n  ИТМО — `) || strings.Contains(c, `\n  МФТИ — `) {
+		t.Errorf("условия — только ИТМО:\n%s", c)
+	}
+	if !strings.Contains(c, "в других вузах базы") || !strings.Contains(c, "МФТИ") {
+		t.Errorf("другие вузы с льготами — списком:\n%s", c)
+	}
+}
+
+// Вуз из вопроса без льгот по олимпиаде — строка «ничего не даёт», а не
+// молчание: иначе модель ищет его условия в строках других вузов.
+func TestKnowledge_UniversityInQuestionWithoutBenefit(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Что даёт «Высшая проба» в СПбГУ?"), "olympiad:p669-8")
+	if !strings.Contains(c, "СПбГУ — по этой олимпиаде ничего не даёт") {
+		t.Errorf("вуз без льготы:\n%s", c)
+	}
+}
+
 // Вуз без олимпиады в вопросе — полная карточка: все олимпиады с льготами.
 // С олимпиадой — только шапка: условия вуза уже в карточке олимпиады.
 func TestKnowledge_UniversityCardFullOrHeader(t *testing.T) {
