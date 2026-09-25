@@ -460,6 +460,8 @@ route('PATCH', '/profile', ({ body }) => {
     const ids = patch.direction_ids as string[]
     state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id)).map(({ id, name }) => ({ id, name }))
     state.goal_status = state.directions.length > 0 ? 'known' : 'exploring'
+    // Снятое с цели уходит и из выбора в вузах — как в сторе.
+    for (const [uni, chosen] of Object.entries(state.chosen)) state.chosen[uni] = chosen.filter((id) => ids.includes(id))
   }
   if (Array.isArray(patch.places)) {
     const places = patch.places as { region_code: string; city?: string | null }[]

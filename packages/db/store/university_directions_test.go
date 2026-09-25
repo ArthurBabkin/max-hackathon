@@ -98,6 +98,42 @@ func TestReplaceUniversities_KeepsChosenDirections(t *testing.T) {
 	}
 }
 
+// Направление сняли с цели в настройках — оно уходит и из выбора в вузах:
+// «мои направления» в каталоге и в настройках не расходятся.
+func TestReplaceDirections_DropsFromUniversities(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid")
+	if err := s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirSE, dirAMI}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetUniversityDirections(ctx, f.trajectoryID, "spbu", f.creatorMember, []string{dirAMI}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Сохранение профиля с той же целью выбор не трогает.
+	if err := s.UpdateTrajectory(ctx, f.trajectoryID, f.creatorMember, TrajectoryPatch{DirectionIDs: []string{dirSE, dirAMI}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := chosenAt(t, s, f.trajectoryID, "hse"); len(got) != 2 {
+		t.Fatalf("та же цель — выбор в ВШЭ не меняется: %v", got)
+	}
+
+	if err := s.UpdateTrajectory(ctx, f.trajectoryID, f.creatorMember, TrajectoryPatch{DirectionIDs: []string{dirSE}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := chosenAt(t, s, f.trajectoryID, "hse"); !slices.Equal(got, []string{dirSE}) {
+		t.Fatalf("ПМИ сняли с цели — в ВШЭ остаётся ПИ: %v", got)
+	}
+	if got := chosenAt(t, s, f.trajectoryID, "spbu"); len(got) != 0 {
+		t.Fatalf("ПМИ сняли с цели — в СПбГУ выбор пуст: %v", got)
+	}
+	mine, _ := s.TrajectoryUniversities(ctx, f.trajectoryID)
+	if !slices.ContainsFunc(mine, func(u University) bool { return u.ID == "spbu" }) {
+		t.Fatalf("вуз остаётся моим: %v", mine)
+	}
+}
+
 // Двое в семье одновременно отмечают направления в одном вузе: оба запроса
 // проходят, выбор — одного из них, цель — без дублей и пропусков.
 func TestSetUniversityDirections_Concurrent(t *testing.T) {
