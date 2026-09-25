@@ -103,6 +103,11 @@ func (s *Store) UniversityDirections(ctx context.Context, trajectoryID, universi
 func (s *Store) SetUniversityDirections(ctx context.Context, trajectoryID, universityID, memberID string, directionIDs []string) error {
 	ids := slices.Compact(slices.Sorted(slices.Values(directionIDs)))
 	return s.Tx(ctx, func(tx *Store) error {
+		// Выбор и цель правят двое в семье: запросы траектории — по очереди,
+		// иначе второй споткнётся о вставку первого, а позиции в цели совпадут.
+		if _, err := tx.db.Exec(ctx, `SELECT 1 FROM trajectories WHERE id = $1 FOR UPDATE`, trajectoryID); err != nil {
+			return wrap(err)
+		}
 		var exists bool
 		var offered int
 		if err := tx.db.QueryRow(ctx, `
