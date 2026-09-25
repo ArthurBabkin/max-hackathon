@@ -65,6 +65,21 @@ it('в подзаголовке класс и регион', async () => {
   expect(await screen.findByText(/, 9 класс, Республика Татарстан$/)).toBeInTheDocument()
 })
 
+it('цель из многих направлений в подзаголовке — первое и «ещё N»', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+  const h = home()
+  const directions = ['Программная инженерия', 'Экономика', 'Менеджмент'].map((name, i) => ({ id: `d${i}`, name }))
+  renderApp(<MatchScreen />, {
+    route: '/match',
+    seed: (c) => {
+      c.setQueryData(keys.session, session())
+      c.setQueryData(keys.home, { ...h, trajectory: { ...h.trajectory, directions }, universities_count: 3 })
+      c.setQueryData(keys.recommendations('all'), recs())
+    },
+  })
+  expect(await screen.findByText(/^Программная инженерия и ещё 2 направления, 9 класс/)).toBeInTheDocument()
+})
+
 // «Не важно» в боте: регион не указан — подзаголовок без него и без хвоста «, ».
 it('без региона подзаголовок заканчивается классом', async () => {
   renderMatch(3, { region_code: '', region_name: '' })

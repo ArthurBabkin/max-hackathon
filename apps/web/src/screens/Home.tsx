@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@maxhub/max-ui'
 import { useHome } from '@/api/queries'
 import { daysLabel, daysLeft, formatToday, plural } from '@/lib/deadline'
+import { goalTitle } from '@/lib/goal'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Note, Section, SourceLine } from '@/ui/primitives'
 import { TrackerRow } from '@/ui/TrackerRow'
@@ -116,7 +117,7 @@ export function HomeScreen() {
         <p className="goal-label">
           {t('home.goalLabel')}, {trajectory.grade} класс
         </p>
-        <h2 className="goal-title">{trajectory.directions.map((d) => d.name).join(', ') || t('home.goalEmpty')}</h2>
+        <h2 className="goal-title">{goalTitle(trajectory.directions, t)}</h2>
         <div className="goal-stats">
           <ProgressRing percent={percent} />
           <ul>

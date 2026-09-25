@@ -8,6 +8,7 @@ import { Button } from '@maxhub/max-ui'
 import { useNavigate } from 'react-router-dom'
 import { MATCH_FILTERS, type MatchFilter, type OlympiadCard as CardData } from '@contract'
 import { useAddToTracker, useHome, usePropose, useRecommendations, useSession } from '@/api/queries'
+import { goalTitle } from '@/lib/goal'
 import { trackerAction } from '@/lib/permissions'
 import { Icon } from '@/ui/Icon'
 import { OlympiadCard } from '@/ui/OlympiadCard'
@@ -59,7 +60,7 @@ export function MatchScreen() {
       {trajectory ? (
         <p className="match-subtitle">
           {t(trajectory.region_name ? 'match.subtitle' : 'match.subtitleNoRegion', {
-            direction: trajectory.directions.map((d) => d.name).join(', ') || t('home.goalEmpty'),
+            direction: goalTitle(trajectory.directions, t),
             grade: trajectory.grade,
             region: trajectory.region_name,
           })}
