@@ -35,6 +35,19 @@ func TestDictionary_NoMarkup(t *testing.T) {
 	}
 }
 
+// Формулировки нейтральны по роду: «Я зарегистрировался» в тексте для
+// ученицы звучит чужим голосом. Вместо формы глагола — действие: «отметить
+// регистрацию».
+func TestDictionary_NoGenderedFirstPerson(t *testing.T) {
+	gendered := regexp.MustCompile(`(?i)(^|[^а-яё])я\s+(уже\s+)?[а-яё]+(лся|лась)([^а-яё]|$)`)
+	for _, key := range Keys() {
+		v, _ := Get(key)
+		if gendered.MatchString(v.Kid) || gendered.MatchString(v.Parent) {
+			t.Errorf("%s: глагол в роде от первого лица — нужна нейтральная формулировка", key)
+		}
+	}
+}
+
 func TestParse_RejectsTyposInVariantNames(t *testing.T) {
 	if _, err := parse([]byte(`{"a.b": {"kid": "ты", "parnt": "вы"}}`)); err == nil {
 		t.Fatal("опечатка в имени варианта должна ронять разбор, а не давать пустую строку")
