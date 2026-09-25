@@ -214,3 +214,26 @@ func TestReferenceLists(t *testing.T) {
 		t.Fatalf("справочники: %d предметов, %d направлений, %d вузов, поиск %+v", len(subs), len(dirs), len(unis), found)
 	}
 }
+
+// Все направления — для вузов и цели в мини-приложении: 72, у основных
+// шестнадцати — пометка onboarding, у каждого код и группы.
+func TestAllDirections(t *testing.T) {
+	s := New(dbtest.Open(t))
+	all, err := s.AllDirections(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	popular := 0
+	var se *Direction
+	for i, d := range all {
+		if d.Onboarding {
+			popular++
+		}
+		if d.ID == "napr-09-03-04" {
+			se = &all[i]
+		}
+	}
+	if len(all) != 72 || popular != 16 || se == nil || se.Code != "09.03.04" || !se.Onboarding || len(se.Groups) == 0 {
+		t.Fatalf("направлений %d, основных %d, ПИ %+v", len(all), popular, se)
+	}
+}

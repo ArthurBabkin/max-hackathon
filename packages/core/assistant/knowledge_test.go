@@ -253,3 +253,57 @@ func TestKnowledge_StudentCardHasStageResults(t *testing.T) {
 		t.Fatalf("итог этапа в карточке ученика:\n%s", card)
 	}
 }
+
+// Льгота в вузах ученика — на его направления (F65): НТО по информационной
+// безопасности ВШЭ целиком даёт БВИ, но на Программную инженерию — ничего;
+// Иннополис даёт БВИ на укрупнённую группу 09.00.00.
+func TestKnowledge_TargetBenefits(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	a := &Assistant{Store: st}
+	b, err := a.loadBase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := a.targetText(ctx, b, tr.ID, []string{"hse", "innopolis"}, b.profiles["p669-22"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.Join(lines, "\n")
+	for _, want := range []string{
+		"ВШЭ: льготы нет (направления ученика: Программная инженерия)",
+		"Иннополис: победителю и призёру — БВИ (направления ученика: Информатика и вычислительная техника)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("нет %q:\n%s", want, text)
+		}
+	}
+
+	// В карточке олимпиады это видно рядом со льготами вузов целиком.
+	c := cardIn(t, contextFor(t, "Какие льготы даёт «Высшая проба» в моих вузах?"), "olympiad:p669-8")
+	if !strings.Contains(c, "ВШЭ: победителю и призёру — БВИ (направления ученика: Программная инженерия; зависит от программы)") {
+		t.Fatalf("льгота на направления ученика в карточке олимпиады:\n%s", c)
+	}
+}
+
+// В карточке ученика у вуза — направления, на которые он смотрит льготы.
+func TestKnowledge_StudentCardHasUniversityDirections(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	m, _ := st.CurrentMember(ctx, 900000001)
+	if err := st.SetUniversityDirections(ctx, tr.ID, "hse", m.MemberID, []string{"napr-01-03-02"}); err != nil {
+		t.Fatal(err)
+	}
+	a := &Assistant{Store: st}
+	b, _ := a.loadBase(ctx)
+	c := collected{clock: a.clock(tr)}
+	tr, _ = st.Trajectory(ctx, tr.ID)
+	if err := a.studentCard(ctx, b, tr, &c); err != nil {
+		t.Fatal(err)
+	}
+	card := c.cards[0].text
+	if !strings.Contains(card, "ВШЭ: Прикладная математика и информатика (выбрано в вузе)") ||
+		!strings.Contains(card, "Иннополис: Информатика и вычислительная техника (по цели)") {
+		t.Fatalf("направления в вузах ученика:\n%s", card)
+	}
+}

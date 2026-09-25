@@ -24,6 +24,12 @@ function row(id: string, nick: string, over: Partial<BenefitRow> = {}): BenefitR
     ege_min: 75,
     ege_max: null,
     source: null,
+    directions: [],
+    other_directions: [],
+    unverified: false,
+    varies: false,
+    directions_count: 0,
+    directions_total: 0,
     ...over,
   }
 }

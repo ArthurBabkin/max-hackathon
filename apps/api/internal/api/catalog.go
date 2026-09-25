@@ -171,6 +171,28 @@ type universityOlympiad struct {
 	Level             *string `json:"level"`
 	Benefit           string  `json:"benefit"`
 	BenefitLabel      string  `json:"benefit_label"`
+	// Льгота на мои направления в этом вузе (F65); null — на них льготы нет
+	// или она уточняется. DirectionsCount из DirectionsTotal — на скольких
+	// направлениях вуза олимпиада даёт льготу.
+	MyBenefit       *string  `json:"my_benefit"`
+	MyBenefitLabel  *string  `json:"my_benefit_label"`
+	MyDirections    []string `json:"my_directions"`
+	DirectionsCount int      `json:"directions_count"`
+	DirectionsTotal int      `json:"directions_total"`
+}
+
+// offeredDirection — направление вуза в карточке (D3): is_mine — выбрано
+// учеником в этом вузе, is_goal — покрывает цель.
+type offeredDirection struct {
+	ID                    string `json:"id"`
+	Code                  string `json:"code"`
+	Name                  string `json:"name"`
+	Status                string `json:"status"`
+	Programs              int    `json:"programs"`
+	BudgetPlaces          *int   `json:"budget_places"`
+	BenefitOlympiadsCount int    `json:"benefit_olympiads_count"`
+	IsMine                bool   `json:"is_mine"`
+	IsGoal                bool   `json:"is_goal"`
 }
 
 type universityDetail struct {
@@ -182,6 +204,11 @@ type universityDetail struct {
 	Description     *string              `json:"description"`
 	SiteURL         *string              `json:"site_url"`
 	Olympiads       []universityOlympiad `json:"olympiads"`
+	// На какие направления вуза ученик смотрит льготы (core/targets).
+	OfferedDirections []offeredDirection `json:"offered_directions"`
+	TargetBasis       string             `json:"target_basis"`
+	TargetDirections  []directionItem    `json:"target_directions"`
+	TargetUnverified  bool               `json:"target_unverified"`
 }
 
 // university — GET /universities/{id} (F25, F26). Олимпиады по предметам
@@ -216,14 +243,70 @@ func (s *Server) university(w http.ResponseWriter, r *http.Request) error {
 	if out.Directions == nil {
 		out.Directions = []string{}
 	}
-	for i, x := range rows {
-		out.Olympiads[i] = universityOlympiad{
-			OlympiadProfileID: x.ProfileID, OlympiadID: x.OlympiadID, Name: names.Olympiad(x.OlympiadName), SubjectCode: x.SubjectCode,
-			SubjectName: profileLabel(x.SubjectName, x.ProfileName), Level: x.Level, Benefit: x.Benefit,
-			BenefitLabel: benefitLabels[x.Benefit],
-		}
+	if err := s.universityTargets(r, &out, rows); err != nil {
+		return err
 	}
 	writeJSON(w, http.StatusOK, out)
+	return nil
+}
+
+// universityTargets — направления вуза в карточке и льготы олимпиад на мои
+// направления (F65).
+func (s *Server) universityTargets(r *http.Request, out *universityDetail, rows []store.UniversityOlympiad) error {
+	ctx, m, uni := r.Context(), me(r), []string{out.ID}
+	ds, err := s.store.UniversityDirections(ctx, m.TrajectoryID, out.ID)
+	if err != nil {
+		return err
+	}
+	out.OfferedDirections = make([]offeredDirection, len(ds))
+	for i, d := range ds {
+		out.OfferedDirections[i] = offeredDirection{ID: d.ID, Code: d.Code, Name: d.Name, Status: d.Status,
+			Programs: d.Programs, BudgetPlaces: d.BudgetPlaces, BenefitOlympiadsCount: d.BenefitOlympiads,
+			IsMine: d.IsMine, IsGoal: d.IsGoal}
+	}
+	tg, err := s.store.TargetsOf(ctx, m.TrajectoryID, uni)
+	if err != nil {
+		return err
+	}
+	t := tg[out.ID]
+	out.TargetBasis, out.TargetUnverified = t.Basis, t.Unverified
+	out.TargetDirections = make([]directionItem, len(t.DirectionIDs))
+	for i, id := range t.DirectionIDs {
+		out.TargetDirections[i] = directionItem{ID: id, Name: t.DirectionNames[i]}
+	}
+
+	ids := make([]string, len(rows))
+	for i, x := range rows {
+		ids[i] = x.ProfileID
+	}
+	cov, err := s.store.DirectionCoverage(ctx, ids, uni)
+	if err != nil {
+		return err
+	}
+	benefits, err := s.store.TargetBenefits(ctx, m.TrajectoryID, ids, uni)
+	if err != nil {
+		return err
+	}
+	my := map[string]store.BenefitRow{}
+	for _, b := range benefits {
+		if !b.Unverified && b.Benefit != "extra_points" {
+			my[b.ProfileID] = b
+		}
+	}
+	for i, x := range rows {
+		c := cov[x.ProfileID+"/"+out.ID]
+		o := universityOlympiad{
+			OlympiadProfileID: x.ProfileID, OlympiadID: x.OlympiadID, Name: names.Olympiad(x.OlympiadName), SubjectCode: x.SubjectCode,
+			SubjectName: profileLabel(x.SubjectName, x.ProfileName), Level: x.Level, Benefit: x.Benefit,
+			BenefitLabel: benefitLabels[x.Benefit], MyDirections: []string{},
+			DirectionsCount: c.Count, DirectionsTotal: c.Total,
+		}
+		if b, ok := my[x.ProfileID]; ok {
+			label := benefitLabels[b.Benefit]
+			o.MyBenefit, o.MyBenefitLabel, o.MyDirections = &b.Benefit, &label, orEmpty(b.DirectionNames)
+		}
+		out.Olympiads[i] = o
+	}
 	return nil
 }
 
@@ -232,15 +315,26 @@ type directionItem struct {
 	Name string `json:"name"`
 }
 
-// directions — справочник целей для правки профиля (F49).
+// directionOption — направление в справочнике: код, группы для выбора с
+// поиском (D4) и popular — одно из основных, что показываются чипами.
+type directionOption struct {
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Code    string   `json:"code"`
+	Groups  []string `json:"groups"`
+	Popular bool     `json:"popular"`
+}
+
+// directions — справочник целей для правки профиля (F49): все направления
+// вузов, основные — те же, что в онбординге бота.
 func (s *Server) directions(w http.ResponseWriter, r *http.Request) error {
-	ds, err := s.store.Directions(r.Context())
+	ds, err := s.store.AllDirections(r.Context())
 	if err != nil {
 		return err
 	}
-	out := listResponse[directionItem]{Items: make([]directionItem, len(ds))}
+	out := listResponse[directionOption]{Items: make([]directionOption, len(ds))}
 	for i, d := range ds {
-		out.Items[i] = directionItem{ID: d.ID, Name: d.Name}
+		out.Items[i] = directionOption{ID: d.ID, Name: d.Name, Code: d.Code, Groups: orEmpty(d.Groups), Popular: d.Onboarding}
 	}
 	writeJSON(w, http.StatusOK, out)
 	return nil

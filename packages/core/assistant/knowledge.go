@@ -682,6 +682,76 @@ var resultText = map[string]string{
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
 // ответа. Источники — сайты олимпиад трекера, ближайшие по срокам первыми:
 // там регистрация и даты.
+// otherText — более слабая льгота на других направлениях ученика в вузе.
+var otherText = map[string]string{"bvi": "БВИ", "bvi_winners": "БВИ победителю", "score100": "100 баллов"}
+
+// basisText — почему льготы в вузе смотрятся на эти направления.
+var basisText = map[string]string{"chosen": "выбрано в вузе", "goal": "по цели"}
+
+// targetText — льгота профилей ученика в его вузах на его направления
+// (core/targets): она главнее льготы вуза целиком из списка выше. Вузы, где
+// направлений ученика не нашлось, не показываются — там верна льгота вуза.
+func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string, myUnis []string, ps []store.Profile) ([]string, error) {
+	if trajectoryID == "" || len(myUnis) == 0 || len(ps) == 0 {
+		return nil, nil
+	}
+	tg, err := a.Store.TargetsOf(ctx, trajectoryID, myUnis)
+	if err != nil {
+		return nil, err
+	}
+	unis := slices.DeleteFunc(slices.Clone(myUnis), func(u string) bool { return tg[u].Basis == "university" })
+	if len(unis) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, len(ps))
+	for i, p := range ps {
+		ids[i] = p.ID
+	}
+	rows, err := a.Store.TargetBenefits(ctx, trajectoryID, ids, unis)
+	if err != nil {
+		return nil, err
+	}
+	byPair := map[string]store.BenefitRow{}
+	for _, r := range rows {
+		byPair[r.ProfileID+"/"+r.UniversityID] = r
+	}
+	lines := []string{"Льгота в вузах ученика на его направления (главнее льготы вуза целиком):"}
+	for _, p := range ps {
+		var parts []string
+		for _, u := range unis {
+			t, x := tg[u], b.uni[u]
+			who := pick.Nick(u, x.ShortName) + ": "
+			r, ok := byPair[p.ID+"/"+u]
+			switch {
+			case !ok:
+				parts = append(parts, who+"льготы нет (направления ученика: "+strings.Join(t.DirectionNames, ", ")+")")
+			case r.Unverified:
+				parts = append(parts, who+"льготы на направления ученика уточняются ("+strings.Join(t.DirectionNames, ", ")+")")
+			default:
+				line := who + grants(r) + " (направления ученика: " + strings.Join(r.DirectionNames, ", ")
+				if r.Varies {
+					line += "; зависит от программы"
+				}
+				for _, o := range r.OtherDirections {
+					line += "; " + otherText[o.Benefit] + " — на " + strings.Join(o.Names, ", ")
+				}
+				parts = append(parts, line+")")
+			}
+		}
+		if len(ps) > 1 {
+			lines = append(lines, "  "+profileTitle(p)+":")
+			for _, x := range parts {
+				lines = append(lines, "    "+x)
+			}
+			continue
+		}
+		for _, x := range parts {
+			lines = append(lines, "  "+x)
+		}
+	}
+	return lines, nil
+}
+
 func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory, c *collected) error {
 	lines := []string{fmt.Sprintf("Класс: %d", t.Grade)}
 	goal := goalText[t.GoalStatus]
@@ -693,6 +763,27 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 		goal += "; направления: " + strings.Join(directions, ", ")
 	}
 	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(c.universities, ", ")))
+	unis, err := a.Store.TrajectoryUniversities(ctx, t.ID)
+	if err != nil {
+		return err
+	}
+	uniIDs := make([]string, len(unis))
+	for i, u := range unis {
+		uniIDs[i] = u.ID
+	}
+	tg, err := a.Store.TargetsOf(ctx, t.ID, uniIDs)
+	if err != nil {
+		return err
+	}
+	var dirs []string
+	for _, u := range unis {
+		if x := tg[u.ID]; x.Basis != "university" {
+			dirs = append(dirs, pick.Nick(u.ID, u.ShortName)+": "+strings.Join(x.DirectionNames, ", ")+" ("+basisText[x.Basis]+")")
+		}
+	}
+	if len(dirs) > 0 {
+		lines = append(lines, "Направления в вузах (на них считаются льготы): "+strings.Join(dirs, "; "))
+	}
 	items, err := a.Store.TrackerItems(ctx, t.ID)
 	if err != nil {
 		return err

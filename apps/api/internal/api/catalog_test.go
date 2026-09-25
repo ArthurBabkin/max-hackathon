@@ -180,8 +180,8 @@ func TestDirections(t *testing.T) {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	items := list(t, r.body["items"])
-	if len(items) != 16 {
-		t.Fatalf("направлений %d, ждали 16", len(items))
+	if len(items) != 72 {
+		t.Fatalf("направлений %d, ждали все 72", len(items))
 	}
 	found := false
 	for _, it := range items {

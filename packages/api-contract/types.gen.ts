@@ -330,7 +330,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Направления — справочник целей для правки профиля */
+        /**
+         * Направления — справочник целей для правки профиля
+         * @description Все направления вузов из датасета (72). `popular` — основные 16, те же, что в онбординге
+         *     бота: их профиль показывает чипами, остальные — в выборе с поиском (F65).
+         */
         get: {
             parameters: {
                 query?: never;
@@ -347,7 +351,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: components["schemas"]["Direction"][];
+                            items: components["schemas"]["DirectionOption"][];
                         };
                     };
                 };
@@ -1229,6 +1233,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/universities/{id}/directions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Выбрать направления в вузе
+         * @description Заменяет выбор направлений ученика в вузе (F65). Вуз становится «моим», новые направления
+         *     дописываются в цель (`goal_status` → `known`). Пустой список снимает выбор, цель не меняется.
+         *     Льготы в этом вузе дальше считаются на выбранные направления.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        direction_ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Profile"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/chats": {
         parameters: {
             query?: never;
@@ -1740,6 +1797,30 @@ export interface components {
              *     ]
              */
             conditions?: string[];
+            /**
+             * @description На какие направления вуза эта льгота (F65): в вузах ученика — его направления (выбранные
+             *     в вузе или из цели); пусто — льгота вуза целиком. В строке «не учитывает» — направления,
+             *     на которые льготы нет.
+             * @example [
+             *       "Программная инженерия"
+             *     ]
+             */
+            directions: string[];
+            /** @description Более слабые льготы на остальных направлениях ученика в этом вузе. */
+            other_directions: components["schemas"]["DirectionBenefit"][];
+            /** @description Льготы на направления ученика в вузе ещё уточняются — показана льгота вуза целиком. */
+            unverified: boolean;
+            /** @description Льгота или порог зависит от программы внутри направления. */
+            varies: boolean;
+            /** @description «Где ещё даёт льготу»: на скольких направлениях вуза есть льгота. */
+            directions_count: number;
+            /** @description Сколько направлений у вуза в данных; 0 — данных по направлениям нет. */
+            directions_total: number;
+        };
+        DirectionBenefit: {
+            benefit: components["schemas"]["BenefitKind"];
+            benefit_label: string;
+            directions: string[];
         };
         Stage: {
             id: string;
@@ -1804,6 +1885,38 @@ export interface components {
             /** @example Программная инженерия */
             name: string;
         };
+        DirectionOption: components["schemas"]["Direction"] & {
+            /** @example 09.03.04 */
+            code: string;
+            /** @description Группы для выбора с поиском — «ИТ», «Экономика». */
+            groups: string[];
+            /** @description Одно из основных направлений — показывается чипом. */
+            popular: boolean;
+        };
+        OfferedDirection: {
+            id: string;
+            code: string;
+            name: string;
+            /**
+             * @description to_check — льготы на направлении ещё уточняются.
+             * @enum {string}
+             */
+            status: "offered" | "to_check";
+            programs: number;
+            budget_places: number | null;
+            /** @description Сколько олимпиад дают льготу на это направление. */
+            benefit_olympiads_count: number;
+            /** @description Ученик выбрал это направление в вузе. */
+            is_mine: boolean;
+            /** @description Направление покрывает цель ученика. */
+            is_goal: boolean;
+        };
+        /**
+         * @description На что смотрятся льготы в вузе: chosen — выбранные в вузе направления, goal — направления
+         *     вуза из цели, university — вуз целиком (ни выбора, ни совпадения с целью).
+         * @enum {string}
+         */
+        TargetBasis: "chosen" | "goal" | "university";
         UniversityListItem: {
             id: string;
             short_name: string;
@@ -1815,8 +1928,26 @@ export interface components {
             /** @description Вуз входит в список ученика. */
             is_mine: boolean;
         };
+        ProfileUniversity: components["schemas"]["UniversityListItem"] & {
+            /** @description Направления, выбранные в этом вузе (F65); пусто — не выбирали. */
+            chosen_directions: components["schemas"]["Direction"][];
+            target_basis: components["schemas"]["TargetBasis"];
+            /** @description На какие направления вуза смотрятся льготы; пусто при `university`. */
+            target_directions: components["schemas"]["Direction"][];
+        };
         UniversityDetail: components["schemas"]["UniversityListItem"] & {
+            /**
+             * @deprecated
+             * @description Устарело, вместо него `offered_directions`.
+             */
             directions: string[];
+            /** @description Направления вуза — выбранные первыми, за ними из цели, дальше по числу олимпиад (F65). */
+            offered_directions: components["schemas"]["OfferedDirection"][];
+            target_basis: components["schemas"]["TargetBasis"];
+            /** @description На какие направления вуза смотрятся льготы; пусто при `university`. */
+            target_directions: components["schemas"]["Direction"][];
+            /** @description Льготы на направления ученика в вузе ещё уточняются. */
+            target_unverified: boolean;
             /** @example от 75 баллов по профильному предмету */
             ege_note: string | null;
             /** Format: uri */
@@ -1836,6 +1967,15 @@ export interface components {
                 level: components["schemas"]["Level"];
                 benefit: components["schemas"]["BenefitKind"];
                 benefit_label?: string;
+                /** @description Льгота на мои направления в этом вузе; null — на них льготы нет или она уточняется. */
+                my_benefit: components["schemas"]["BenefitKind"] | null;
+                my_benefit_label: string | null;
+                /** @description На какие из моих направлений `my_benefit`. */
+                my_directions: string[];
+                /** @description На скольких направлениях вуза олимпиада даёт льготу. */
+                directions_count: number;
+                /** @description Сколько направлений у вуза в данных. */
+                directions_total: number;
             })[];
         };
         TrackerItem: components["schemas"]["Badge"] & {
@@ -2030,7 +2170,7 @@ export interface components {
             /** @description Где ученик хочет учиться, в порядке выбора; пустой список — не важно. */
             places: components["schemas"]["Place"][];
             /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
-            universities: components["schemas"]["UniversityListItem"][];
+            universities: components["schemas"]["ProfileUniversity"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
             other_member_names: string[];
         };

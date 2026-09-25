@@ -83,8 +83,9 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	}
 
 	// У ВШЭ порог зависит от программы — он в столбце «Порог ЕГЭ», а не в
-	// условиях строки; у других вузов верхней границы нет.
-	if benefits[0]["ege_max"] != float64(90) || benefits[1]["ege_max"] != nil || benefits[2]["ege_max"] != nil {
+	// условиях строки; у других вузов верхней границы нет. Порог — на
+	// направление цели (Программная инженерия), а не по вузу целиком.
+	if benefits[0]["ege_max"] != float64(85) || benefits[1]["ege_max"] != nil || benefits[2]["ege_max"] != nil {
 		t.Fatalf("разброс порога ВШЭ: %v", benefits)
 	}
 	for _, row := range benefits {
@@ -161,8 +162,10 @@ func rowConditions(t *testing.T, row map[string]any) string {
 	return strings.Join(out, " | ")
 }
 
-// У МГУ и МФТИ по «Высшей пробе» свои правила: призёру — 100 баллов, у МФТИ
-// порог зависит от программы, а МГУ засчитывает только диплом 11 класса.
+// У МГУ и МФТИ по «Высшей пробе» свои правила: у МГУ призёру — 100 баллов и
+// засчитывается только диплом 11 класса. МФТИ на Программную инженерию (цель
+// Артёма) даёт 100 баллов, а не БВИ, как по вузу целиком. В МГУ этого
+// направления нет — там льгота вуза.
 func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	e := newEnv(t)
 	f := e.kidCreator()
@@ -181,7 +184,7 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	want := []string{
 		"КФУ: bvi БВИ / bvi БВИ / 75–<nil> / ",
 		"МГУ: bvi БВИ / score100 100 баллов / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"МФТИ: bvi БВИ / score100 100 баллов / 75–80 / ",
+		"МФТИ: score100 100 баллов / score100 100 баллов / 75–<nil> / ",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("строки таблицы:\n%s", strings.Join(got, "\n"))
