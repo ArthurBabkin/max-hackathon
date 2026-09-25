@@ -375,3 +375,19 @@ func TestAsk_TrackerQuestionSourcesAreOlympiadSites(t *testing.T) {
 		t.Fatalf("сайты олимпиад трекера, «Высшая проба» (до 11.10) раньше ВсОШ (до 28.10): %+v", ans.Sources)
 	}
 }
+
+// Предмет из вопроса, которого у олимпиады нет (Jev ошибся: «а в ВШЭ?» после
+// Технокубка — биология), не отсекает оговорку об условиях вуза.
+func TestAsk_NoteIgnoresSubjectOlympiadLacks(t *testing.T) {
+	st, tr := setup(t)
+	j := &fakeJev{probs: map[string]map[string]float64{"intent": {"benefit": 1}, "olympiad": {"p669-57": 0.9, none: 0.1},
+		"university": {"hse": 0.9, none: 0.1}, "subject": {"bio": 1}}}
+	f := &fakeLLM{reply: `{"answer": "ВШЭ даёт БВИ победителям и призёрам ТехноКубка.", "card_ids": ["olympiad:p669-57"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f, Classifier: j}).Ask(context.Background(), kid, tr, nil, "а в ВШЭ?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if want := "ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; !strings.HasSuffix(ans.Text, want) {
+		t.Fatalf("оговорка об условиях ВШЭ: %q", ans.Text)
+	}
+}
