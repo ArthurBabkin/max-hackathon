@@ -341,29 +341,7 @@ var grantNotes = []string{"Победителю — БВИ, призёру — 1
 // grantText — условие льготы в вузе: что получат победитель и призёр,
 // порог ЕГЭ, класс диплома и оговорки вуза.
 func grantText(bn store.BenefitRow) string {
-	label := func(kind string) string {
-		switch kind {
-		case "extra_points":
-			if bn.ExtraPoints == nil {
-				return "дополнительные баллы"
-			}
-			return fmt.Sprintf("+%d %s", *bn.ExtraPoints, voice.Plural(*bn.ExtraPoints, "балл", "балла", "баллов"))
-		case "score100":
-			return "100 баллов"
-		}
-		return "БВИ"
-	}
-	var g string
-	switch w, p := pick.Grants(bn); {
-	case w == "":
-		g = "льготы нет"
-	case w == p:
-		g = "победителю и призёру — " + label(w)
-	case p == "":
-		g = "победителю — " + label(w) + "; призёру льготы нет"
-	default:
-		g = "победителю — " + label(w) + "; призёру — " + label(p)
-	}
+	g := grants(bn)
 	if bn.EgeMin != nil {
 		g += fmt.Sprintf(", ЕГЭ от %d", *bn.EgeMin)
 	}
@@ -385,8 +363,36 @@ func grantText(bn store.BenefitRow) string {
 	return g
 }
 
+// grants — что получат победитель и призёр: «победителю — БВИ; призёру —
+// 100 баллов».
+func grants(bn store.BenefitRow) string {
+	label := func(kind string) string {
+		switch kind {
+		case "extra_points":
+			if bn.ExtraPoints == nil {
+				return "дополнительные баллы"
+			}
+			return fmt.Sprintf("+%d %s", *bn.ExtraPoints, voice.Plural(*bn.ExtraPoints, "балл", "балла", "баллов"))
+		case "score100":
+			return "100 баллов"
+		}
+		return "БВИ"
+	}
+	switch w, p := pick.Grants(bn); {
+	case w == "":
+		return "льготы нет"
+	case w == p:
+		return "победителю и призёру — " + label(w)
+	case p == "":
+		return "победителю — " + label(w) + "; призёру льготы нет"
+	default:
+		return "победителю — " + label(w) + "; призёру — " + label(p)
+	}
+}
+
 // universityText — карточка вуза. full — со всеми олимпиадами и условиями;
-// иначе только шапка: условия вуза уже есть в карточке олимпиады.
+// иначе только шапка со сводкой по уровням: условия вуза по олимпиаде
+// вопроса уже есть в её карточке.
 func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id string, full bool, c clock) (string, error) {
 	d, err := a.Store.University(ctx, trajectoryID, id)
 	if err != nil {
@@ -413,12 +419,13 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 	if d.EgeNote != nil {
 		lines = append(lines, "Порог ЕГЭ для подтверждения олимпиадной льготы: "+*d.EgeNote)
 	}
-	if !full {
-		return strings.Join(lines, "\n"), nil
-	}
 	rows, err := a.Store.Benefits(ctx, b.profileIDs(), []string{id})
 	if err != nil {
 		return "", err
+	}
+	lines = append(lines, b.byLevel(rows)...)
+	if !full {
+		return strings.Join(lines, "\n"), nil
 	}
 	byOlympiad := map[string][]grouped{}
 	var order []string
@@ -450,6 +457,51 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 		lines = append(lines, "  "+short(oid)+" — "+joinGroups(byOlympiad[oid]))
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// byLevel — льготы вуза по уровням перечня: сколько профилей что дают. Без
+// сводки на «какой минимальный уровень даёт БВИ?» модель обобщала по одной
+// олимпиаде из контекста.
+func (b base) byLevel(rows []store.BenefitRow) []string {
+	type key struct{ level, grant string }
+	count := map[key]int{}
+	var keys []key
+	for _, bn := range rows {
+		p, ok := b.profile[bn.ProfileID]
+		if !ok {
+			continue
+		}
+		level := "вне перечня"
+		switch {
+		case p.Kind == "vsosh":
+			level = "ВсОШ"
+		case p.Level != nil:
+			level = *p.Level + " уровень"
+		}
+		k := key{level, grants(bn)}
+		if count[k] == 0 {
+			keys = append(keys, k)
+		}
+		count[k]++
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	rank := map[string]int{"I уровень": 0, "II уровень": 1, "III уровень": 2, "ВсОШ": 3, "вне перечня": 4}
+	slices.SortFunc(keys, func(x, y key) int {
+		if r := rank[x.level] - rank[y.level]; r != 0 {
+			return r
+		}
+		if r := count[y] - count[x]; r != 0 {
+			return r
+		}
+		return strings.Compare(x.grant, y.grant)
+	})
+	lines := []string{"Льготы по уровню олимпиады (I — самый высокий), число профилей:"}
+	for _, k := range keys {
+		lines = append(lines, fmt.Sprintf("  %s: %s (%d)", k.level, k.grant, count[k]))
+	}
+	return lines
 }
 
 // catalogText — что есть в базе: на «какие вузы у тебя есть» и поиск
