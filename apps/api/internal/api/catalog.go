@@ -53,6 +53,9 @@ type myBenefit struct {
 	Benefit      string   `json:"benefit"`
 	BenefitLabel string   `json:"benefit_label"`
 	Universities []string `json:"universities"`
+	// PartialUniversities — из них вузы, где на мои направления льгота
+	// не на все программы: «БВИ» не должно читаться как «на любую».
+	PartialUniversities []string `json:"partial_universities"`
 }
 
 type listResponse[T any] struct {
@@ -164,23 +167,30 @@ func (s *Server) leadsToMine(ctx context.Context, trajectoryID string, profiles 
 	}
 	// Льгота, которая на мои направления ещё уточняется, никуда не «ведёт»:
 	// в карточке вуза её тоже нет среди «На мои направления».
-	byPair := map[string]string{}
+	byPair := map[string]store.BenefitRow{}
 	for _, b := range rows {
 		if !b.Unverified {
-			byPair[b.ProfileID+"/"+b.UniversityID] = b.Benefit
+			byPair[b.ProfileID+"/"+b.UniversityID] = b
 		}
 	}
 	out := map[string][]myBenefit{}
 	for _, p := range profiles {
 		for _, kind := range []string{"bvi", "bvi_winners", "score100"} {
-			var names []string
+			var names, partial []string
 			for _, u := range unis {
-				if byPair[p.ID+"/"+u.ID] == kind {
-					names = append(names, nick(u.ID, u.ShortName))
+				b, ok := byPair[p.ID+"/"+u.ID]
+				if !ok || b.Benefit != kind {
+					continue
+				}
+				names = append(names, nick(u.ID, u.ShortName))
+				if b.Varies {
+					partial = append(partial, nick(u.ID, u.ShortName))
 				}
 			}
 			if names != nil {
-				out[p.ID] = append(out[p.ID], myBenefit{Benefit: kind, BenefitLabel: benefitLabels[kind], Universities: names})
+				out[p.ID] = append(out[p.ID], myBenefit{
+					Benefit: kind, BenefitLabel: benefitLabels[kind], Universities: names, PartialUniversities: orEmpty(partial),
+				})
 			}
 		}
 	}

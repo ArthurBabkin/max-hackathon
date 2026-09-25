@@ -124,8 +124,8 @@ describe('ведут в мои вузы и на мои направления', 
     renderMine({
       inf: [
         leads('hse', 'Высшая проба', [
-          { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'] },
-          { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'] },
+          { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'], partial_universities: [] },
+          { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: [] },
         ]),
       ],
     })
@@ -151,10 +151,27 @@ describe('ведут в мои вузы и на мои направления', 
     expect(screen.getByRole('switch', { name: /Ведут/ })).toHaveTextContent('Иннополис, КФУ, ВШЭ · 2 направления')
   })
 
+  // Льгота на мои направления не на все программы — вуз помечен: «БВИ МГУ»
+  // не должно читаться как «на любую программу направления».
+  it('вуз, где льгота не на все программы, помечен', async () => {
+    state.universities = ['kfu', 'hse']
+    renderMine({
+      inf: [
+        leads('hse', 'Высшая проба', [
+          { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: ['ВШЭ'] },
+        ]),
+      ],
+    })
+    await userEvent.click(screen.getByRole('switch', { name: /Ведут/ }))
+    expect(screen.getByRole('button', { name: /Высшая проба/ })).toHaveTextContent(
+      '100 баллов КФУ, ВШЭ (не на все программы)',
+    )
+  })
+
   it('льгота во всех моих вузах — так и написано', async () => {
     state.universities = ['kfu', 'hse']
     renderMine({
-      inf: [leads('hse', 'Высшая проба', [{ benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'] }])],
+      inf: [leads('hse', 'Высшая проба', [{ benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: [] }])],
     })
     await userEvent.click(screen.getByRole('switch', { name: /Ведут/ }))
     expect(screen.getByRole('button', { name: /Высшая проба/ })).toHaveTextContent('100 баллов во всех твоих вузах')
@@ -176,7 +193,7 @@ describe('ведут в мои вузы и на мои направления', 
   })
 
   it('по предмету никуда не ведут — предлагает все предметы', async () => {
-    renderMine({ chem: [], all: [leads('hse', 'Высшая проба', [{ benefit: 'bvi', benefit_label: 'БВИ', universities: ['ВШЭ'] }])] })
+    renderMine({ chem: [], all: [leads('hse', 'Высшая проба', [{ benefit: 'bvi', benefit_label: 'БВИ', universities: ['ВШЭ'], partial_universities: [] }])] })
     await userEvent.click(screen.getByRole('switch', { name: /Ведут/ }))
     await userEvent.click(screen.getByRole('button', { name: 'Химия' }))
 

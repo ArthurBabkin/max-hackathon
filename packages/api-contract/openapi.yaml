@@ -1289,13 +1289,19 @@ components:
     MyBenefit:
       type: object
       description: Льгота в моих вузах и вузы, где она даётся.
-      required: [benefit, benefit_label, universities]
+      required: [benefit, benefit_label, universities, partial_universities]
       properties:
         benefit: { type: string, enum: [bvi, bvi_winners, score100] }
         benefit_label: { type: string }
         universities:
           type: array
           description: Короткие названия моих вузов, в их порядке в профиле.
+          items: { type: string }
+        partial_universities:
+          type: array
+          description: >-
+            Из universities — вузы, где на мои направления льгота не на все
+            программы («Зависит от программы» в карточке олимпиады).
           items: { type: string }
 
     ProfileLevel:
