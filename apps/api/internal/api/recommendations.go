@@ -9,14 +9,19 @@ import (
 )
 
 type recommendationsResponse struct {
-	Items   []olympiadCard `json:"items"`
-	Outside []olympiadCard `json:"outside"`
-	Note    string         `json:"note"`
+	Items         []olympiadCard `json:"items"`
+	More          []olympiadCard `json:"more"`
+	Outside       []olympiadCard `json:"outside"`
+	Note          string         `json:"note"`
+	TrackedCount  int            `json:"tracked_count"`
+	ProposedCount int            `json:"proposed_count"`
+	State         string         `json:"state"`
 }
 
 // recommendations — GET /recommendations (F13–F16): кандидаты — профили по
 // предметам ученика, в которых участвует его класс; скоринг и отбор — в
-// core/match.
+// core/match. Уже добавленное и предложенное не показывается: их места
+// занимают следующие (C3), а когда добавлено всё — state = all_tracked (C7).
 func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 	filter := r.URL.Query().Get("filter")
 	switch filter {
@@ -31,7 +36,7 @@ func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	res, err := pick.Recommend(ctx, s.store, t, s.now(), filter)
+	res, err := pick.Pick(ctx, s.store, t, s.now(), pick.Options{Filter: filter, HideTracked: true})
 	if err != nil {
 		return err
 	}
@@ -44,7 +49,8 @@ func (s *Server) recommendations(w http.ResponseWriter, r *http.Request) error {
 		return out
 	}
 	writeJSON(w, http.StatusOK, recommendationsResponse{
-		Items: toCards(res.Items), Outside: toCards(res.Outside), Note: cs.voice.T("match.note", nil),
+		Items: toCards(res.Items), More: toCards(res.More), Outside: toCards(res.Outside),
+		Note: cs.voice.T("match.note", nil), TrackedCount: res.Tracked, ProposedCount: res.Proposed, State: res.State,
 	})
 	return nil
 }

@@ -39,6 +39,9 @@ export const ICON_PATHS = {
   pin: 'M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12zM12 7a2 2 0 100 4a2 2 0 000-4z',
   out: 'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H4',
   inbox: 'M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5',
+  award: 'M12 3a6 6 0 100 12a6 6 0 100-12zM8.5 14L7 21l5-3 5 3-1.5-7',
+  trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  up: 'M6 15l6-6 6 6',
 } as const
 
 export type IconName = keyof typeof ICON_PATHS

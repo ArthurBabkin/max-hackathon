@@ -23,6 +23,10 @@
   этапы, финал — демо; ВсОШ и остальные профили — демо, с пометкой is_demo,
   чтобы работали трекер, календарь и напоминания.
 
+Вторым файлом генератор пишет 0021_university_directions_content.sql —
+направления вузов и льготы по направлениям (схема — 0020). Правила — у
+build_university_directions.
+
 Запуск: `make seed` (или `python3 datasets/parser/build_seed.py`).
 """
 from __future__ import annotations
@@ -40,6 +44,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
 DATA, SPEC = ROOT / "data", ROOT / "spec"
 OUT = REPO / "packages" / "db" / "migrations" / "0003_seed_content.sql"
+UD_OUT = REPO / "packages" / "db" / "migrations" / "0021_university_directions_content.sql"
 # Вымышленные олимпиады — только локальный стенд и CI. Не migrations-demo:
 # та катится и в прод, пока включён демо-режим в браузере.
 DEMO_OUT = REPO / "packages" / "db" / "migrations-local" / "0001_fictional_olympiads.sql"
@@ -677,6 +682,236 @@ def build() -> Seed:
 
 
 # ---------------------------------------------------------------------------
+# Направления вузов и льготы по направлениям (0021)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class UniversityDirections:
+    directions: list[dict] = field(default_factory=list)
+    pairs: list[dict] = field(default_factory=list)
+    benefits: list[dict] = field(default_factory=list)
+    sources: dict[str, dict] = field(default_factory=dict)
+    own_sources: list[str] = field(default_factory=list)  # нет в 0003 — откат их удаляет
+    stats: Counter = field(default_factory=Counter)
+
+
+def direction_id(code: str) -> str:
+    return "napr-" + code.replace(".", "-")
+
+
+def program_title(name: str) -> str:
+    """Название программы для людей: без лишних пробелов и непарной скобки.
+
+    В выгрузке МГУ хвост с профилем теряет открывающую скобку:
+    «Менеджмент — Менеджмент в культуре)».
+    """
+    name = re.sub(r"\s+\)", ")", " ".join(name.split()))
+    if name.endswith(")") and name.count(")") > name.count("("):
+        name = name[:-1].rstrip()
+    return name
+
+
+def program_labels(programs: list[dict]) -> dict[str, tuple[str, str | None]]:
+    """Подписи программ одного направления вуза: название, а если оно на
+    направлении не одно — ещё и факультет или кампус («Физика» ВШЭ в Москве и
+    Петербурге, ПМИ МГУ на ВМК и в филиалах). Факультет из кодов укрупнённых
+    групп (так в выгрузке КФУ) подписью не служит."""
+    names = Counter(program_title(p["program_name"]) for p in programs)
+    out = {}
+    for p in programs:
+        name = program_title(p["program_name"])
+        faculty = (p.get("faculty") or "").strip()
+        usable = names[name] > 1 and faculty and not faculty[0].isdigit()
+        out[p["program_id"]] = (name, faculty if usable else None)
+    return out
+
+
+def label_text(label: tuple[str, str | None]) -> str:
+    name, faculty = label
+    return f"{name} ({faculty})" if faculty else name
+
+
+GRANT_RANK = {"БВИ": 2, "100_ballov": 1}
+GRANT_LABEL = {
+    (2, 2): "БВИ", (2, 1): "БВИ победителю, 100 баллов призёру", (2, 0): "БВИ только победителю",
+    (1, 1): "100 баллов", (1, 0): "100 баллов только победителю",
+}
+NO_GRANT = (0, 0)
+
+
+def program_grant(records: list[dict]) -> tuple[int, int]:
+    """Что программа даёт победителю и призёру: 2 — БВИ, 1 — 100 баллов, 0 —
+    ничего. Победитель получает не меньше призёра — как в aggregate_key."""
+    win = max((GRANT_RANK[r["benefit_type"]] for r in records), default=0)
+    pri = max((GRANT_RANK[r["benefit_type"]] for r in records
+               if r["diploma_status"] == "prizyor"), default=0)
+    return win, pri
+
+
+def quoted(label: tuple[str, str | None]) -> str:
+    name, faculty = label
+    s = "«" + name.replace("«", "„").replace("»", "“") + "»"
+    return f"{s} ({faculty})" if faculty else s
+
+
+def listed(labels: list[tuple[str, str | None]]) -> str:
+    """«A», «A» и «B», «A», «B» и «C», а длиннее — «A», «B» и ещё N программах."""
+    shown = [quoted(x) for x in labels]
+    if len(shown) > 3:
+        return f"{shown[0]}, {shown[1]} и ещё {len(shown) - 2} программах"
+    return shown[0] if len(shown) == 1 else ", ".join(shown[:-1]) + " и " + shown[-1]
+
+
+def varies_note(grants: list[tuple[tuple[str, str | None], tuple[int, int]]]) -> str | None:
+    """Пояснение к льготе направления, если программы дают разное.
+
+    Сводная льгота строки — лучшее по всем программам, поэтому пояснение
+    перечисляет программы, где хуже. Если хуже только тем, что льготы нет, и
+    программ с льготой меньше, называются они: «льгота только на «A»».
+    """
+    by_grant: dict[tuple, set] = defaultdict(set)
+    for label, grant in grants:
+        by_grant[grant].add(label)
+    if len(by_grant) < 2:
+        return None
+    head = (max(g[0] for g in by_grant), max(g[1] for g in by_grant))
+    groups = {g: sorted(ls, key=lambda x: (x[0], x[1] or "")) for g, ls in by_grant.items()}
+    worse = sorted((g for g in groups if g != head), reverse=True)
+    if worse == [NO_GRANT] and len(groups[head]) < len(groups[NO_GRANT]):
+        return "Зависит от программы: льгота только на " + listed(groups[head])
+    parts = [f"на {listed(groups[g])} льготы нет" if g == NO_GRANT
+             else f"на {listed(groups[g])} — {GRANT_LABEL[g]}" for g in worse]
+    return "Зависит от программы: " + ", ".join(parts)
+
+
+def build_university_directions(seed: Seed) -> UniversityDirections:
+    """Направления вузов и льготы по направлениям — сид 0021.
+
+    * Программа — program_id. В A она повторяется на каждую профильную
+      группу, поэтому число программ и места считаются по program_id.
+      Программа со статусом not_offered хоть в одном датасете не считается.
+    * Пара вуз–направление — программы вуза с этим кодом. status = offered,
+      если хоть одна программа пары в B offered (её правила приёма
+      разобраны), иначе to_check: программы есть, льготы уточняются. Так
+      вышли НГУ 01.03.01–01.03.03 и СПбГУ 06.03.01: в A программы есть, в B
+      все to_check. Пара только из A — тоже to_check.
+    * budget_places — сумма известных мест программ пары; NULL, если вуз не
+      опубликовал места ни одной.
+    * Направления — все коды пар. Шестнадцать направлений онбординга уже
+      есть в 0003, им проставляются только группы. Новым имя — как в
+      build_directions, предметы — ключевые предметы их групп по порядку
+      групп, группы — по алфавиту.
+    * Льгота — как build_benefits, но ключ (профиль, вуз, направление, год) и
+      только offered-программы направления. varies — программы направления
+      дают разное (program_grant): где-то льготы нет, льгота другого вида или
+      призёру не то, что на другой программе. Тогда note начинается с
+      «Зависит от программы: …» (varies_note).
+    """
+    A = load("vuz_napravleniya.json", "vuz_napravleniya")
+    B = load("vuz_napravlenie_olimpiady.json", "vuz_napravlenie_olimpiady")
+    ud = UniversityDirections()
+
+    programs: dict[str, dict] = {}
+    excluded: set[str] = set()
+    for rows, in_b in ((A, False), (B, True)):
+        for r in rows:
+            pid = r["program_id"]
+            if not pid or not r["napravlenie_code"]:
+                continue  # у вуза нет программ группы: not_offered без программы
+            if r["status"] == "not_offered":
+                excluded.add(pid)
+            p = programs.setdefault(pid, {
+                "program_id": pid, "vuz": r["vuz_id"], "code": r["napravlenie_code"],
+                "program_name": r["program_name"], "faculty": r["faculty"], "places": None,
+                "groups": set(), "b_status": None, "year": r["admission_year"], "records": [],
+            })
+            p["groups"].add(r["profile_group"])
+            if p["places"] is None:
+                p["places"] = r["budget_places_2026"]
+            if in_b:
+                p["b_status"], p["records"] = r["status"], r["prinimaemye_olimpiady"]
+    by_pair: dict[tuple, list[dict]] = defaultdict(list)
+    for pid in sorted(programs):
+        if pid not in excluded:
+            p = programs[pid]
+            by_pair[(p["vuz"], p["code"])].append(p)
+
+    names = defaultdict(Counter)
+    for a in A:
+        if a["napravlenie_code"]:
+            names[a["napravlenie_code"]][base_name(a["napravlenie_name"])] += 1
+    groups: dict[str, set] = defaultdict(set)
+    for (_, code), progs in by_pair.items():
+        for p in progs:
+            groups[code] |= p["groups"]
+    onboarding = {d["id"]: d for d in seed.directions}
+    for code in sorted(groups):
+        did, gs = direction_id(code), sorted(groups[code])
+        if did in onboarding:
+            name, subjects = onboarding[did]["name"], onboarding[did]["subject_codes"]
+        else:
+            name = min(names[code], key=lambda n: (len(n), n))
+            subjects = []
+            for g in gs:
+                subjects += [s for s in GROUP_SUBJECTS[g] if s not in subjects]
+        ud.directions.append({"id": did, "code": code, "name": name, "subject_codes": subjects,
+                              "groups": gs, "onboarding": did in onboarding})
+
+    for (vuz, code) in sorted(by_pair):
+        progs = by_pair[(vuz, code)]
+        labels = program_labels(progs)
+        places = [p["places"] for p in progs if p["places"] is not None]
+        offered = [p for p in progs if p["b_status"] == "offered"]
+        ud.pairs.append({
+            "university_id": vuz, "direction_id": direction_id(code),
+            "status": "offered" if offered else "to_check", "programs": len(progs),
+            "budget_places": sum(places) if places else None,
+            "program_names": sorted({label_text(labels[p["program_id"]]) for p in progs}),
+        })
+        build_direction_benefits(ud, seed, vuz, code, offered, labels)
+    # Самый частый источник записей направления бывает не тем, что у вуза в
+    # целом (у ВШЭ правила — постранично): такие источники есть только здесь.
+    ud.own_sources = sorted(k for k in ud.sources if k not in seed.sources)
+    ud.stats["direction_benefits"] = len(ud.benefits)
+    ud.stats["direction_benefits_varies"] = sum(b["varies"] for b in ud.benefits)
+    return ud
+
+
+def build_direction_benefits(ud: UniversityDirections, seed: Seed, vuz: str, code: str,
+                             offered: list[dict], labels: dict):
+    keys: dict[tuple, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+    for p in offered:
+        for r in p["records"]:
+            prof = seed.profiles.get(r["olympiad_id"])
+            if prof is None:
+                ud.stats["benefit_unknown_profile"] += 1
+                continue
+            if not level_ok(prof["level"], r["min_level_required"], prof["id"].startswith("vsosh-")):
+                ud.stats["benefit_level_filtered"] += 1
+                continue
+            keys[(r["olympiad_id"], p["year"])][p["program_id"]].append(r)
+    for (pid, year) in sorted(keys):
+        per = keys[(pid, year)]
+        progs = [p for p in offered if p["year"] == year]
+        agg = aggregate_key([r for p in progs for r in per.get(p["program_id"], [])])
+        vnote = varies_note([(labels[p["program_id"]], program_grant(per.get(p["program_id"], [])))
+                             for p in progs])
+        src = None
+        if not agg["demo"]:
+            src = add_source(ud, agg["src_url"], agg["src_page"], "rules",
+                             f"{UNIVERSITY_SHORT[vuz]}: особые права победителей и призёров олимпиад, {year}",
+                             agg["src_date"])
+        ud.benefits.append({
+            "olympiad_profile_id": pid, "university_id": vuz, "direction_id": direction_id(code),
+            "admission_year": year, "benefit": agg["benefit"], "ege_min": agg["ege_min"],
+            "diploma_grades": agg["diploma_grades"],
+            "note": ". ".join(n for n in (vnote, agg["note"]) if n) or None,
+            "varies": vnote is not None, "source_id": src,
+        })
+
+
+# ---------------------------------------------------------------------------
 # SQL
 # ---------------------------------------------------------------------------
 
@@ -801,10 +1036,110 @@ def render_demo(demo: Seed) -> str:
     ])
 
 
+def values(rows: list[dict], cols: list[str], casts: dict[str, str] | None = None) -> str:
+    casts = casts or {}
+
+    def value(r, c):
+        s = lit(r[c])
+        return f"{s}::{casts[c]}" if c in casts and r[c] is not None else s
+
+    return ",\n".join("  (" + ", ".join(value(r, c) for c in cols) + ")" for r in rows)
+
+
+def insert_select(table: str, cols: list[str], rows: list[dict], key: list[str],
+                  exists: list[str], casts: dict[str, str]) -> str:
+    """INSERT … SELECT из VALUES: строка, чей вуз или профиль исчез из базы,
+    пропускается, а не роняет миграцию."""
+    if not rows:
+        return ""
+    sel = ", ".join(f"v.{c}::{casts[c]}" if c in casts else f"v.{c}" for c in cols)
+    updates = ",\n  ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in key)
+    return (f"INSERT INTO {table} ({', '.join(cols)})\nSELECT {sel}\nFROM (VALUES\n"
+            f"{values(rows, cols)}\n) AS v({', '.join(cols)})\n"
+            f"WHERE " + "\n  AND ".join(exists) + "\n"
+            f"ON CONFLICT ({', '.join(key)}) DO UPDATE SET\n  {updates};\n")
+
+
+def render_university_directions(ud: UniversityDirections) -> str:
+    onboarding = [d for d in ud.directions if d["onboarding"]]
+    new = [d for d in ud.directions if not d["onboarding"]]
+    sources = [ud.sources[k] for k in sorted(ud.sources)]
+    to_check = sum(p["status"] == "to_check" for p in ud.pairs)
+    varies = sum(b["varies"] for b in ud.benefits)
+    return "\n".join([
+        "-- Направления вузов и льготы олимпиад по направлениям (схема — 0020).\n"
+        "--\n"
+        "-- ФАЙЛ СГЕНЕРИРОВАН: datasets/parser/build_seed.py (make seed) из датасетов A\n"
+        "-- (vuz_napravleniya.json) и B (vuz_napravlenie_olimpiady.json). Руками не править —\n"
+        "-- поменяйте датасет или генератор и перегенерируйте. Правила сборки — в\n"
+        "-- build_university_directions.\n"
+        "--\n"
+        f"-- Строк: направления {len(ud.directions)} (онбординга {len(onboarding)}, "
+        f"новых {len(new)}), пары вуз–направление {len(ud.pairs)}\n"
+        f"-- (to_check {to_check}), источники {len(sources)}, льготы по направлениям "
+        f"{len(ud.benefits)} (разные у программ {varies}).\n"
+        "--\n"
+        "-- Направлениям онбординга проставляются только группы: имя и предметы — из 0003.\n"
+        "-- Вставки идемпотентны: повторный прогон ничего не меняет. Триггеров на новых\n"
+        "-- таблицах нет, событий «изменились льготы» миграция не рождает.\n"
+        "--\n"
+        "-- Откат удаляет этот контент, а каскадом — и выбор пользователей по нему: все\n"
+        "-- строки trajectory_university_directions и строки trajectory_directions с новыми\n"
+        "-- направлениями (устаревшее trajectories.direction_id с ними обнуляется).\n"
+        f"-- Из источников удаляются только {len(ud.own_sources)} своих, которых нет в 0003, "
+        "и лишь если\n"
+        "-- на них больше ничто не ссылается.\n",
+        "-- +goose Up\n",
+        "UPDATE directions d SET groups = v.groups\nFROM (VALUES\n"
+        + values(onboarding, ["id", "groups"], {"groups": "text[]"})
+        + "\n) AS v(id, groups)\nWHERE d.id = v.id;\n",
+        "INSERT INTO directions (id, name, subject_codes, groups, onboarding) VALUES\n"
+        + values(new, ["id", "name", "subject_codes", "groups", "onboarding"],
+                 {"subject_codes": "text[]", "groups": "text[]"})
+        + "\nON CONFLICT (id) DO NOTHING;\n",
+        "INSERT INTO sources (id, kind, title, url, verified_at) VALUES\n"
+        + values(sources, ["id", "kind", "title", "url", "verified_at"], {"verified_at": "date"})
+        + "\nON CONFLICT (id) DO NOTHING;\n",
+        insert_select(
+            "university_directions",
+            ["university_id", "direction_id", "status", "programs", "budget_places", "program_names"],
+            ud.pairs, key=["university_id", "direction_id"],
+            exists=["EXISTS (SELECT 1 FROM universities u WHERE u.id = v.university_id)"],
+            casts={"programs": "smallint", "budget_places": "integer", "program_names": "text[]"}),
+        insert_select(
+            "direction_benefits",
+            ["olympiad_profile_id", "university_id", "direction_id", "admission_year", "benefit",
+             "ege_min", "diploma_grades", "note", "varies", "source_id"],
+            ud.benefits, key=["olympiad_profile_id", "university_id", "direction_id", "admission_year"],
+            exists=["EXISTS (SELECT 1 FROM olympiad_profiles p WHERE p.id = v.olympiad_profile_id)",
+                    "EXISTS (SELECT 1 FROM university_directions ud\n"
+                    "              WHERE ud.university_id = v.university_id AND ud.direction_id = v.direction_id)"],
+            casts={"admission_year": "smallint", "ege_min": "smallint", "diploma_grades": "int[]",
+                   "note": "text", "source_id": "text"}),
+        "-- +goose Down\n"
+        "DELETE FROM direction_benefits;\n"
+        "-- Каскадом уходит trajectory_university_directions.\n"
+        "DELETE FROM university_directions;\n"
+        "-- Каскадом уходят строки trajectory_directions с новыми направлениями.\n"
+        "DELETE FROM directions WHERE NOT onboarding;\n"
+        "UPDATE directions SET groups = '{}';\n"
+        + (("DELETE FROM sources s WHERE s.id IN (\n"
+            + ",\n".join("  " + ", ".join(lit(k) for k in ud.own_sources[i:i + 6])
+                         for i in range(0, len(ud.own_sources), 6))
+            + ")\n"
+            "  AND NOT EXISTS (SELECT 1 FROM benefits b WHERE b.source_id = s.id)\n"
+            "  AND NOT EXISTS (SELECT 1 FROM stages st WHERE st.source_id = s.id)\n"
+            "  AND NOT EXISTS (SELECT 1 FROM olympiad_profiles p WHERE p.source_id = s.id);\n")
+           if ud.own_sources else ""),
+    ])
+
+
 def main():
     seed = build()
     OUT.write_text(render(seed), encoding="utf-8")
     DEMO_OUT.write_text(render_demo(build_demo()), encoding="utf-8")
+    ud = build_university_directions(seed)
+    UD_OUT.write_text(render_university_directions(ud), encoding="utf-8")
     counts = {
         "subjects": len(seed.subjects), "directions": len(seed.directions),
         "universities": len(seed.universities), "sources": len(seed.sources),
@@ -813,6 +1148,13 @@ def main():
     }
     print(f"{OUT.relative_to(REPO)}: {counts}")
     print(dict(sorted(seed.stats.items())))
+    ud_counts = {
+        "directions": len(ud.directions), "pairs": len(ud.pairs),
+        "to_check": sum(p["status"] == "to_check" for p in ud.pairs),
+        "sources": len(ud.sources), "direction_benefits": len(ud.benefits),
+    }
+    print(f"{UD_OUT.relative_to(REPO)}: {ud_counts}")
+    print(dict(sorted(ud.stats.items())))
 
 
 if __name__ == "__main__":

@@ -73,6 +73,22 @@ type benefitRow struct {
 	EgeMax              *int          `json:"ege_max"`
 	// Conditions — своё у вуза в карточке олимпиады (F19); в других списках пусто.
 	Conditions []string `json:"conditions,omitempty"`
+	// Льгота в моих вузах — на мои направления (F65): на какие направления
+	// вуза (пусто — вуз целиком), более слабые льготы на остальных, «уточняется».
+	Directions      []string              `json:"directions"`
+	OtherDirections []directionBenefitDTO `json:"other_directions"`
+	Unverified      bool                  `json:"unverified"`
+	Varies          bool                  `json:"varies"`
+	// «Где ещё даёт льготу»: на скольких направлениях вуза (0 из 0 — данных
+	// по направлениям нет).
+	DirectionsCount int `json:"directions_count"`
+	DirectionsTotal int `json:"directions_total"`
+}
+
+type directionBenefitDTO struct {
+	Benefit      string   `json:"benefit"`
+	BenefitLabel string   `json:"benefit_label"`
+	Directions   []string `json:"directions"`
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
@@ -83,6 +99,12 @@ func benefitRowOf(b store.BenefitRow) benefitRow {
 		City: b.City, Benefit: &benefit, BenefitLabel: &label, ExtraPoints: b.ExtraPoints, EgeMin: b.EgeMin,
 		DiplomaGrades: b.DiplomaGrades, Note: b.Note, Source: sourceOf(b.Source),
 		UniversityNick: nick(b.UniversityID, b.UniversityShort), Winner: winner, Prizer: prizer,
+		Directions: orEmpty(b.DirectionNames), OtherDirections: []directionBenefitDTO{},
+		Unverified: b.Unverified, Varies: b.Varies,
+	}
+	for _, o := range b.OtherDirections {
+		row.OtherDirections = append(row.OtherDirections, directionBenefitDTO{
+			Benefit: o.Benefit, BenefitLabel: benefitLabels[o.Benefit], Directions: o.Names})
 	}
 	if _, to, ok := egeRange(b.Note); ok {
 		if n, err := strconv.Atoi(to); err == nil {
@@ -173,7 +195,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	out := olympiadDetail{
 		olympiadCard: cs.card(p, res), OfficialURL: p.OfficialURL, Description: p.Description, ProfilesSource: sourceOf(p.Source),
 		BenefitsSource: benefitsSource(mine), Conditions: cs.conditions(p, mine, all),
-		Stages: stagesOf(st, cs.Tracker.Registered[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
+		Stages: stagesOf(st, cs.Tracker.Progress[p.ID], cs.Now), StagesAreDemo: len(st) == 0,
 		Why: cs.why(p, res, mine, all), BenefitUniversities: []benefitRow{}, BenefitColumns: benefitColumns(p, mine),
 	}
 	for _, x := range st {
@@ -184,9 +206,22 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, u := range cs.Universities {
 		own[u.ID] = true
 	}
+	var others []string
 	for _, b := range all {
 		if !own[b.UniversityID] {
-			out.BenefitUniversities = append(out.BenefitUniversities, benefitRowOf(b))
+			others = append(others, b.UniversityID)
+		}
+	}
+	cov, err := s.store.DirectionCoverage(ctx, []string{p.ID}, others)
+	if err != nil {
+		return err
+	}
+	for _, b := range all {
+		if !own[b.UniversityID] {
+			row := benefitRowOf(b)
+			c := cov[p.ID+"/"+b.UniversityID]
+			row.DirectionsCount, row.DirectionsTotal = c.Count, c.Total
+			out.BenefitUniversities = append(out.BenefitUniversities, row)
 		}
 	}
 
@@ -221,6 +256,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		out.Benefits = append(out.Benefits, benefitRow{
 			UniversityID: u.ID, UniversityName: u.Name, UniversityShortName: u.ShortName, City: u.City,
 			UniversityNick: nick(u.ID, u.ShortName),
+			Directions:     orEmpty(cs.Targets[u.ID].DirectionNames), OtherDirections: []directionBenefitDTO{},
 		})
 	}
 	if out.Benefits == nil {
@@ -231,8 +267,8 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func stagesOf(st []stages.Stage, registered bool, now time.Time) []stageDTO {
-	states := stages.States(st, registered, now)
+func stagesOf(st []stages.Stage, p stages.Progress, now time.Time) []stageDTO {
+	states := stages.States(st, p, now)
 	out := make([]stageDTO, len(st))
 	for i, x := range st {
 		out[i] = stageDTO{
@@ -347,6 +383,22 @@ func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	grade := int32(cs.Trajectory.Grade)
 	if len(b.DiplomaGrades) > 0 && !slices.Contains(b.DiplomaGrades, grade) {
 		out = append(out, v.T("cond.gradeMiss", voice.Vars{"grades": gradesLabel(b.DiplomaGrades), "grade": grade}))
+	}
+	// Льгота на мои направления (F65): не на всех программах — как в
+	// правилах вуза; ещё проверяется — показана льгота вуза целиком.
+	if b.Varies {
+		for _, s := range pick.NoteSentences(b.Note) {
+			if strings.HasPrefix(s, "Зависит от программы") {
+				out = append(out, s)
+			}
+		}
+	}
+	if b.Unverified {
+		quoted := make([]string, len(b.DirectionNames))
+		for i, n := range b.DirectionNames {
+			quoted[i] = "«" + n + "»"
+		}
+		out = append(out, v.T("cond.unverifiedDirections", voice.Vars{"directions": strings.Join(quoted, ", ")}))
 	}
 	return out
 }

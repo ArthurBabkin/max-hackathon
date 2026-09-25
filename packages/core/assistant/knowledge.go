@@ -10,6 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
@@ -31,6 +32,9 @@ type base struct {
 	profile   map[string]store.Profile   // профиль по id
 	unis      []store.University
 	uni       map[string]store.University
+	// Направления подготовки: для поиска в вопросе и карточки направления.
+	directions []Direction
+	direction  map[string]Direction
 }
 
 func (a *Assistant) loadBase(ctx context.Context) (base, error) {
@@ -51,6 +55,16 @@ func (a *Assistant) loadBase(ctx context.Context) (base, error) {
 	}
 	for _, u := range b.unis {
 		b.uni[u.ID] = u
+	}
+	ds, err := a.Store.AllDirections(ctx)
+	if err != nil {
+		return b, err
+	}
+	b.direction = make(map[string]Direction, len(ds))
+	for _, d := range ds {
+		x := Direction{ID: d.ID, Code: d.Code, Name: d.Name}
+		b.directions = append(b.directions, x)
+		b.direction[d.ID] = x
 	}
 	return b, nil
 }
@@ -177,6 +191,20 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 		}
 		lines = append(lines, "  "+who+": "+g.text)
 	}
+	// Как плашка в приложении: по одним датам модель советовала олимпиаду,
+	// в которую уже не вступить.
+	var closed []string
+	for _, x := range ps {
+		if !stages.Joinable(byProfile[x.ID], c.now) {
+			closed = append(closed, profileTitle(x))
+		}
+	}
+	switch {
+	case len(closed) > 0 && len(closed) == len(ps):
+		lines = append(lines, "Регистрация закрыта: срок первого этапа прошёл, в этом сезоне в олимпиаду не вступить.")
+	case len(closed) > 0:
+		lines = append(lines, "Регистрация закрыта по профилям: "+strings.Join(closed, ", ")+" — срок первого этапа прошёл.")
+	}
 
 	year := 0
 	for _, bn := range benefits {
@@ -287,7 +315,7 @@ func (c clock) schedule(st []stages.Stage) string {
 	if len(st) == 0 {
 		return "этапов нет"
 	}
-	states := stages.States(st, false, c.now)
+	states := stages.States(st, stages.Progress{}, c.now)
 	parts := make([]string, len(st))
 	for i, s := range st {
 		from, to := s.StartsAt, s.EndsAt
@@ -390,10 +418,14 @@ func grants(bn store.BenefitRow) string {
 	}
 }
 
-// universityText — карточка вуза. full — со всеми олимпиадами и условиями;
-// иначе только шапка со сводкой по уровням: условия вуза по олимпиаде
-// вопроса уже есть в её карточке.
-func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id string, full bool, c clock) (string, error) {
+// universityText — карточка вуза, как его лист в приложении: направления
+// с программами и олимпиадами, на что ученику здесь считаются льготы
+// (core/targets). full — со всеми олимпиадами и условиями: сначала на
+// направления ученика, остальные — отдельно; иначе только шапка со сводкой
+// по уровням: условия вуза по олимпиаде вопроса уже есть в её карточке.
+// asked — направления из вопроса: тогда льготы — на них, а не на цель
+// ученика; нет их в вузе — только шапка.
+func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id string, asked []string, full bool, c clock) (string, error) {
 	d, err := a.Store.University(ctx, trajectoryID, id)
 	if err != nil {
 		return "", err
@@ -413,8 +445,25 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 	} else {
 		lines = append(lines, "Правила приёма: не проверены")
 	}
-	if len(d.Directions) > 0 {
-		lines = append(lines, "Направления: "+strings.Join(d.Directions, ", "))
+	dirs, err := a.Store.UniversityDirections(ctx, trajectoryID, id)
+	if err != nil {
+		return "", err
+	}
+	l := lens{who: "направления ученика", mark: "направление ученика"}
+	var tg map[string]store.UniversityTarget
+	if len(asked) > 0 {
+		l = lens{who: "направление из вопроса", mark: "направление из вопроса", asked: b.directionNames(asked)}
+		tg, err = a.Store.TargetsOn(ctx, asked, []string{id})
+	} else {
+		tg, err = a.Store.TargetsOf(ctx, trajectoryID, []string{id})
+	}
+	if err != nil {
+		return "", err
+	}
+	t := tg[id]
+	lines = append(lines, directionLines(dirs, t, l)...)
+	if l.asked != nil && t.Basis == "university" {
+		return strings.Join(lines, "\n"), nil
 	}
 	if d.EgeNote != nil {
 		lines = append(lines, "Порог ЕГЭ для подтверждения олимпиадной льготы: "+*d.EgeNote)
@@ -423,23 +472,191 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 	if err != nil {
 		return "", err
 	}
-	lines = append(lines, b.byLevel(rows)...)
+	// Льготы на направления ученика (или из вопроса) — когда они в вузе
+	// есть и проверены; иначе — вуза целиком, как «Все» в приложении.
+	onDirs := t.Basis != "university" && !t.Unverified
+	var mine []store.BenefitRow
+	if onDirs {
+		if l.asked != nil {
+			mine, err = a.Store.BenefitsOn(ctx, asked, b.profileIDs(), []string{id})
+		} else {
+			mine, err = a.Store.TargetBenefits(ctx, trajectoryID, b.profileIDs(), []string{id})
+		}
+		if err != nil {
+			return "", err
+		}
+		lines = append(lines, b.byLevel(mine, " на "+l.who)...)
+	} else {
+		lines = append(lines, b.byLevel(rows, "")...)
+	}
 	if !full {
 		return strings.Join(lines, "\n"), nil
 	}
-	byOlympiad := map[string][]grouped{}
+	cov, err := a.Store.DirectionCoverage(ctx, b.profileIDs(), []string{id})
+	if err != nil {
+		return "", err
+	}
+	coverage := func(profileID string) string {
+		x, ok := cov[profileID+"/"+id]
+		if !ok || x.Count >= x.Total {
+			return ""
+		}
+		return fmt.Sprintf(" (на %d из %d направлений)", x.Count, x.Total)
+	}
+	short := func(oid string) string { return names.Olympiad(b.profiles[oid][0].OlympiadName) }
+	if !onDirs {
+		byOlympiad, order := b.byOlympiad(rows, func(bn store.BenefitRow) (string, string) {
+			p := b.profile[bn.ProfileID]
+			return grantText(bn), profileTitle(p) + coverage(bn.ProfileID)
+		})
+		if len(order) == 0 {
+			lines = append(lines, "Олимпиады с льготами: в базе нет ни одной.")
+		} else {
+			lines = append(lines, fmt.Sprintf("Олимпиады с льготами или баллами в вузе целиком (%d олимпиад, %d профилей) — профили (на скольких направлениях вуза, если не на всех): условие:", len(order), len(rows)))
+		}
+		for _, oid := range order {
+			lines = append(lines, "  "+short(oid)+" — "+joinGroups(byOlympiad[oid]))
+		}
+		return strings.Join(lines, "\n"), nil
+	}
+	byOlympiad, order := b.byOlympiad(mine, func(bn store.BenefitRow) (string, string) {
+		return grantText(bn) + directionNotes(bn, true), profileTitle(b.profile[bn.ProfileID])
+	})
+	who := strings.Join(t.DirectionNames, ", ")
+	if len(order) == 0 {
+		lines = append(lines, "Олимпиады с льготой на "+l.who+" ("+who+"): в базе нет ни одной.")
+	} else {
+		lines = append(lines, fmt.Sprintf("Олимпиады с льготой на %s (%s) (%d олимпиад, %d профилей) — профили: условие:", l.who, who, len(order), len(mine)))
+	}
+	for _, oid := range order {
+		lines = append(lines, "  "+short(oid)+" — "+joinGroups(byOlympiad[oid]))
+	}
+	// Остальные олимпиады вуза — с тем, на скольких направлениях они дают
+	// льготу: у профилей одной олимпиады берётся самый широкий охват.
+	best := map[string]store.Coverage{}
+	var others []string
+	for _, bn := range rows {
+		p, ok := b.profile[bn.ProfileID]
+		if !ok || byOlympiad[p.OlympiadID] != nil {
+			continue
+		}
+		if _, seen := best[p.OlympiadID]; !seen {
+			others = append(others, p.OlympiadID)
+		}
+		if x := cov[bn.ProfileID+"/"+id]; x.Count >= best[p.OlympiadID].Count {
+			best[p.OlympiadID] = x
+		}
+	}
+	b.sortOlympiads(others)
+	if len(others) > 0 {
+		parts := make([]string, len(others))
+		for i, oid := range others {
+			parts[i] = short(oid)
+			if x := best[oid]; x.Total > 0 {
+				parts[i] += fmt.Sprintf(" (на %d из %d направлений)", x.Count, x.Total)
+			}
+		}
+		lines = append(lines, fmt.Sprintf("Только на другие направления вуза, не на %s (%d олимпиад): %s", l.who, len(others), strings.Join(parts, ", ")))
+	}
+	return strings.Join(lines, "\n"), nil
+}
+
+// lens — на чьи направления смотрит карточка вуза: ученика или из вопроса.
+type lens struct {
+	who, mark string
+	asked     []string // названия направлений из вопроса; nil — цель ученика
+}
+
+// directionLines — направления вуза: код, программы, бюджетные места,
+// олимпиады с льготой или «льготы уточняются»; направления ученика (или из
+// вопроса) помечены, у них — названия программ. Дальше — на что здесь
+// считаются льготы.
+func directionLines(dirs []store.UniversityDirection, t store.UniversityTarget, l lens) []string {
+	var lines []string
+	if len(dirs) > 0 {
+		lines = append(lines, fmt.Sprintf("Направления вуза (%d) — программ, олимпиад с льготой:", len(dirs)))
+	}
+	for _, d := range dirs {
+		var parts []string
+		if d.Programs > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", d.Programs, voice.Plural(d.Programs, "программа", "программы", "программ")))
+		}
+		if d.BudgetPlaces != nil {
+			parts = append(parts, fmt.Sprintf("%d %s", *d.BudgetPlaces, voice.Plural(*d.BudgetPlaces, "бюджетное место", "бюджетных места", "бюджетных мест")))
+		}
+		if d.Status == "to_check" {
+			parts = append(parts, "льготы уточняются")
+		} else {
+			parts = append(parts, fmt.Sprintf("%d %s с льготой", d.BenefitOlympiads, voice.Plural(d.BenefitOlympiads, "олимпиада", "олимпиады", "олимпиад")))
+		}
+		line := "  " + d.Code + " " + d.Name + " — " + strings.Join(parts, ", ")
+		target := slices.Contains(t.DirectionIDs, d.ID)
+		switch {
+		case target && l.asked != nil:
+			line += "; " + l.mark
+		case target:
+			line += "; " + l.mark + " (" + basisText[t.Basis] + ")"
+		}
+		lines = append(lines, line)
+		if target && len(d.ProgramNames) > 0 {
+			lines = append(lines, "    программы: "+strings.Join(d.ProgramNames, "; "))
+		}
+	}
+	names := strings.Join(t.DirectionNames, ", ")
+	switch {
+	case l.asked != nil && (t.Basis == "university" || len(t.DirectionIDs) == 0):
+		lines = append(lines, "Направления из вопроса ("+strings.Join(l.asked, ", ")+") в этом вузе нет.")
+	case l.asked != nil && t.Unverified:
+		lines = append(lines, "Льготы здесь считаются на направление из вопроса: "+names+" — льготы на него ещё уточняются; ниже — льготы вуза целиком.")
+	case l.asked != nil:
+		lines = append(lines, "Льготы здесь считаются на направление из вопроса: "+names+".")
+	case t.Basis == "university" || len(t.DirectionIDs) == 0:
+		lines = append(lines, "Ни выбранных в вузе, ни из цели ученика направлений здесь нет — льготы указаны по вузу целиком.")
+	case t.Unverified:
+		lines = append(lines, "Льготы ученику здесь считаются на направления: "+strings.Join(t.DirectionNames, ", ")+
+			" ("+basisText[t.Basis]+") — льготы на них ещё уточняются; ниже — льготы вуза целиком.")
+	default:
+		lines = append(lines, "Льготы ученику здесь считаются на направления: "+strings.Join(t.DirectionNames, ", ")+" ("+basisText[t.Basis]+").")
+	}
+	return lines
+}
+
+// directionNotes — к льготе на направления ученика: зависит ли она от
+// программы (если показанное примечание вуза этого не сказало) и более
+// слабая льгота на других его направлениях.
+func directionNotes(r store.BenefitRow, noteShown bool) string {
+	var s string
+	if r.Varies && (!noteShown || r.Note == nil || !strings.Contains(*r.Note, "Зависит от программы")) {
+		s += "; зависит от программы"
+	}
+	for _, o := range r.OtherDirections {
+		s += "; " + otherText[o.Benefit] + " — на " + strings.Join(o.Names, ", ")
+	}
+	return s
+}
+
+// byOlympiad группирует профили каждой олимпиады по условию: text — условие
+// и подпись профиля. Олимпиады — в порядке sortOlympiads.
+func (b base) byOlympiad(rows []store.BenefitRow, text func(store.BenefitRow) (string, string)) (map[string][]grouped, []string) {
+	out := map[string][]grouped{}
 	var order []string
 	for _, bn := range rows {
 		p, ok := b.profile[bn.ProfileID]
 		if !ok {
 			continue
 		}
-		if _, ok := byOlympiad[p.OlympiadID]; !ok {
+		if _, ok := out[p.OlympiadID]; !ok {
 			order = append(order, p.OlympiadID)
 		}
-		byOlympiad[p.OlympiadID] = group(byOlympiad[p.OlympiadID], grantText(bn), profileTitle(p))
+		grant, name := text(bn)
+		out[p.OlympiadID] = group(out[p.OlympiadID], grant, name)
 	}
-	// ВсОШ первой, вне перечня — в конце, внутри — по алфавиту.
+	b.sortOlympiads(order)
+	return out, order
+}
+
+// sortOlympiads — ВсОШ первой, вне перечня — в конце, внутри — по алфавиту.
+func (b base) sortOlympiads(order []string) {
 	rank := map[string]int{"vsosh": 0, "perechen": 1, "other": 2}
 	short := func(oid string) string { return names.Olympiad(b.profiles[oid][0].OlympiadName) }
 	slices.SortFunc(order, func(x, y string) int {
@@ -448,13 +665,147 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 		}
 		return strings.Compare(names.Key(short(x)), names.Key(short(y)))
 	})
-	if len(order) == 0 {
-		lines = append(lines, "Олимпиады с льготами: в базе нет ни одной.")
-	} else {
-		lines = append(lines, fmt.Sprintf("Олимпиады с льготами или баллами (%d олимпиад, %d профилей) — профили: условие:", len(order), len(rows)))
+}
+
+// directionNames — названия направлений по id.
+func (b base) directionNames(ids []string) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = b.direction[id].Name
 	}
-	for _, oid := range order {
-		lines = append(lines, "  "+short(oid)+" — "+joinGroups(byOlympiad[oid]))
+	return out
+}
+
+// askedText — льгота профилей олимпиады на направления из вопроса: в вузах
+// из вопроса, иначе во всех вузах базы с этими направлениями. Вузы из
+// вопроса без направления — списком.
+func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string, ps []store.Profile) ([]string, error) {
+	unis := named
+	if len(unis) == 0 {
+		for _, u := range b.unis {
+			unis = append(unis, u.ID)
+		}
+	}
+	tg, err := a.Store.TargetsOn(ctx, asked, unis)
+	if err != nil {
+		return nil, err
+	}
+	var offered, without []string
+	for _, u := range unis {
+		if tg[u].Basis == "university" {
+			without = append(without, pick.Nick(u, b.uni[u].ShortName))
+			continue
+		}
+		offered = append(offered, u)
+	}
+	lines := []string{"Льгота на направление из вопроса (" + strings.Join(b.directionNames(asked), ", ") + ") — главнее льготы вуза целиком:"}
+	if len(offered) > 0 {
+		ids := make([]string, len(ps))
+		for i, p := range ps {
+			ids[i] = p.ID
+		}
+		rows, err := a.Store.BenefitsOn(ctx, asked, ids, offered)
+		if err != nil {
+			return nil, err
+		}
+		byPair := map[string]store.BenefitRow{}
+		for _, r := range rows {
+			byPair[r.ProfileID+"/"+r.UniversityID] = r
+		}
+		for _, p := range ps {
+			indent := "  "
+			if len(ps) > 1 {
+				lines = append(lines, "  "+profileTitle(p)+":")
+				indent = "    "
+			}
+			for _, u := range offered {
+				who := indent + pick.Nick(u, b.uni[u].ShortName) + ": "
+				switch r, ok := byPair[p.ID+"/"+u]; {
+				case !ok:
+					lines = append(lines, who+"льготы нет")
+				case r.Unverified:
+					lines = append(lines, who+"льготы на направление уточняются")
+				default:
+					line := who + grants(r)
+					if r.EgeMin != nil {
+						line += fmt.Sprintf(", ЕГЭ от %d", *r.EgeMin)
+					}
+					if len(r.DiplomaGrades) > 0 {
+						line += ", диплом за " + gradesList(r.DiplomaGrades) + " класс"
+					}
+					if n := strings.TrimPrefix(directionNotes(r, false), "; "); n != "" {
+						line += " (" + n + ")"
+					}
+					lines = append(lines, line)
+				}
+			}
+		}
+	}
+	if len(named) > 0 && len(without) > 0 {
+		lines = append(lines, "  Нет этого направления: "+strings.Join(without, ", "))
+	}
+	return lines, nil
+}
+
+// directionText — карточка направления: в каких вузах базы оно есть (с
+// укрупнённой группой — тоже), сколько олимпиад дают на нём льготу или
+// «льготы уточняются», вузы ученика помечены; вузы без направления —
+// списком.
+func (a *Assistant) directionText(ctx context.Context, b base, t store.Trajectory, myUnis []string, id string) (string, error) {
+	d := b.direction[id]
+	head := "Направление " + d.Code + " " + d.Name
+	if short := shortOf(d.Code); len(short) > 0 {
+		head += " (сокращённо: " + strings.Join(short, ", ") + ")"
+	}
+	if slices.ContainsFunc(t.Directions, func(x store.Direction) bool { return x.ID == id }) {
+		head += " — в цели ученика"
+	}
+	lines := []string{head}
+	unis, match, err := a.Store.UniversitiesByDirection(ctx, t.ID, "", "", id)
+	if err != nil {
+		return "", err
+	}
+	if len(unis) == 0 {
+		lines = append(lines, "В вузах базы этого направления нет.")
+	} else {
+		lines = append(lines, fmt.Sprintf("Вузы базы с этим направлением (%d), олимпиад с льготой на нём:", len(unis)))
+	}
+	for _, u := range unis {
+		m := match[u.ID]
+		line := "  " + pick.Nick(u.ID, u.ShortName)
+		if u.City != nil && *u.City != line[2:] {
+			line += ", " + *u.City
+		}
+		line += " — "
+		for _, other := range m.DirectionIDs {
+			if other == id {
+				continue
+			}
+			x := b.direction[other]
+			line += "как " + x.Code + " " + x.Name
+			if strings.HasSuffix(x.Code, ".00.00") {
+				line += " (укрупнённая группа)"
+			}
+			line += ", "
+		}
+		if m.Unverified {
+			line += "льготы уточняются"
+		} else {
+			line += fmt.Sprintf("%d %s с льготой", m.Olympiads, voice.Plural(m.Olympiads, "олимпиада", "олимпиады", "олимпиад"))
+		}
+		if slices.Contains(myUnis, u.ID) {
+			line += "; вуз ученика"
+		}
+		lines = append(lines, line)
+	}
+	var without []string
+	for _, u := range b.unis {
+		if _, ok := match[u.ID]; !ok {
+			without = append(without, pick.Nick(u.ID, u.ShortName))
+		}
+	}
+	if len(without) > 0 {
+		lines = append(lines, "Этого направления нет: "+strings.Join(without, ", "))
 	}
 	return strings.Join(lines, "\n"), nil
 }
@@ -462,7 +813,7 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 // byLevel — льготы вуза по уровням перечня: сколько профилей что дают. Без
 // сводки на «какой минимальный уровень даёт БВИ?» модель обобщала по одной
 // олимпиаде из контекста.
-func (b base) byLevel(rows []store.BenefitRow) []string {
+func (b base) byLevel(rows []store.BenefitRow, scope string) []string {
 	type key struct{ level, grant string }
 	count := map[key]int{}
 	var keys []key
@@ -497,7 +848,7 @@ func (b base) byLevel(rows []store.BenefitRow) []string {
 		}
 		return strings.Compare(x.grant, y.grant)
 	})
-	lines := []string{"Льготы по уровню олимпиады (I — самый высокий), число профилей:"}
+	lines := []string{"Льготы по уровню олимпиады" + scope + " (I — самый высокий), число профилей:"}
 	for _, k := range keys {
 		lines = append(lines, fmt.Sprintf("  %s: %s (%d)", k.level, k.grant, count[k]))
 	}
@@ -669,10 +1020,153 @@ var goalText = map[string]string{
 	"exploring": "ученик пока выбирает цель",
 }
 
+// resultText — итог этапа для модели.
+var resultText = map[string]string{
+	stages.Passed:      "прошёл дальше",
+	stages.Failed:      "не прошёл",
+	stages.Winner:      "победитель",
+	stages.Prizer:      "призёр",
+	stages.Participant: "участник без диплома",
+}
+
 // studentCard — карточка ученика: класс, цель, предметы, вузы и трекер с
 // ближайшими этапами. Без имени: в модель уходит только то, что нужно для
 // ответа. Источники — сайты олимпиад трекера, ближайшие по срокам первыми:
 // там регистрация и даты.
+// trackerStatus — что отмечено в трекере по профилю: регистрации, итоги
+// этапов и статус, как группа в трекере приложения.
+func trackerStatus(x store.TrackerRow, st []stages.Stage, marks map[string]stages.Mark, now time.Time) (string, stages.Progress) {
+	var line string
+	if x.RegisteredAt != nil {
+		line += " (регистрация отмечена)"
+	}
+	p := stages.Progress{Registered: x.RegisteredAt != nil, Marks: marks}
+	first := stages.FirstRegistration(st)
+	for i, s := range st {
+		m := p.Marks[s.ID]
+		if m.Registered && i != first {
+			line += "; " + strings.ToLower(stageName(s)) + " — отмечена"
+		}
+		if m.Result != "" {
+			line += "; " + strings.ToLower(stageName(s)) + " — " + resultText[m.Result]
+		}
+	}
+	status, outcome := stages.Status(st, p, now)
+	switch {
+	case outcome == stages.OutcomeMissed:
+		line += "; регистрация закрылась без отметки"
+	case outcome == stages.OutcomeUnknown:
+		line += "; сезон прошёл, итог не отмечен"
+	case status == stages.StatusFinished:
+		line += "; участие завершено: следующие этапы уже не для ученика"
+	}
+	return line, p
+}
+
+// trackerText — профили олимпиады в трекере ученика и что там отмечено,
+// как в листе олимпиады в приложении.
+func (a *Assistant) trackerText(ctx context.Context, b base, trajectoryID, oid string, now time.Time) ([]string, error) {
+	if trajectoryID == "" {
+		return nil, nil
+	}
+	items, err := a.Store.TrackerItems(ctx, trajectoryID)
+	if err != nil {
+		return nil, err
+	}
+	items = slices.DeleteFunc(items, func(x store.TrackerRow) bool { return x.OlympiadID != oid })
+	if len(items) == 0 {
+		return nil, nil
+	}
+	ids, itemIDs := make([]string, len(items)), make([]string, len(items))
+	for i, x := range items {
+		ids[i], itemIDs[i] = x.ProfileID, x.ID
+	}
+	byProfile, err := a.Store.StagesFor(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	marks, err := a.Store.StageMarks(ctx, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	var lines []string
+	for _, x := range items {
+		status, _ := trackerStatus(x, byProfile[x.ProfileID], marks[x.ID], now)
+		lines = append(lines, "В трекере ученика: "+profileTitle(b.profile[x.ProfileID])+status)
+	}
+	return lines, nil
+}
+
+// otherText — более слабая льгота на других направлениях ученика в вузе.
+var otherText = map[string]string{"bvi": "БВИ", "bvi_winners": "БВИ победителю", "score100": "100 баллов"}
+
+// basisText — почему льготы в вузе смотрятся на эти направления.
+var basisText = map[string]string{"chosen": "выбрано в вузе", "goal": "по цели"}
+
+// targetText — льгота профилей ученика в его вузах на его направления
+// (core/targets): она главнее льготы вуза целиком из списка выше. Вузы, где
+// направлений ученика не нашлось, не показываются — там верна льгота вуза.
+func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string, myUnis []string, ps []store.Profile) ([]string, error) {
+	if trajectoryID == "" || len(myUnis) == 0 || len(ps) == 0 {
+		return nil, nil
+	}
+	tg, err := a.Store.TargetsOf(ctx, trajectoryID, myUnis)
+	if err != nil {
+		return nil, err
+	}
+	unis := slices.DeleteFunc(slices.Clone(myUnis), func(u string) bool { return tg[u].Basis == "university" })
+	if len(unis) == 0 {
+		return nil, nil
+	}
+	ids := make([]string, len(ps))
+	for i, p := range ps {
+		ids[i] = p.ID
+	}
+	rows, err := a.Store.TargetBenefits(ctx, trajectoryID, ids, unis)
+	if err != nil {
+		return nil, err
+	}
+	byPair := map[string]store.BenefitRow{}
+	for _, r := range rows {
+		byPair[r.ProfileID+"/"+r.UniversityID] = r
+	}
+	lines := []string{"Льгота в вузах ученика на его направления (главнее льготы вуза целиком):"}
+	for _, p := range ps {
+		var parts []string
+		for _, u := range unis {
+			t, x := tg[u], b.uni[u]
+			who := pick.Nick(u, x.ShortName) + ": "
+			r, ok := byPair[p.ID+"/"+u]
+			switch {
+			case !ok:
+				parts = append(parts, who+"льготы нет (направления ученика: "+strings.Join(t.DirectionNames, ", ")+")")
+			case r.Unverified:
+				parts = append(parts, who+"льготы на направления ученика уточняются ("+strings.Join(t.DirectionNames, ", ")+")")
+			default:
+				line := who + grants(r) + " (направления ученика: " + strings.Join(r.DirectionNames, ", ")
+				if r.Varies {
+					line += "; зависит от программы"
+				}
+				for _, o := range r.OtherDirections {
+					line += "; " + otherText[o.Benefit] + " — на " + strings.Join(o.Names, ", ")
+				}
+				parts = append(parts, line+")")
+			}
+		}
+		if len(ps) > 1 {
+			lines = append(lines, "  "+profileTitle(p)+":")
+			for _, x := range parts {
+				lines = append(lines, "    "+x)
+			}
+			continue
+		}
+		for _, x := range parts {
+			lines = append(lines, "  "+x)
+		}
+	}
+	return lines, nil
+}
+
 func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory, c *collected) error {
 	lines := []string{fmt.Sprintf("Класс: %d", t.Grade)}
 	goal := goalText[t.GoalStatus]
@@ -683,7 +1177,29 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 		}
 		goal += "; направления: " + strings.Join(directions, ", ")
 	}
-	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(c.universities, ", ")))
+	unis, err := a.Store.TrajectoryUniversities(ctx, t.ID)
+	if err != nil {
+		return err
+	}
+	uniIDs := make([]string, len(unis))
+	nicks := make([]string, len(unis))
+	for i, u := range unis {
+		uniIDs[i], nicks[i] = u.ID, pick.Nick(u.ID, u.ShortName)
+	}
+	lines = append(lines, "Цель: "+goal, "Предметы: "+orDash(strings.Join(c.subjects, ", ")), "Вузы: "+orDash(strings.Join(nicks, ", ")))
+	tg, err := a.Store.TargetsOf(ctx, t.ID, uniIDs)
+	if err != nil {
+		return err
+	}
+	var dirs []string
+	for _, u := range unis {
+		if x := tg[u.ID]; x.Basis != "university" {
+			dirs = append(dirs, pick.Nick(u.ID, u.ShortName)+": "+strings.Join(x.DirectionNames, ", ")+" ("+basisText[x.Basis]+")")
+		}
+	}
+	if len(dirs) > 0 {
+		lines = append(lines, "Направления в вузах (на них считаются льготы): "+strings.Join(dirs, "; "))
+	}
 	items, err := a.Store.TrackerItems(ctx, t.ID)
 	if err != nil {
 		return err
@@ -700,6 +1216,14 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 	if err != nil {
 		return err
 	}
+	itemIDs := make([]string, len(items))
+	for i, x := range items {
+		itemIDs[i] = x.ID
+	}
+	marks, err := a.Store.StageMarks(ctx, itemIDs)
+	if err != nil {
+		return err
+	}
 	var d dates
 	type next struct {
 		p    store.Profile
@@ -708,12 +1232,12 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 	var soon []next
 	lines = append(lines, "Трекер:")
 	for _, x := range items {
-		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName})
-		if x.RegisteredAt != nil {
-			line += " (регистрация отмечена)"
-		}
 		st := byProfile[x.ProfileID]
-		if i := slices.IndexFunc(stages.States(st, x.RegisteredAt != nil, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
+		status, p := trackerStatus(x, st, marks[x.ID], c.clock.now)
+		line := "  " + names.Olympiad(x.OlympiadName) + ", " + profileLabel(store.Profile{SubjectName: x.SubjectName, ProfileName: x.ProfileName}) + status
+		// Регистрация закрылась без отметки, а ближайший этап всё равно
+		// нужен: вдруг ученик записался и не отметил.
+		if i := slices.IndexFunc(stages.States(st, p, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
 			line += "; ближайший этап — " + c.clock.dated(st[i:i+1])
 			d.add(names.Olympiad(x.OlympiadName), st[i:i+1])
 			if p, ok := b.profile[x.ProfileID]; ok {
@@ -765,4 +1289,84 @@ func gradesList(grades []int32) string {
 		parts[i] = fmt.Sprint(g)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// pickText — карточка «Подбор», как экран в приложении: подходящие
+// олимпиады, которых ещё нет в трекере, в том же порядке, с льготой в вузах
+// ученика и ближайшим этапом; сколько подходящих уже в трекере или ждут
+// ответа на предложение, остальные подходящие и вне перечня — списком.
+func pickText(b base, res pick.Result, c clock) []string {
+	var lines []string
+	switch res.State {
+	case match.StateAllTracked:
+		lines = append(lines, fmt.Sprintf("Все подходящие олимпиады уже в трекере (%d): ученик следит за всеми, добавить из подбора нечего.", res.Tracked))
+	case match.StateAllProposed:
+		lines = append(lines, fmt.Sprintf("Все подходящие олимпиады уже в трекере или предложены и ждут ответа (ждут ответа: %d).", res.Proposed))
+	case match.StateNoneSuitable:
+		lines = append(lines, "Подходящих олимпиад нет: по предметам ученика нет олимпиад с льготой в его вузах, в которые ещё можно вступить.")
+	default:
+		lines = append(lines, "Подбор — подходящие олимпиады, которых ещё нет в трекере, лучшие первыми:")
+		for i, r := range res.Items {
+			lines = append(lines, fmt.Sprintf("  %d. %s", i+1, pickLine(res, r, c)))
+		}
+		if res.Tracked > 0 {
+			lines = append(lines, fmt.Sprintf("Уже в трекере: %d %s", res.Tracked,
+				voice.Plural(res.Tracked, "подходящая олимпиада", "подходящие олимпиады", "подходящих олимпиад")))
+		}
+		if res.Proposed > 0 {
+			lines = append(lines, fmt.Sprintf("Предложены и ждут ответа: %d", res.Proposed))
+		}
+	}
+	list := func(rs []match.Result) string {
+		out := make([]string, len(rs))
+		for i, r := range rs {
+			p := res.Profiles[r.ProfileID]
+			out[i] = names.Olympiad(p.OlympiadName) + ", " + profileTitle(p)
+		}
+		return strings.Join(out, "; ")
+	}
+	if len(res.More) > 0 {
+		lines = append(lines, fmt.Sprintf("Ещё подходят (%d): %s", len(res.More), list(res.More)))
+	}
+	if len(res.Outside) > 0 {
+		lines = append(lines, fmt.Sprintf("Вне перечня — льгот при поступлении не дают (%d): %s", len(res.Outside), list(res.Outside)))
+	}
+	return lines
+}
+
+// pickLine — олимпиада подбора: уровень, самая сильная льгота в вузах
+// ученика (без вузов — в вузах с его направлением), ближайший этап.
+func pickLine(res pick.Result, r match.Result, c clock) string {
+	p := res.Profiles[r.ProfileID]
+	parts := []string{names.Olympiad(p.OlympiadName) + ", " + profileTitle(p)}
+	switch {
+	case p.Kind == "vsosh":
+		parts = append(parts, "ВсОШ")
+	case p.Level != nil:
+		parts = append(parts, *p.Level+" уровень")
+	}
+	rows := res.Set.Benefits[p.ID]
+	if len(res.Set.Universities) == 0 {
+		rows = res.Set.Potential[p.ID]
+	}
+	if best := pick.BestBenefit(rows); best != "" {
+		var nicks []string
+		for _, bn := range rows {
+			if bn.Benefit == best {
+				nicks = append(nicks, pick.Nick(bn.UniversityID, bn.UniversityShort))
+			}
+		}
+		label := otherText[best]
+		if label == "" {
+			label = "доп. баллы"
+		}
+		parts = append(parts, label+": "+strings.Join(nicks, ", "))
+	}
+	if r.Stage != nil && r.Deadline != nil {
+		parts = append(parts, "ближайший этап: "+strings.ToLower(stageName(*r.Stage))+" до "+c.day(*r.Deadline))
+	}
+	if r.Online {
+		parts = append(parts, "онлайн")
+	}
+	return strings.Join(parts, "; ")
 }

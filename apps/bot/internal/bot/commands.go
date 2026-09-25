@@ -9,6 +9,7 @@ import (
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/schedule"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
@@ -39,9 +40,13 @@ func (b *Bot) callback(t *turn, cb *maxapi.Callback, question *maxapi.Message) e
 			return b.remindOn(t, cb, question)
 		case "done":
 			return b.markRegistered(t, cb, arg(1))
+		case "reg":
+			return b.markStageRegistered(t, cb, arg(1))
 		case "snooze":
 			return b.snooze(t, cb, arg(1))
 		}
+	case "res":
+		return b.stageResult(t, cb, arg(0), arg(1))
 	case "inv":
 		return b.invite(t, cb)
 	case "prop":
@@ -258,6 +263,114 @@ func (b *Bot) markRegistered(t *turn, cb *maxapi.Callback, itemID string) error 
 		b.notify.Registered(t.ctx, m.TrajectoryID, itemID, m)
 	}
 	return notice(v.T("bot.remind.marked", voice.Vars{"title": notify.Short(item.OlympiadName)}))
+}
+
+// reminderFor — участник, нажавший кнопку напоминания, и само напоминание.
+// ErrNotFound — напоминания нет или пользователь не в этой траектории.
+func (b *Bot) reminderFor(t *turn, reminderID string) (store.Member, store.DueReminder, error) {
+	m, err := b.store.MemberFor(t.ctx, t.user.UserID, "reminder", reminderID)
+	if err != nil {
+		return m, store.DueReminder{}, err
+	}
+	d, err := b.store.Reminder(t.ctx, reminderID)
+	return m, d, err
+}
+
+// setStageMark — отметка этапа из чата: пересчёт напоминаний и сообщение
+// остальным, как в приложении. changed = false — отмечать было нечего.
+func (b *Bot) setStageMark(t *turn, m store.Member, d store.DueReminder, mark stages.Mark) (changed bool, err error) {
+	changed, err = b.store.SetStageMark(t.ctx, m.TrajectoryID, d.TrackerItemID, d.StageID, m.MemberID, mark, b.now())
+	if err != nil || !changed {
+		return changed, err
+	}
+	if err := b.store.SyncReminders(t.ctx, m.TrajectoryID, b.cfg.ReminderHour, b.now()); err != nil {
+		return true, err
+	}
+	b.notify.StageMarked(t.ctx, m.TrajectoryID, d.TrackerItemID, d.StageID, mark, m)
+	return true, nil
+}
+
+// stageMarkRefused — отметку не принять: итог уже закрыл олимпиаду или
+// этапа больше нет. Кнопка из старого сообщения ничего не меняет.
+func stageMarkRefused(err error) bool {
+	return errors.Is(err, stages.ErrConflict) || errors.Is(err, stages.ErrNotAllowed) || errors.Is(err, stages.ErrUnknownStage)
+}
+
+// markStageRegistered — «✓ Отметить регистрацию» в напоминании: отмечает
+// регистрацию на этап напоминания — первую или на заключительный.
+func (b *Bot) markStageRegistered(t *turn, cb *maxapi.Callback, reminderID string) error {
+	notice := func(text string) error {
+		return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Notification: text})
+	}
+	if !uuidRe.MatchString(reminderID) {
+		return b.stale(t, cb, nil)
+	}
+	m, d, err := b.reminderFor(t, reminderID)
+	if errors.Is(err, store.ErrNotFound) {
+		return notice(kidVoice(t).T("bot.remind.gone", nil))
+	}
+	if err != nil {
+		return err
+	}
+	v, _, err := b.voiceOf(t, m)
+	if err != nil {
+		return err
+	}
+	marks, err := b.store.StageMarks(t.ctx, []string{d.TrackerItemID})
+	if err != nil {
+		return err
+	}
+	cur := marks[d.TrackerItemID][d.StageID]
+	if _, err := b.setStageMark(t, m, d, stages.Mark{Registered: true, Result: cur.Result}); stageMarkRefused(err) {
+		return notice(v.T("bot.stageResult.already", nil))
+	} else if err != nil {
+		return err
+	}
+	return notice(v.T("bot.remind.marked", voice.Vars{"title": notify.Short(d.OlympiadName)}))
+}
+
+// stageResult — ответ на вопрос об итоге этапа: «res:<напоминание>:<код>».
+// «Итогов ещё нет» ничего не отмечает: повтор через неделю уже в плане.
+// Итог, уже отмеченный в трекере, кнопка не перезаписывает.
+func (b *Bot) stageResult(t *turn, cb *maxapi.Callback, reminderID, code string) error {
+	notice := func(text string) error {
+		return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Notification: text})
+	}
+	result, known := notify.ResultByCode(code)
+	if !uuidRe.MatchString(reminderID) || (!known && code != notify.ResultNotYet) {
+		return b.stale(t, cb, nil)
+	}
+	m, d, err := b.reminderFor(t, reminderID)
+	if errors.Is(err, store.ErrNotFound) {
+		return notice(kidVoice(t).T("bot.remind.gone", nil))
+	}
+	if err != nil {
+		return err
+	}
+	v, _, err := b.voiceOf(t, m)
+	if err != nil {
+		return err
+	}
+	if !known {
+		if d.Offset == schedule.AskOffsets[0] {
+			return notice(v.T("bot.stageResult.later", nil))
+		}
+		return notice(v.T("bot.stageResult.laterLast", nil))
+	}
+	marks, err := b.store.StageMarks(t.ctx, []string{d.TrackerItemID})
+	if err != nil {
+		return err
+	}
+	cur := marks[d.TrackerItemID][d.StageID]
+	if cur.Result != "" {
+		return notice(v.T("bot.stageResult.already", nil))
+	}
+	if _, err := b.setStageMark(t, m, d, stages.Mark{Registered: cur.Registered, Result: result}); stageMarkRefused(err) {
+		return notice(v.T("bot.stageResult.already", nil))
+	} else if err != nil {
+		return err
+	}
+	return notice(v.T("bot.stageResult.saved", nil))
 }
 
 // snooze — «Напомнить завтра» (F30): разовое напоминание тому, кто нажал,

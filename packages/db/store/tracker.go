@@ -5,12 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/jackc/pgx/v5"
 )
-
-// registrationLikeKinds — этапы, которые закрывает отметка «зарегистрирован»;
-// то же, что stages.RegistrationLike.
-var registrationLikeKinds = []string{"registration", "school"}
 
 // AddTrackerItem добавляет профиль в трекер. Повторное добавление
 // возвращает существующий пункт и created = false (F28). Если по профилю
@@ -63,16 +60,20 @@ func (s *Store) DeleteTrackerItem(ctx context.Context, trajectoryID, itemID, mem
 	})
 }
 
-// SetRegistered ставит или снимает отметку «зарегистрирован» (F46).
-// Повторная отметка ничего не меняет: остаётся тот, кто отметил первым.
-// Отметка отменяет запланированные напоминания о регистрации (ТЗ §6.3).
-// changed сообщает, изменилось ли что-то, — уведомлять ли остальных.
+// SetRegistered ставит или снимает отметку «зарегистрирован» (F46) — первую
+// регистрацию олимпиады. Повторная отметка ничего не меняет: остаётся тот,
+// кто отметил первым. Отметка отменяет запланированные напоминания о первой
+// регистрации (ТЗ §6.3); регистрация на заключительный — отдельный этап со
+// своей отметкой (SetStageMark). Снять отметку, на которой держатся итоги
+// этапов, нельзя — ErrConflict. changed сообщает, изменилось ли что-то, —
+// уведомлять ли остальных.
 func (s *Store) SetRegistered(ctx context.Context, trajectoryID, itemID, memberID string, on bool) (changed bool, err error) {
 	err = s.Tx(ctx, func(tx *Store) error {
 		var was *time.Time
+		var profileID string
 		if err := tx.db.QueryRow(ctx, `
-			SELECT registered_at FROM tracker_items WHERE trajectory_id = $1 AND id = $2 FOR UPDATE`,
-			trajectoryID, itemID).Scan(&was); err != nil {
+			SELECT registered_at, olympiad_profile_id FROM tracker_items WHERE trajectory_id = $1 AND id = $2 FOR UPDATE`,
+			trajectoryID, itemID).Scan(&was, &profileID); err != nil {
 			return wrap(err)
 		}
 		if on == (was != nil) {
@@ -80,6 +81,14 @@ func (s *Store) SetRegistered(ctx context.Context, trajectoryID, itemID, memberI
 		}
 		changed = true
 		if !on {
+			var marked bool
+			if err := tx.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM tracker_stage_results WHERE tracker_item_id = $1)`,
+				itemID).Scan(&marked); err != nil {
+				return wrap(err)
+			}
+			if marked {
+				return ErrConflict
+			}
 			if _, err := tx.db.Exec(ctx, `
 				UPDATE tracker_items SET registered_at = NULL, registered_by_member_id = NULL WHERE id = $1`,
 				itemID); err != nil {
@@ -92,12 +101,17 @@ func (s *Store) SetRegistered(ctx context.Context, trajectoryID, itemID, memberI
 			itemID, memberID); err != nil {
 			return wrap(err)
 		}
-		if _, err := tx.db.Exec(ctx, `
-			UPDATE reminders r SET status = 'cancelled'
-			FROM stages st
-			WHERE st.id = r.stage_id AND r.tracker_item_id = $1 AND r.status = 'planned' AND st.kind = ANY($2)`,
-			itemID, registrationLikeKinds); err != nil {
-			return wrap(err)
+		byProfile, err := tx.StagesFor(ctx, []string{profileID})
+		if err != nil {
+			return err
+		}
+		if i := stages.FirstRegistration(byProfile[profileID]); i >= 0 {
+			if _, err := tx.db.Exec(ctx, `
+				UPDATE reminders SET status = 'cancelled'
+				WHERE tracker_item_id = $1 AND stage_id = $2 AND status = 'planned' AND offset_days >= 0`,
+				itemID, byProfile[profileID][i].ID); err != nil {
+				return wrap(err)
+			}
 		}
 		return tx.Audit(ctx, memberID, "register", "tracker_item", itemID)
 	})

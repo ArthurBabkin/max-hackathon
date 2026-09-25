@@ -3,6 +3,7 @@
 import {
   BENEFIT_LABELS,
   NO_BENEFIT_LABEL,
+  type BenefitKind,
   type BenefitColumn,
   type BenefitGrant,
   type BenefitRow,
@@ -15,8 +16,10 @@ import {
   type OlympiadCard,
   type OlympiadDetail,
   type OlympiadListItem,
+  type OfferedDirection,
   type Profile,
   type ProfileLevel,
+  type ProfileUniversity,
   type Proposal,
   type Session,
   type Source,
@@ -24,6 +27,7 @@ import {
   type TrackerItem,
   type TrajectorySummary,
   type UniversityDetail,
+  type CatalogUniversity,
   type UniversityListItem,
 } from '@contract'
 import { regions as REGIONS } from '@regions'
@@ -41,6 +45,8 @@ import {
   type DemoUniversity,
   inDays,
 } from './fixtures'
+import { progressFields, type MockProgress, type MockStage } from './progress'
+import { coverage, covers, directionById, isGoal, nameOf, onDirection, targetBenefit, targetOf } from './targets'
 import {
   findProfile,
   hasKid,
@@ -82,8 +88,11 @@ const BVI: BenefitGrant = { kind: 'bvi', label: BENEFIT_LABELS.bvi }
 const SCORE100: BenefitGrant = { kind: 'score100', label: BENEFIT_LABELS.score100 }
 
 /** Что получат победитель и призёр — как на сервере (F18). */
-function grants(university: DemoUniversity, olympiadId: string): Pick<BenefitRow, 'winner' | 'prizer'> {
-  const benefit = university.benefits[olympiadId]
+function grants(
+  university: DemoUniversity,
+  olympiadId: string,
+  benefit: BenefitKind | null,
+): Pick<BenefitRow, 'winner' | 'prizer'> {
   const rule = university.rules?.[olympiadId]
   if (!benefit) return { winner: null, prizer: null }
   if (benefit === 'extra_points') {
@@ -98,8 +107,35 @@ function grants(university: DemoUniversity, olympiadId: string): Pick<BenefitRow
   return { winner, prizer: benefit === 'bvi_winners' ? null : winner }
 }
 
-function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow {
-  const benefit = university.benefits[olympiadId] ?? null
+/** Строка льготы в моём вузе — на мои направления (F65), как TargetBenefits. */
+function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRow {
+  const tb = targetBenefit(university, olympiadId)
+  const whole = benefitRow(university, olympiadId)
+  const row: BenefitRow = {
+    ...(tb.benefit === null ? noBenefit(university) : benefitRow(university, olympiadId, tb.benefit)),
+    directions: tb.names,
+    other_directions: tb.others.map((o) => ({ benefit: o.benefit, benefit_label: BENEFIT_LABELS[o.benefit], directions: o.names })),
+    unverified: tb.unverified,
+    varies: tb.varies,
+  }
+  // Разброс порога — от программ; на направлении с одной программой его нет.
+  if (tb.basis !== 'university' && tb.benefit !== whole.benefit && !tb.varies) row.ege_max = null
+  // Своё у вуза, как на сервере: не на всех программах, льгота уточняется.
+  const notes = [
+    ...(tb.varies ? ['Зависит от программы: на части программ направления льготы нет'] : []),
+    ...(tb.unverified
+      ? [t('cond.unverifiedDirections', { directions: tb.names.map((n) => `«${n}»`).join(', ') })]
+      : []),
+  ]
+  return notes.length > 0 ? { ...row, conditions: notes } : row
+}
+
+function noBenefit(university: DemoUniversity): BenefitRow {
+  return { ...benefitRow(university, ''), source: null }
+}
+
+function benefitRow(university: DemoUniversity, olympiadId: string, override?: BenefitKind): BenefitRow {
+  const benefit = override ?? university.benefits[olympiadId] ?? null
   const kind = OLYMPIADS.find((o) => o.id === olympiadId)?.kind
   return {
     university_id: university.id,
@@ -110,7 +146,7 @@ function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow 
     color: university.color,
     benefit,
     benefit_label: benefit ? BENEFIT_LABELS[benefit] : NO_BENEFIT_LABEL,
-    ...grants(university, olympiadId),
+    ...grants(university, olympiadId, benefit),
     extra_points: benefit === 'extra_points' ? EXTRA_POINTS : null,
     // У ВсОШ льготу ЕГЭ не подтверждают — порога нет.
     ege_min: benefit && benefit !== 'extra_points' && kind !== 'vsosh' ? DEFAULT_EGE_MIN : null,
@@ -118,6 +154,11 @@ function benefitRow(university: DemoUniversity, olympiadId: string): BenefitRow 
     diploma_grades: benefit ? [9, 10, 11] : null,
     note: null,
     source: benefit ? (SOURCES.rules as Source) : null,
+    directions: [],
+    other_directions: [],
+    unverified: false,
+    varies: false,
+    ...coverage(university, olympiadId),
   }
 }
 
@@ -149,7 +190,7 @@ function benefitsSummary(olympiadId: string): string {
   const rows = state.universities
     .map(universityById)
     .filter((u): u is DemoUniversity => u !== null)
-    .map((u) => ({ nick: u.nick, benefit: u.benefits[olympiadId] }))
+    .map((u) => ({ nick: u.nick, benefit: targetBenefit(u, olympiadId).benefit }))
     .filter((r) => r.benefit)
 
   if (rows.length === 0) return t('match.noBenefits')
@@ -163,14 +204,8 @@ function benefitsSummary(olympiadId: string): string {
 
 // --- Этапы -------------------------------------------------------------------
 
-function stages(o: DemoOlympiad, registered: boolean): Stage[] {
-  // Текущий этап — ближайший из ещё не прошедших. Если регистрация уже
-  // отмечена, она считается пройденной, и выделяется следующий этап.
-  const upcoming = o.stages.findIndex((s, i) => {
-    if (registered && i === 0) return false
-    return s.offset === null || s.offset >= 0
-  })
-
+/** Этапы демо-олимпиады с датами — от них считаются отметки (progress.ts). */
+export function mockStages(o: DemoOlympiad): MockStage[] {
   return o.stages.map((s, i) => {
     const at = s.offset === null ? null : inDays(s.offset)
     const isRegistration = s.kind === 'registration' || s.kind === 'school'
@@ -185,10 +220,29 @@ function stages(o: DemoOlympiad, registered: boolean): Stage[] {
       starts_at: isRegistration ? null : at,
       ends_at: null,
       deadline_at: isRegistration ? at : null,
-      is_online: s.is_online,
-      state: i === upcoming ? 'current' : i < upcoming || upcoming === -1 ? 'past' : 'future',
     }
   })
+}
+
+/** Отметки пункта трекера по профилю; не в трекере — пустые. */
+export function progressOf(item: DemoTrackerItem | undefined): MockProgress {
+  return { registered: Boolean(item?.registered_at), marks: item?.marks ?? {} }
+}
+
+function stages(o: DemoOlympiad, progress: MockProgress): Stage[] {
+  const { stages: marked } = progressFields(mockStages(o), progress, Date.now())
+  return marked.map((s, i) => ({
+    id: s.id,
+    kind: s.kind,
+    title: s.title,
+    subtitle: s.subtitle,
+    starts_at: s.starts_at,
+    ends_at: s.ends_at,
+    deadline_at: s.deadline_at,
+    is_online: o.stages[i]!.is_online,
+    // В таймлайне карточки этапы после закрывающего итога — просто прошлое.
+    state: s.state === 'locked' ? 'past' : s.state,
+  }))
 }
 
 const deadlineOf = (o: DemoOlympiad) => inDays(o.deadlineIn)
@@ -231,6 +285,7 @@ export function olympiadCard(profileId: string): OlympiadCard | null {
     reason: o.reason,
     in_tracker: inTracker(profileId),
     proposal_status: pendingProposal(profileId) ? 'pending' : null,
+    registration_closed: o.deadlineIn < 0,
   }
 }
 
@@ -248,14 +303,15 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     is_mine: p.subject_code === profile.subject_code,
   }))
 
-  const registered = state.tracker.some((i) => i.profileId === profileId && i.registered_at)
+  const progress = progressOf(state.tracker.find((i) => i.profileId === profileId))
   const benefits = sortBenefitRows(
     state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
       .map((u) => {
-        const notes = u.rules?.[o.id]?.notes
-        return notes ? { ...benefitRow(u, o.id), conditions: notes } : benefitRow(u, o.id)
+        const row = myBenefitRow(u, o.id)
+        const notes = [...(u.rules?.[o.id]?.notes ?? []), ...(row.conditions ?? [])]
+        return notes.length > 0 ? { ...row, conditions: notes } : row
       }),
   )
 
@@ -269,7 +325,7 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     benefit_columns: benefitColumns(o, benefits),
     benefits_source: SOURCES.rules as Source,
     conditions: o.conditions,
-    stages: stages(o, registered),
+    stages: stages(o, progress),
     stages_are_demo: o.stages_are_demo,
     why: o.why[role()],
     // Вузы ученика уже в блоке льгот — здесь только остальные (F23).
@@ -279,7 +335,26 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
   }
 }
 
-export function olympiadListItem(o: DemoOlympiad): OlympiadListItem | null {
+/**
+ * Сильная льгота олимпиады в моих вузах на мои направления, от сильной к
+ * слабой; вузы — в порядке профиля (F66).
+ */
+export function myBenefits(olympiadId: string): OlympiadListItem['my_benefits'] {
+  const mine = state.universities.map(universityById).filter((u): u is DemoUniversity => u !== null)
+  return (['bvi', 'bvi_winners', 'score100'] as const)
+    .map((benefit) => {
+      const here = mine.filter((u) => targetBenefit(u, olympiadId).benefit === benefit)
+      return {
+        benefit,
+        benefit_label: BENEFIT_LABELS[benefit],
+        universities: here.map((u) => u.nick),
+        partial_universities: here.filter((u) => targetBenefit(u, olympiadId).varies).map((u) => u.nick),
+      }
+    })
+    .filter((g) => g.universities.length > 0)
+}
+
+export function olympiadListItem(o: DemoOlympiad, withMine = false): OlympiadListItem | null {
   const primary = primaryProfile(o.id)
   if (!primary) return null
   return {
@@ -296,6 +371,8 @@ export function olympiadListItem(o: DemoOlympiad): OlympiadListItem | null {
       level: primary.level,
     },
     profiles_count: o.profiles.length,
+    registration_closed: o.deadlineIn < 0,
+    my_benefits: withMine ? myBenefits(o.id) : [],
   }
 }
 
@@ -305,10 +382,27 @@ const benefitOlympiadsCount = (u: DemoUniversity) =>
   Object.values(u.benefits).filter((b) => b === 'bvi' || b === 'score100' || b === 'bvi_winners')
     .length
 
+/**
+ * Чем вуз подходит под направление каталога (F67): покрывающие его
+ * направления вуза и олимпиады с льготой на них; null — не подходит.
+ */
+export function directionMatch(u: DemoUniversity, directionId: string): CatalogUniversity['direction_match'] | null {
+  const code = directionById(directionId)?.code ?? ''
+  const offered = u.offered.filter((o) => covers(directionById(o.id)?.code ?? '', code))
+  if (offered.length === 0) return null
+  const verified = offered.filter((o) => o.status !== 'to_check')
+  return {
+    direction_ids: offered.map((o) => o.id),
+    olympiads_count: OLYMPIADS.filter((o) => verified.some((d) => onDirection(u, o.id, d.id) !== null)).length,
+    status: verified.length > 0 ? 'offered' : 'to_check',
+  }
+}
+
 export function universityListItem(u: DemoUniversity): UniversityListItem {
   return {
     id: u.id,
     short_name: u.short_name,
+    nick: u.nick,
     name: u.name,
     city: u.city,
     color: u.color,
@@ -317,10 +411,54 @@ export function universityListItem(u: DemoUniversity): UniversityListItem {
   }
 }
 
-export function universityDetail(u: DemoUniversity): UniversityDetail {
+/** Мой вуз в профиле: на какие направления смотрятся льготы (F65). */
+function profileUniversity(u: DemoUniversity): ProfileUniversity {
+  const t = targetOf(u)
+  const target = t.ids.map((id) => ({ id, name: nameOf(id) }))
   return {
     ...universityListItem(u),
-    directions: u.directions,
+    chosen_directions: t.basis === 'chosen' ? target : [],
+    target_basis: t.basis,
+    target_directions: target,
+  }
+}
+
+function offeredDirections(u: DemoUniversity): OfferedDirection[] {
+  const chosen = state.chosen[u.id] ?? []
+  const out = u.offered.map((o) => ({
+    id: o.id,
+    code: directionById(o.id)?.code ?? '',
+    name: nameOf(o.id),
+    status: o.status ?? ('offered' as const),
+    programs: o.programs,
+    budget_places: o.budget_places,
+    benefit_olympiads_count: Object.keys(u.benefits).filter((id) => onDirection(u, id, o.id) !== null).length,
+    is_mine: chosen.includes(o.id),
+    is_goal: isGoal(o.id),
+  }))
+  const rank = (d: OfferedDirection) => (d.is_mine ? 0 : d.is_goal ? 1 : 2)
+  return out.sort((a, b) => rank(a) - rank(b) || b.benefit_olympiads_count - a.benefit_olympiads_count)
+}
+
+function myBenefit(u: DemoUniversity, olympiadId: string) {
+  const tb = targetBenefit(u, olympiadId)
+  const benefit = tb.unverified || tb.benefit === 'extra_points' ? null : tb.benefit
+  return {
+    my_benefit: benefit,
+    my_benefit_label: benefit ? BENEFIT_LABELS[benefit] : null,
+    my_directions: benefit ? tb.names : [],
+  }
+}
+
+export function universityDetail(u: DemoUniversity): UniversityDetail {
+  const t = targetOf(u)
+  return {
+    ...universityListItem(u),
+    directions: u.offered.map((o) => nameOf(o.id)),
+    offered_directions: offeredDirections(u),
+    target_basis: t.basis,
+    target_directions: t.ids.map((id) => ({ id, name: nameOf(id) })),
+    target_unverified: t.unverified,
     ege_note: u.ege_note,
     rules_url: u.rules_url,
     description: null,
@@ -340,6 +478,8 @@ export function universityDetail(u: DemoUniversity): UniversityDetail {
           level: primary.level,
           benefit,
           benefit_label: BENEFIT_LABELS[benefit],
+          ...myBenefit(u, o.id),
+          ...coverage(u, o.id),
         },
       ]
     }),
@@ -366,11 +506,10 @@ export function trackerItem(item: DemoTrackerItem): TrackerItem | null {
     subject_name: subjectName(profile.subject_code),
     kind: o.kind,
     level: profile.level,
-    deadline_at: deadlineOf(o),
-    next_stage_title: nextStageTitle(o, Boolean(item.registered_at)),
     registered_at: item.registered_at,
     registered_by: brief(item.registered_by),
     added_by: brief(item.added_by),
+    ...progressFields(mockStages(o), progressOf(item), Date.now()),
   }
 }
 
@@ -429,7 +568,7 @@ export function home(): Home {
     .filter((i): i is TrackerItem => i !== null)
     .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
 
-  const open = items.filter((i) => !i.registered_at)
+  const open = items.filter((i) => i.status === 'open')
   const first = open[0]
   const next: NextStep | null = first
     ? {
@@ -445,7 +584,7 @@ export function home(): Home {
   return {
     trajectory: trajectorySummary(),
     tracker_count: items.length,
-    registered_count: items.length - open.length,
+    registered_count: items.filter((i) => i.registered_at).length,
     universities_count: state.universities.length,
     pending_proposals_count: state.proposals.filter((p) => p.status === 'pending').length,
     next_step: next,
@@ -474,7 +613,7 @@ export function profile(): Profile {
     universities: state.universities
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
-      .map(universityListItem),
+      .map(profileUniversity),
     other_member_names: state.members.filter((m) => m.id !== state.viewerId).map((m) => m.name),
   }
 }

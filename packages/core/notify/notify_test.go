@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi/maxtest"
@@ -44,7 +45,7 @@ func newFamily(t *testing.T) family {
 func TestReminder_VoiceAndButtons(t *testing.T) {
 	f := newFamily(t)
 	ctx := context.Background()
-	item, _, _ := f.st.AddTrackerItem(ctx, f.kid.TrajectoryID, "p669-8-informatika", f.kid.MemberID)
+	_, _, _ = f.st.AddTrackerItem(ctx, f.kid.TrajectoryID, "p669-8-informatika", f.kid.MemberID)
 	_ = f.st.SyncReminders(ctx, f.kid.TrajectoryID, 10, time.Date(2026, 9, 1, 12, 0, 0, 0, msk))
 	now := time.Date(2026, 9, 19, 10, 1, 0, 0, msk)
 	due, _ := f.st.DueReminders(ctx, now, 10)
@@ -70,7 +71,9 @@ func TestReminder_VoiceAndButtons(t *testing.T) {
 		t.Fatalf("родителю: %q", parentMsg.Text)
 	}
 	p := maxtest.Payloads(kidMsg)
-	if len(p) != 2 || p[0] != "rem:done:"+item || p[1] != "rem:snooze:"+d.ID {
+	// Регистрация отмечается по напоминанию, а не по пункту: у олимпиады
+	// бывает и вторая регистрация — на заключительный этап.
+	if len(p) != 2 || p[0] != "rem:reg:"+d.ID || p[1] != "rem:snooze:"+d.ID {
 		t.Fatalf("кнопки: %v (%s)", p, maxtest.Buttons(kidMsg))
 	}
 	if kb := kidMsg.Keyboard(); kb[0][0].Type != "link" || !strings.HasPrefix(kb[0][0].URL, "https://") {
@@ -180,5 +183,86 @@ func TestChanges_ListAndButtons(t *testing.T) {
 	want := "Карточка «ВсОШ по информатике» | Карточка «Высшая проба» | Правила приёма Иннополис | Карточка «Олимпиада a»"
 	if got := maxtest.Buttons(m); got != want {
 		t.Fatalf("кнопки — три карточки, только https-ссылки:\n got %s\nwant %s", got, want)
+	}
+}
+
+// Отметку этапа видит остальная семья: регистрацию, проход дальше и
+// диплом. Первая регистрация — тот же текст, что у галочки (F46).
+func TestStageMarked_TextsForFamily(t *testing.T) {
+	f := newFamily(t)
+	ctx := context.Background()
+	item, _, _ := f.st.AddTrackerItem(ctx, f.kid.TrajectoryID, "p669-14-biologiya", f.kid.MemberID)
+	cases := []struct {
+		stage string
+		mark  stages.Mark
+		want  string
+	}{
+		{"p669-14-biologiya:registration:1", stages.Mark{Registered: true}, "✅ Артём отмечает: регистрация на «Всесибирская открытая олимпиада школьников» пройдена."},
+		{"p669-14-biologiya:qualifying:1", stages.Mark{Result: stages.Passed}, "🎉 Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: отборочный этап — пройден."},
+		{"p669-14-biologiya:qualifying:1", stages.Mark{Result: stages.Failed}, "Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: отборочный этап — не пройден."},
+		{"p669-14-biologiya:registration:2", stages.Mark{Registered: true}, "✅ Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: регистрация на заключительный этап — пройдена."},
+		{"p669-14-biologiya:final:1", stages.Mark{Result: stages.Winner}, "🏆 Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: заключительный этап — диплом победителя!"},
+		{"p669-14-biologiya:final:1", stages.Mark{Result: stages.Prizer}, "🏅 Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: заключительный этап — диплом призёра!"},
+		{"p669-14-biologiya:final:1", stages.Mark{Result: stages.Participant}, "Артём отмечает в трекере «Всесибирская открытая олимпиада школьников»: заключительный этап — без диплома."},
+	}
+	for _, c := range cases {
+		f.fake.Reset()
+		f.n.StageMarked(ctx, f.kid.TrajectoryID, item, c.stage, c.mark, f.kid)
+		got := f.fake.To(900000002)
+		if len(got) != 1 || !strings.HasPrefix(got[0].Msg.Text, c.want) {
+			t.Errorf("%s %+v: %v, ожидали %q", c.stage, c.mark, got, c.want)
+		}
+		if n := len(f.fake.To(900000001)); n != 0 {
+			t.Errorf("автору отметки не пишем: %d", n)
+		}
+	}
+}
+
+// Вопрос об итоге этапа: кнопки — итоги этого этапа и «Итогов ещё нет».
+func TestResultAsk_ButtonsByStage(t *testing.T) {
+	f := newFamily(t)
+	ctx := context.Background()
+	item, _, _ := f.st.AddTrackerItem(ctx, f.kid.TrajectoryID, "p669-14-biologiya", f.kid.MemberID)
+	_, _ = f.st.SetRegistered(ctx, f.kid.TrajectoryID, item, f.kid.MemberID, true)
+	_ = f.st.SyncReminders(ctx, f.kid.TrajectoryID, 10, time.Date(2026, 10, 1, 12, 0, 0, 0, msk))
+	due, _ := f.st.DueReminders(ctx, time.Date(2026, 11, 2, 10, 5, 0, 0, msk), 10)
+	var d store.DueReminder
+	for _, x := range due {
+		if x.StageKind == "qualifying" && x.Offset == -1 {
+			d = x
+		}
+	}
+	if d.ID == "" {
+		t.Fatalf("нет вопроса об итоге отборочного: %+v", due)
+	}
+	tr, _ := f.st.Trajectory(ctx, f.kid.TrajectoryID)
+	kid := store.Recipient{MemberID: f.kid.MemberID, Name: "Артём", Role: "kid"}
+	msg := f.n.ResultAsk(d, kid, tr, []string{stages.Passed, stages.Failed})
+	if msg.Text != "📝 Как прошёл отборочный этап олимпиады «Всесибирская открытая олимпиада школьников»? Отметь итог — трекер покажет, что дальше." {
+		t.Fatalf("ученику: %q", msg.Text)
+	}
+	if b := maxtest.Buttons(msg); b != "✅ Прохожу дальше | Дальше не прохожу | Итогов ещё нет" {
+		t.Fatalf("кнопки: %s", b)
+	}
+	if p := maxtest.Payloads(msg); strings.Join(p, " ") != "res:"+d.ID+":p res:"+d.ID+":f res:"+d.ID+":n" {
+		t.Fatalf("payload: %v", p)
+	}
+
+	parent := store.Recipient{MemberID: f.olga.MemberID, Name: "Ольга", Role: "parent"}
+	final := f.n.ResultAsk(d, parent, tr, []string{stages.Winner, stages.Prizer, stages.Participant})
+	if !strings.HasPrefix(final.Text, "📝 Как у Артёма прошёл") || !strings.HasSuffix(final.Text, "Отметьте итог — трекер покажет, что дальше.") {
+		t.Fatalf("родителю: %q", final.Text)
+	}
+	if b := maxtest.Buttons(final); b != "🏆 Диплом победителя | 🏅 Диплом призёра | Без диплома | Итогов ещё нет" {
+		t.Fatalf("кнопки финала: %s", b)
+	}
+	if p := maxtest.Payloads(final); strings.Join(p, " ") != "res:"+d.ID+":w res:"+d.ID+":z res:"+d.ID+":u res:"+d.ID+":n" {
+		t.Fatalf("payload финала: %v", p)
+	}
+	if r, ok := ResultByCode("z"); !ok || r != stages.Prizer {
+		t.Fatal("код z — призёр")
+	}
+	if _, ok := ResultByCode("x"); ok {
+		t.Fatal("неизвестный код")
 	}
 }

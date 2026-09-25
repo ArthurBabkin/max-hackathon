@@ -36,10 +36,24 @@ func NoteSentences(note *string) []string {
 		return nil
 	}
 	var out []string
-	for _, sentence := range strings.Split(*note, ". ") {
-		out = append(out, strings.TrimSuffix(strings.TrimSpace(sentence), "."))
+	// Точка в скобках или кавычках — сокращение («в г. Севастополе»),
+	// предложение там не кончается.
+	depth, start := 0, 0
+	text := *note
+	for i, r := range text {
+		switch r {
+		case '(', '«':
+			depth++
+		case ')', '»':
+			depth = max(depth-1, 0)
+		case '.':
+			if depth == 0 && strings.HasPrefix(text[i:], ". ") {
+				out = append(out, strings.TrimSpace(text[start:i]))
+				start = i + len(". ")
+			}
+		}
 	}
-	return out
+	return append(out, strings.TrimSuffix(strings.TrimSpace(text[start:]), "."))
 }
 
 // universityNicks — как вуз называют в строке льгот, если аббревиатура

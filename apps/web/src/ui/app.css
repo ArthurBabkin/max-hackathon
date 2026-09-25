@@ -216,6 +216,10 @@
   padding-top: 1px;
 }
 
+.toast-info .toast-icon {
+  color: var(--toast-ok);
+}
+
 .toast-close {
   flex: 0 0 auto;
   display: grid;
@@ -1326,6 +1330,37 @@
   overflow-wrap: break-word;
 }
 
+/* На какие мои направления льгота (F65) — под названием вуза. */
+.benefit-table-directions {
+  display: block;
+  margin: -4px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--p);
+  /* Название направления переносится по словам: «Программ-ная» не читается. */
+  overflow-wrap: break-word;
+}
+
+.benefit-table tbody .benefit-table-sub {
+  border-top: 0;
+}
+
+.benefit-table-sub th {
+  padding: 0 4px 6px 0;
+  overflow-wrap: break-word;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--p);
+  vertical-align: top;
+}
+
+.benefit-table-sub td {
+  padding-top: 0;
+  vertical-align: top;
+}
+
 .benefit-table .tile {
   width: 28px;
   height: 28px;
@@ -1538,20 +1573,124 @@
   color: var(--mu);
 }
 
-/* Карточка вуза */
-.directions {
+/* Направления вуза — D3 (F65): галочка «моё», код и программы, олимпиады. */
+.uni-direction {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--ln-strong);
+  text-align: left;
 }
 
-.direction {
-  padding: 5px 10px;
-  border: 1px solid var(--ln-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
+.uni-direction:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.uni-direction .checkbox {
+  margin-top: 1px;
+}
+
+.uni-direction-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.uni-direction-text b {
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.uni-direction-text span {
   font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+/* В выборе направлений (D4) код — рядом с названием. */
+.uni-direction-inline {
+  display: block;
+}
+
+.uni-direction-inline b,
+.uni-direction-inline span {
+  display: inline;
+}
+
+.uni-direction-goal {
+  font-style: normal;
   font-weight: 600;
+  color: var(--p);
+}
+
+.uni-direction-count {
+  flex: 0 0 auto;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--p);
+}
+
+.uni-direction-check {
+  color: var(--am-ink);
+}
+
+/* Профиль: на какие направления моих вузов смотрим льготы (F65). */
+.uni-targets {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uni-targets button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--ln-strong);
+  text-align: left;
+}
+
+.uni-targets b {
+  flex: 0 0 auto;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.uni-targets span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.uni-targets svg {
+  flex: 0 0 auto;
+  color: var(--mu);
+}
+
+.block-head-note {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--mu);
+}
+
+.block-hint {
+  margin: 8px 0 0;
+  font-size: var(--t-micro);
+  line-height: 1.4;
+  color: var(--mu);
+}
+
+.chips-inline {
+  margin: 4px 0 6px;
+  padding: 2px 0;
 }
 
 /* Ссылка внутри блока: блок уже на фоне --bg, поэтому строка — на --surface. */
@@ -1864,6 +2003,118 @@
   box-shadow: var(--shadow-card);
 }
 
+/* «Ведут в мои вузы и на мои направления» — D5 (F66): белая строка над
+   предметами, справа переключатель. */
+.mine-switch {
+  margin-top: var(--gap-md);
+  padding: 4px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.mine-switch > button[role='switch'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 6px 0;
+  text-align: left;
+}
+
+.mine-switch > button[role='switch']:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.mine-switch-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mine-switch-text b {
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.mine-switch-text span {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.mine-switch-off .mine-switch-text b {
+  color: var(--mu);
+}
+
+.mine-switch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  margin: -8px 0 4px;
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.switch {
+  position: relative;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--ln-strong);
+  transition: background 0.2s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+[aria-checked='true'] > .switch {
+  background: var(--p);
+}
+
+[aria-checked='true'] > .switch::after {
+  transform: translateX(16px);
+}
+
+:disabled > .switch {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
+  }
+}
+
+/* Строка каталога с фильтром «мои»: метка льготы и серые вузы. */
+.row-benefit {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--t-micro);
+  line-height: 1.5;
+  color: var(--mu);
+}
+
+.row-benefit .benefit-value {
+  padding: 1px 7px;
+}
+
 .filter-row {
   display: flex;
   align-items: center;
@@ -1979,6 +2230,318 @@
 
 .tracker-add {
   margin-top: var(--gap-md);
+}
+
+/* Полоска этапов в карточке трекера — E1, вариант B */
+.strip {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.strip-item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.strip-label {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.strip-label b,
+.strip-caption {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.strip-label b {
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.strip-caption {
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.strip-done {
+  background: var(--grs);
+  color: var(--gr-ink);
+}
+
+.strip-gold,
+.strip-ask {
+  background: var(--ams);
+  color: var(--am-ink);
+}
+
+.strip-now {
+  background: var(--pks);
+  color: var(--pk-ink);
+}
+
+.strip-done .strip-caption,
+.strip-gold .strip-caption,
+.strip-ask .strip-caption,
+.strip-now .strip-caption {
+  color: inherit;
+}
+
+.strip-fail b {
+  text-decoration: line-through;
+  color: var(--mu);
+}
+
+.strip-off {
+  opacity: 0.45;
+}
+
+/* Строка действия: вопрос об итоге этапа */
+.tracker-ask {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln);
+}
+
+.tracker-ask-question {
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.result-button {
+  flex: 1 1 auto;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--ps);
+  color: var(--p);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.result-button-quiet {
+  border-color: var(--ln-strong);
+  background: var(--surface);
+  color: var(--tx);
+}
+
+.result-button[aria-pressed='true'] {
+  border-color: var(--gr);
+  background: var(--grs);
+  color: var(--gr-ink);
+}
+
+/* «Не прошёл» и «Без диплома» — не успех: нажатая кнопка нейтральная, не зелёная. */
+.result-button-quiet[aria-pressed='true'] {
+  border-color: var(--mu);
+  background: var(--surface-2);
+  color: var(--tx);
+}
+
+.result-button:disabled {
+  opacity: 0.45;
+}
+
+.result-button[aria-pressed='true']:disabled {
+  opacity: 1;
+}
+
+/* Раскрытая карточка — все этапы с отметками, E4 */
+.tracker-expanded {
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--ln);
+}
+
+.stage-marks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage-mark {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+
+.stage-mark-dot {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border: 2px solid var(--ln-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.stage-mark-past .stage-mark-dot {
+  border-color: var(--gr);
+  background: var(--gr);
+}
+
+.stage-mark-current .stage-mark-dot {
+  border-color: var(--pk);
+  background: var(--pk);
+  box-shadow: 0 0 0 3px var(--pks);
+}
+
+.stage-mark-ask .stage-mark-dot {
+  border-color: var(--am);
+  background: var(--am);
+  box-shadow: 0 0 0 3px var(--ams);
+}
+
+.stage-mark-off {
+  opacity: 0.45;
+}
+
+.stage-mark-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-mark-main b {
+  display: block;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.stage-mark-main > span {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.stage-mark-main > .stage-mark-chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--grs);
+  color: var(--gr-ink);
+  font-weight: 700;
+}
+
+.stage-mark-chip::first-letter {
+  text-transform: uppercase;
+}
+
+.stage-mark-link {
+  display: block;
+  min-height: 32px;
+  color: var(--p2);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.stage-mark-link:disabled {
+  opacity: 0.45;
+}
+
+.tracker-note {
+  margin: 4px 0 0;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.tracker-remove {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 6px;
+  border-top: 1px dashed var(--ln);
+  color: var(--pk-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.tracker-confirm {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ln);
+}
+
+.tracker-confirm p {
+  margin: 0 0 var(--gap-sm);
+  font-size: var(--t-small);
+}
+
+.tracker-confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-sm);
+}
+
+.tracker-diploma {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-height: var(--tap);
+  margin-top: 10px;
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: var(--ams);
+  color: var(--am-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+  text-align: left;
+}
+
+.tracker-diploma svg:last-child {
+  margin-left: auto;
+}
+
+.tracker-more {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  color: var(--mu);
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
+
+.tracker-more-down {
+  transform: rotate(90deg);
+}
+
+.tracker-more-up {
+  transform: rotate(-90deg);
 }
 
 /* Предложение от родителя — E1 */
@@ -2342,6 +2905,11 @@
   gap: 6px;
 }
 
+/* Список под чипами («+ Добавить регион»): рамка фокуса не налезает на чипы. */
+.wrap-chips + .field-select {
+  margin-top: var(--gap-sm);
+}
+
 /* --- Каталог: группы по уровню ---------------------------------------------- */
 
 .catalog-group + .catalog-group {
@@ -2514,6 +3082,44 @@
    как и без неё. */
 .match-list {
   display: contents;
+}
+
+/* Что спрятано из подбора: уже в трекере и ждущее ответа (C3). Тихая
+   строка-ссылка, а не баннер: главное на экране — новые олимпиады. */
+.match-hidden {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px 0 var(--gap-md);
+}
+
+.match-hidden-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 2px;
+  font-size: var(--t-small);
+  color: var(--mu);
+  text-align: left;
+}
+
+.match-hidden-row span {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--p);
 }
 
 /* Слой перехватывает касания: пока идёт тур, интерфейс под ним не нажимается.
@@ -2865,4 +3471,38 @@
   .tour-body {
     animation: tour-fade 160ms ease-out;
   }
+}
+
+/* Регистрация закрылась, а следующий этап впереди (карточка олимпиады). */
+.closed-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: var(--gap-sm);
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--mu);
+  font-size: var(--t-small);
+}
+
+.closed-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.closed-note p {
+  margin: 0;
+}
+
+.closed-note b {
+  display: block;
+  color: var(--tx);
+}
+
+.row-closed {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--t-micro);
+  color: var(--mu);
 }

@@ -11,6 +11,7 @@
 
 import type { Role } from '@contract'
 import { OLYMPIADS, UNIVERSITIES } from './fixtures'
+import type { MockMark } from './progress'
 
 export interface DemoMember {
   id: string
@@ -28,6 +29,8 @@ export interface DemoTrackerItem {
   created_at: string
   registered_at: string | null
   registered_by: string | null
+  /** Отметки этапов, кроме первой регистрации, — по id этапа (progress.ts). */
+  marks?: Record<string, MockMark>
 }
 
 export interface DemoProposal {
@@ -85,6 +88,8 @@ export interface DemoState {
   home_city: string | null
   subjects: string[]
   universities: string[]
+  /** Направления, выбранные в вузе (F65): id вуза → id направлений. */
+  chosen: Record<string, string[]>
   members: DemoMember[]
   tracker: DemoTrackerItem[]
   proposals: DemoProposal[]
@@ -116,6 +121,7 @@ export const state: DemoState = {
   home_city: 'Казань',
   subjects: ['inf', 'math'],
   universities: ['inno', 'kfu', 'hse'],
+  chosen: {},
 
   // Траекторию создала Ольга, Артём подключился по ссылке — сценарий из ТЗ §14.
   members: [
@@ -126,7 +132,8 @@ export const state: DemoState = {
 
   tracker: [
     { id: 'tr-1', profileId: 'hse:inf', added_by: MEMBER_PARENT, created_at: ago(2), registered_at: null, registered_by: null },
-    { id: 'tr-2', profileId: 'vsosh-inf:inf', added_by: MEMBER_KID, created_at: ago(1), registered_at: null, registered_by: null },
+    // Школьный этап ВсОШ уже прошёл — карточка спрашивает его итог.
+    { id: 'tr-2', profileId: 'vsosh-inf:inf', added_by: MEMBER_KID, created_at: ago(20), registered_at: ago(20), registered_by: MEMBER_KID },
     { id: 'tr-3', profileId: 'inno:inf', added_by: MEMBER_KID, created_at: ago(1), registered_at: null, registered_by: null },
   ],
 

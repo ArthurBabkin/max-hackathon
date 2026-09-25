@@ -105,6 +105,9 @@ paths:
       description: |
         Скоринг и сортировка — на сервере (ТЗ §6.1). Клиент показывает `items`
         в том порядке, в котором они пришли, и не пересчитывает ничего сам.
+        Подходящая олимпиада — та, во что ещё можно вступить (срок первого этапа
+        не прошёл); перечневая — только с льготой в вузах ученика. Уже добавленное
+        в трекер и предложенное не показывается.
       x-tz: "F13, F14, F15, F16"
       parameters:
         - name: filter
@@ -130,7 +133,7 @@ paths:
     get:
       tags: [olympiads]
       summary: Каталог олимпиад
-      x-tz: "F24, F27"
+      x-tz: "F24, F27, F66"
       parameters:
         - name: q
           in: query
@@ -144,6 +147,14 @@ paths:
           in: query
           schema: { type: string }
           description: Город финала, `olympiads.final_city`.
+        - name: mine
+          in: query
+          schema: { type: boolean }
+          description: |
+            «Ведут в мои вузы и на мои направления»: только олимпиады с БВИ,
+            БВИ победителям или 100 баллами в вузах ученика — на его
+            направления по правилу целей (выбранные в вузе, иначе из цели,
+            иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
       responses:
         "200":
           description: OK
@@ -156,6 +167,7 @@ paths:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/OlympiadListItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /olympiads/{id}:
@@ -182,7 +194,7 @@ paths:
     get:
       tags: [universities]
       summary: Каталог вузов
-      x-tz: "F25, F27"
+      x-tz: "F25, F27, F67"
       parameters:
         - name: q
           in: query
@@ -190,6 +202,14 @@ paths:
         - name: city
           in: query
           schema: { type: string }
+        - name: direction
+          in: query
+          schema: { type: string }
+          description: |
+            `directions.id`: только вузы, где есть направление, покрывающее
+            это (коды равны или один — укрупнённая группа XX.00.00). Сначала —
+            где больше олимпиад с льготой на нём, вузы с непроверенными
+            льготами — в конце. Нет направления — 400.
       responses:
         "200":
           description: OK
@@ -201,7 +221,8 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: "#/components/schemas/UniversityListItem" }
+                    items: { $ref: "#/components/schemas/CatalogUniversity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /universities/{id}:
@@ -228,7 +249,10 @@ paths:
     get:
       tags: [profile]
       summary: Направления — справочник целей для правки профиля
-      x-tz: "F8, F49"
+      description: |
+        Все направления вузов из датасета (72). `popular` — основные 16, те же, что в онбординге
+        бота: их профиль показывает чипами, остальные — в выборе с поиском (F65).
+      x-tz: "F8, F49, F65"
       responses:
         "200":
           description: OK
@@ -240,7 +264,7 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: "#/components/schemas/Direction" }
+                    items: { $ref: "#/components/schemas/DirectionOption" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
   /tracker:
@@ -333,6 +357,62 @@ paths:
               schema: { $ref: "#/components/schemas/TrackerItem" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: На регистрации держатся итоги этапов — сначала снять их
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /tracker/{id}/stages/{stage_id}:
+    put:
+      tags: [tracker]
+      summary: Отметить этап — регистрацию или итог
+      description: |
+        Отметку ставит любой участник, остальные получают сообщение от бота.
+        Тело — вся отметка этапа: `{registered: false, result: null}` снимает её.
+        Итог подразумевает регистрацию на олимпиаду. `failed`, `winner`,
+        `prizer` и `participant` заканчивают участие: следующие этапы
+        становятся `locked`, напоминания по олимпиаде отменяются. Первая
+        регистрация — то же, что `PUT /tracker/{id}/registered`.
+      x-tz: "F63"
+      parameters:
+        - $ref: "#/components/parameters/TrackerItemId"
+        - name: stage_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: "`stages.id` этапа этой олимпиады"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                registered:
+                  type: boolean
+                  description: Регистрация на этап; у этапов без регистрации игнорируется.
+                result:
+                  oneOf:
+                    - $ref: "#/components/schemas/StageResult"
+                    - type: "null"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerItem" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: |
+            Отметка противоречит другим: этап после закрывающего итога,
+            закрывающий итог при отметках дальше
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /calendar:
     get:
@@ -618,6 +698,39 @@ paths:
               schema: { $ref: "#/components/schemas/Profile" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /profile/universities/{id}/directions:
+    put:
+      tags: [profile]
+      summary: Выбрать направления в вузе
+      description: |
+        Заменяет выбор направлений ученика в вузе (F65). Вуз становится «моим», новые направления
+        дописываются в цель (`goal_status` → `known`). Пустой список снимает выбор, цель не меняется.
+        Льготы в этом вузе дальше считаются на выбранные направления.
+      x-tz: "F65"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [direction_ids]
+              properties:
+                direction_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /ai/chats:
     get:
@@ -1041,12 +1154,36 @@ components:
 
     Recommendations:
       type: object
-      required: [items, outside, note]
+      required: [items, more, outside, note, tracked_count, proposed_count, state]
       properties:
         items:
           type: array
-          description: Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+          description: |
+            Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+            Только то, чего нет в трекере и что не ждёт ответа на предложение:
+            места добавленных занимают следующие по скору (C3).
           items: { $ref: "#/components/schemas/OlympiadCard" }
+        more:
+          type: array
+          description: |
+            Остальные подходящие олимпиады перечня по убыванию скора — «Показать ещё N».
+            Добавленные сюда тоже не попадают.
+          items: { $ref: "#/components/schemas/OlympiadCard" }
+        tracked_count:
+          type: integer
+          minimum: 0
+          description: Сколько подходящих под фильтр олимпиад спрятано, потому что они уже в трекере.
+        proposed_count:
+          type: integer
+          minimum: 0
+          description: Сколько подходящих под фильтр олимпиад спрятано, потому что ждут ответа на предложение.
+        state:
+          type: string
+          enum: [ok, all_tracked, all_proposed, none_suitable]
+          description: |
+            `ok` — есть что показать; `all_tracked` — всё подходящее уже в трекере (C7);
+            `all_proposed` — остальное ждёт ответа на предложение; `none_suitable` — подходящих
+            нет: регистрации закрыты или в вузах ученика нет льгот по его предметам.
         outside:
           type: array
           description: Олимпиады вне перечня — отдельный блок, с основным списком не смешиваются (F16).
@@ -1078,6 +1215,7 @@ components:
               reason,
               in_tracker,
               proposal_status,
+              registration_closed,
             ]
           properties:
             olympiad_profile_id: { type: string }
@@ -1110,13 +1248,18 @@ components:
               type: [string, "null"]
               enum: [pending, null]
               description: "`pending` — родитель уже предложил, ученик ещё не ответил."
+            registration_closed:
+              type: boolean
+              description: |
+                Срок первого этапа (регистрации) прошёл — вступить в этом сезоне нельзя, хотя следующий
+                этап может быть ещё впереди. В «Подборе» всегда `false`: закрытые туда не попадают.
 
     OlympiadListItem:
       allOf:
         - $ref: "#/components/schemas/Badge"
         - type: object
           description: Строка каталога — одна на олимпиаду, а не на профиль.
-          required: [olympiad_id, name, kind, primary_profile]
+          required: [olympiad_id, name, kind, primary_profile, registration_closed, my_benefits]
           properties:
             olympiad_id: { type: string }
             name: { type: string }
@@ -1133,6 +1276,33 @@ components:
                 subject_name: { type: string }
                 level: { $ref: "#/components/schemas/Level" }
             profiles_count: { type: integer }
+            registration_closed:
+              type: boolean
+              description: По основному профилю — срок первого этапа прошёл.
+            my_benefits:
+              type: array
+              description: |
+                С `mine=true` — льгота основного профиля в моих вузах на мои
+                направления, от сильной к слабой. Без фильтра — пустой массив.
+              items: { $ref: "#/components/schemas/MyBenefit" }
+
+    MyBenefit:
+      type: object
+      description: Льгота в моих вузах и вузы, где она даётся.
+      required: [benefit, benefit_label, universities, partial_universities]
+      properties:
+        benefit: { type: string, enum: [bvi, bvi_winners, score100] }
+        benefit_label: { type: string }
+        universities:
+          type: array
+          description: Короткие названия моих вузов, в их порядке в профиле.
+          items: { type: string }
+        partial_universities:
+          type: array
+          description: >-
+            Из universities — вузы, где на мои направления льгота не на все
+            программы («Зависит от программы» в карточке олимпиады).
+          items: { type: string }
 
     ProfileLevel:
       type: object
@@ -1183,6 +1353,12 @@ components:
           ege_min,
           ege_max,
           source,
+          directions,
+          other_directions,
+          unverified,
+          varies,
+          directions_count,
+          directions_total,
         ]
       properties:
         university_id: { type: string }
@@ -1231,6 +1407,40 @@ components:
             засчитает диплом этого года. Есть только в `OlympiadDetail.benefits`, пусто — поля нет.
           items: { type: string }
           examples: [["Призёру — 100 баллов вместо БВИ", "Порог ЕГЭ от 75 до 80 — зависит от программы"]]
+        directions:
+          type: array
+          description: |
+            На какие направления вуза эта льгота (F65): в вузах ученика — его направления (выбранные
+            в вузе или из цели); пусто — льгота вуза целиком. В строке «не учитывает» — направления,
+            на которые льготы нет.
+          items: { type: string }
+          examples: [["Программная инженерия"]]
+        other_directions:
+          type: array
+          description: Более слабые льготы на остальных направлениях ученика в этом вузе.
+          items: { $ref: "#/components/schemas/DirectionBenefit" }
+        unverified:
+          type: boolean
+          description: Льготы на направления ученика в вузе ещё уточняются — показана льгота вуза целиком.
+        varies:
+          type: boolean
+          description: Льгота или порог зависит от программы внутри направления.
+        directions_count:
+          type: integer
+          description: "«Где ещё даёт льготу»: на скольких направлениях вуза есть льгота."
+        directions_total:
+          type: integer
+          description: Сколько направлений у вуза в данных; 0 — данных по направлениям нет.
+
+    DirectionBenefit:
+      type: object
+      required: [benefit, benefit_label, directions]
+      properties:
+        benefit: { $ref: "#/components/schemas/BenefitKind" }
+        benefit_label: { type: string }
+        directions:
+          type: array
+          items: { type: string }
 
     Stage:
       type: object
@@ -1329,12 +1539,60 @@ components:
         id: { type: string, examples: ["napr-09-03-04"] }
         name: { type: string, examples: ["Программная инженерия"] }
 
+    DirectionOption:
+      allOf:
+        - $ref: "#/components/schemas/Direction"
+        - type: object
+          required: [code, groups, popular]
+          properties:
+            code: { type: string, examples: ["09.03.04"] }
+            groups:
+              type: array
+              description: Группы для выбора с поиском — «ИТ», «Экономика».
+              items: { type: string }
+            popular:
+              type: boolean
+              description: Одно из основных направлений — показывается чипом.
+
+    OfferedDirection:
+      type: object
+      required: [id, code, name, status, programs, budget_places, benefit_olympiads_count, is_mine, is_goal]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        status:
+          type: string
+          enum: [offered, to_check]
+          description: to_check — льготы на направлении ещё уточняются.
+        programs: { type: integer }
+        budget_places: { type: [integer, "null"] }
+        benefit_olympiads_count:
+          type: integer
+          description: Сколько олимпиад дают льготу на это направление.
+        is_mine:
+          type: boolean
+          description: Ученик выбрал это направление в вузе.
+        is_goal:
+          type: boolean
+          description: Направление покрывает цель ученика.
+
+    TargetBasis:
+      type: string
+      enum: [chosen, goal, university]
+      description: |
+        На что смотрятся льготы в вузе: chosen — выбранные в вузе направления, goal — направления
+        вуза из цели, university — вуз целиком (ни выбора, ни совпадения с целью).
+
     UniversityListItem:
       type: object
-      required: [id, short_name, name, city, benefit_olympiads_count, is_mine]
+      required: [id, short_name, nick, name, city, benefit_olympiads_count, is_mine]
       properties:
         id: { type: string }
         short_name: { type: string }
+        nick:
+          type: string
+          description: Название в тексте — «Иннополис», а не «УИ»; обычно совпадает с `short_name`.
         name: { type: string }
         city: { type: [string, "null"] }
         color: { type: [string, "null"], pattern: '^#[0-9A-Fa-f]{6}$' }
@@ -1345,15 +1603,80 @@ components:
           type: boolean
           description: Вуз входит в список ученика.
 
+    CatalogUniversity:
+      allOf:
+        - $ref: "#/components/schemas/UniversityListItem"
+        - type: object
+          properties:
+            direction_match:
+              type: object
+              description: Только с фильтром `direction` — чем вуз под него подходит.
+              required: [direction_ids, olympiads_count, status]
+              properties:
+                direction_ids:
+                  type: array
+                  description: Направления вуза, покрывающие искомое.
+                  items: { type: string }
+                olympiads_count:
+                  type: integer
+                  description: Олимпиады с БВИ или 100 баллами на них, последний год приёма.
+                status:
+                  type: string
+                  enum: [offered, to_check]
+                  description: to_check — льготы на всех таких направлениях ещё проверяются.
+
+    ProfileUniversity:
+      allOf:
+        - $ref: "#/components/schemas/UniversityListItem"
+        - type: object
+          required: [chosen_directions, target_basis, target_directions]
+          properties:
+            chosen_directions:
+              type: array
+              description: Направления, выбранные в этом вузе (F65); пусто — не выбирали.
+              items: { $ref: "#/components/schemas/Direction" }
+            target_basis: { $ref: "#/components/schemas/TargetBasis" }
+            target_directions:
+              type: array
+              description: На какие направления вуза смотрятся льготы; пусто при `university`.
+              items: { $ref: "#/components/schemas/Direction" }
+
     UniversityDetail:
       allOf:
         - $ref: "#/components/schemas/UniversityListItem"
         - type: object
-          required: [directions, ege_note, rules_url, rules_verified_at, description, site_url, olympiads]
+          required:
+            [
+              directions,
+              ege_note,
+              rules_url,
+              rules_verified_at,
+              description,
+              site_url,
+              olympiads,
+              offered_directions,
+              target_basis,
+              target_directions,
+              target_unverified,
+            ]
           properties:
             directions:
               type: array
+              deprecated: true
+              description: Устарело, вместо него `offered_directions`.
               items: { type: string }
+            offered_directions:
+              type: array
+              description: Направления вуза — выбранные первыми, за ними из цели, дальше по числу олимпиад (F65).
+              items: { $ref: "#/components/schemas/OfferedDirection" }
+            target_basis: { $ref: "#/components/schemas/TargetBasis" }
+            target_directions:
+              type: array
+              description: На какие направления вуза смотрятся льготы; пусто при `university`.
+              items: { $ref: "#/components/schemas/Direction" }
+            target_unverified:
+              type: boolean
+              description: Льготы на направления ученика в вузе ещё уточняются.
             ege_note:
               type: [string, "null"]
               examples: ["от 75 баллов по профильному предмету"]
@@ -1370,7 +1693,18 @@ components:
                 allOf:
                   - $ref: "#/components/schemas/Badge"
                   - type: object
-                    required: [olympiad_profile_id, name, level, benefit]
+                    required:
+                      [
+                        olympiad_profile_id,
+                        name,
+                        level,
+                        benefit,
+                        my_benefit,
+                        my_benefit_label,
+                        my_directions,
+                        directions_count,
+                        directions_total,
+                      ]
                     properties:
                       olympiad_profile_id: { type: string }
                       olympiad_id: { type: string }
@@ -1379,6 +1713,22 @@ components:
                       level: { $ref: "#/components/schemas/Level" }
                       benefit: { $ref: "#/components/schemas/BenefitKind" }
                       benefit_label: { type: string }
+                      my_benefit:
+                        description: Льгота на мои направления в этом вузе; null — на них льготы нет или она уточняется.
+                        oneOf:
+                          - $ref: "#/components/schemas/BenefitKind"
+                          - type: "null"
+                      my_benefit_label: { type: [string, "null"] }
+                      my_directions:
+                        type: array
+                        description: На какие из моих направлений `my_benefit`.
+                        items: { type: string }
+                      directions_count:
+                        type: integer
+                        description: На скольких направлениях вуза олимпиада даёт льготу.
+                      directions_total:
+                        type: integer
+                        description: Сколько направлений у вуза в данных.
 
     TrackerItem:
       allOf:
@@ -1398,6 +1748,10 @@ components:
               registered_at,
               registered_by,
               added_by,
+              status,
+              outcome,
+              stages,
+              action,
             ]
           properties:
             id: { type: string, format: uuid }
@@ -1422,6 +1776,95 @@ components:
                 - $ref: "#/components/schemas/MemberBrief"
                 - type: "null"
               description: Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2).
+            status:
+              type: string
+              enum: [open, active, finished]
+              description: |
+                open — нужно зарегистрироваться, active — участвует,
+                finished — участие закончено (итог или регистрация закрылась).
+            outcome:
+              type: [string, "null"]
+              enum: [failed, winner, prizer, participant, missed, unknown, null]
+              description: |
+                Чем закончилось участие: итог этапа, missed — регистрация
+                закрылась без отметки, unknown — сезон прошёл, итог не отмечен.
+            stages:
+              type: array
+              items: { $ref: "#/components/schemas/TrackerStage" }
+            action:
+              oneOf:
+                - $ref: "#/components/schemas/TrackerAction"
+                - type: "null"
+              description: Одна строка действия в карточке — что отметить сейчас.
+
+    StageResult:
+      type: string
+      enum: [passed, failed, winner, prizer, participant]
+      description: |
+        Итог этапа: passed — прошёл дальше, failed — не прошёл; у последнего
+        заключительного — winner, prizer, participant (без диплома).
+
+    TrackerStage:
+      type: object
+      required:
+        [
+          id,
+          kind,
+          title,
+          subtitle,
+          starts_at,
+          ends_at,
+          deadline_at,
+          state,
+          registered,
+          result,
+          can_register,
+          results,
+          results_allowed,
+          asking,
+        ]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/StageKind" }
+        title: { type: string }
+        subtitle: { type: [string, "null"] }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        deadline_at: { type: [string, "null"], format: date-time }
+        state:
+          type: string
+          enum: [past, current, future, locked]
+          description: locked — после закрывающего итога.
+        registered: { type: boolean }
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/StageResult"
+            - type: "null"
+        can_register:
+          type: boolean
+          description: Отметку регистрации можно поставить или снять сейчас.
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/StageResult" }
+          description: Какие итоги бывают у этапа.
+        results_allowed:
+          type: array
+          items: { $ref: "#/components/schemas/StageResult" }
+          description: Какие итоги можно поставить сейчас (этап начался, отметки не противоречат).
+        asking:
+          type: boolean
+          description: Этап закончился, итог ждёт отметки.
+
+    TrackerAction:
+      type: object
+      required: [type, stage_id]
+      properties:
+        type:
+          type: string
+          enum: [register, result]
+        stage_id:
+          type: [string, "null"]
+          description: Без этапа — «участвую» у олимпиады без этапа-регистрации (PUT /tracker/{id}/registered).
 
     Proposal:
       allOf:
@@ -1602,7 +2045,7 @@ components:
         universities:
           type: array
           description: Может быть пустым — вузы выбирать не обязательно (F9).
-          items: { $ref: "#/components/schemas/UniversityListItem" }
+          items: { $ref: "#/components/schemas/ProfileUniversity" }
         other_member_names:
           type: array
           description: "Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь»."

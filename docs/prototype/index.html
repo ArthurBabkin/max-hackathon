@@ -515,6 +515,140 @@ footer p{max-width:80ch;margin:0 0 8px}
 .lock{display:flex;gap:6px;align-items:center;font-size:10.5px;color:var(--mu);padding:6px 0 0}
 .sheet .blk .row{padding:8px 0}
 
+/* подбор: только новое (F62) */
+.m-hid{display:flex;flex-direction:column;gap:2px;margin:-4px 0 8px}
+.m-hid button{display:flex;align-items:center;gap:6px;width:100%;min-height:26px;padding:0 2px;font-size:11px;color:var(--mu);text-align:left}
+.m-hid span{flex:1;min-width:0}
+.more-l{display:flex;justify-content:center;align-items:center;gap:4px;width:100%;color:var(--p);font-weight:700;font-size:12px;padding:8px 0 4px}
+.st-ic.ok+.st-t{max-width:24ch;margin-left:auto;margin-right:auto}
+
+/* трекер: этапы и итоги (F63) */
+.stp{display:flex;gap:4px;margin:9px 0 0;padding:0;list-style:none}
+.stp.g2{display:grid;grid-template-columns:1fr 1fr}
+.stp li{flex:1 1 0;min-width:0;border-radius:9px;background:var(--bgA);padding:5px 6px}
+.stp b{display:block;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stp b svg{vertical-align:-1px;margin-right:2px}
+.stp span{display:block;font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stp .dn{background:var(--grs);color:var(--gr)}
+.stp .gold,.stp .ask{background:var(--ams);color:var(--am)}
+.stp .now{background:var(--pks);color:var(--pk)}
+.stp .dn span,.stp .gold span,.stp .ask span,.stp .now span{color:inherit}
+.stp .fail b{text-decoration:line-through;color:var(--mu)}
+.stp .off{opacity:.45}
+.tk-ask{margin-top:9px;padding-top:9px;border-top:1px dashed var(--ln)}
+.tk-ask p{margin:0 0 6px;font-size:11.5px;font-weight:700}
+.rbs{display:flex;flex-wrap:wrap;gap:6px}
+.rb{flex:1 1 auto;min-height:30px;padding:0 8px;border:1.5px solid transparent;border-radius:9px;background:var(--ps);color:var(--p);font-size:11px;font-weight:700;white-space:nowrap}
+.rb.q{border-color:#DAD7E6;background:#fff;color:var(--tx)}
+.rb.on{border-color:var(--gr);background:var(--grs);color:var(--gr)}
+.tk-exp{margin-top:9px;padding-top:2px;border-top:1px dashed var(--ln)}
+.smk{display:flex;gap:9px;align-items:flex-start;padding:7px 0}
+.smk-dot{flex:0 0 12px;width:12px;height:12px;margin-top:3px;border:2px solid #B9B5C9;border-radius:50%;background:#fff}
+.smk.past .smk-dot{border-color:var(--gr);background:var(--gr)}
+.smk.current .smk-dot{border-color:var(--pk);background:var(--pk);box-shadow:0 0 0 3px var(--pks)}
+.smk.ask .smk-dot{border-color:var(--am);background:var(--am);box-shadow:0 0 0 3px var(--ams)}
+.smk.off{opacity:.45}
+.smk-m{flex:1;min-width:0}
+.smk-m b{display:block;font-size:12px}
+.smk-m>span{display:block;font-size:10.5px;color:var(--mu)}
+.smk-m .rbs{margin-top:6px}
+.smk-chip{display:inline-flex!important;gap:4px;align-items:center;margin-top:4px;padding:3px 8px;border-radius:999px;background:var(--grs);color:var(--gr)!important;font-weight:700}
+.smk-link{display:block;margin-top:3px;color:var(--p2);font-size:11px;font-weight:600}
+.tk-note{margin:2px 0 0;font-size:10.5px;color:var(--mu)}
+.tk-rm{display:flex;gap:6px;align-items:center;width:100%;min-height:34px;margin-top:6px;border-top:1px dashed var(--ln);color:var(--pk);font-size:11.5px;font-weight:700}
+.tk-conf{margin-top:6px;padding-top:9px;border-top:1px dashed var(--ln)}
+.tk-conf p{margin:0 0 8px;font-size:11.5px}
+.tk-conf div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tk-conf .btn{height:34px;font-size:12px}
+.tk-dip{display:flex;gap:6px;align-items:center;width:100%;min-height:34px;margin-top:9px;padding:0 10px;border-radius:12px;background:var(--ams);color:var(--am);font-size:11.5px;font-weight:700;text-align:left}
+.tk-dip svg:last-child{margin-left:auto}
+.tk-more{display:flex;gap:4px;align-items:center;justify-content:center;width:100%;min-height:26px;margin-top:4px;color:var(--mu);font-size:10.5px;font-weight:600}
+.tk-chk .cb.on{background:var(--gr)}
+
+/* вуз: направления (F65) */
+.bh-n{font-size:10.5px;font-weight:500;color:var(--mu)}
+.drow{display:flex;gap:9px;align-items:flex-start;width:100%;padding:8px 0;border-bottom:1px dashed #DAD7E6;text-align:left}
+.drow .cb{margin-top:1px}
+.dm{flex:1;min-width:0;display:flex;flex-direction:column}
+.dm b{font-size:12px;line-height:1.25}
+.dm span{font-size:10.5px;color:var(--mu)}
+.dm em{font-style:normal;font-weight:600;color:var(--p)}
+.dcnt{flex:0 0 auto;font-size:10.5px;font-weight:700;color:var(--p);white-space:nowrap}
+.dcnt.q{color:var(--am)}
+.hint{font-size:10.5px;color:var(--mu);margin-top:6px}
+.mseg{display:flex;gap:5px;margin:2px 0 4px}
+.mseg .chip{padding:5px 9px;font-size:11px}
+.about-l{display:flex;gap:6px;align-items:center;width:100%;min-height:30px;font-size:12px;font-weight:600;color:var(--p2);text-align:left}
+.about-l>span{white-space:nowrap}
+.about-l small{margin-left:auto;font-size:10.5px;font-weight:500;color:var(--mu);white-space:nowrap}
+.wchips .chip{max-width:100%;text-align:left}
+.ben .bt span.on{color:var(--p)}
+
+/* карточка олимпиады: таблица льгот (F18, F19, F65) */
+.btab{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10.5px}
+.btab col.u{width:76px}
+.btab col.g{width:44px}
+.btab thead th{padding:0 2px 5px;font-size:9.5px;font-weight:600;line-height:1.2;color:var(--mu);text-align:center;hyphens:auto;overflow-wrap:break-word}
+.btab thead th:first-child{padding-left:0;text-align:left}
+.btab tbody tr{border-top:1px dashed #DAD7E6}
+.btab tbody tr.sub,.btab tbody tr.bnote{border-top:0}
+.btab tbody th{padding:6px 4px 6px 0;font-weight:400;text-align:left;vertical-align:top}
+.btab tbody th button{display:block;font-size:11.5px;font-weight:700;color:var(--tx);text-align:left}
+.btab .dirs-l{display:block;margin-top:1px;font-size:10px;font-weight:600;line-height:1.25;color:var(--p)}
+.btab tr.sub th{padding:0 4px 6px 0;font-size:10px;font-weight:600;line-height:1.25;color:var(--p)}
+.btab tr.sub td{padding-top:0;vertical-align:top}
+.btab td{padding:6px 2px;text-align:center;vertical-align:top}
+.btab .bvt{display:inline-block;padding:2px 5px;border-radius:7px;font-size:10px;font-weight:700;line-height:1.2}
+.bvt.bvi{background:var(--grs);color:var(--gr)}
+.bvt.b100{background:var(--ps);color:var(--p)}
+.bvt.extra{background:var(--ams);color:var(--am)}
+.bvt.none{background:#EEEFF5;color:#7A7E90}
+.btab .ege{white-space:nowrap;color:#34323F;font-size:10px}
+.btab .ege-n{display:block;margin-top:2px;font-size:9px;line-height:1.2;color:var(--mu);hyphens:auto;overflow-wrap:break-word}
+.btab td.dif{background:var(--ams)}
+.btab td.dif .ege{font-weight:700;color:var(--am)}
+.btab td.dif .ege-n{color:var(--am)}
+.btab tr.bnote td{padding:0 0 7px;text-align:left}
+.btab tr.bnote p{margin:0;padding:5px 8px;border-radius:8px;background:var(--ams);color:#6B4A00;font-size:10.5px;line-height:1.35}
+.b-skip{margin:0;padding:8px 0 0;border-top:1px dashed #DAD7E6;font-size:10.5px;color:var(--mu)}
+.b-leg{margin:7px 0 0;font-size:10.5px;line-height:1.35;color:var(--mu)}
+.b-sw{display:inline-block;width:9px;height:9px;margin-right:4px;border-radius:3px;background:var(--ams);box-shadow:inset 0 0 0 1px rgba(168,108,0,.35);vertical-align:-1px}
+.b-all{margin-top:8px}
+.b-all-h{font-size:11px;font-weight:700;color:var(--mu);margin:0 0 4px}
+
+/* каталог: «мои» и группы (F66, F67) */
+.msw{display:flex;align-items:center;gap:10px;width:100%;background:#fff;border-radius:12px;padding:8px 10px 8px 12px;margin-bottom:9px;text-align:left}
+.msw>span:first-child{flex:1;min-width:0;display:flex;flex-direction:column}
+.msw b{font-size:12px;line-height:1.3}
+.msw small{font-size:10.5px;color:var(--mu)}
+.msw.off b{color:var(--mu)}
+.msw .sw.on{background:var(--p)}
+.msw-l{display:inline-flex;align-items:center;gap:2px;margin:-4px 0 8px 2px;font-size:11px;font-weight:700;color:var(--p)}
+.cg-h{display:flex;gap:6px;align-items:baseline;margin:12px 2px 6px;font-size:12px;font-weight:800}
+.cg-h span{font-size:11px;font-weight:600;color:var(--mu)}
+.r-ben{display:block;margin-top:2px;font-size:10.5px;line-height:1.5;color:var(--mu);white-space:normal}
+.r-ben .bvt{display:inline-block;padding:0 6px;border-radius:999px;font-size:10px;font-weight:700}
+.r-tr{display:inline-flex;gap:3px;align-items:center;margin-top:1px;font-size:10.5px;font-weight:600;color:var(--gr)}
+.dl-m .dl-s{white-space:normal}
+
+/* выбор направлений (D4) */
+.pk-g{font-size:11px;font-weight:800;color:var(--mu);margin:12px 2px 2px}
+.prow{display:flex;gap:9px;align-items:flex-start;width:100%;padding:8px 0;border-bottom:1px dashed #DAD7E6;text-align:left;font-size:12px;line-height:1.3}
+.prow .cb{margin-top:1px}
+.prow b{font-weight:700}
+.prow span{color:var(--mu);font-size:10.5px}
+
+/* профиль: направления в вузах (F65) */
+.u-tg{margin:8px 0 0;padding:0;list-style:none}
+.u-tg button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 0;border-bottom:1px dashed #DAD7E6;text-align:left}
+.u-tg b{flex:0 0 auto;font-size:12px}
+.u-tg span{flex:1;min-width:0;font-size:10.5px;color:var(--mu)}
+.u-tg svg{flex:0 0 auto;color:#B4B1C2}
+.fg .fine{margin-top:7px}
+
+/* бот: ответ на кнопку — всплывающее уведомление */
+.cb-note{position:absolute;left:50%;top:108px;transform:translateX(-50%);background:rgba(23,20,42,.9);color:#fff;font-size:11.5px;font-weight:600;padding:8px 12px;border-radius:12px;white-space:nowrap;z-index:8}
+
 .k2.del{color:#E92E78}
 .static .ch-body{justify-content:flex-end}
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -615,7 +749,7 @@ nav.toc{top:env(safe-area-inset-top,0px)}
 
   <section id="cov">
     <h2>Где на макетах каждая функция</h2>
-    <p class="lead">Все 54 функции первой версии. Метки справа ведут к экранам, где функция показана.</p>
+    <p class="lead">Функции первой версии и добавленные после неё — всего 60. Метки справа ведут к экранам, где функция показана.</p>
     <ul class="cov" id="cov-list"></ul>
   </section>
 
@@ -639,11 +773,11 @@ flowchart TD
   R -->|"Открыть мини-приложение"| H["Мини-приложение: главная и следующий шаг"]
   R -->|"Напоминать о сроках"| REM
   R -->|"Пригласить в семью"| INV
-  H --> SEL["Подбор: 3–5 олимпиад и ВсОШ, фильтры, олимпиады вне перечня"]
+  H --> SEL["Подбор: олимпиады и ВсОШ, которых ещё нет в трекере, фильтры, вне перечня"]
   H --> CAT["Каталог: поиск олимпиад и вузов"]
   SEL --> OC["Карточка олимпиады: уровень, льгота в вузах ученика, условия, этапы"]
   CAT --> OC
-  CAT --> VC["Карточка вуза: олимпиады с льготой, ЕГЭ, правила приёма"]
+  CAT --> VC["Карточка вуза: направления, олимпиады с льготой, ЕГЭ, правила приёма"]
   OC --> VC
   VC --> OC
   OC --> WHO{"Кто добавляет?"}
@@ -656,6 +790,9 @@ flowchart TD
   REM --> RG{"Зарегистрировались?"}
   RG -->|"Отметил любой участник"| DONE["Статус «зарегистрирован», новый следующий шаг"]
   RG -.->|"Напомнить завтра"| REM
+  DONE --> ASK["Этап прошёл: бот и трекер спрашивают итог"]
+  ASK -->|"Прошёл дальше"| DONE
+  ASK -->|"Диплом или не прошёл"| FIN["Завершено: итог сезона"]
   H -->|"Спросить"| AI["ИИ-помощник: последний чат, помнит 10 реплик"]
   AI -->|"Чаты"| AIL["Список чатов: свежие сверху"]
   AIL -->|"Выбрать"| AI
@@ -678,7 +815,7 @@ flowchart TD
   classDef app fill:#EFE8FF,stroke:#6B2BFF,color:#17142A
   classDef fam fill:#FFE8F1,stroke:#E92E78,color:#17142A
   class B,N1,N2,Q,G1,G2,V,R,REM,PR,NT chat
-  class H,SEL,CAT,OC,VC,TR,DONE,AI,AIL,AIE,AIT,AIR,AIA,AIN app
+  class H,SEL,CAT,OC,VC,TR,DONE,ASK,FIN,AI,AIL,AIE,AIT,AIR,AIA,AIN app
   class INV,J,SH,DEL,OUT fam
 </pre>
     </div>
@@ -713,7 +850,8 @@ const P={
  refresh:'M20 11a8 8 0 10-2.3 5.7M20 4v7h-7', wifioff:'M3 3l18 18M8.5 16.5a5 5 0 017 0M5 12.9a10 10 0 015.2-2.8M19 12.9a10 10 0 00-2.4-1.7M2 8.8a15 15 0 014.2-2.7M22 8.8A15 15 0 0010.5 5.1M12 20h.01',
  book:'M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 5v16M8 7h7', pin:'M12 21s-7-6.5-7-12a7 7 0 0114 0c0 5.5-7 12-7 12zM12 7a2 2 0 100 4a2 2 0 000-4z',
  out:'M15 4h4a1 1 0 011 1v14a1 1 0 01-1 1h-4M10 17l5-5-5-5M15 12H4', inbox:'M4 13l3-8h10l3 8v6H4zM4 13h5l1 2h4l1-2h5',
- pencil:'M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16zM13.5 6.5l4 4', down:'M6 9l6 6 6-6'
+ pencil:'M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16zM13.5 6.5l4 4', down:'M6 9l6 6 6-6', up:'M6 15l6-6 6 6',
+ award:'M12 3a6 6 0 100 12a6 6 0 100-12zM8.5 14L7 21l5-3 5 3-1.5-7', trash:'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'
 };
 const ic=(n,s=18,w=2)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${n==='dots'?3.2:w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${P[n]}"/></svg>`;
 let LG=0;
@@ -741,7 +879,7 @@ const OLY=[
   whyP:'Профиль «информатика» совпадает с целью Артёма. Отборочный этап онлайн, ехать никуда не нужно.',
   profiles:[['Информатика','I'],['Математика','I'],['Экономика','I'],['Физика','II']],
   stages:[['Регистрация','до 25 сентября'],['Отборочный этап','октябрь — ноябрь, онлайн'],['Заключительный этап','февраль, очно']],
-  cond:['ЕГЭ по информатике от 75 баллов','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+  cond:['Льготу подтверждает ЕГЭ по предмету «Информатика»','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
  {id:'inno',short:'IO',name:'Innopolis Open',org:'Университет Иннополис',subj:['inf','math'],city:'Иннополис',per:true,fmt:'Онлайн-отбор',online:true,days:39,date:'30 октября',m:10,d:30,hue:'#1A6DFF',
   ws:'Финал проходит в Татарстане',
   why:'Финал проходит в Иннополисе, недалеко от дома. Твой профиль — информатика, это II уровень.',
@@ -763,6 +901,41 @@ const OLY=[
   profiles:[['Информатика','I'],['Математика','I'],['Физика','I']],
   stages:[['Регистрация','до 20 октября'],['Отборочный этап','ноябрь, онлайн'],['Заключительный этап','февраль — март, очно']],
   cond:['ЕГЭ по профильному предмету от 75 баллов','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+ {id:'fiz',short:'Ф',name:'Физтех',org:'МФТИ',subj:['inf','math','phys'],city:'Долгопрудный',per:true,fmt:'Онлайн-отбор',online:true,days:45,date:'5 ноября',m:11,d:5,hue:'#3F4DFF',
+  ws:'Сильная математика нужна на ИТ-направлениях',
+  why:'Олимпиада МФТИ проверяет математику и информатику — то, что понадобится на ИТ-направлениях. Отборочный этап онлайн.',
+  whyP:'Олимпиада МФТИ проверяет математику и информатику — то, что понадобится Артёму на ИТ-направлениях. Отборочный этап онлайн.',
+  profiles:[['Математика','I'],['Физика','I'],['Информатика','II']],
+  stages:[['Регистрация','до 5 ноября'],['Отборочный этап','ноябрь — декабрь, онлайн'],['Заключительный этап','февраль, очно']],
+  cond:['Льготу подтверждает ЕГЭ по предмету «Информатика»','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+ {id:'ooh',short:'ОО',name:'Открытая олимпиада школьников',org:'Университет ИТМО',subj:['inf'],city:'Санкт-Петербург',per:true,fmt:'Онлайн-отбор',online:true,days:52,date:'12 ноября',m:11,d:12,hue:'#0A9DB2',
+  ws:'Олимпиада по программированию, I уровень',
+  why:'Задачи по программированию — ровно то, что нужно на направлении «Программная инженерия». Отборочный этап онлайн.',
+  whyP:'Задачи по программированию — ровно то, что нужно Артёму на направлении «Программная инженерия». Отборочный этап онлайн.',
+  profiles:[['Информатика','I']],
+  stages:[['Регистрация','до 12 ноября'],['Отборочный этап','ноябрь — январь, онлайн'],['Заключительный этап','март, очно']],
+  cond:['Льготу подтверждает ЕГЭ по предмету «Информатика»','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+ {id:'mosh',short:'МО',name:'Московская олимпиада школьников',org:'Департамент образования Москвы',subj:['inf','math'],city:'Москва',per:true,fmt:'Очно',online:false,days:57,date:'17 ноября',m:11,d:17,hue:'#7A3BC4',
+  ws:'Два профиля: информатика и математика',
+  why:'Можно пойти по информатике и по математике — оба профиля I уровня.',
+  whyP:'Артём может пойти по информатике и по математике — оба профиля I уровня.',
+  profiles:[['Информатика','I'],['Математика','I']],
+  stages:[['Регистрация','до 17 ноября'],['Отборочный этап','декабрь, очно'],['Заключительный этап','март, очно']],
+  cond:['Льготу подтверждает ЕГЭ по профильному предмету','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+ {id:'spbu',short:'СП',name:'Олимпиада СПбГУ',org:'СПбГУ',subj:['inf','math'],city:'Санкт-Петербург',per:true,fmt:'Онлайн-отбор',online:true,days:64,date:'24 ноября',m:11,d:24,hue:'#B0413E',
+  ws:'Отборочный этап онлайн',
+  why:'Отборочный этап онлайн, заключительный — в нескольких городах, в том числе в Казани.',
+  whyP:'Отборочный этап онлайн, заключительный — в нескольких городах, в том числе в Казани.',
+  profiles:[['Информатика','II'],['Математика','I']],
+  stages:[['Регистрация','до 24 ноября'],['Отборочный этап','декабрь, онлайн'],['Заключительный этап','февраль — март']],
+  cond:['Льготу подтверждает ЕГЭ по профильному предмету','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
+ {id:'bauman',short:'ШБ',name:'Шаг в будущее',org:'МГТУ им. Н. Э. Баумана',subj:['inf','math','phys'],city:'Москва',per:true,fmt:'Онлайн-отбор',online:true,days:71,date:'1 декабря',m:12,d:1,hue:'#2E7D9A',
+  ws:'Инженерная олимпиада с профилем «информатика»',
+  why:'Инженерная олимпиада: задачи по информатике ближе к практике, чем к теории.',
+  whyP:'Инженерная олимпиада: задачи по информатике ближе к практике, чем к теории.',
+  profiles:[['Информатика','II'],['Математика','I'],['Физика','I']],
+  stages:[['Регистрация','до 1 декабря'],['Отборочный этап','декабрь, онлайн'],['Заключительный этап','март, очно']],
+  cond:['Льготу подтверждает ЕГЭ по профильному предмету','Диплом засчитывается за 9–11 класс','БВИ можно использовать только в одном вузе']},
  {id:'tyk',short:'ТП',name:'Турнир юных программистов Казани',org:'Вымышленный пример',subj:['inf'],city:'Казань',per:false,fmt:'Очно',online:false,days:24,date:'15 октября',m:10,d:15,hue:'#7A7E90',
   ws:'Льгот нет, только дополнительные баллы',
   why:'Хорошая практика перед перечневыми олимпиадами. В КФУ диплом даст дополнительные баллы.',
@@ -772,15 +945,70 @@ const OLY=[
   cond:['Льгот при поступлении не даёт','Дополнительные баллы — не больше 10 в сумме за все достижения']}
 ];
 const BY=Object.fromEntries(OLY.map(o=>[o.id,o]));
+// Направления (F65): код, группа в выборе направлений; pop — основные, они чипами в профиле.
+const DIR={
+ se:{n:'Программная инженерия',c:'09.03.04',g:'it',pop:true},
+ ami:{n:'Прикладная математика и информатика',c:'01.03.02',g:'it',pop:true},
+ ivt:{n:'Информатика и вычислительная техника',c:'09.03.01',g:'it',pop:true},
+ is:{n:'Информационная безопасность',c:'10.03.01',g:'it',pop:true},
+ ist:{n:'Информационные системы и технологии',c:'09.03.02',g:'it'},
+ pi:{n:'Прикладная информатика',c:'09.03.03',g:'it'},
+ mcs:{n:'Математика и компьютерные науки',c:'02.03.01',g:'it'},
+ bi:{n:'Бизнес-информатика',c:'38.03.05',g:'econ'},
+ econ:{n:'Экономика',c:'38.03.01',g:'econ',pop:true},
+ pmf:{n:'Прикладные математика и физика',c:'03.03.01',g:'phys'},
+ math:{n:'Математика',c:'01.03.01',g:''}
+};
+const DGROUPS=[['it','ИТ'],['econ','Экономика и управление'],['phys','Физика и инженерия'],['bio','Медицина и биология'],['','Другие']];
+// dirs — направления вуза: [id, программ, 'q' — льготы уточняются].
+// olys — [олимпиада, льгота на направления вуза, {направление: другая льгота или null — льготы нет}].
 const VUZ=[
- {id:'inno',short:'УИ',nick:'Иннополис',name:'Университет Иннополис',city:'Иннополис',hue:'#1A6DFF',dirs:['Программная инженерия','Искусственный интеллект','Кибербезопасность'],ege:'от 75 баллов по профильному предмету и от 60 по двум другим',olys:[['inno','БВИ'],['hse','БВИ'],['vsosh','БВИ'],['lomo','100 баллов'],['tk','100 баллов']]},
- {id:'kfu',short:'КФУ',nick:'КФУ',name:'Казанский федеральный университет',city:'Казань',hue:'#0C8F62',dirs:['Программная инженерия','Прикладная информатика','Математика'],ege:'от 75 баллов по профильному предмету',olys:[['vsosh','БВИ'],['lomo','БВИ'],['hse','100 баллов'],['inno','100 баллов'],['tyk','доп. баллы']]},
- {id:'hse',short:'ВШЭ',nick:'ВШЭ',name:'НИУ ВШЭ',city:'Москва',hue:'#6B2BFF',dirs:['Программная инженерия','Прикладная математика и информатика','Компьютерные науки'],ege:'от 75 до 80 баллов по профильному предмету',olys:[['vsosh','БВИ'],['hse','БВИ'],['lomo','БВИ'],['tk','100 баллов']]},
- {id:'itmo',short:'ИТМО',nick:'ИТМО',name:'Университет ИТМО',city:'Санкт-Петербург',hue:'#E92E78',dirs:['Программная инженерия','Информатика и вычислительная техника'],ege:'от 75 баллов по профильному предмету',olys:[['vsosh','БВИ'],['tk','БВИ'],['hse','БВИ']]},
- {id:'mipt',short:'МФТИ',nick:'МФТИ',name:'МФТИ',city:'Долгопрудный',hue:'#D48806',dirs:['Прикладная математика и информатика','Информатика и вычислительная техника'],ege:'от 75 баллов по профильному предмету',olys:[['vsosh','БВИ'],['tk','БВИ победителям'],['lomo','БВИ победителям']]}
+ {id:'inno',short:'УИ',nick:'Иннополис',name:'Университет Иннополис',city:'Иннополис',hue:'#1A6DFF',about:'ИТ-университет в Татарстане: программирование, данные, робототехника.',
+  dirs:[['se',3],['ivt',2],['is',1],['ist',1],['bi',1,'q']],ege:'от 75 баллов по профильному предмету и от 60 по двум другим',egeMin:75,
+  olys:[['inno','БВИ'],['hse','БВИ',{bi:null}],['vsosh','БВИ'],['fiz','БВИ',{bi:null}],['lomo','100 баллов',{is:null}],['tk','100 баллов',{bi:null}],['ooh','100 баллов'],['bauman','100 баллов',{bi:null,is:null}]]},
+ {id:'kfu',short:'КФУ',nick:'КФУ',name:'Казанский федеральный университет',city:'Казань',hue:'#0C8F62',about:'Один из старейших университетов страны: ИТ, математика, естественные науки.',
+  dirs:[['se',2],['pi',2],['ivt',2],['ami',2],['math',1],['is',1,'q'],['econ',3],['bi',1]],ege:'от 75 баллов по профильному предмету',egeMin:75,
+  olys:[['vsosh','БВИ'],['lomo','БВИ',{econ:'100 баллов',bi:'100 баллов'}],['hse','100 баллов',{econ:null,bi:null}],['inno','100 баллов',{econ:null,bi:null,math:null}],['mosh','100 баллов',{econ:null,bi:null}],['spbu','100 баллов',{econ:null,bi:null,pi:null}],['tyk','доп. баллы']],
+  notes:{hse:'Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт'}},
+ {id:'hse',short:'ВШЭ',nick:'ВШЭ',name:'НИУ ВШЭ',city:'Москва',hue:'#6B2BFF',about:'Исследовательский университет: ИТ, математика, экономика, право.',
+  dirs:[['se',3],['ami',2],['is',1],['pi',1],['ist',1],['math',1],['econ',4],['bi',2]],ege:'от 75 до 80 баллов по профильному предмету',egeMin:75,egeMax:80,
+  olys:[['vsosh','БВИ'],['hse','БВИ',{ami:'100 баллов'}],['lomo','БВИ',{econ:'100 баллов',ist:null}],['tk','100 баллов',{econ:null,bi:null,math:null}],['mosh','БВИ',{econ:null,bi:null}],['spbu','100 баллов',{econ:null,bi:null,is:null}],['fiz','100 баллов',{econ:null,bi:null,is:null,pi:null}]]},
+ {id:'itmo',short:'ИТМО',nick:'ИТМО',name:'Университет ИТМО',city:'Санкт-Петербург',hue:'#E92E78',about:'Университет в Петербурге: ИТ, программирование, фотоника.',
+  dirs:[['se',2,'q'],['ivt',3],['is',2],['ist',2],['pi',1],['ami',1]],ege:'от 75 баллов по профильному предмету',egeMin:75,
+  olys:[['vsosh','БВИ'],['tk','БВИ'],['hse','БВИ',{pi:null}],['ooh','БВИ'],['fiz','100 баллов',{is:null}]]},
+ {id:'mipt',short:'МФТИ',nick:'МФТИ',name:'МФТИ',city:'Долгопрудный',hue:'#D48806',about:'Физтех: физика, математика, информатика.',
+  dirs:[['ami',3],['pmf',5],['ivt',2],['mcs',1]],ege:'от 75 баллов по профильному предмету',egeMin:75,
+  olys:[['vsosh','БВИ'],['tk','БВИ победителям'],['lomo','БВИ победителям'],['fiz','БВИ']]}
 ];
 const VBY=Object.fromEntries(VUZ.map(v=>[v.id,v]));
 const benefitOf=(vid,oid)=>{const e=VBY[vid].olys.find(x=>x[0]===oid);return e?e[1]:null;};
+const offered=v=>v.dirs.map(d=>d[0]);
+const toCheck=(v,d)=>v.dirs.some(x=>x[0]===d&&x[2]==='q');
+// Льгота олимпиады на направлении вуза: у направления, где льготы уточняются, — нет.
+const benOn=(e,v,d)=>toCheck(v,d)?null:e[2]&&d in e[2]?e[2][d]:e[1];
+const RANK=b=>!b?0:b==='БВИ'?4:/^БВИ/.test(b)?3:/100/.test(b)?2:1;
+// На какие направления вуза считаем льготы: отмеченные в карточке, из цели или вуз целиком.
+function targetOf(s,v){
+ const ch=offered(v).filter(d=>(s.uniDirs[v.id]||[]).includes(d));
+ if(ch.length) return {basis:'chosen',dirs:ch};
+ const g=offered(v).filter(d=>s.prof.dirs.has(d));
+ return g.length?{basis:'goal',dirs:g}:{basis:'university',dirs:[]};
+}
+// Льгота в моём вузе: сильнейшая на моих направлениях и на какие; остальные мои — слабее.
+function myBen(s,v,oid){
+ const e=v.olys.find(x=>x[0]===oid); if(!e) return null;
+ const t=targetOf(s,v);
+ if(t.basis==='university') return {b:e[1],dirs:[],other:[]};
+ const by=new Map();
+ t.dirs.forEach(d=>{const b=benOn(e,v,d); if(b){if(!by.has(b)) by.set(b,[]); by.get(b).push(d);}});
+ if(!by.size) return null;
+ const [best,...rest]=[...by.entries()].sort((a,b)=>RANK(b[0])-RANK(a[0]));
+ return {b:best[0],dirs:best[1],other:rest.map(([b,dirs])=>({b,dirs}))};
+}
+// На скольких направлениях вуза олимпиада даёт льготу.
+const onCount=(v,oid)=>{const e=v.olys.find(x=>x[0]===oid);return e?offered(v).filter(d=>benOn(e,v,d)).length:0;};
+const ofDirs=n=>`${n} ${n%10===1&&n%100!==11?'направления':'направлений'}`;
+const dirCount=(v,d)=>v.olys.filter(e=>BY[e[0]].per&&benOn(e,v,d)).length;
 const bvCls=b=>!b?'none':/^БВИ/.test(b)?'bvi':/100/.test(b)?'b100':/доп/.test(b)?'extra':'none';
 const lvlOf=o=>o.per==='vsosh'?'ВсОШ':o.per?(o.profiles.find(p=>p[0]==='Информатика')||o.profiles[0])[1]+' уровень':'вне перечня';
 const lvlChip=o=>o.per?`<span class="lvl">${lvlOf(o)}</span>`:'<span class="nper">вне перечня</span>';
@@ -789,13 +1017,15 @@ const SUBJ={inf:'Информатика',math:'Математика',phys:'Фи�
 /* ---------- state & voice ---------- */
 function fresh(){return {view:'chat',as:'kid',tab:'home',sheet:[],sheetNew:false,sheetReset:false,
  tracked:new Set(['hse','vsosh','inno']),reg:new Map(),proposals:['tk'],
- filter:'all',catSeg:'oly',q:'',catSubj:'all',catCity:'all',trView:'list',calM:9,
+ filter:'all',catSeg:'oly',q:'',catSubj:'inf',catCity:'all',trView:'list',calM:9,
+ matchMore:false,catMine:false,catDir:'',catOpen:new Set(),vuzAll:false,vuzMode:null,vuzFocus:null,dirQ:'',
+ uniDirs:{hse:['se','ami']},res:new Map(),shift:0,trOpen:new Set(),trRm:null,at:null,
  members:[{n:PAR,r:'Родитель',c:true,col:'#E92E78'},{n:KID,r:'Ученик',col:'#FF8A3D'},{n:'Игорь',r:'Родитель',col:'#1A6DFF'}],
  links:[],ai:{kid:[],parent:[]},aiCur:'today',aiTitle:null,aiView:'chat',aiRename:null,aiBottom:false,
  aiOther:AICHATS.map(c=>({...c,log:[...c.log]})),
  loading:false,error:false,empty:false,splash:false,anim:false,
  kidOk:false,chatRemind:false,matchSeen:false,
- prof:{cls:9,subj:new Set(['inf','math']),vuz:new Set(['inno','kfu','hse'])}};}
+ prof:{cls:9,subj:new Set(['inf','math']),vuz:new Set(['inno','kfu','hse']),dirs:new Set(['se'])}};}
 const isP=s=>s.as==='parent';
 const V=(s,k,p)=>isP(s)?p:k;
 const me=s=>isP(s)?PAR:KID;
@@ -803,6 +1033,49 @@ const did=n=>n===PAR?'Отметила':'Отметил';
 const tracked=s=>OLY.filter(o=>s.tracked.has(o.id)).sort((a,b)=>a.days-b.days);
 function pill(o,s){ if(s.reg.has(o.id)) return `<span class="pill done">${ic('check',11,3)} готово</span>`; const c=o.days<=7?'hot':o.days<=16?'soon':'ok'; return `<span class="pill ${c}">${daysTxt(o.days)}</span>`; }
 const stepName=o=>o.per==='vsosh'?'Школьный этап ВсОШ':`Регистрация на «${o.name}»`;
+const goalTxt=s=>[...s.prof.dirs].map(d=>DIR[d].n).join(', ')||'Цель пока не выбрана';
+const daysPill=d=>`<span class="pill ${d<=7?'hot':d<=16?'soon':'ok'}">${daysTxt(d)}</span>`;
+
+/* ---------- tracker stages (F63) ---------- */
+// a и e — начало и конец этапа в днях от «сегодня», 21 сентября. shift в состоянии
+// сдвигает «сегодня»: так галерея показывает трекер в ноябре и в марте.
+const R2=['passed','failed'], R3=['winner','prizer','participant'];
+const TST={
+ vsosh:[{k:'school',t:'Школьный этап',w:'1 октября, в школе',sw:'1 окт',a:10,e:10,rs:R2},{k:'municipal',t:'Муниципальный этап',w:'20 ноября',sw:'20 ноя',a:60,e:60,rs:R2},{k:'regional',t:'Региональный этап',w:'январь — февраль',sw:'янв — фев',a:110,e:160,rs:R2},{k:'final',t:'Заключительный этап',w:'апрель',sw:'апрель',a:200,e:215,rs:R3}],
+ hse:[{k:'registration',t:'Регистрация',w:'до 25 сентября',sw:'до 25 сен',a:4,e:4},{k:'qualifying',t:'Отборочный этап',w:'октябрь — ноябрь, онлайн',sw:'окт — ноя',a:20,e:50,rs:R2},{k:'final',t:'Заключительный этап',w:'февраль, очно',sw:'февраль',a:140,e:148,rs:R3}],
+ inno:[{k:'registration',t:'Регистрация',w:'до 30 октября',sw:'до 30 окт',a:39,e:39},{k:'qualifying',t:'Отборочный тур 1',w:'7–8 ноября, онлайн',sw:'7–8 ноя',a:47,e:48,rs:R2},{k:'qualifying',t:'Отборочный тур 2',w:'январь, онлайн',sw:'январь',a:115,e:130,rs:R2},{k:'final',t:'Финал',w:'март, Иннополис',sw:'март',a:170,e:185,rs:R3}],
+ tk:[{k:'registration',t:'Регистрация',w:'до 8 октября',sw:'до 8 окт',a:17,e:17},{k:'qualifying',t:'Отборочные раунды',w:'октябрь — декабрь, онлайн',sw:'окт — дек',a:20,e:85,rs:R2},{k:'final',t:'Финал',w:'весна, очно',sw:'весна',a:180,e:200,rs:R3}],
+ lomo:[{k:'registration',t:'Регистрация',w:'до 20 октября',sw:'до 20 окт',a:29,e:29},{k:'qualifying',t:'Отборочный этап',w:'ноябрь, онлайн',sw:'ноябрь',a:41,e:70,rs:R2},{k:'final',t:'Заключительный этап',w:'февраль — март, очно',sw:'фев — мар',a:140,e:170,rs:R3}]
+};
+const MON={'сентября':'сен','октября':'окт','ноября':'ноя','декабря':'дек'};
+// У остальных олимпиад этапы — из карточки: сроки впереди.
+const stagesOf=o=>TST[o.id]||o.stages.map((x,i,a)=>({k:i===0?'registration':i===a.length-1?'final':'qualifying',t:x[0],w:x[1],
+ sw:x[1].split(',')[0].replace(/(\S+)$/,m=>MON[m]||m),a:i===0?o.days:999,e:i===0?o.days:999,rs:i===0?null:i===a.length-1?R3:R2}));
+const SHORT={registration:'Регистрация',school:'Школьный',municipal:'Муниципальный',regional:'Региональный',qualifying:'Отбор',final:'Финал'};
+const KIND={registration:'этап регистрации',school:'школьный этап',municipal:'муниципальный этап',regional:'региональный этап',qualifying:'отборочный этап',final:'заключительный этап'};
+const MARK={passed:'пройден',failed:'не пройден',winner:'победитель',prizer:'призёр',participant:'без диплома'};
+const RES=s=>({passed:V(s,'Прохожу дальше','Проходит дальше'),failed:V(s,'Не прохожу','Не проходит'),winner:'Диплом победителя',prizer:'Диплом призёра',participant:'Без диплома'});
+const dateOf=w=>{const m=w.match(/^(?:до )?(\d[\d–]*\s[а-яё]+)/);return m?m[1]:'';};
+// Пункт трекера: этапы с состояниями, статус (нужно зарегистрироваться / участвую / завершено), действие.
+function trItem(s,o){
+ const sh=s.shift, regd=s.reg.has(o.id);
+ let lock=false, cur=false;
+ const st=stagesOf(o).map((x,i)=>{
+  const id=o.id+':'+i, r=s.res.get(id)||null, first=i===0&&(x.k==='registration'||x.k==='school');
+  const state=lock?'locked':x.e<sh?'past':!cur?(cur=true,'current'):'future';
+  if(r==='failed') lock=true;
+  return {...x,id,r,first,reg:first&&regd,state};
+ });
+ const first=st[0]&&st[0].first?st[0]:null, fail=st.find(x=>x.r==='failed'), fin=st.find(x=>x.k==='final'&&x.r);
+ let status='active', outcome=null;
+ if(first&&!first.reg&&first.state==='past'){status='finished';outcome='missed';}
+ else if(fail){status='finished';outcome='failed';}
+ else if(fin){status='finished';outcome=fin.r;}
+ else if(first&&!first.reg) status='open';
+ const ask=status==='active'?st.find(x=>x.state==='past'&&x.rs&&!x.r)||null:null;
+ st.forEach(x=>{x.asking=ask===x;});
+ return {o,st,status,outcome,ask,next:st.find(x=>x.state==='current')||null,fail};
+}
 
 /* ---------- chat pieces ---------- */
 const chatHead=()=>`<div class="ch-head"><span class="back">${ic('back',22)}</span><span class="ch-ava">${logo(34)}</span><div style="flex:1;min-width:0"><div class="ch-name">Траектория <em class="botb">бот</em></div><div class="ch-st">навигатор олимпиад</div></div><span style="color:#8A8FA0;display:flex">${ic('dots',20)}</span></div>`;
@@ -948,6 +1221,11 @@ ${B('Удалить траекторию Артёма и все данные? А
 ${KB([K('Удалить траекторию','del'),K('Отмена')],'two')}
 ${U('Удалить траекторию','21:11')}
 ${B('Траектория и все данные удалены. Чтобы начать заново, отправьте /start.','21:11')}`);
+// Итог этапа (F64): на следующий день после этапа и через неделю. Ответ на кнопку — всплывающее уведомление.
+const scrResultAsk=()=>chat(`${D('11 ноября')}
+${B('📝 Как прошёл отборочный этап олимпиады «Высшая проба»? Отметь итог — трекер покажет, что дальше.','10:00')}
+${KB([K('✓ ✅ Прохожу дальше','sel'),K('Дальше не прохожу'),K('Итогов ещё нет')])}`)
+ .replace('<div class="ch-in">','<div class="cb-note">✅ Записал в трекер.</div><div class="ch-in">');
 const scrDeleteInvited=()=>chat(`${U('/delete','21:10')}
 ${B('Удалить траекторию может только её создатель — Ольга.<br><br>Ты можешь выйти из траектории: олимпиады и напоминания останутся у остальных участников.','21:10')}
 ${KB([K('Выйти из траектории','del'),K('Отмена')],'two')}`);
@@ -965,7 +1243,7 @@ function scHome(s){
  const nx=next?`<div class="nx"><span class="nx-i">${ic('clock',17)}</span><div style="min-width:0"><div class="nx-t">Следующий шаг, осталось ${daysTxt(next.days)}</div><div class="nx-m">${stepName(next)}</div></div><button class="sm-btn" data-a="open" data-v="${next.id}">Открыть</button></div>`
   :tr.length?`<div class="nx okk"><span class="nx-i">${ic('check',17)}</span><div><div class="nx-t">Всё по плану</div><div class="nx-m">Все регистрации сделаны</div></div></div>`:'';
  return `<div class="hello"><div><div class="hi-sub">Понедельник, 21 сентября</div><div class="hi">${V(s,'Привет, Артём 👋','Здравствуйте, Ольга')}</div></div><button class="ava" data-a="tab" data-v="profile" aria-label="Профиль ученика">А</button></div>
- <div class="goal">${gpx}<div class="g-top">${V(s,'Моя цель','Цель Артёма')}, ${s.prof.cls} класс</div><div class="g-t">Программная инженерия</div>
+ <div class="goal">${gpx}<div class="g-top">${V(s,'Моя цель','Цель Артёма')}, ${s.prof.cls} класс</div><div class="g-t">${goalTxt(s)}</div>
  <div class="g-row">${ring(pct)}<div class="g-st"><div><b>${tr.length}</b> ${plural(tr.length,'олимпиада','олимпиады','олимпиад')} в трекере</div><div><b>${rg} из ${tr.length}</b> регистраций</div><div><b>${s.prof.vuz.size}</b> ${plural(s.prof.vuz.size,'вуз','вуза','вузов')} в цели</div></div></div></div>
  ${nx}
  <div class="sh"><span>Ближайшие сроки</span><button class="lk" data-a="tab" data-v="tracker">Все сроки</button></div>
@@ -978,7 +1256,7 @@ function scHome(s){
 
 const FILTERS=[['all','Все'],['lvl1','I уровень'],['soon','Срок скоро'],['online','Онлайн-отбор']];
 function benSummary(s,o){
- const rows=[...s.prof.vuz].map(id=>[VBY[id],benefitOf(id,o.id)]).filter(r=>r[1]);
+ const rows=[...s.prof.vuz].map(id=>[VBY[id],(myBen(s,VBY[id],o.id)||{}).b]).filter(r=>r[1]);
  if(!rows.length) return V(s,'В твоих вузах льгот нет','В вузах Артёма льгот нет');
  const bvi=rows.filter(r=>/^БВИ/.test(r[1])).map(r=>r[0].nick);
  if(bvi.length) return `${bvi.join(', ')}: БВИ`;
@@ -993,38 +1271,83 @@ function addBtn(o,s){
 }
 const olyCard=(o,s)=>`<div class="oc"><button class="oc-main" data-a="open" data-v="${o.id}"><span class="bdg lg" style="--h:${o.hue}">${o.short}</span><span class="oc-b"><span class="oc-n">${o.name}</span><span class="oc-o">${o.org}</span><span class="oc-tg">${lvlChip(o)}${pill(o,s)}</span><span class="oc-bn">${benSummary(s,o)}</span><span class="oc-why">${ic('spark',12)} ${o.ws}</span></span></button>${addBtn(o,s)}</div>`;
 
+const matchFresh=(s,pool)=>(pool||OLY.filter(o=>o.per&&[...s.prof.vuz].some(id=>myBen(s,VBY[id],o.id)))).filter(o=>!s.tracked.has(o.id)&&!s.proposals.includes(o.id));
 function scMatch(s){
- const head=`<div class="mh"><div class="mh-t">${V(s,'Подобрано под твою цель','Подобрано под цель Артёма')}</div><div class="mh-s">Программная инженерия, ${s.prof.cls} класс, Татарстан</div></div>`;
+ const head=`<div class="mh"><div class="mh-t">${V(s,'Подобрано под твою цель','Подобрано под цель Артёма')}</div><div class="mh-s">${goalTxt(s)}, ${s.prof.cls} класс, Татарстан</div></div>`;
  if(s.loading) return head+`<div class="chips">${FILTERS.map(f=>`<span class="chip">${f[1]}</span>`).join('')}</div><div class="info">${ic('spark',14)} Сверяем олимпиады с перечнем и правилами вузов…</div>`+[1,2,3].map(()=>`<div class="oc"><div class="skel" style="width:42px;height:42px;border-radius:13px;flex:0 0 42px"></div><div style="flex:1;display:grid;gap:8px;padding-top:2px"><div class="skel" style="height:12px;width:68%"></div><div class="skel" style="height:10px;width:48%"></div><div class="skel" style="height:18px;width:82%"></div></div></div>`).join('');
  if(s.error) return head+`<div class="state"><div class="st-ic err">${ic('wifioff',30)}</div><div class="st-t">Подбор не загрузился</div><div class="st-d">Нет соединения с интернетом. Профиль и трекер сохранены — ничего не потеряно.</div><button class="btn" data-a="retry">${ic('refresh',16)} Повторить загрузку</button></div>`;
- let list=OLY.filter(o=>o.per).filter(o=>s.filter==='all'||(s.filter==='lvl1'&&lvlOf(o)==='I уровень')||(s.filter==='soon'&&o.days<=16)||(s.filter==='online'&&o.online)).sort((a,b)=>a.days-b.days);
+ // Подходят — олимпиады перечня с льготой в вузах ученика; в подборе только те, что ещё не в трекере (F62).
+ const pool=OLY.filter(o=>o.per&&[...s.prof.vuz].some(id=>myBen(s,VBY[id],o.id))).filter(o=>s.filter==='all'||(s.filter==='lvl1'&&lvlOf(o)==='I уровень')||(s.filter==='soon'&&o.days<=16)||(s.filter==='online'&&o.online)).sort((a,b)=>a.days-b.days);
+ let list=matchFresh(s,pool);
+ const tc=pool.filter(o=>s.tracked.has(o.id)).length, pc=pool.filter(o=>!s.tracked.has(o.id)&&s.proposals.includes(o.id)).length;
+ const filtered=s.filter!=='all';
  if(s.empty) list=[];
  const chips=`<div class="chips">${FILTERS.map(([k,l])=>`<button class="chip ${s.filter===k&&!s.empty?'on':''}" data-a="filter" data-v="${k}">${l}</button>`).join('')}${s.empty?'<span class="chip on">Химия, 11 класс</span>':''}</div>`;
- if(!list.length) return head+chips+`<div class="state"><div class="st-ic">${ic('search',30)}</div><div class="st-t">Под эти фильтры олимпиад нет</div><div class="st-d">Сбросьте фильтры или добавьте предмет в профиле — подбор обновится.</div><button class="btn" data-a="resetf">Сбросить фильтры</button><button class="btn gh" style="margin-top:7px" data-a="tab" data-v="profile">Изменить профиль</button></div>`;
- return head+chips+`<div class="info"><span class="tag rec">Рекомендация</span> Сначала ближайшие сроки и точное совпадение профиля</div>`+list.map(o=>olyCard(o,s)).join('')+
+ const state=(icon,tone,t,d,btns)=>`<div class="state"><div class="st-ic ${tone}">${ic(icon,30)}</div><div class="st-t">${t}</div>${d?`<div class="st-d">${d}</div>`:''}${btns}</div>`;
+ const toTracker=`<button class="btn" data-a="tab" data-v="tracker">Открыть трекер</button>`;
+ const resetBtn=`<button class="btn gh" style="margin-top:7px" data-a="resetf">Сбросить фильтры</button>`;
+ if(!list.length){
+  if(!s.empty&&pc) return head+chips+state('clock','',V(s,'Остальные подходящие ждут твоего ответа','Остальные подходящие ждут ответа Артёма'),V(s,'Их предложили в трекере — добавь или откажись.','Артём увидит предложения в чате и в трекере.'),toTracker+(filtered?resetBtn:''));
+  if(!s.empty&&tc) return head+chips+(filtered?state('award','ok','По этому фильтру всё уже в трекере','',toTracker+resetBtn)
+   :state('award','ok',V(s,'Ты уже следишь за всеми подходящими олимпиадами','Вы уже следите за всеми подходящими олимпиадами'),V(s,'Ты большой молодец! Бот напомнит о каждом сроке. Новые олимпиады появятся здесь, когда изменится цель или список вузов.','Отличная работа! Бот напомнит о каждом сроке. Новые олимпиады появятся здесь, когда изменится цель или список вузов.'),toTracker+`<button class="btn gh" style="margin-top:7px" data-a="tab" data-v="catalog">Посмотреть каталог</button>`));
+  return head+chips+state('search','','Под эти фильтры олимпиад нет',V(s,'Сбрось фильтры или добавь предмет в профиле — подбор обновится.','Сбросьте фильтры или добавьте предмет в профиле — подбор обновится.'),`<button class="btn" data-a="resetf">Сбросить фильтры</button><button class="btn gh" style="margin-top:7px" data-a="tab" data-v="profile">Изменить профиль</button>`);
+ }
+ // Что спрятано: уже в трекере и ждёт ответа на предложение.
+ const hidden=tc||pc?`<div class="m-hid">${tc?`<button data-a="tab" data-v="tracker">${ic('check',13,2.6)}<span>В трекере уже ${tc} — здесь только новые</span>${ic('chev',14)}</button>`:''}${pc?`<button data-a="tab" data-v="tracker">${ic('clock',13)}<span>${V(s,'Ждут твоего ответа в трекере: ','Ждут ответа Артёма: ')}${pc}</span>${ic('chev',14)}</button>`:''}</div>`:'';
+ const top=s.matchMore?list:list.slice(0,5), more=list.length-top.length;
+ return head+chips+`<div class="info"><span class="tag rec">Рекомендация</span> Сначала ближайшие сроки и точное совпадение профиля</div>`+hidden+top.map(o=>olyCard(o,s)).join('')+
+  (more?`<button class="more-l" data-a="matchmore">Показать ещё ${more} ${ic('down',14)}</button>`:'')+
   `<div class="sh"><span>Вне перечня</span></div><div class="info" style="margin-top:-4px">Льгот не дают, только дополнительные баллы — до 10 в сумме за все достижения.</div>`+olyCard(BY.tyk,s);
 }
 
 const sheetNav=s=>s.sheet.length>1?`<div class="sh-nav"><button class="sh-back" data-a="sback">${ic('back',16)} Назад</button></div>`:'';
-const benRow=(v,b,a)=>`<button class="ben" data-a="${a}" data-v="${a==='vuz'?v.id:''}"><span class="bn"><span class="mini" style="background:${v.hue}">${v.short}</span><span class="bt"><b>${v.name}</b><span>${v.city}</span></span></span><span class="bv ${bvCls(b)}">${b||'не учитывает'}</span></button>`;
+// Льгота → что получат победитель и призёр.
+const GRANT=b=>!b?[null,null]:b==='БВИ'?['БВИ','БВИ']:/^БВИ/.test(b)?['БВИ',null]:/100/.test(b)?['100 баллов','100 баллов']:[b,b];
+const gCls=g=>!g?'none':g==='БВИ'?'bvi':/100/.test(g)?'b100':'extra';
+// Номера строк, где значение не как у большинства.
+const outl=vals=>{const c={};vals.forEach(x=>c[x]=(c[x]||0)+1);const maj=Object.keys(c).find(k=>c[k]*2>vals.length);return new Set(maj===undefined?[]:vals.map((x,i)=>x!==maj?i:-1).filter(i=>i>=0));};
+// Таблица «Льгота и условия в твоих вузах» (F18, F19, F65): вузы строками, под вузом — на какие
+// направления ученика льгота, слабее на других его направлениях — подстрокой, своё условие вуза — плашкой.
+function benTable(s,o){
+ const rows=[...s.prof.vuz].map(id=>({v:VBY[id],m:myBen(s,VBY[id],o.id)}));
+ const counted=rows.filter(r=>r.m), skip=rows.filter(r=>!r.m);
+ const cols=o.per?['winner','prizer','ege']:['extra'];
+ const HEAD={winner:'Победителю',prizer:'Призёру',ege:'Порог ЕГЭ',extra:'Доп. баллы за диплом'};
+ const ege=v=>v.egeMin==null?'—':`от ${v.egeMin}${v.egeMax?'–'+v.egeMax:''}`;
+ const label=(r,c)=>c==='ege'?ege(r.v):c==='extra'?r.m.b:(GRANT(r.m.b)[c==='winner'?0:1]||'нет');
+ const dif=Object.fromEntries(cols.map(c=>[c,outl(counted.map(r=>label(r,c)))]));
+ const any=cols.some(c=>dif[c].size), byDirs=counted.some(r=>r.m.dirs.length);
+ const names=ds=>ds.map(d=>DIR[d].n).join(', ');
+ const cell=(r,c)=>c==='ege'?`<span class="ege">${label(r,c)}</span>${r.v.egeMax?'<span class="ege-n">зависит от направления</span>':''}`:`<span class="bvt ${gCls(c==='extra'?r.m.b:GRANT(r.m.b)[c==='winner'?0:1])}">${label(r,c)}</span>`;
+ let h='';
+ if(counted.length) h+=`<table class="btab"><colgroup><col class="u">${cols.map(c=>c==='winner'||c==='prizer'?'<col class="g">':'<col>').join('')}</colgroup><thead><tr><th>Вуз</th>${cols.map(c=>`<th>${HEAD[c]}</th>`).join('')}</tr></thead><tbody>${counted.map((r,i)=>
+  `<tr><th><button data-a="vuz" data-v="${r.v.id}">${r.v.nick}</button>${r.m.dirs.length?`<span class="dirs-l">${names(r.m.dirs)}</span>`:''}</th>${cols.map(c=>`<td class="${dif[c].has(i)?'dif':''}">${cell(r,c)}</td>`).join('')}</tr>`+
+  r.m.other.map(x=>{const g=GRANT(x.b);return `<tr class="sub"><th>${names(x.dirs)}</th>${cols.map(c=>`<td>${c==='ege'?'':`<span class="bvt ${gCls(g[c==='winner'?0:1])}">${g[c==='winner'?0:1]||'нет'}</span>`}</td>`).join('')}</tr>`;}).join('')+
+  (r.v.notes&&r.v.notes[o.id]?`<tr class="bnote"><td colspan="${cols.length+1}"><p>${r.v.notes[o.id]}</p></td></tr>`:'')).join('')}</tbody></table>`;
+ if(skip.length) h+=`<p class="b-skip">${skip.length===1?'Не учитывает':'Не учитывают'} эту олимпиаду: ${skip.map(r=>r.v.nick).join(', ')}</p>`;
+ const leg=[any?V(s,'не как в большинстве твоих вузов.','не как в большинстве вузов Артёма.'):'',byDirs?V(s,'Льгота — на твои направления: отмеченные в карточке вуза или из цели.','Льгота — на направления Артёма: отмеченные в карточке вуза или из цели.'):''].filter(Boolean);
+ if(leg.length) h+=`<p class="b-leg">${any?'<span class="b-sw"></span>':''}${leg.join(' ')}</p>`;
+ h+=`<div class="b-all">${counted.length&&o.per?'<p class="b-all-h">Во всех вузах</p>':''}${o.cond.map(c=>`<div class="cond">${ic('check',13,2.6)}<span>${c}</span></div>`).join('')}</div>`;
+ return h;
+}
 function scDetail(s,o,part){
  const na=s.sheetNew?'':'na', on=s.tracked.has(o.id), pr=s.proposals.includes(o.id), rg=s.reg.has(o.id);
  const top=part!=='bottom', bot=part!=='top';
- let h=`<div class="shb ${na}" data-a="close"></div><div class="sheet ${na}" ${part==='bottom'?'data-bottom':''} role="dialog" aria-label="${o.name}"><div class="grab"></div>${sheetNav(s)}
+ let h=`<div class="shb ${na}" data-a="close"></div><div class="sheet ${na}" ${part==='bottom'?'data-bottom':''} ${s.at?`data-at="${s.at}"`:''} role="dialog" aria-label="${o.name}"><div class="grab"></div>${sheetNav(s)}
  <div class="sd-h"><span class="bdg xl" style="--h:${o.hue}">${o.short}</span><div style="flex:1;min-width:0"><div class="sd-n">${o.name}</div><div class="sd-o">${o.org}</div></div><button class="ib" data-a="close" aria-label="Закрыть">${ic('close',15)}</button></div>
  <div class="oc-tg">${lvlChip(o)}<span class="pill ok">${o.fmt}</span>${pill(o,s)}</div>`;
  if(top){
   if(o.per==='vsosh') h+=`<div class="blk"><div class="blk-h">Этапы ВсОШ <span class="tag demo">Демо-даты</span></div><div class="tl">${o.stages.map((x,i)=>`<div class="stg ${i===0?(rg?'dn':'now'):''}"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div><div class="fine">Чтобы пройти на следующий этап, нужно набрать проходной балл текущего.</div></div>`;
-  else if(o.per) h+=`<div class="blk"><div class="blk-h">Уровень по профилям <span class="tag fact">Факт</span></div><div class="lvls">${o.profiles.map(([p,l])=>`<span class="lv ${p==='Информатика'?'me':''}">${p}: ${l}</span>`).join('')}</div><div class="fine">${V(s,'Твой профиль','Профиль Артёма')} — информатика. У каждого профиля олимпиады свой уровень.</div><div class="src">${ic('doc',13)} Перечень олимпиад, приказ № 669</div></div>`;
+  else if(o.per) h+=`<div class="blk" data-anchor="lvl"><div class="blk-h">Уровень по профилям <span class="tag fact">Факт</span></div><div class="lvls">${o.profiles.map(([p,l])=>`<span class="lv ${p==='Информатика'?'me':''}">${p}: ${l}</span>`).join('')}</div><div class="fine">${V(s,'Твой профиль','Профиль Артёма')} — информатика. У каждого профиля олимпиады свой уровень.</div><div class="src">${ic('doc',13)} Перечень олимпиад, приказ № 669</div></div>`;
   else h+=`<div class="blk"><div class="blk-h">Не входит в перечень</div><div class="blk-t">Льгот при поступлении не даёт. Некоторые вузы начисляют за диплом дополнительные баллы.</div></div>`;
   if(o.per!=='vsosh'&&!part) h+=`<div class="blk"><div class="blk-h">Этапы и даты <span class="tag demo">Демо-даты</span></div><div class="tl">${o.stages.map((x,i)=>`<div class="stg ${i===0?(rg?'dn':'now'):''}"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div></div>`;
-  h+=`<div class="blk"><div class="blk-h">${V(s,'Льгота в твоих вузах','Льгота в вузах Артёма')} <span class="tag fact">Факт</span></div>${[...s.prof.vuz].map(id=>benRow(VBY[id],benefitOf(id,o.id),'vuz')).join('')}<div class="src">${ic('doc',13)} Правила приёма вузов на 2026 год. Проверено 15.09.2026</div></div>`;
-  h+=`<div class="blk"><div class="blk-h">Условия</div>${o.cond.map(c=>`<div class="cond">${ic('check',13,2.6)}<span>${c}</span></div>`).join('')}</div>`;
+  h+=`<div class="blk" data-anchor="ben"><div class="blk-h">${V(s,'Льгота и условия в твоих вузах','Льгота и условия в вузах Артёма')} <span class="tag fact">Факт</span></div>${benTable(s,o)}<div class="src">${ic('doc',13)} Правила приёма вузов на 2026 год. Проверено 15.09.2026</div></div>`;
  }
  if(bot){
   h+=`<div class="blk"><div class="blk-h">Почему подходит <span class="tag rec">Рекомендация</span></div><div class="blk-t">${V(s,o.why,o.whyP)}</div></div>`;
+  // Где ещё даёт льготу (F23) и на скольких направлениях вуза (F65).
   const ex=VUZ.filter(v=>benefitOf(v.id,o.id)&&!s.prof.vuz.has(v.id));
-  if(ex.length) h+=`<div class="blk"><div class="blk-h">Где ещё даёт льготу</div>${ex.map(v=>benRow(v,benefitOf(v.id,o.id),'vuz')).join('')}</div>`;
+  if(ex.length) h+=`<div class="blk"><div class="blk-h">Где ещё даёт льготу</div>${ex.map(v=>{const b=benefitOf(v.id,o.id),n=onCount(v,o.id);return `<button class="ben" data-a="vuz" data-v="${v.id}"><span class="bn"><span class="mini" style="background:${v.hue}">${v.short}</span><span class="bt"><b>${v.name}</b><span>${v.city}${n?` · на ${n} из ${ofDirs(v.dirs.length)}`:''}</span></span></span><span class="bv ${bvCls(b)}">${b}</span></button>`;}).join('')}</div>`;
   let main;
   if(!isP(s)) main=`<button class="btn ${on?'gh':''}" data-a="track" data-v="${o.id}">${on?ic('check',16)+' В трекере':ic('plus',16)+' Добавить в трекер'}</button>`;
   else if(on) main=`<button class="btn gh" data-a="toast" data-v="Олимпиада уже в общем трекере">${ic('check',16)} В трекере</button>`;
@@ -1036,37 +1359,107 @@ function scDetail(s,o,part){
  return h+'</div>';
 }
 
-function scVuz(s,v){
- const na=s.sheetNew?'':'na', mine=s.prof.vuz.has(v.id);
+// Направления вуза (D3, F65): галочка — «моё», льготы считаются на отмеченные. Из цели — первыми,
+// дальше где больше олимпиад с льготой; открыта из каталога с фильтром (F67) — его направление первым.
+function vuzDirs(s,v,focus){
+ const t=targetOf(s,v), ch=s.uniDirs[v.id]||[];
+ const rank=d=>(d===focus?1e4:0)+(s.prof.dirs.has(d)?1e3:0)+dirCount(v,d);
+ const all=[...v.dirs].sort((a,b)=>rank(b[0])-rank(a[0]));
+ const shown=s.vuzAll?all:all.slice(0,5), mine=all.filter(d=>ch.includes(d[0])).length;
+ return `<div class="blk"><div class="blk-h">Направления ${mine?`<span class="bh-n">${V(s,'моих','выбрано')}: ${mine} из ${all.length}</span>`:''}</div>
+ ${shown.map(([d,p,q])=>{const on=ch.includes(d), n=dirCount(v,d);return `<button class="drow" data-a="udir" data-v="${v.id}:${d}" role="checkbox" aria-checked="${on}"><span class="cb ${on?'on':''}">${on?ic('check',12,3):''}</span><span class="dm"><b>${DIR[d].n}</b><span>${DIR[d].c}${p?` · ${p} ${plural(p,'программа','программы','программ')}`:''}${t.basis==='goal'&&s.prof.dirs.has(d)?`<em> · ${V(s,'по твоей цели','по цели Артёма')}</em>`:''}</span></span>${q?'<span class="dcnt q">льготы уточняются</span>':n?`<span class="dcnt">${n} ${plural(n,'олимпиада','олимпиады','олимпиад')}</span>`:''}</button>`;}).join('')}
+ ${all.length>shown.length?`<button class="more-l" data-a="vuzall">Все направления (${all.length}) ${ic('down',13)}</button>`:''}
+ ${t.basis==='goal'?`<div class="hint">${V(s,'Льготы считаем на направления из твоей цели. Отметь свои — посчитаем точнее.','Льготы считаем на направления из цели Артёма. Отметьте нужные — посчитаем точнее.')}</div>`:t.basis==='university'?`<div class="hint">${V(s,'Отметь направления — покажем льготы именно на них.','Отметьте направления — покажем льготы именно на них.')}</div>`:''}</div>`;
+}
+function scVuz(s,v,focus){
+ const na=s.sheetNew?'':'na', mine=s.prof.vuz.has(v.id), t=targetOf(s,v), ch=(s.uniDirs[v.id]||[]).length;
+ // Олимпиады: на мои направления — льгота на них; во «Все» — на скольких направлениях вуза она есть.
+ const allO=v.olys.map(e=>({o:BY[e[0]],b:e[1],n:onCount(v,e[0])}));
+ const myO=v.olys.map(e=>({o:BY[e[0]],b:(myBen(s,v,e[0])||{}).b})).filter(x=>x.b);
+ const byDirs=t.basis!=='university', mode=s.vuzMode||(byDirs&&myO.length?'mine':'all');
+ const list=byDirs&&mode==='mine'?myO:allO;
+ const row=x=>`<button class="ben" data-a="open" data-v="${x.o.id}"><span class="bn"><span class="mini" style="background:${x.o.hue}">${x.o.short}</span><span class="bt"><b>${x.o.name}</b><span>${lvlOf(x.o)}${mode==='all'&&x.n?` · на ${x.n} из ${ofDirs(v.dirs.length)}`:''}</span></span></span><span class="bv ${bvCls(x.b)}">${x.b}</span></button>`;
  return `<div class="shb ${na}" data-a="close"></div><div class="sheet ${na}" role="dialog" aria-label="${v.name}"><div class="grab"></div>${sheetNav(s)}
  <div class="sd-h"><span class="bdg xl" style="--h:${v.hue};font-size:${v.short.length>3?13:17}px">${v.short}</span><div style="flex:1;min-width:0"><div class="sd-n">${v.name}</div><div class="sd-o" style="display:flex;gap:3px;align-items:center">${ic('pin',12)} ${v.city}</div></div><button class="ib" data-a="close" aria-label="Закрыть">${ic('close',15)}</button></div>
- <div class="blk"><div class="blk-h">Направления</div><div class="dirs">${v.dirs.map(d=>`<span class="dir">${d}</span>`).join('')}</div></div>
- <div class="blk"><div class="blk-h">Олимпиады с льготой <span class="tag fact">Факт</span></div>${v.olys.map(([id,b])=>{const o=BY[id];return `<button class="ben" data-a="open" data-v="${id}"><span class="bn"><span class="mini" style="background:${o.hue}">${o.short}</span><span class="bt"><b>${o.name}</b><span>${lvlOf(o)}</span></span></span><span class="bv ${bvCls(b)}">${b}</span></button>`;}).join('')}</div>
+ <div class="blk"><div class="blk-h">О вузе</div><div class="blk-t">${v.about}</div><button class="about-l" style="margin-top:4px" data-a="toast" data-v="Откроется сайт вуза">${ic('ext',14)} Сайт вуза</button><button class="about-l" data-a="toast" data-v="Откроются правила приёма на сайте вуза">${ic('doc',14)} <span>Правила приёма</span><small>проверено 15.09.2026</small></button></div>
+ ${vuzDirs(s,v,focus)}
+ <div class="blk"><div class="blk-h">Олимпиады с льготой <span class="tag fact">Факт</span></div>
+ ${byDirs?`<div class="mseg"><button class="chip ${mode==='mine'?'on':''}" data-a="vuzmode" data-v="mine">${V(s,'На мои направления','На направления Артёма')} ${myO.length}</button><button class="chip ${mode==='all'?'on':''}" data-a="vuzmode" data-v="all">Все ${allO.length}</button></div>`:''}
+ ${byDirs&&mode==='mine'&&!myO.length?`<div class="hint">${V(s,'На твои направления здесь льгот нет — посмотри «Все».','На направления Артёма здесь льгот нет — посмотрите «Все».')}</div>`:''}
+ ${list.map(row).join('')}</div>
  <div class="blk"><div class="blk-h">Подтверждение льготы</div><div class="blk-t">ЕГЭ ${v.ege}.</div></div>
- <button class="tg-row" data-a="toast" data-v="Откроются правила приёма на сайте вуза"><span>${ic('doc',15)} Правила приёма 2026</span><span style="color:var(--mu);font-weight:500;font-size:11px">проверено 15.09.2026</span></button>
- <div class="sd-act"><button class="btn ${mine?'gh':''}" data-a="myvuz" data-v="${v.id}">${mine?ic('check',16)+V(s,' В моих вузах',' В вузах Артёма'):ic('plus',16)+V(s,' Добавить в мои вузы',' Добавить в вузы Артёма')}</button></div>
- <div class="lock">${ic('users',12)} Изменение списка вузов увидят все участники</div></div>`;
+ <div class="sd-act"><button class="btn ${mine?'gh':''}" data-a="myvuz" data-v="${v.id}">${!mine?ic('plus',16)+V(s,' Добавить в мои вузы',' Добавить в вузы Артёма'):ic('check',16)+V(s,' В моих вузах',' В вузах Артёма')+(ch?` · ${ch} ${plural(ch,'направление','направления','направлений')}`:'')}</button></div>
+ <div class="lock">${ic('users',12)} Вузы и направления видят все участники</div></div>`;
 }
 
-const SUB_F=[['all','Все'],['inf','Информатика'],['math','Математика'],['phys','Физика']];
-const CITY_O=[['all','Все'],['Казань','Казань'],['Иннополис','Иннополис'],['Москва','Москва']];
-const CITY_V=[['all','Все'],['Казань','Казань'],['Иннополис','Иннополис'],['Москва','Москва'],['Санкт-Петербург','Петербург'],['Долгопрудный','Долгопрудный']];
+// Выбор направлений с поиском (D4, F65): цель сверху, дальше по группам, у каждого — код.
+// В профиле — несколько направлений; в фильтре каталога вузов (F67) — одно, выбор закрывает лист.
+function dirList(s,single){
+ const sel=single?(s.catDir?[s.catDir]:[]):[...s.prof.dirs];
+ const q=s.dirQ.trim().toLowerCase().replace(/ё/g,'е'), ids=Object.keys(DIR), goal=[...s.prof.dirs];
+ const row=d=>{const on=sel.includes(d);return `<button class="prow" data-a="${single?'dirone':'dirtog'}" data-v="${d}" role="${single?'radio':'checkbox'}" aria-checked="${on}"><span class="cb ${on?'on':''}">${on?ic('check',12,3):''}</span><span><b>${DIR[d].n}</b> <span>${DIR[d].c}</span></span></button>`;};
+ const found=ids.filter(d=>!q||DIR[d].n.toLowerCase().replace(/ё/g,'е').includes(q)||DIR[d].c.startsWith(q));
+ const secs=q?[[null,found]]:[[V(s,'Твоя цель','Цель Артёма'),goal],...DGROUPS.map(([g,l])=>[l,ids.filter(d=>!goal.includes(d)&&DIR[d].g===g)])];
+ return (q&&!found.length?`<div class="hint">${V(s,'Ничего не нашлось — попробуй часть названия или код, например 09.03.04','Ничего не нашлось — попробуйте часть названия или код, например 09.03.04')}</div>`:'')+secs.filter(x=>x[1].length).map(([t,l])=>(t?`<div class="pk-g">${t}</div>`:'')+l.map(row).join('')).join('');
+}
+function scDirs(s,single){
+ const na=s.sheetNew?'':'na', title=single?'Направление':'Направления';
+ return `<div class="shb ${na}" data-a="close"></div><div class="sheet ${na}" role="dialog" aria-label="${title}"><div class="grab"></div>${sheetNav(s)}
+ <div class="sd-h"><div style="flex:1;min-width:0"><div class="sd-n">${title}</div></div><button class="ib" data-a="close" aria-label="Закрыть">${ic('close',15)}</button></div>
+ <label class="search">${ic('search',15)}<input data-dq type="search" value="${s.dirQ}" placeholder="Название или код" aria-label="Название или код"></label>
+ <div data-dirlist>${dirList(s,single)}</div>
+ ${single?'':`<div class="sd-act"><button class="btn" data-a="sback">Готово</button></div>`}</div>`;
+}
+
+const SUB_F=[['all','Все'],['inf','Информатика'],['math','Математика'],['phys','Физика'],['chem','Химия'],['bio','Биология'],['soc','Обществознание']];
+const CITY_V=[['all','Все'],['Казань','Казань'],['Иннополис','Иннополис'],['Москва','Москва'],['Санкт-Петербург','Санкт-Петербург'],['Долгопрудный','Долгопрудный']];
+const LVL_G=[['vsosh','ВсОШ'],['I','I уровень'],['II','II уровень'],['III','III уровень'],['other','Вне перечня']];
+const lvlKey=o=>o.per==='vsosh'?'vsosh':!o.per?'other':lvlOf(o).split(' ')[0];
+// Льгота в моих вузах на мои направления: БВИ или 100 баллов, по группам, сильнейшая первой (F66).
+function myBenefits(s,o){
+ const g=new Map();
+ [...s.prof.vuz].forEach(id=>{const m=myBen(s,VBY[id],o.id);if(m&&RANK(m.b)>=2){if(!g.has(m.b)) g.set(m.b,[]);g.get(m.b).push(VBY[id].nick);}});
+ return [...g.entries()].sort((a,b)=>RANK(b[0])-RANK(a[0]));
+}
+// Мои вузы и сколько направлений в них учитывается: «Иннополис, КФУ, ВШЭ · 2 направления».
+const mineSummary=s=>{const vs=[...s.prof.vuz].map(id=>VBY[id]), n=new Set(vs.flatMap(v=>targetOf(s,v).dirs)).size;return vs.map(v=>v.nick).join(', ')+(n?` · ${n} ${plural(n,'направление','направления','направлений')}`:'');};
+function benLine(s,o){
+ const [first,...rest]=myBenefits(s,o); if(!first) return '';
+ const where=s.prof.vuz.size>1&&!rest.length&&first[1].length===s.prof.vuz.size?V(s,'во всех твоих вузах','во всех вузах Артёма'):first[1].join(', ');
+ return `<span class="r-ben"><span class="bvt ${/^БВИ/.test(first[0])?'bvi':'b100'}">${first[0]}</span> ${where}${rest.map(g=>` · ${g[0]}: ${g[1].join(', ')}`).join('')}</span>`;
+}
 function catList(s){
  const q=s.q.trim().toLowerCase();
- const none=`<div class="state" style="padding:22px 10px"><div class="st-ic">${ic('search',28)}</div><div class="st-t">Ничего не нашлось</div><div class="st-d">Проверьте название или сбросьте фильтры.</div><button class="btn sm" data-a="catreset">Сбросить поиск и фильтры</button></div>`;
+ const none=`<div class="state" style="padding:22px 10px"><div class="st-ic">${ic('search',28)}</div><div class="st-t">Ничего не нашлось</div><div class="st-d">${V(s,'Проверь название или сбрось фильтры.','Проверьте название или сбросьте фильтры.')}</div><button class="btn sm" data-a="catreset">Сбросить поиск и фильтры</button></div>`;
  if(s.catSeg==='oly'){
-  const l=OLY.filter(o=>(!q||o.name.toLowerCase().includes(q)||o.org.toLowerCase().includes(q))&&(s.catSubj==='all'||o.subj.includes(s.catSubj))&&(s.catCity==='all'||o.city===s.catCity));
-  return l.length?`<div class="list">${l.map(o=>`<button class="row" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">${o.org}</span></span>${lvlChip(o)}</button>`).join('')}</div>`:none;
+  const mine=s.catMine&&s.prof.vuz.size>0;
+  const l=OLY.filter(o=>(!q||o.name.toLowerCase().includes(q)||o.org.toLowerCase().includes(q))&&(s.catSubj==='all'||o.subj.includes(s.catSubj))&&(!mine||myBenefits(s,o).length));
+  if(!l.length&&mine&&!q) return `<div class="state" style="padding:22px 10px"><div class="st-ic">${ic('search',28)}</div><div class="st-t">${V(s,'Нет олимпиад с льготой в твоих вузах','Нет олимпиад с льготой в вузах Артёма')}</div>`+(s.catSubj!=='all'
+   ?`<div class="st-d">${V(s,'По этому предмету ни одна олимпиада не даёт БВИ или 100 баллов в твоих вузах на твои направления.','По этому предмету ни одна олимпиада не даёт БВИ или 100 баллов в вузах Артёма на выбранные направления.')}</div><button class="btn sm" data-a="csubj" data-v="all">Все предметы</button></div>`
+   :`<div class="st-d">${V(s,'Проверь направления в карточках вузов — льготы считаются на них.','Проверьте направления в карточках вузов — льготы считаются на них.')}</div><button class="btn sm" data-a="catmine">Показать все олимпиады</button></div>`);
+  if(!l.length) return none;
+  // По уровням; в группе пять строк, дальше — «Показать ещё».
+  return LVL_G.map(([k,t])=>{
+   const items=l.filter(o=>lvlKey(o)===k); if(!items.length) return '';
+   const vis=q||s.catOpen.has(k)?items:items.slice(0,5);
+   return `<div class="cg-h">${t}<span>${items.length}</span></div><div class="list">${vis.map(o=>`<button class="row" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">${o.org}</span>${mine?benLine(s,o):''}${s.tracked.has(o.id)?`<span class="r-tr">${ic('check',12,2.6)} в трекере</span>`:''}</span>${lvlChip(o)}</button>`).join('')}</div>${items.length>vis.length?`<button class="more-l" data-a="catmore" data-v="${k}">Показать ещё ${items.length-vis.length}</button>`:''}`;
+  }).join('');
  }
- const l=VUZ.filter(v=>(!q||v.name.toLowerCase().includes(q)||v.short.toLowerCase().includes(q))&&(s.catCity==='all'||v.city===s.catCity));
- return l.length?`<div class="list">${l.map(v=>{const n=v.olys.filter(x=>/БВИ|100/.test(x[1])).length;return `<button class="row" data-a="vuz" data-v="${v.id}"><span class="bdg" style="--h:${v.hue};font-size:${v.short.length>3?9.5:12}px">${v.short}</span><span class="dl-m"><span class="dl-n">${v.name}</span><span class="dl-s">${v.city}, ${n} ${plural(n,'олимпиада','олимпиады','олимпиад')} с льготой</span></span>${s.prof.vuz.has(v.id)?`<span class="you">${V(s,'мой','Артёма')}</span>`:''}<span class="chev">${ic('chev',16)}</span></button>`;}).join('')}</div>`:none;
+ // Вузы: с направлением (F67) — только где оно есть, и сколько олимпиад дают льготу именно на него.
+ const d=s.catDir;
+ const l=VUZ.filter(v=>(!q||v.name.toLowerCase().includes(q)||v.short.toLowerCase().includes(q))&&(s.catCity==='all'||v.city===s.catCity)&&(!d||offered(v).includes(d)));
+ const cnt=n=>`${n} ${plural(n,'олимпиада','олимпиады','олимпиад')}`;
+ return l.length?`<div class="list">${l.map(v=>{const n=v.olys.filter(x=>/БВИ|100/.test(x[1])).length, dn=d?v.olys.filter(x=>/БВИ|100/.test(benOn(x,v,d)||'')).length:0;return `<button class="row" data-a="vuz" data-v="${v.id}" data-f="${d}"><span class="bdg" style="--h:${v.hue};font-size:${v.short.length>3?9.5:12}px">${v.short}</span><span class="dl-m"><span class="dl-n">${v.name}</span><span class="dl-s">${v.city}, ${!d?cnt(n)+' с льготой':toCheck(v,d)?'льготы на это направление уточняются':cnt(dn)+' с льготой на это направление'}</span></span>${s.prof.vuz.has(v.id)?`<span class="you">${V(s,'мой','Артёма')}</span>`:''}<span class="chev">${ic('chev',16)}</span></button>`;}).join('')}</div>`:none;
 }
 function scCatalog(s){
- const cities=s.catSeg==='oly'?CITY_O:CITY_V;
- return `<div class="seg"><button class="${s.catSeg==='oly'?'on':''}" data-a="catseg" data-v="oly">Олимпиады</button><button class="${s.catSeg==='vuz'?'on':''}" data-a="catseg" data-v="vuz">Вузы</button></div>
- <label class="search">${ic('search',15)}<input data-q type="search" value="${s.q}" placeholder="${s.catSeg==='oly'?'Название олимпиады':'Название вуза'}" aria-label="Поиск"></label>
- ${s.catSeg==='oly'?`<div class="flt"><span class="l">Предмет</span>${SUB_F.map(([k,l])=>`<button class="chip ${s.catSubj===k?'on':''}" data-a="csubj" data-v="${k}">${l}</button>`).join('')}</div>`:''}
- <div class="flt"><span class="l">${s.catSeg==='oly'?'Финал':'Город'}</span>${cities.map(([k,l])=>`<button class="chip ${s.catCity===k?'on':''}" data-a="ccity" data-v="${k}">${l}</button>`).join('')}</div>
+ const oly=s.catSeg==='oly', has=s.prof.vuz.size>0, on=s.catMine&&has;
+ const dirChips=Object.keys(DIR).filter(d=>s.prof.dirs.has(d)||d===s.catDir);
+ return `<div class="seg"><button class="${oly?'on':''}" data-a="catseg" data-v="oly">Олимпиады</button><button class="${!oly?'on':''}" data-a="catseg" data-v="vuz">Вузы</button></div>
+ <label class="search">${ic('search',15)}<input data-q type="search" value="${s.q}" placeholder="${oly?'Название олимпиады':'Название вуза'}" aria-label="Поиск"></label>
+ ${oly?`<button class="msw ${has?'':'off'}" ${has?'data-a="catmine"':''} role="switch" aria-checked="${on}"><span><b>${V(s,'Ведут в мои вузы и на мои направления','Ведут в вузы и на направления Артёма')}</b>${has?`<small>${mineSummary(s)}</small>`:''}</span><span class="sw ${on?'on':''}"></span></button>${has?'':`<button class="msw-l" data-a="catseg" data-v="vuz">${V(s,'Сначала выбери вузы','Сначала выберите вузы')} ${ic('chev',14)}</button>`}
+ <div class="flt"><span class="l">Предмет</span>${SUB_F.map(([k,l])=>`<button class="chip ${s.catSubj===k?'on':''}" data-a="csubj" data-v="${k}">${l}</button>`).join('')}</div>`
+ :`<div class="flt"><span class="l">Направление</span><button class="chip ${!s.catDir?'on':''}" data-a="cdir" data-v="">Все</button>${dirChips.map(d=>`<button class="chip ${s.catDir===d?'on':''}" data-a="cdir" data-v="${d}">${DIR[d].n}</button>`).join('')}<button class="chip" data-a="dirpick" data-v="one">Другое…</button></div>
+ <div class="flt"><span class="l">Город</span>${CITY_V.map(([k,l])=>`<button class="chip ${s.catCity===k?'on':''}" data-a="ccity" data-v="${k}">${l}</button>`).join('')}</div>`}
  <div data-catlist>${catList(s)}</div>`;
 }
 
@@ -1090,9 +1483,47 @@ function scTracker(s){
   if(!isP(s)) ph=props.map(o=>`<div class="prop"><div class="prop-h">${ic('inbox',14)} Ольга предлагает добавить</div><button class="tk-top" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">Регистрация до ${o.date}</span></span>${pill(o,s)}</button><div class="prop-a"><button class="btn" data-a="accept" data-v="${o.id}">Добавить</button><button class="btn gh" data-a="decline" data-v="${o.id}">Не сейчас</button></div></div>`).join('');
   else ph=`<div class="wk" style="margin-top:2px">Ждут подтверждения Артёма: ${props.length}</div>`+props.map(o=>`<div class="tk"><button class="tk-top" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">Вы предложили, Артём ещё не ответил</span></span><span class="pill ok">${ic('clock',11)} ждёт</span></button></div>`).join('');
  }
- const open=tr.filter(o=>!s.reg.has(o.id)), done=tr.filter(o=>s.reg.has(o.id));
- const card=o=>{const r=s.reg.has(o.id), by=s.reg.get(o.id);return `<div class="tk"><button class="tk-top" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">${r?'Дальше: отборочный этап':(o.per==='vsosh'?'Школьный этап '+o.date:'Регистрация до '+o.date)}</span></span>${pill(o,s)}</button><button class="tk-chk" data-a="reg" data-v="${o.id}" role="checkbox" aria-checked="${r}"><span class="cb ${r?'on':''}">${r?ic('check',12,3):''}</span>${V(s,'Я зарегистрировался','Артём зарегистрирован')}${r?`<em class="who">${did(by)} ${by}</em>`:`<em aria-label="Напоминания включены">${ic('bell',13)}</em>`}</button></div>`;};
- return seg+note+ph+(open.length?`<div class="wk">Нужно зарегистрироваться: ${open.length}</div>${open.map(card).join('')}`:'')+(done.length?`<div class="wk">Зарегистрирован: ${done.length}</div>${done.map(card).join('')}`:'')+`<button class="btn gh" style="margin-top:8px" data-a="tab" data-v="catalog">${ic('plus',16)} ${V(s,'Добавить олимпиаду','Предложить олимпиаду')}</button>`;
+ const items=tr.map(o=>trItem(s,o));
+ const groups=[['open','Нужно зарегистрироваться',items.filter(x=>x.status==='open')],['active',V(s,'Участвую','Участвует'),[...items.filter(x=>x.status==='active'&&x.ask),...items.filter(x=>x.status==='active'&&!x.ask)]],['finished','Завершено',items.filter(x=>x.status==='finished')]];
+ return seg+note+ph+groups.map(([k,t,l])=>l.length?`<div class="wk" data-anchor="tg-${k}">${t}: ${l.length}</div>${l.map(x=>trCard(s,x)).join('')}`:'').join('')+`<button class="btn gh" style="margin-top:8px" data-a="tab" data-v="${isP(s)?'match':'catalog'}">${ic('plus',16)} ${V(s,'Добавить олимпиаду','Предложить олимпиаду')}</button>`;
+}
+// Карточка трекера (F63): полоска этапов со сроками и одно действие — отметить регистрацию
+// или итог прошедшего этапа. «Все этапы» раскрывают отметки по каждому этапу (E4).
+function trCard(s,it){
+ const o=it.o, seen={}, total={};
+ it.st.forEach(x=>total[x.k]=(total[x.k]||0)+1);
+ const labels=it.st.map(x=>{seen[x.k]=(seen[x.k]||0)+1;return SHORT[x.k]+(total[x.k]>1?' '+seen[x.k]:'');});
+ const tone=x=>x.state==='locked'?'off':x.r==='failed'?'fail':x.r==='winner'||x.r==='prizer'?'gold':x.r==='passed'||(!x.r&&x.reg)?'dn':x.asking?'ask':x.state==='current'?'now':'';
+ const cap=x=>x.r?MARK[x.r]:x.sw||(x.reg?'регистрация есть':'');
+ const rbtns=x=>`<div class="rbs">${x.rs.map(r=>`<button class="rb ${r==='failed'||r==='participant'?'q':''} ${x.r===r?'on':''}" data-a="res" data-v="${x.id}|${r}" aria-pressed="${x.r===r}">${RES(s)[r]}</button>`).join('')}</div>`;
+ // Подпись: итог, срок регистрации или что дальше.
+ let sub;
+ if(it.status==='finished') sub=it.outcome==='missed'?'Регистрация закрылась без отметки':it.outcome==='failed'?`Итог: ${KIND[it.fail.k]} не пройден`:{winner:'Итог: диплом победителя',prizer:'Итог: диплом призёра',participant:'Итог: без диплома'}[it.outcome];
+ else if(it.status==='open') sub=o.per==='vsosh'?`${it.st[0].t} ${dateOf(it.st[0].w)}`:`Регистрация до ${dateOf(it.st[0].w)||o.date}`;
+ else sub=it.next?`Дальше: ${it.next.t}${dateOf(it.next.w)?' '+dateOf(it.next.w):''}`:'Ждём даты следующего этапа';
+ // Метка справа: итог сезона, «ждёт итога» или сколько дней до срока.
+ let pl='';
+ if(it.status==='finished') pl=it.outcome==='winner'||it.outcome==='prizer'?`<span class="pill done">${ic('award',11)} ${MARK[it.outcome]}</span>`:'<span class="pill ok">завершено</span>';
+ else if(it.ask) pl='<span class="pill soon">ждёт итога</span>';
+ else{const x=it.status==='open'?it.st[0]:it.next; if(x&&dateOf(x.w)&&x.a-s.shift>=0) pl=daysPill(x.a-s.shift);}
+ const open=s.trOpen.has(o.id), dip=it.outcome==='winner'||it.outcome==='prizer';
+ let h=`<div class="tk"><button class="tk-top" data-a="open" data-v="${o.id}"><span class="bdg" style="--h:${o.hue}">${o.short}</span><span class="dl-m"><span class="dl-n">${o.name}</span><span class="dl-s">${sub}</span></span>${pl}</button>`;
+ if(open){
+  h+=`<div class="tk-exp">${it.st.map(x=>{
+   const t=x.state==='locked'?'off':x.asking?'ask':x.state, notYet=x.rs&&!x.r&&x.state!=='locked'&&x.state!=='past';
+   return `<div class="smk ${t}"><span class="smk-dot"></span><div class="smk-m"><b>${x.t}</b><span>${x.w}${notYet?' · итог — после этапа':''}</span>`+
+    (x.first&&x.reg?`<span class="smk-chip">${ic('check',11,3)} Регистрация есть · отметил(а) ${s.reg.get(o.id)}</span>`:'')+
+    (x.first&&x.state!=='locked'?`<button class="smk-link" data-a="reg" data-v="${o.id}">${x.reg?'Снять':'Отметить регистрацию'}</button>`:'')+
+    (x.rs&&x.state==='past'?rbtns(x):'')+`</div></div>`;}).join('')}`+
+   (it.outcome&&it.outcome!=='missed'?'<p class="tk-note">Отметку можно снять — этапы и напоминания вернутся.</p>':'')+
+   (isP(s)?'':s.trRm===o.id?`<div class="tk-conf"><p>Убрать «${o.name}» из трекера? Напоминаний по ней больше не будет.</p><div><button class="btn gh" data-a="tkrmno">Оставить</button><button class="btn" data-a="tkrmyes" data-v="${o.id}">Убрать</button></div></div>`:`<button class="tk-rm" data-a="tkrm" data-v="${o.id}">${ic('trash',14)} Убрать из трекера</button>`)+`</div>`;
+ } else {
+  h+=`<ol class="stp ${it.st.length>3?'g2':''}">${it.st.map((x,i)=>{const c=tone(x);return `<li class="${c}"><b>${c==='dn'||c==='gold'?ic('check',10,3.2):''}${labels[i]}</b><span>${cap(x)}</span></li>`;}).join('')}</ol>`;
+  if(it.status==='open') h+=`<button class="tk-chk" data-a="reg" data-v="${o.id}" role="checkbox" aria-checked="false"><span class="cb"></span>Регистрация пройдена<em aria-label="Напоминания включены">${ic('bell',13)}</em></button>`;
+  else if(it.ask) h+=`<div class="tk-ask"><p>${V(s,'Как прошёл ','Как у Артёма прошёл ')}${KIND[it.ask.k]}?</p>${rbtns(it.ask)}</div>`;
+  if(dip) h+=`<button class="tk-dip" data-a="open" data-v="${o.id}">${ic('award',16)} ${V(s,'Что даёт диплом в твоих вузах','Что даёт диплом в вузах Артёма')} ${ic('chev',14)}</button>`;
+ }
+ return h+`<button class="tk-more" data-a="tkx" data-v="${o.id}" aria-expanded="${open}">${open?'Свернуть':'Все этапы'} ${ic(open?'up':'down',13)}</button></div>`;
 }
 
 function scFamily(s){
@@ -1116,8 +1547,9 @@ function scProfile(s){
  <div class="fg"><div class="fl">Класс</div><div class="cls">${[8,9,10,11].map(n=>`<button class="${n===s.prof.cls?'on':''}" data-a="cls" data-v="${n}">${n}</button>`).join('')}</div></div>
  <div class="fg"><div class="fl">Регион</div><button class="sel" style="width:100%" data-a="toast" data-v="Откроется список регионов">Республика Татарстан ${ic('chev',16)}</button></div>
  <div class="fg"><div class="fl"><span>Любимые предметы</span><span>выбрано: ${s.prof.subj.size}</span></div><div class="wchips">${Object.entries(SUBJ).map(([k,n])=>`<button class="chip ${s.prof.subj.has(k)?'on':''}" data-a="subj" data-v="${k}">${s.prof.subj.has(k)?'✓ ':''}${n}</button>`).join('')}</div></div>
- <div class="fg"><div class="fl">Цель</div><button class="sel" style="width:100%" data-a="toast" data-v="Откроется выбор направления">Программная инженерия ${ic('chev',16)}</button></div>
- <div class="fg"><div class="fl"><span>Вузы</span><span>выбрано: ${s.prof.vuz.size}</span></div><div class="wchips">${VUZ.map(v=>`<button class="chip ${s.prof.vuz.has(v.id)?'on':''}" data-a="myvuz" data-v="${v.id}">${s.prof.vuz.has(v.id)?'✓ ':''}${v.short}</button>`).join('')}</div></div>
+ <div class="fg" data-anchor="dirs"><div class="fl"><span>Направления</span><span>выбрано: ${s.prof.dirs.size}</span></div><div class="wchips">${Object.keys(DIR).filter(d=>DIR[d].pop||s.prof.dirs.has(d)).map(d=>`<button class="chip ${s.prof.dirs.has(d)?'on':''}" data-a="dirtog" data-v="${d}">${s.prof.dirs.has(d)?'✓ ':''}${DIR[d].n}</button>`).join('')}<button class="chip" data-a="dirpick" data-v="many">Ещё направления…</button></div><div class="fine">Можно несколько. Не выбрано — подбор по любимым предметам.</div></div>
+ <div class="fg"><div class="fl"><span>Вузы</span><span>выбрано: ${s.prof.vuz.size}</span></div><div class="wchips">${VUZ.map(v=>`<button class="chip ${s.prof.vuz.has(v.id)?'on':''}" data-a="myvuz" data-v="${v.id}">${s.prof.vuz.has(v.id)?'✓ ':''}${v.short}</button>`).join('')}</div>
+ ${s.prof.vuz.size?`<ul class="u-tg" aria-label="Направления в вузах">${[...s.prof.vuz].map(id=>{const v=VBY[id],t=targetOf(s,v);return `<li><button data-a="vuz" data-v="${id}"><b>${v.nick}</b><span>${t.basis==='chosen'?t.dirs.map(d=>DIR[d].n).join(', '):t.basis==='goal'?'по цели: '+t.dirs.map(d=>DIR[d].n).join(', '):'не выбраны — льготы по вузу целиком'}</span>${ic('chev',15)}</button></li>`;}).join('')}</ul><div class="fine">${V(s,'Отметь направления в карточке вуза — льготы посчитаем на них.','Отметьте направления в карточке вуза — льготы посчитаем на них.')}</div>`:''}</div>
  <button class="btn" data-a="rematch">${ic('spark',15)} Сохранить и обновить подбор</button>`;
 }
 
@@ -1173,15 +1605,15 @@ function scAI(s){
 }
 
 const TABS=[['home','Главная','home'],['tracker','Трекер','cal'],['catalog','Каталог','book'],['match','Подбор','target'],['family','Семья','users']];
-function tabbar(s){const n=tracked(s).filter(o=>!s.reg.has(o.id)).length+(isP(s)?0:s.proposals.length);return `<nav class="tabs">${TABS.map(([k,l,i])=>`<button class="tab ${s.tab===k?'on':''}" data-a="tab" data-v="${k}" ${s.tab===k?'aria-current="page"':''}>${ic(i,21)}<span>${l}</span>${k==='tracker'&&n?`<i class="nb">${n}</i>`:''}</button>`).join('')}</nav>`;}
+function tabbar(s){const n=tracked(s).map(o=>trItem(s,o)).filter(x=>x.status==='open'||x.ask).length+(isP(s)?0:s.proposals.length);return `<nav class="tabs">${TABS.map(([k,l,i])=>`<button class="tab ${s.tab===k?'on':''}" data-a="tab" data-v="${k}" ${s.tab===k?'aria-current="page"':''}>${ic(i,21)}<span>${l}</span>${k==='tracker'&&n?`<i class="nb">${n}</i>`:''}</button>`).join('')}</nav>`;}
 function appScreen(s){
  const sub=V(s,'Артём, ученик','Ольга, родитель');
  if(s.splash) return sb()+`<div class="app ${s.anim?'enter':''}">${appTop('Траектория',sub)}${splash()}</div>`;
  const bodies={home:scHome,match:scMatch,catalog:scCatalog,tracker:scTracker,family:scFamily,profile:scProfile};
  const topS=s.sheet[s.sheet.length-1];
- const sheet=!topS?'':topS.t==='oly'?scDetail(s,BY[topS.id],topS.part):topS.t==='vuz'?scVuz(s,VBY[topS.id]):scAI(s);
- const fab=['home','match','catalog'].includes(s.tab)&&!s.loading&&!s.error&&!s.empty;
- return sb()+`<div class="app ${s.anim?'enter':''}">${appTop(s.tab==='profile'?'Профиль':'Траектория',sub)}<div class="ap-body ${fab?'withfab':''}" data-scroll>${bodies[s.tab](s)}</div>${fab?`<button class="fab" data-a="ai">${ic('spark',15)} Спросить</button>`:''}${tabbar(s)}${sheet}</div>`;
+ const sheet=!topS?'':topS.t==='oly'?scDetail(s,BY[topS.id],topS.part):topS.t==='vuz'?scVuz(s,VBY[topS.id],topS.focus):topS.t==='dirs'?scDirs(s,topS.one):scAI(s);
+ const fab=['home','match','catalog'].includes(s.tab)&&!s.loading&&!s.error&&!s.empty&&!(s.tab==='match'&&!matchFresh(s).length);
+ return sb()+`<div class="app ${s.anim?'enter':''}">${appTop(s.tab==='profile'?'Профиль':'Траектория',sub)}<div class="ap-body ${fab?'withfab':''}" data-scroll ${s.at&&!s.sheet.length?`data-at="${s.at}"`:''}>${bodies[s.tab](s)}</div>${fab?`<button class="fab" data-a="ai">${ic('spark',15)} Спросить</button>`:''}${tabbar(s)}${sheet}</div>`;
 }
 
 /* ---------- prototype ---------- */
@@ -1201,7 +1633,7 @@ let tt;
 function toast(m){toastEl.innerHTML=ic('check',14,2.6)+'<span>'+m+'</span>';toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('show'),2300);}
 function openApp(tab){S.view='app';S.tab=tab;S.sheet=[];S.splash=true;S.anim=true;render(false);setTimeout(()=>{S.splash=false;render(false);},1100);}
 function loadMatch(ms,msg){S.loading=true;render(false);setTimeout(()=>{S.loading=false;render(false);if(msg)toast(msg);},ms);}
-function pushSheet(o){const first=!S.sheet.length;S.sheet.push(o);S.sheetNew=first;S.sheetReset=true;render();}
+function pushSheet(o){const first=!S.sheet.length;S.sheet.push(o);S.sheetNew=first;S.sheetReset=true;S.vuzAll=false;S.vuzMode=null;S.dirQ='';render();}
 
 ps.addEventListener('click',e=>{
  const el=e.target.closest('[data-a]'); if(!el||!ps.contains(el)) return;
@@ -1214,7 +1646,8 @@ ps.addEventListener('click',e=>{
   case 'exit': S.view='chat'; S.sheet=[]; render(false); break;
   case 'tab': S.tab=v; S.sheet=[]; if(v==='match'&&!S.matchSeen){S.matchSeen=true;loadMatch(800);} else render(false); break;
   case 'open': pushSheet({t:'oly',id:v}); break;
-  case 'vuz': pushSheet({t:'vuz',id:v}); break;
+  case 'vuz': pushSheet({t:'vuz',id:v,focus:el.dataset.f||null}); break;
+  case 'dirpick': pushSheet({t:'dirs',one:v==='one'}); break;
   case 'ai': pushSheet({t:'ai'}); break;
   case 'sback': S.sheet.pop(); S.sheetReset=true; render(); break;
   case 'close': S.sheet=[]; render(); break;
@@ -1226,7 +1659,8 @@ ps.addEventListener('click',e=>{
   case 'accept': S.proposals=S.proposals.filter(x=>x!==v); S.tracked.add(v); toast('Добавлено. Ольга увидит это в общей траектории'); render(); break;
   case 'decline': S.proposals=S.proposals.filter(x=>x!==v); toast('Отложено. Ольга увидит ответ'); render(); break;
   case 'reg': if(S.reg.has(v)){S.reg.delete(v);toast('Отметка снята');}else{S.reg.set(v,me(S));toast('Отмечено. Все участники увидят новый статус');} render(); break;
-  case 'filter': S.filter=v; S.empty=false; render(); break;
+  case 'filter': S.filter=v; S.empty=false; S.matchMore=false; render(); break;
+  case 'matchmore': S.matchMore=true; render(); break;
   case 'resetf': S.filter='all'; S.empty=false; render(false); break;
   case 'retry': S.error=false; loadMatch(900,'Подбор загружен'); break;
   case 'trview': S.trView=v; render(false); break;
@@ -1234,7 +1668,20 @@ ps.addEventListener('click',e=>{
   case 'catseg': S.catSeg=v; S.catCity='all'; S.q=''; render(false); break;
   case 'csubj': S.catSubj=v; render(); break;
   case 'ccity': S.catCity=v; render(); break;
-  case 'catreset': S.q=''; S.catSubj='all'; S.catCity='all'; render(); break;
+  case 'catreset': S.q=''; S.catSubj='all'; S.catCity='all'; S.catDir=''; render(); break;
+  case 'catmine': S.catMine=!S.catMine; render(); break;
+  case 'catmore': S.catOpen.add(v); render(); break;
+  case 'cdir': S.catDir=v; render(); break;
+  case 'dirone': S.catDir=v; S.sheet.pop(); S.sheetReset=true; render(); break;
+  case 'dirtog': if(S.prof.dirs.has(v)) S.prof.dirs.delete(v); else S.prof.dirs.add(v); render(); break;
+  case 'udir': { const [id,d]=v.split(':'), l=S.uniDirs[id]||[]; S.uniDirs[id]=l.includes(d)?l.filter(x=>x!==d):[...l,d]; render(); break; }
+  case 'vuzall': S.vuzAll=true; render(); break;
+  case 'vuzmode': S.vuzMode=v; render(); break;
+  case 'res': { const [id,r]=v.split('|'); if(S.res.get(id)===r){S.res.delete(id);toast('Отметка снята');} else {S.res.set(id,r);toast('Отмечено. Все участники увидят новый статус');} render(); break; }
+  case 'tkx': if(S.trOpen.has(v)) S.trOpen.delete(v); else S.trOpen.add(v); S.trRm=null; render(); break;
+  case 'tkrm': S.trRm=v; render(); break;
+  case 'tkrmno': S.trRm=null; render(); break;
+  case 'tkrmyes': S.tracked.delete(v); S.reg.delete(v); S.trOpen.delete(v); S.trRm=null; toast('Убрано из трекера'); render(); break;
   case 'myvuz': if(S.prof.vuz.has(v)){ if(S.prof.vuz.size>1){S.prof.vuz.delete(v);toast('Вуз убран. Изменение увидят все участники');} else {toast('Нужен хотя бы один вуз');break;} } else {S.prof.vuz.add(v);toast('Вуз добавлен. Изменение увидят все участники');} render(); break;
   case 'subj': if(S.prof.subj.has(v)){ if(S.prof.subj.size>1) S.prof.subj.delete(v); else {toast('Нужен хотя бы один предмет');break;} } else S.prof.subj.add(v); render(); break;
   case 'cls': S.prof.cls=+v; render(); break;
@@ -1262,7 +1709,10 @@ ps.addEventListener('click',e=>{
   case 'toast': toast(v); break;
  }
 });
-ps.addEventListener('input',e=>{ if(e.target.matches('[data-q]')){ S.q=e.target.value; const c=pin.querySelector('[data-catlist]'); if(c) c.innerHTML=catList(S); } });
+ps.addEventListener('input',e=>{
+ if(e.target.matches('[data-q]')){ S.q=e.target.value; const c=pin.querySelector('[data-catlist]'); if(c) c.innerHTML=catList(S); }
+ if(e.target.matches('[data-dq]')){ S.dirQ=e.target.value; const c=pin.querySelector('[data-dirlist]'), top=S.sheet[S.sheet.length-1]; if(c&&top) c.innerHTML=dirList(S,top.one); }
+});
 ps.addEventListener('keydown',e=>{
  if(!e.target.matches('[data-ren]')) return;
  if(e.key==='Enter') pin.querySelector('[data-a="aisave"]').click();
@@ -1307,18 +1757,27 @@ put('g-b',[
 put('g-c',[
  {c:'C1',t:'Главная ученика',d:'Цель, прогресс регистраций и следующий шаг — ближайшая регистрация из трекера.',f:'34',html:appScreen(st({tab:'home'}))},
  {c:'C2',t:'Главная родителя',d:'Та же траектория, но на «вы» и с объяснением льгот простыми словами.',f:'3, 47',html:appScreen(st({as:'parent',tab:'home'}))},
- {c:'C3',t:'Подбор',d:'Олимпиады из перечня и ВсОШ с причиной рекомендации, фильтры и отдельный блок олимпиад вне перечня.',f:'13, 15, 16',html:appScreen(st({tab:'match'}))},
+ {c:'C3',t:'Подбор',d:'Только олимпиады, которых ещё нет в трекере: сверху видно, сколько уже добавлено и сколько ждут ответа. Пять сразу, остальные — «Показать ещё». Олимпиады вне перечня — отдельным блоком.',f:'13, 15, 16, 28, 62',html:appScreen(st({tab:'match'}))},
  {c:'C4',t:'Ветка ВсОШ',d:'Четыре этапа от школьного до заключительного и льготы за диплом финала.',f:'14, 21',html:appScreen(st({tab:'match',sheet:[{t:'oly',id:'vsosh',part:'top'}]}))},
- {c:'C5',t:'Карточка: уровень, льготы, условия',d:'Уровень профиля ученика, льгота в каждом из его вузов с источником и условия подтверждения.',f:'17, 18, 19',html:appScreen(st({tab:'match',sheet:[{t:'oly',id:'hse',part:'top'}]}))},
- {c:'C6',t:'Карточка: причина и вузы',d:'Ниже в карточке: почему олимпиада подходит, где ещё она даёт льготу, кроме вузов ученика, кнопка трекера и официальный сайт.',f:'20, 22, 23, 28',html:appScreen(st({tab:'match',sheet:[{t:'oly',id:'tk',part:'bottom'}]}))}
+ {c:'C5',t:'Карточка: льготы и условия',d:'Таблица по вузам ученика: на какие его направления льгота, что получат победитель и призёр, порог ЕГЭ. Слабее на другом направлении — подстрокой, своё условие вуза — плашкой, общее — «Во всех вузах».',f:'17, 18, 19, 65',html:appScreen(st({tab:'match',at:'lvl',sheet:[{t:'oly',id:'hse',part:'top'}]}))},
+ {c:'C6',t:'Карточка: причина и вузы',d:'Ниже в карточке: почему олимпиада подходит, где ещё она даёт льготу и на скольких направлениях вуза, кнопка трекера и официальный сайт.',f:'20, 22, 23, 28, 65',html:appScreen(st({tab:'match',sheet:[{t:'oly',id:'tk',part:'bottom'}]}))},
+ {c:'C7',t:'Всё уже в трекере',d:'Когда все подходящие олимпиады добавлены, подбор хвалит и ведёт в трекер или каталог. Новые появятся, когда изменится цель или список вузов.',f:'62',html:appScreen(st({tab:'match',tracked:new Set(OLY.filter(o=>o.per).map(o=>o.id)),proposals:[],reg:new Map([['hse',KID],['vsosh',PAR],['inno',KID],['tk',KID],['lomo',KID]])}))}
 ]);
 put('g-d',[
- {c:'D1',t:'Каталог олимпиад',d:'Все олимпиады базы с поиском, фильтром по предмету и городу финала.',f:'24, 27',html:appScreen(st({tab:'catalog',catSubj:'inf'}))},
- {c:'D2',t:'Каталог вузов',d:'Вузы с городом и числом олимпиад, которые дают льготу. Вузы ученика отмечены.',f:'25, 27',html:appScreen(st({tab:'catalog',catSeg:'vuz'}))},
- {c:'D3',t:'Карточка вуза',d:'Направления, олимпиады с льготой, порог ЕГЭ, правила приёма и дата проверки.',f:'25, 26',html:appScreen(st({tab:'catalog',catSeg:'vuz',sheet:[{t:'vuz',id:'inno'}]}))}
+ {c:'D1',t:'Каталог олимпиад',d:'Все олимпиады базы по уровням, поиск и фильтр по предмету — сразу предмет ученика. Над предметами — переключатель «Ведут в мои вузы и на мои направления».',f:'24, 27, 66',html:appScreen(st({tab:'catalog'}))},
+ {c:'D5',t:'Ведут в мои вузы',d:'Переключатель включён: остались олимпиады с БВИ или 100 баллами в вузах ученика на его направления. В строке — какая льгота и где.',f:'66',html:appScreen(st({tab:'catalog',catMine:true}))},
+ {c:'D2',t:'Каталог вузов',d:'Фильтр по направлению: только вузы, где оно есть, и сколько олимпиад дают льготу именно на него. «Другое…» открывает все направления. Вузы ученика отмечены.',f:'25, 27, 67',html:appScreen(st({tab:'catalog',catSeg:'vuz',catDir:'se'}))},
+ {c:'D3',t:'Карточка вуза',d:'Направления вуза с кодом, числом программ и олимпиад; галочка — «моё», льготы считаются на отмеченные. Олимпиады с льготой — на мои направления или все. Порог ЕГЭ, правила приёма и дата проверки.',f:'25, 26, 65',html:appScreen(st({tab:'catalog',catSeg:'vuz',sheet:[{t:'vuz',id:'hse'}]}))},
+ {c:'D4',t:'Выбор направлений',d:'Все направления с поиском по названию и коду: цель сверху, дальше по группам. Открывается из профиля и из фильтра каталога вузов.',f:'49, 65, 67',html:appScreen(st({tab:'profile',sheet:[{t:'dirs'}]}))}
 ]);
+// Трекер в ноябре и в марте: shift сдвигает «сегодня», этапы до него уже прошли.
+const NOV={tab:'tracker',shift:52,proposals:[],reg:new Map([['hse',KID],['vsosh',PAR],['inno',KID]]),res:new Map([['vsosh:0','passed']])};
+const MAR={tab:'tracker',shift:170,proposals:[],tracked:new Set(['hse','vsosh','inno','tk']),reg:new Map([['hse',KID],['vsosh',PAR],['inno',KID]]),
+ res:new Map([['vsosh:0','passed'],['vsosh:1','passed'],['vsosh:2','passed'],['hse:1','passed'],['hse:2','prizer'],['inno:1','failed']])};
 put('g-e',[
- {c:'E1',t:'Трекер ученика',d:'Предложение от Ольги, статусы регистраций и отметка, кто её поставил.',f:'28, 31, 44, 45, 46',html:appScreen(st({tab:'tracker',reg:new Map([['vsosh',PAR]])}))},
+ {c:'E1',t:'Трекер ученика',d:'Под каждой олимпиадой — этапы со сроками и одно действие: отметить регистрацию. Предложение от Ольги, группы «Нужно зарегистрироваться» и «Участвую».',f:'28, 31, 44, 45, 46, 63',html:appScreen(st({tab:'tracker',reg:new Map([['vsosh',PAR]])}))},
+ {c:'E4',t:'Как прошёл этап',d:'Ноябрь: отборочный этап позади, трекер спрашивает итог. «Все этапы» раскрывают отметки по каждому этапу, кто отметил регистрацию и «Убрать из трекера».',f:'46, 63',html:appScreen(st({...NOV,trOpen:new Set(['hse'])}))},
+ {c:'E5',t:'Завершено',d:'Март: диплом призёра ведёт к льготам в вузах ученика, непройденный этап закрывает олимпиаду, пропущенная регистрация тоже уходит в «Завершено».',f:'31, 63',html:appScreen(st({...MAR,at:'tg-finished'}))},
  {c:'E2',t:'Календарь сроков',d:'Сроки месяца в цветах олимпиад, переключение месяцев.',f:'32',html:appScreen(st({tab:'tracker',trView:'cal',calM:10,tracked:new Set(['hse','inno','vsosh','tk','lomo'])}))},
  {c:'E3',t:'Родитель предлагает олимпиаду',d:'Пока ученик в траектории, родитель не добавляет олимпиаду сам, а предлагает её.',f:'45',html:appScreen(st({as:'parent',tab:'catalog',proposals:[],sheet:[{t:'oly',id:'tk',part:'bottom'}]}))}
 ]);
@@ -1335,7 +1794,7 @@ put('g-g',[
  {c:'G3',t:'Семья глазами приглашённого',d:'Артём видит создателя и участников и может сам выйти из траектории.',f:'38, 43, 48',html:appScreen(st({tab:'family'}))}
 ]);
 put('g-h',[
- {c:'H1',t:'Профиль ученика',d:'Правку профиля видят все участники траектории.',f:'49',html:appScreen(st({tab:'profile'}))},
+ {c:'H1',t:'Профиль ученика',d:'Направлений может быть несколько: основные чипами, остальные — в выборе. Под вузами — на какие направления в каждом считаются льготы. Правку видят все участники.',f:'49, 65',html:appScreen(st({tab:'profile',at:'dirs'}))},
  {c:'H2',t:'Загрузка',d:'Скелетон и понятный статус, пока идёт подбор.',f:'',html:appScreen(st({tab:'match',loading:true}))},
  {c:'H3',t:'Пустой результат',d:'Без тупика: сбросить фильтры или изменить профиль.',f:'',html:appScreen(st({tab:'match',empty:true}))},
  {c:'H4',t:'Ошибка сети',d:'Что случилось, что сохранено и что сделать дальше.',f:'',html:appScreen(st({tab:'match',error:true}))}
@@ -1347,7 +1806,8 @@ put('g-i',[
  {c:'I4',t:'Изменились правила',d:'Бот сообщает об обновлении перечня и правил приёма вузов из траектории.',f:'33',html:scrChanges()},
  {c:'I5',t:'Команды',d:'Меню, подсказка и настройки напоминаний.',f:'51',html:scrCommands()},
  {c:'I6',t:'Удаление создателем',d:'Только создатель может удалить траекторию и все данные, с подтверждением.',f:'50',html:scrDeleteOwner()},
- {c:'I7',t:'Удаление приглашённым',d:'Приглашённому бот объясняет, что удалить может только создатель, и предлагает выйти.',f:'48, 50',html:scrDeleteInvited()}
+ {c:'I7',t:'Удаление приглашённым',d:'Приглашённому бот объясняет, что удалить может только создатель, и предлагает выйти.',f:'48, 50',html:scrDeleteInvited()},
+ {c:'I8',t:'Итог этапа',d:'На следующий день после этапа бот спрашивает, как он прошёл. Отметка сразу попадает в общий трекер, «Итогов ещё нет» — спросит через неделю.',f:'64',html:scrResultAsk()}
 ]);
 
 /* ---------- coverage ---------- */
@@ -1356,15 +1816,20 @@ const FUNCS=[
  ['Онбординг в чате'],[4,'Имя: из профиля MAX или имя ребёнка',['A3','B1']],[5,'Класс',['A3','B1']],[6,'Регион',['A4','B2']],[7,'Любимые предметы',['A4','B2']],[8,'Цель или «Пока не знаю»',['A5','B2']],[9,'Вузы ученика',['A6','B2']],
  ['Результат'],[10,'Итоговое сообщение',['A7','B3']],[11,'Кнопки «Открыть мини-приложение», «Напоминать», «Пригласить»',['A7','B3']],[12,'Мини-приложение поверх чата',['A8']],
  ['Подбор олимпиад'],[13,'3–5 олимпиад и ВсОШ с причиной',['C3']],[14,'ВсОШ отдельной веткой',['C4']],[15,'Фильтры',['C3']],[16,'Олимпиады вне перечня',['C3']],
- ['Карточка олимпиады'],[17,'Уровень профиля',['C5']],[18,'Льгота в вузах ученика',['C5']],[19,'Условия',['C5']],[20,'«Почему подходит»',['C6']],[21,'Этапы и даты',['C4']],[22,'Официальный сайт',['C6']],[23,'Где ещё олимпиада даёт льготу',['C6']],
- ['Каталог'],[24,'Раздел «Олимпиады»',['D1']],[25,'Раздел «Вузы»',['D2','D3']],[26,'Олимпиады из карточки вуза',['D3']],[27,'Поиск и фильтры',['D1','D2']],
- ['Сроки'],[28,'Добавление в трекер',['C6','E1']],[29,'Напоминания за месяц, неделю, 3 дня и 1 день',['I1']],[30,'Кнопки в напоминании',['I1','I2']],[31,'Статусы в трекере',['E1']],[32,'Календарь',['E2']],[33,'Уведомления об изменениях',['I4']],[34,'Следующий шаг на главной',['C1']],
+ [62,'В подборе только то, чего нет в трекере; «Показать ещё» и «всё уже в трекере»',['C3','C7']],
+ ['Карточка олимпиады'],[17,'Уровень профиля',['C5']],[18,'Льгота в вузах ученика',['C5']],[19,'Условия: таблица вузов ученика и «Во всех вузах»',['C5']],[20,'«Почему подходит»',['C6']],[21,'Этапы и даты',['C4']],[22,'Официальный сайт',['C6']],[23,'Где ещё олимпиада даёт льготу',['C6']],
+ ['Каталог'],[24,'Раздел «Олимпиады»',['D1']],[25,'Раздел «Вузы»',['D2','D3']],[26,'Олимпиады из карточки вуза',['D3']],[27,'Поиск, фильтры по предмету, направлению и городу',['D1','D2']],
+ [65,'Направления в вузе: льгота — «вуз и направление», выбор направлений',['D3','D4','C5','H1']],[66,'«Ведут в мои вузы и на мои направления» в каталоге олимпиад',['D1','D5']],[67,'Каталог вузов: фильтр по направлению',['D2','D4']],
+ ['Сроки'],[28,'Добавление в трекер',['C3','C6','E1']],[29,'Напоминания за месяц, неделю, 3 дня и 1 день',['I1']],[30,'Кнопки в напоминании',['I1','I2']],[31,'Статусы в трекере',['E1','E5']],[32,'Календарь',['E2']],[33,'Уведомления об изменениях',['I4']],[34,'Следующий шаг на главной',['C1']],
+ [63,'Сроки и итог каждого этапа в трекере, «Завершено»',['E1','E4','E5']],[64,'Бот спрашивает итог этапа',['I8']],
  ['ИИ-помощник'],[35,'Ответы по карточкам со ссылками',['F1']],[36,'«Данных нет» и первоисточник',['F2']],[37,'Личный чат у каждого',['F1','F2','F5']],
  [58,'Несколько чатов: новый чат и переключение',['F5']],[59,'Название чата по дню первого вопроса, переименование',['F3','F4','F5']],[60,'Помощник помнит 10 последних реплик чата',['F3']],
- ['Семья'],[38,'Создатель траектории',['G1','G3']],[39,'Одноразовая ссылка',['B3','G2']],[40,'Сколько угодно приглашённых',['G1','G2']],[41,'Создатель удаляет приглашённых',['G1']],[42,'Приглашённого встречают по имени',['B4']],[43,'Общая траектория',['G1','G3']],[44,'Напоминания всем участникам',['E1','I2']],[45,'Родитель предлагает, ученик подтверждает',['E1','E3','I3']],[46,'Отметку ставит любой участник',['E1','I2']],[47,'Объяснение льгот для родителя',['C2']],[48,'Выход из траектории',['G3','I7']],
- ['Профиль и данные'],[49,'Правка профиля',['H1']],[50,'/delete только для создателя',['I6','I7']],[51,'Команды /start, /menu, /help, /settings',['I5']]
+ ['Семья'],[38,'Создатель траектории',['G1','G3']],[39,'Одноразовая ссылка',['B3','G2']],[40,'Сколько угодно приглашённых',['G1','G2']],[41,'Создатель удаляет приглашённых',['G1']],[42,'Приглашённого встречают по имени',['B4']],[43,'Общая траектория',['G1','G3']],[44,'Напоминания всем участникам',['E1','I2']],[45,'Родитель предлагает, ученик подтверждает',['E1','E3','I3']],[46,'Отметку ставит любой участник',['E1','E4','I2']],[47,'Объяснение льгот для родителя',['C2']],[48,'Выход из траектории',['G3','I7']],
+ ['Профиль и данные'],[49,'Правка профиля',['H1','D4']],[50,'/delete только для создателя',['I6','I7']],[51,'Команды /start, /menu, /help, /settings',['I5']]
 ];
 document.querySelectorAll('.static .sheet[data-bottom], .static .ai-b[data-bottom]').forEach(el=>{el.scrollTop=el.scrollHeight;});
+// Экран с data-at прокручен к нужному блоку.
+document.querySelectorAll('.static [data-at]').forEach(el=>{const a=el.querySelector(`[data-anchor="${el.dataset.at}"]`);if(a) el.scrollTop=a.getBoundingClientRect().top-el.getBoundingClientRect().top+el.scrollTop-8;});
 document.getElementById('cov-list').innerHTML=FUNCS.map(f=>f.length===1?`<li class="h">${f[0]}</li>`:`<li><b>${f[0]}</b><span>${f[1]}</span><span class="refs">${f[2].map(c=>`<a href="#scr-${c}">${c}</a>`).join('')}</span></li>`).join('');
 })();
 

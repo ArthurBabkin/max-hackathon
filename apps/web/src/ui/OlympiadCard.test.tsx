@@ -26,6 +26,7 @@ const card: CardData = {
   reason: 'Профиль совпадает с целью',
   in_tracker: false,
   proposal_status: null,
+  registration_closed: false,
 }
 
 /**

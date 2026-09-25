@@ -108,6 +108,9 @@ export interface paths {
          * Подбор олимпиад под цель плюс блок «вне перечня»
          * @description Скоринг и сортировка — на сервере (ТЗ §6.1). Клиент показывает `items`
          *     в том порядке, в котором они пришли, и не пересчитывает ничего сам.
+         *     Подходящая олимпиада — та, во что ещё можно вступить (срок первого этапа
+         *     не прошёл); перечневая — только с льготой в вузах ученика. Уже добавленное
+         *     в трекер и предложенное не показывается.
          */
         get: {
             parameters: {
@@ -162,6 +165,13 @@ export interface paths {
                     subject?: string;
                     /** @description Город финала, `olympiads.final_city`. */
                     city?: string;
+                    /**
+                     * @description «Ведут в мои вузы и на мои направления»: только олимпиады с БВИ,
+                     *     БВИ победителям или 100 баллами в вузах ученика — на его
+                     *     направления по правилу целей (выбранные в вузе, иначе из цели,
+                     *     иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
+                     */
+                    mine?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -180,6 +190,7 @@ export interface paths {
                         };
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -250,6 +261,13 @@ export interface paths {
                 query?: {
                     q?: string;
                     city?: string;
+                    /**
+                     * @description `directions.id`: только вузы, где есть направление, покрывающее
+                     *     это (коды равны или один — укрупнённая группа XX.00.00). Сначала —
+                     *     где больше олимпиад с льготой на нём, вузы с непроверенными
+                     *     льготами — в конце. Нет направления — 400.
+                     */
+                    direction?: string;
                 };
                 header?: never;
                 path?: never;
@@ -264,10 +282,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: components["schemas"]["UniversityListItem"][];
+                            items: components["schemas"]["CatalogUniversity"][];
                         };
                     };
                 };
+                400: components["responses"]["BadRequest"];
                 401: components["responses"]["Unauthorized"];
             };
         };
@@ -327,7 +346,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Направления — справочник целей для правки профиля */
+        /**
+         * Направления — справочник целей для правки профиля
+         * @description Все направления вузов из датасета (72). `popular` — основные 16, те же, что в онбординге
+         *     бота: их профиль показывает чипами, остальные — в выборе с поиском (F65).
+         */
         get: {
             parameters: {
                 query?: never;
@@ -344,7 +367,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            items: components["schemas"]["Direction"][];
+                            items: components["schemas"]["DirectionOption"][];
                         };
                     };
                 };
@@ -543,8 +566,90 @@ export interface paths {
                 };
                 401: components["responses"]["Unauthorized"];
                 404: components["responses"]["NotFound"];
+                /** @description На регистрации держатся итоги этапов — сначала снять их */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tracker/{id}/stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Отметить этап — регистрацию или итог
+         * @description Отметку ставит любой участник, остальные получают сообщение от бота.
+         *     Тело — вся отметка этапа: `{registered: false, result: null}` снимает её.
+         *     Итог подразумевает регистрацию на олимпиаду. `failed`, `winner`,
+         *     `prizer` и `participant` заканчивают участие: следующие этапы
+         *     становятся `locked`, напоминания по олимпиаде отменяются. Первая
+         *     регистрация — то же, что `PUT /tracker/{id}/registered`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `tracker_items.id` */
+                    id: components["parameters"]["TrackerItemId"];
+                    /** @description `stages.id` этапа этой олимпиады */
+                    stage_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Регистрация на этап; у этапов без регистрации игнорируется. */
+                        registered?: boolean;
+                        result?: components["schemas"]["StageResult"] | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TrackerItem"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /**
+                 * @description Отметка противоречит другим: этап после закрывающего итога,
+                 *     закрывающий итог при отметках дальше
+                 */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1144,6 +1249,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/universities/{id}/directions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Выбрать направления в вузе
+         * @description Заменяет выбор направлений ученика в вузе (F65). Вуз становится «моим», новые направления
+         *     дописываются в цель (`goal_status` → `known`). Пустой список снимает выбор, цель не меняется.
+         *     Льготы в этом вузе дальше считаются на выбранные направления.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        direction_ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Profile"];
+                    };
+                };
+                400: components["responses"]["BadRequest"];
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ai/chats": {
         parameters: {
             query?: never;
@@ -1511,8 +1669,28 @@ export interface components {
             upcoming: components["schemas"]["TrackerItem"][];
         };
         Recommendations: {
-            /** @description Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет. */
+            /**
+             * @description Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+             *     Только то, чего нет в трекере и что не ждёт ответа на предложение:
+             *     места добавленных занимают следующие по скору (C3).
+             */
             items: components["schemas"]["OlympiadCard"][];
+            /**
+             * @description Остальные подходящие олимпиады перечня по убыванию скора — «Показать ещё N».
+             *     Добавленные сюда тоже не попадают.
+             */
+            more: components["schemas"]["OlympiadCard"][];
+            /** @description Сколько подходящих под фильтр олимпиад спрятано, потому что они уже в трекере. */
+            tracked_count: number;
+            /** @description Сколько подходящих под фильтр олимпиад спрятано, потому что ждут ответа на предложение. */
+            proposed_count: number;
+            /**
+             * @description `ok` — есть что показать; `all_tracked` — всё подходящее уже в трекере (C7);
+             *     `all_proposed` — остальное ждёт ответа на предложение; `none_suitable` — подходящих
+             *     нет: регистрации закрыты или в вузах ученика нет льгот по его предметам.
+             * @enum {string}
+             */
+            state: "ok" | "all_tracked" | "all_proposed" | "none_suitable";
             /** @description Олимпиады вне перечня — отдельный блок, с основным списком не смешиваются (F16). */
             outside: components["schemas"]["OlympiadCard"][];
             /** @example Сначала ближайшие сроки и точное совпадение профиля */
@@ -1554,6 +1732,11 @@ export interface components {
              * @enum {string|null}
              */
             proposal_status: "pending" | null;
+            /**
+             * @description Срок первого этапа (регистрации) прошёл — вступить в этом сезоне нельзя, хотя следующий
+             *     этап может быть ещё впереди. В «Подборе» всегда `false`: закрытые туда не попадают.
+             */
+            registration_closed: boolean;
         };
         OlympiadListItem: components["schemas"]["Badge"] & {
             olympiad_id: string;
@@ -1569,6 +1752,23 @@ export interface components {
                 level: components["schemas"]["Level"];
             };
             profiles_count?: number;
+            /** @description По основному профилю — срок первого этапа прошёл. */
+            registration_closed: boolean;
+            /**
+             * @description С `mine=true` — льгота основного профиля в моих вузах на мои
+             *     направления, от сильной к слабой. Без фильтра — пустой массив.
+             */
+            my_benefits: components["schemas"]["MyBenefit"][];
+        };
+        /** @description Льгота в моих вузах и вузы, где она даётся. */
+        MyBenefit: {
+            /** @enum {string} */
+            benefit: "bvi" | "bvi_winners" | "score100";
+            benefit_label: string;
+            /** @description Короткие названия моих вузов, в их порядке в профиле. */
+            universities: string[];
+            /** @description Из universities — вузы, где на мои направления льгота не на все программы («Зависит от программы» в карточке олимпиады). */
+            partial_universities: string[];
         };
         /** @description Строка блока «Уровень по профилям». */
         ProfileLevel: {
@@ -1628,6 +1828,30 @@ export interface components {
              *     ]
              */
             conditions?: string[];
+            /**
+             * @description На какие направления вуза эта льгота (F65): в вузах ученика — его направления (выбранные
+             *     в вузе или из цели); пусто — льгота вуза целиком. В строке «не учитывает» — направления,
+             *     на которые льготы нет.
+             * @example [
+             *       "Программная инженерия"
+             *     ]
+             */
+            directions: string[];
+            /** @description Более слабые льготы на остальных направлениях ученика в этом вузе. */
+            other_directions: components["schemas"]["DirectionBenefit"][];
+            /** @description Льготы на направления ученика в вузе ещё уточняются — показана льгота вуза целиком. */
+            unverified: boolean;
+            /** @description Льгота или порог зависит от программы внутри направления. */
+            varies: boolean;
+            /** @description «Где ещё даёт льготу»: на скольких направлениях вуза есть льгота. */
+            directions_count: number;
+            /** @description Сколько направлений у вуза в данных; 0 — данных по направлениям нет. */
+            directions_total: number;
+        };
+        DirectionBenefit: {
+            benefit: components["schemas"]["BenefitKind"];
+            benefit_label: string;
+            directions: string[];
         };
         Stage: {
             id: string;
@@ -1692,9 +1916,43 @@ export interface components {
             /** @example Программная инженерия */
             name: string;
         };
+        DirectionOption: components["schemas"]["Direction"] & {
+            /** @example 09.03.04 */
+            code: string;
+            /** @description Группы для выбора с поиском — «ИТ», «Экономика». */
+            groups: string[];
+            /** @description Одно из основных направлений — показывается чипом. */
+            popular: boolean;
+        };
+        OfferedDirection: {
+            id: string;
+            code: string;
+            name: string;
+            /**
+             * @description to_check — льготы на направлении ещё уточняются.
+             * @enum {string}
+             */
+            status: "offered" | "to_check";
+            programs: number;
+            budget_places: number | null;
+            /** @description Сколько олимпиад дают льготу на это направление. */
+            benefit_olympiads_count: number;
+            /** @description Ученик выбрал это направление в вузе. */
+            is_mine: boolean;
+            /** @description Направление покрывает цель ученика. */
+            is_goal: boolean;
+        };
+        /**
+         * @description На что смотрятся льготы в вузе: chosen — выбранные в вузе направления, goal — направления
+         *     вуза из цели, university — вуз целиком (ни выбора, ни совпадения с целью).
+         * @enum {string}
+         */
+        TargetBasis: "chosen" | "goal" | "university";
         UniversityListItem: {
             id: string;
             short_name: string;
+            /** @description Название в тексте — «Иннополис», а не «УИ»; обычно совпадает с `short_name`. */
+            nick: string;
             name: string;
             city: string | null;
             color?: string | null;
@@ -1703,8 +1961,40 @@ export interface components {
             /** @description Вуз входит в список ученика. */
             is_mine: boolean;
         };
+        CatalogUniversity: components["schemas"]["UniversityListItem"] & {
+            /** @description Только с фильтром `direction` — чем вуз под него подходит. */
+            direction_match?: {
+                /** @description Направления вуза, покрывающие искомое. */
+                direction_ids: string[];
+                /** @description Олимпиады с БВИ или 100 баллами на них, последний год приёма. */
+                olympiads_count: number;
+                /**
+                 * @description to_check — льготы на всех таких направлениях ещё проверяются.
+                 * @enum {string}
+                 */
+                status: "offered" | "to_check";
+            };
+        };
+        ProfileUniversity: components["schemas"]["UniversityListItem"] & {
+            /** @description Направления, выбранные в этом вузе (F65); пусто — не выбирали. */
+            chosen_directions: components["schemas"]["Direction"][];
+            target_basis: components["schemas"]["TargetBasis"];
+            /** @description На какие направления вуза смотрятся льготы; пусто при `university`. */
+            target_directions: components["schemas"]["Direction"][];
+        };
         UniversityDetail: components["schemas"]["UniversityListItem"] & {
+            /**
+             * @deprecated
+             * @description Устарело, вместо него `offered_directions`.
+             */
             directions: string[];
+            /** @description Направления вуза — выбранные первыми, за ними из цели, дальше по числу олимпиад (F65). */
+            offered_directions: components["schemas"]["OfferedDirection"][];
+            target_basis: components["schemas"]["TargetBasis"];
+            /** @description На какие направления вуза смотрятся льготы; пусто при `university`. */
+            target_directions: components["schemas"]["Direction"][];
+            /** @description Льготы на направления ученика в вузе ещё уточняются. */
+            target_unverified: boolean;
             /** @example от 75 баллов по профильному предмету */
             ege_note: string | null;
             /** Format: uri */
@@ -1724,6 +2014,15 @@ export interface components {
                 level: components["schemas"]["Level"];
                 benefit: components["schemas"]["BenefitKind"];
                 benefit_label?: string;
+                /** @description Льгота на мои направления в этом вузе; null — на них льготы нет или она уточняется. */
+                my_benefit: components["schemas"]["BenefitKind"] | null;
+                my_benefit_label: string | null;
+                /** @description На какие из моих направлений `my_benefit`. */
+                my_directions: string[];
+                /** @description На скольких направлениях вуза олимпиада даёт льготу. */
+                directions_count: number;
+                /** @description Сколько направлений у вуза в данных. */
+                directions_total: number;
             })[];
         };
         TrackerItem: components["schemas"]["Badge"] & {
@@ -1749,6 +2048,60 @@ export interface components {
             registered_by: components["schemas"]["MemberBrief"] | null;
             /** @description Кто добавил — пометка «добавил(а) <имя>» (ТЗ §3.2). */
             added_by: components["schemas"]["MemberBrief"] | null;
+            /**
+             * @description open — нужно зарегистрироваться, active — участвует,
+             *     finished — участие закончено (итог или регистрация закрылась).
+             * @enum {string}
+             */
+            status: "open" | "active" | "finished";
+            /**
+             * @description Чем закончилось участие: итог этапа, missed — регистрация
+             *     закрылась без отметки, unknown — сезон прошёл, итог не отмечен.
+             * @enum {string|null}
+             */
+            outcome: "failed" | "winner" | "prizer" | "participant" | "missed" | "unknown" | null;
+            stages: components["schemas"]["TrackerStage"][];
+            /** @description Одна строка действия в карточке — что отметить сейчас. */
+            action: components["schemas"]["TrackerAction"] | null;
+        };
+        /**
+         * @description Итог этапа: passed — прошёл дальше, failed — не прошёл; у последнего
+         *     заключительного — winner, prizer, participant (без диплома).
+         * @enum {string}
+         */
+        StageResult: "passed" | "failed" | "winner" | "prizer" | "participant";
+        TrackerStage: {
+            id: string;
+            kind: components["schemas"]["StageKind"];
+            title: string;
+            subtitle: string | null;
+            /** Format: date-time */
+            starts_at: string | null;
+            /** Format: date-time */
+            ends_at: string | null;
+            /** Format: date-time */
+            deadline_at: string | null;
+            /**
+             * @description locked — после закрывающего итога.
+             * @enum {string}
+             */
+            state: "past" | "current" | "future" | "locked";
+            registered: boolean;
+            result: components["schemas"]["StageResult"] | null;
+            /** @description Отметку регистрации можно поставить или снять сейчас. */
+            can_register: boolean;
+            /** @description Какие итоги бывают у этапа. */
+            results: components["schemas"]["StageResult"][];
+            /** @description Какие итоги можно поставить сейчас (этап начался, отметки не противоречат). */
+            results_allowed: components["schemas"]["StageResult"][];
+            /** @description Этап закончился, итог ждёт отметки. */
+            asking: boolean;
+        };
+        TrackerAction: {
+            /** @enum {string} */
+            type: "register" | "result";
+            /** @description Без этапа — «участвую» у олимпиады без этапа-регистрации (PUT /tracker/{id}/registered). */
+            stage_id: string | null;
         };
         Proposal: components["schemas"]["Badge"] & {
             /** Format: uuid */
@@ -1864,7 +2217,7 @@ export interface components {
             /** @description Где ученик хочет учиться, в порядке выбора; пустой список — не важно. */
             places: components["schemas"]["Place"][];
             /** @description Может быть пустым — вузы выбирать не обязательно (F9). */
-            universities: components["schemas"]["UniversityListItem"][];
+            universities: components["schemas"]["ProfileUniversity"][];
             /** @description Имена остальных участников — «Изменения увидят все участники: Ольга, Игорь». */
             other_member_names: string[];
         };

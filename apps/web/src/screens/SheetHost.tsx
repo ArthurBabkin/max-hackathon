@@ -16,6 +16,10 @@ export function SheetHost({ sheets }: { sheets: SheetStack }) {
   if (!top) return null
 
   if (top.kind === 'ai') return <AiSheet chatId={top.id} sheets={sheets} />
-  if (top.kind === 'vuz') return <UniversitySheet id={top.id} sheets={sheets} />
+  if (top.kind === 'vuz') {
+    // `vuz:hse:napr-09-03-04` — карточка из каталога с фильтром по направлению.
+    const [id = '', focus] = top.id.split(':')
+    return <UniversitySheet id={id} focus={focus} sheets={sheets} />
+  }
   return <OlympiadSheet id={top.id} sheets={sheets} />
 }

@@ -26,33 +26,33 @@ func nto() []Stage {
 
 func TestCurrent_FirstNotPassed(t *testing.T) {
 	now := *at(2026, 9, 22, 12)
-	if got := Current(nto(), false, now); got != 0 {
+	if got := Current(nto(), Progress{}, now); got != 0 {
 		t.Fatalf("до конца регистрации текущая — регистрация, получили %d", got)
 	}
-	if got := Current(nto(), true, now); got != 1 {
+	if got := Current(nto(), Progress{Registered: true}, now); got != 1 {
 		t.Fatalf("после отметки о регистрации текущий — следующий этап, получили %d", got)
 	}
-	if got := Current(nto(), false, *at(2026, 10, 23, 1)); got != 1 {
+	if got := Current(nto(), Progress{}, *at(2026, 10, 23, 1)); got != 1 {
 		t.Fatalf("регистрация прошла — текущий отборочный, получили %d", got)
 	}
-	if got := Current(nto(), false, *at(2027, 3, 1, 0)); got != -1 {
+	if got := Current(nto(), Progress{}, *at(2027, 3, 1, 0)); got != -1 {
 		t.Fatalf("всё в прошлом — -1, получили %d", got)
 	}
-	if got := Current(nil, false, now); got != -1 {
+	if got := Current(nil, Progress{}, now); got != -1 {
 		t.Fatalf("без этапов — -1, получили %d", got)
 	}
 }
 
 func TestStates(t *testing.T) {
 	now := *at(2026, 10, 23, 1)
-	got := States(nto(), false, now)
+	got := States(nto(), Progress{}, now)
 	want := []string{"past", "current", "future"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("состояния %v, ожидали %v", got, want)
 		}
 	}
-	all := States(nto(), false, *at(2027, 3, 1, 0))
+	all := States(nto(), Progress{}, *at(2027, 3, 1, 0))
 	for _, s := range all {
 		if s != "past" {
 			t.Fatalf("всё прошло — всё past: %v", all)
@@ -66,6 +66,33 @@ func TestAllPassed(t *testing.T) {
 	}
 	if !AllPassed(nto(), *at(2027, 3, 1, 0)) || AllPassed(nto(), *at(2026, 9, 22, 0)) {
 		t.Fatal("AllPassed")
+	}
+}
+
+// Вступить можно, пока не прошёл срок первого этапа: регистрации, а если
+// её нет — отборочного или школьного. Порядок этапов на входе не важен.
+func TestJoinable(t *testing.T) {
+	if !Joinable(nto(), *at(2026, 10, 22, 12)) {
+		t.Fatal("в последний день регистрации вступить ещё можно")
+	}
+	if Joinable(nto(), *at(2026, 10, 23, 1)) {
+		t.Fatal("регистрация закрылась — вступить нельзя, хотя отборочный ещё идёт")
+	}
+	reversed := nto()
+	reversed[0], reversed[2] = reversed[2], reversed[0]
+	if Joinable(reversed, *at(2026, 10, 23, 1)) {
+		t.Fatal("первый этап ищется по датам, а не по порядку в срезе")
+	}
+	noReg := nto()[1:]
+	if !Joinable(noReg, *at(2026, 10, 23, 1)) || Joinable(noReg, *at(2026, 10, 24, 0)) {
+		t.Fatal("без регистрации вступают до конца отборочного")
+	}
+	if !Joinable(nil, *at(2027, 3, 1, 0)) {
+		t.Fatal("профиль без этапов не исключается: о сроках просто ничего не известно")
+	}
+	undated := []Stage{{Kind: "registration"}, {Kind: "final"}}
+	if !Joinable(undated, *at(2026, 10, 1, 0)) {
+		t.Fatal("этапы без дат не закрываются")
 	}
 }
 
@@ -105,5 +132,19 @@ func TestSort_ByStartThenDeadline(t *testing.T) {
 	Sort(shuffled)
 	if shuffled[0].ID != "r" || shuffled[1].ID != "q1" || shuffled[2].ID != "f" {
 		t.Fatalf("порядок: %s %s %s", shuffled[0].ID, shuffled[1].ID, shuffled[2].ID)
+	}
+}
+
+// У «Росатома» регистрация и отборочный тур идут в одном окне: при равных
+// датах регистрация первая, иначе отметка «зарегистрирован» встала бы не на
+// тот этап. Порядок не зависит от порядка строк в базе.
+func TestSort_TieRegistrationFirst(t *testing.T) {
+	q := Stage{ID: "x:qualifying:1", Kind: "qualifying", StartsAt: at(2026, 10, 5, 0), DeadlineAt: at(2027, 1, 13, 23)}
+	r := Stage{ID: "x:registration:1", Kind: "registration", StartsAt: at(2026, 10, 5, 0), DeadlineAt: at(2027, 1, 13, 23)}
+	for _, in := range [][]Stage{{q, r}, {r, q}} {
+		Sort(in)
+		if in[0].Kind != "registration" {
+			t.Fatalf("при равных датах первой идёт регистрация: %s, %s", in[0].ID, in[1].ID)
+		}
 	}
 }

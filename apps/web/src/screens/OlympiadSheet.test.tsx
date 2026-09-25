@@ -57,7 +57,8 @@ it('льготы — таблицей, общие условия — после 
   expect(screen.queryByRole('heading', { name: 'Условия' })).not.toBeInTheDocument()
   const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
   const table = within(block).getByRole('table')
-  expect(within(table).getAllByRole('rowheader').map(spokenText)).toEqual(
+  // Под вузом — направления (F65), порядок сверяется по кнопкам вузов.
+  expect(within(table).getAllByRole('rowheader').map((h) => spokenText(within(h).getByRole('button')))).toEqual(
     base.benefits.filter((row) => row.winner || row.prizer).map((row) => row.university_nick),
   )
   expect(within(table).getByText('Засчитывает только диплом 11 класса')).toBeInTheDocument()
@@ -107,4 +108,17 @@ it('этапы и даты — сразу под уровнем по профи�
 it('вне перечня этапы и даты — сразу под «Не входит в перечень»', () => {
   renderSheet({ kind: 'other', description: null, official_url: null })
   expect(blockOrder().slice(0, 2)).toEqual(['Не входит в перечень', expect.stringMatching(/^Этапы и даты/)])
+})
+
+// Регистрация закрылась, а отборочный ещё впереди: пилюля срока — уже про
+// отборочный, без пометки казалось бы, что вступить ещё можно.
+it('закрытая регистрация — пометкой под шапкой', () => {
+  renderSheet({ registration_closed: true })
+  expect(screen.getByText('Регистрация на этот сезон закрыта')).toBeInTheDocument()
+  expect(screen.getByText(/Если регистрация уже есть — добавь олимпиаду в трекер/)).toBeInTheDocument()
+})
+
+it('открытая регистрация — без пометки', () => {
+  renderSheet({ registration_closed: false })
+  expect(screen.queryByText('Регистрация на этот сезон закрыта')).toBeNull()
 })

@@ -1,15 +1,18 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { QueryClient } from '@tanstack/react-query'
 import { keys } from '@/api/queries'
 import { profile } from '@/api/mocks/build'
+import { DIRECTIONS } from '@/api/mocks/fixtures'
+import { state } from '@/api/mocks/state'
 import { renderApp } from '@/test/render'
 import { htmlTheme, stubSystemTheme } from '@/test/theme'
 import { ThemedMaxUI, setThemeChoice } from '@/ui/theme'
 
 // Сохранение уходит в «живой» API: моки ответили бы сами и тело не поймать.
 vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
-const { ProfileScreen } = await import('./Profile')
+const { ProfileScreen, rebase } = await import('./Profile')
 
 // ТЗ F49: в профиле правятся все поля, включая регион, цель, места и опыт.
 it('меняет регион, направления, места и опыт и отправляет их в PATCH /profile', async () => {
@@ -28,8 +31,8 @@ it('меняет регион, направления, места и опыт и
       c.setQueryData(keys.universities('', 'all'), { items: [] })
       c.setQueryData(keys.directions, {
         items: [
-          { id: 'dir-se', name: 'Программная инженерия' },
-          { id: 'dir-math', name: 'Математика' },
+          { id: 'dir-se', name: 'Программная инженерия', code: '09.03.04', groups: ['ИТ'], popular: true },
+          { id: 'dir-math', name: 'Математика', code: '01.03.01', groups: [], popular: true },
         ],
       })
     },
@@ -78,13 +81,18 @@ it('отправляет пустые направления, вузы и мес
     seed: (c) => {
       c.setQueryData(keys.profile, data)
       c.setQueryData(keys.universities('', 'all'), { items: data.universities })
-      c.setQueryData(keys.directions, { items: [{ id: 'dir-se', name: 'Программная инженерия' }] })
+      c.setQueryData(keys.directions, {
+        items: [{ id: 'dir-se', name: 'Программная инженерия', code: '09.03.04', groups: ['ИТ'], popular: true }],
+      })
     },
   })
 
-  await userEvent.click(screen.getByRole('button', { name: /Программная инженерия/ }))
+  await userEvent.click(
+    within(screen.getByRole('group', { name: 'Направления' })).getByRole('button', { name: /Программная инженерия/ }),
+  )
+  const unis = within(screen.getByRole('group', { name: 'Вузы' }))
   for (const u of data.universities) {
-    await userEvent.click(screen.getByRole('button', { name: new RegExp(u.short_name) }))
+    await userEvent.click(unis.getByRole('button', { name: new RegExp(u.short_name) }))
   }
   const places = within(screen.getByRole('group', { name: 'Где хочу учиться' }))
   await userEvent.click(places.getByRole('button', { name: 'Убрать: Республика Татарстан' }))
@@ -184,5 +192,125 @@ describe('тема оформления (F61)', () => {
     await userEvent.click(saveButton())
     expect(htmlTheme()).toBe('dark')
     expect(localStorage.getItem('traektoria.theme')).toBe('dark')
+  })
+})
+
+// --- Направления: основные чипами, остальные — выбором с поиском (F65) -------
+
+describe('направления цели и в вузах (F65)', () => {
+  const sent: unknown[] = []
+  beforeEach(() => {
+    sent.length = 0
+    state.directions = [{ id: 'dir-se', name: 'Программная инженерия' }]
+    state.chosen = { hse: ['dir-se', 'dir-ami'] }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) => {
+        if (init.method === 'PATCH') sent.push(JSON.parse(init.body as string))
+        return new Promise(() => {})
+      }),
+    )
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  function renderWithDirections() {
+    let client!: QueryClient
+    renderApp(<ProfileScreen />, {
+      route: '/profile',
+      seed: (c) => {
+        client = c
+        c.setQueryData(keys.profile, profile())
+        c.setQueryData(keys.universities('', 'all'), { items: [] })
+        c.setQueryData(keys.directions, { items: DIRECTIONS })
+      },
+    })
+    return () => client
+  }
+
+  it('чипами — только основные направления, остальные — в выборе с поиском', async () => {
+    renderWithDirections()
+    const goals = within(screen.getByRole('group', { name: 'Направления' }))
+    const chips = goals.getAllByRole('button').map((b) => b.textContent)
+    expect(chips).toContain('✓ Программная инженерия')
+    expect(chips).not.toContain('Прикладная информатика')
+    expect(chips.at(-1)).toBe('Ещё направления…')
+
+    await userEvent.click(goals.getByRole('button', { name: 'Ещё направления…' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Направления' }))
+    // Цель — сверху, дальше по группам, у каждого — код.
+    expect(picker.getByRole('heading', { name: 'Твоя цель' })).toBeInTheDocument()
+    expect(picker.getByRole('checkbox', { name: /Программная инженерия/ })).toHaveAttribute('aria-checked', 'true')
+    expect(picker.getByRole('heading', { name: 'ИТ' })).toBeInTheDocument()
+
+    await userEvent.type(picker.getByRole('textbox', { name: 'Название или код' }), '09.03.03')
+    expect(picker.getAllByRole('checkbox')).toHaveLength(1)
+    await userEvent.click(picker.getByRole('checkbox', { name: /Прикладная информатика 09.03.03/ }))
+    await userEvent.click(picker.getByRole('button', { name: 'Готово' }))
+
+    expect(screen.queryByRole('dialog', { name: 'Направления' })).not.toBeInTheDocument()
+    // Выбранное не из основных — тоже чипом, иначе сохранение молча его выбросит.
+    expect(goals.getByRole('button', { name: '✓ Прикладная информатика' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+    expect(sent).toEqual([expect.objectContaining({ direction_ids: ['dir-se', 'dir-pi'] })])
+  })
+
+  it('поиск без результатов — так и сказано', async () => {
+    renderWithDirections()
+    await userEvent.click(screen.getByRole('button', { name: 'Ещё направления…' }))
+    const picker = within(screen.getByRole('dialog', { name: 'Направления' }))
+    await userEvent.type(picker.getByRole('textbox', { name: 'Название или код' }), 'астрофизика')
+    expect(picker.queryAllByRole('checkbox')).toHaveLength(0)
+    expect(picker.getByText(/Ничего не нашлось/)).toBeInTheDocument()
+  })
+
+  it('у каждого моего вуза — на какие направления смотрим льготы', () => {
+    renderWithDirections()
+    const list = within(screen.getByRole('list', { name: 'Направления в вузах' }))
+    expect(list.getByRole('button', { name: /ВШЭ/ })).toHaveTextContent(
+      'Программная инженерия, Прикладная математика и информатика',
+    )
+    expect(list.getByRole('button', { name: /^Иннополис/ })).toHaveTextContent(
+      'по цели: Информатика и вычислительная техника',
+    )
+  })
+
+  // Направление выбрали в карточке вуза поверх профиля: профиль обновился,
+  // а несохранённые правки формы остались.
+  it('обновление профиля из карточки вуза не стирает несохранённое', async () => {
+    const client = renderWithDirections()
+    const name = screen.getByRole('textbox', { name: 'Имя ученика' })
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Тёма')
+
+    state.chosen = { hse: ['dir-se', 'dir-ami', 'dir-is'] }
+    state.directions = [...state.directions, { id: 'dir-is', name: 'Информационная безопасность' }]
+    act(() => {
+      client().setQueryData(keys.profile, profile())
+    })
+
+    const goals = within(screen.getByRole('group', { name: 'Направления' }))
+    await waitFor(() =>
+      expect(goals.getByRole('button', { name: '✓ Информационная безопасность' })).toBeInTheDocument(),
+    )
+    expect(name).toHaveValue('Тёма')
+  })
+})
+
+// Новая версия профиля поверх несохранённой формы: элементы списков —
+// значения, а не ссылки. Места приходят новыми объектами при каждом ответе.
+describe('rebase', () => {
+  const kazan = { region_code: '16', city: 'Казань' }
+  const moscow = { region_code: '77', city: null }
+
+  it('убранное в форме место не возвращается, если на сервере его не трогали', () => {
+    const base = [kazan, moscow]
+    const server = [{ ...kazan }, { ...moscow }]
+    expect(rebase([kazan], base, server)).toEqual([kazan])
+  })
+
+  it('добавленное на сервере добавляется, убранное на сервере — убирается', () => {
+    const spb = { region_code: '78', city: null }
+    expect(rebase([kazan, moscow], [kazan, moscow], [{ ...kazan }, { ...moscow }, spb])).toEqual([kazan, moscow, spb])
+    expect(rebase([kazan, moscow, spb], [kazan, moscow], [{ ...kazan }])).toEqual([kazan, spb])
   })
 })

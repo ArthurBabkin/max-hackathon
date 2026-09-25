@@ -2,6 +2,9 @@
  * Всплывающее сообщение об ошибке действия: сохранить профиль, добавить в
  * трекер, создать ссылку. Экран при этом не меняется — без сообщения сбой
  * был бы незаметен. Одно сообщение за раз: новое заменяет старое.
+ *
+ * Подтверждение (showInfoToast) — там, где результат действия уходит с
+ * экрана: добавленная из «Подбора» олимпиада исчезает из списка.
  */
 
 import { useSyncExternalStore } from 'react'
@@ -9,6 +12,8 @@ import { useSyncExternalStore } from 'react'
 export interface ErrorToast {
   id: number
   error: unknown
+  /** Текст подтверждения; есть — это не ошибка. */
+  info?: string
 }
 
 let current: ErrorToast | null = null
@@ -21,6 +26,11 @@ function emit(): void {
 
 export function showErrorToast(error: unknown): void {
   current = { id: nextId++, error }
+  emit()
+}
+
+export function showInfoToast(text: string): void {
+  current = { id: nextId++, error: null, info: text }
   emit()
 }
 
