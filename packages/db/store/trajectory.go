@@ -15,11 +15,17 @@ type NewTrajectory struct {
 	TZ            string
 	// DirectionIDs — направления в порядке выбора; пусто — «пока не решил».
 	DirectionIDs []string
-	// TargetRegionCode — где ученик хочет учиться; nil — не важно.
-	TargetRegionCode *string
-	SourcePayload    *string
-	SubjectCodes     []string
-	UniversityIDs    []string
+	// GoalStatus — "" значит по направлениям (GoalStatusOf); suggested —
+	// направления предложил бот по интересам.
+	GoalStatus string
+	// Places — где ученик хочет учиться; пусто — не важно.
+	Places        []Place
+	Experience    string // none | school | region | "" — не спрашивали
+	HomeCity      string
+	GoalByKid     bool
+	SourcePayload *string
+	SubjectCodes  []string
+	UniversityIDs []string
 }
 
 // GoalStatusOf — known, если направления выбраны, иначе exploring.
@@ -37,10 +43,15 @@ func (s *Store) CreateTrajectory(ctx context.Context, n NewTrajectory) (Member, 
 	var out Member
 	err := s.Tx(ctx, func(tx *Store) error {
 		var tid string
+		goal := n.GoalStatus
+		if goal == "" || len(n.DirectionIDs) == 0 {
+			goal = GoalStatusOf(n.DirectionIDs)
+		}
 		if err := tx.db.QueryRow(ctx, `
-			INSERT INTO trajectories (student_name, grade, region_code, tz, goal_status, target_region_code, source_payload)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
-			n.StudentName, n.Grade, n.RegionCode, n.TZ, GoalStatusOf(n.DirectionIDs), n.TargetRegionCode, n.SourcePayload,
+			INSERT INTO trajectories (student_name, grade, region_code, tz, goal_status, source_payload,
+			                          experience, home_city, goal_by_kid)
+			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), $9) RETURNING id::text`,
+			n.StudentName, n.Grade, n.RegionCode, n.TZ, goal, n.SourcePayload, n.Experience, n.HomeCity, n.GoalByKid,
 		).Scan(&tid); err != nil {
 			return wrap(err)
 		}
@@ -55,6 +66,9 @@ func (s *Store) CreateTrajectory(ctx context.Context, n NewTrajectory) (Member, 
 			return err
 		}
 		if err := tx.ReplaceUniversities(ctx, tid, n.UniversityIDs); err != nil {
+			return err
+		}
+		if err := tx.ReplacePlaces(ctx, tid, n.Places); err != nil {
 			return err
 		}
 		if err := tx.Audit(ctx, mid, "create", "trajectory", tid); err != nil {
@@ -126,6 +140,30 @@ func (s *Store) ReplaceUniversities(ctx context.Context, trajectoryID string, id
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO trajectory_universities (trajectory_id, university_id)
 		SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`, trajectoryID, ids)
+	return wrap(err)
+}
+
+// ReplacePlaces заменяет места «Где учиться»; порядок списка — порядок
+// выбора. Пустой список — «не важно».
+func (s *Store) ReplacePlaces(ctx context.Context, trajectoryID string, places []Place) error {
+	if _, err := s.db.Exec(ctx, `DELETE FROM trajectory_places WHERE trajectory_id = $1`, trajectoryID); err != nil {
+		return wrap(err)
+	}
+	if len(places) == 0 {
+		return nil
+	}
+	regions := make([]string, len(places))
+	cities := make([]*string, len(places))
+	for i, p := range places {
+		regions[i] = p.RegionCode
+		if p.City != "" {
+			cities[i] = &places[i].City
+		}
+	}
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO trajectory_places (trajectory_id, position, region_code, city)
+		SELECT $1, x.n - 1, x.region, x.city FROM unnest($2::text[], $3::text[]) WITH ORDINALITY AS x(region, city, n)`,
+		trajectoryID, regions, cities)
 	return wrap(err)
 }
 

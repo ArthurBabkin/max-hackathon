@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"slices"
 	"time"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
@@ -65,9 +67,13 @@ type University struct {
 	ShortName        string
 	Name             string
 	City             *string
+	RegionCode       string // субъект РФ; "" — не указан
 	BenefitOlympiads int
 	IsMine           bool
 }
+
+// universityColumns — колонки University до признака «мой».
+const universityColumns = `u.id, u.short_name, u.name, u.city, COALESCE(u.region_code, ''), ` + benefitOlympiads
 
 // benefitOlympiads — сколько разных олимпиад дают в вузе БВИ или 100 баллов
 // в последнем году приёма, по которому есть данные. Доп. баллы не считаются.
@@ -79,7 +85,7 @@ const benefitOlympiads = `(
 
 func (s *Store) TrajectoryUniversities(ctx context.Context, trajectoryID string) ([]University, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`, true
+		SELECT `+universityColumns+`, true
 		FROM trajectory_universities tu JOIN universities u ON u.id = tu.university_id
 		WHERE tu.trajectory_id = $1 ORDER BY u.name`, trajectoryID)
 	if err != nil {
@@ -90,7 +96,7 @@ func (s *Store) TrajectoryUniversities(ctx context.Context, trajectoryID string)
 
 func scanUniversity(r rowScanner) (University, error) {
 	var u University
-	return u, r.Scan(&u.ID, &u.ShortName, &u.Name, &u.City, &u.BenefitOlympiads, &u.IsMine)
+	return u, r.Scan(&u.ID, &u.ShortName, &u.Name, &u.City, &u.RegionCode, &u.BenefitOlympiads, &u.IsMine)
 }
 
 // OtherMemberNames — имена остальных активных участников по времени входа.
@@ -116,10 +122,18 @@ type TrajectoryPatch struct {
 	TZ          *string
 	// DirectionIDs: nil — не менять, пустой срез — «пока не решил».
 	DirectionIDs []string
-	// TargetRegionCode: nil — не менять, "" — «не важно».
-	TargetRegionCode *string
-	SubjectCodes     []string
-	UniversityIDs    []string
+	// GoalStatus — вместе с DirectionIDs: suggested, если направления
+	// предложил бот. nil — по направлениям (GoalStatusOf).
+	GoalStatus *string
+	// Places: nil — не менять, пустой срез — «не важно».
+	Places []Place
+	// Experience: none | school | region.
+	Experience *string
+	// HomeCity: "" — город не известен.
+	HomeCity      *string
+	GoalByKid     *bool
+	SubjectCodes  []string
+	UniversityIDs []string
 }
 
 // UpdateTrajectory применяет правку одной транзакцией. Выбранные в профиле
@@ -128,25 +142,38 @@ func (s *Store) UpdateTrajectory(ctx context.Context, trajectoryID, memberID str
 	var goal *string
 	if p.DirectionIDs != nil {
 		g := GoalStatusOf(p.DirectionIDs)
+		if p.GoalStatus != nil && len(p.DirectionIDs) > 0 {
+			g = *p.GoalStatus
+		}
 		goal = &g
 	}
 	return s.Tx(ctx, func(tx *Store) error {
 		tag, err := tx.db.Exec(ctx, `
 			UPDATE trajectories SET
-			  student_name       = COALESCE($2, student_name),
-			  grade              = COALESCE($3, grade),
-			  region_code        = COALESCE($4, region_code),
-			  tz                 = COALESCE($5, tz),
-			  goal_status        = COALESCE($6, goal_status),
-			  target_region_code = CASE WHEN $7::text IS NULL THEN target_region_code ELSE NULLIF($7, '') END,
-			  updated_at         = now()
+			  student_name = COALESCE($2, student_name),
+			  grade        = COALESCE($3, grade),
+			  region_code  = COALESCE($4, region_code),
+			  tz           = COALESCE($5, tz),
+			  goal_status  = COALESCE($6, goal_status),
+			  experience   = COALESCE($7, experience),
+			  -- Город принадлежит региону: сменился регион — город больше не известен.
+			  home_city    = CASE WHEN $8::text IS NOT NULL THEN NULLIF($8, '')
+			                      WHEN $4::text IS NOT NULL AND $4 <> region_code THEN NULL
+			                      ELSE home_city END,
+			  goal_by_kid  = COALESCE($9, goal_by_kid),
+			  updated_at   = now()
 			WHERE id = $1 AND deleted_at IS NULL`,
-			trajectoryID, p.StudentName, p.Grade, p.RegionCode, p.TZ, goal, p.TargetRegionCode)
+			trajectoryID, p.StudentName, p.Grade, p.RegionCode, p.TZ, goal, p.Experience, p.HomeCity, p.GoalByKid)
 		if err != nil {
 			return wrap(err)
 		}
 		if tag.RowsAffected() == 0 {
 			return ErrNotFound
+		}
+		if p.Places != nil {
+			if err := tx.ReplacePlaces(ctx, trajectoryID, p.Places); err != nil {
+				return err
+			}
 		}
 		if p.DirectionIDs != nil {
 			if err := tx.ReplaceDirections(ctx, trajectoryID, p.DirectionIDs); err != nil {
@@ -266,24 +293,65 @@ func (s *Store) Directions(ctx context.Context) ([]Direction, error) {
 	})
 }
 
-// SuggestUniversities — вузы для шага «Вузы» онбординга (F9): в регионах
-// regions (пусто — где угодно), с одним из направлений directionIDs (пусто —
-// с любыми). Сначала те, где совпало больше направлений, потом где больше
-// олимпиад дают льготу.
-func (s *Store) SuggestUniversities(ctx context.Context, directionIDs, regions []string, limit int) ([]University, error) {
+// SuggestUniversities — вузы для шага «Вузы» онбординга (F9): в одном из
+// мест places (пусто — где угодно), с одним из направлений directionIDs
+// (пусто — с любыми). Место-город — вузы этого города, место-регион — вузы
+// региона; Москва и Петербург — вместе с областью (refdata.Metro). Сначала
+// те, где совпало больше направлений, потом где больше олимпиад дают льготу.
+func (s *Store) SuggestUniversities(ctx context.Context, directionIDs []string, places []Place, limit, offset int) ([]University, error) {
+	regions, cities := placeFilter(places)
 	rows, err := s.db.Query(ctx, `
 		WITH names AS (SELECT array_agg(name) AS n FROM directions WHERE id = ANY($1::text[]))
-		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`, false
+		SELECT `+universityColumns+`, false
 		FROM universities u, names
-		WHERE (cardinality($2::text[]) = 0 OR u.region_code = ANY($2::text[]))
+		WHERE (cardinality($2::text[]) + cardinality($3::text[]) = 0
+		       OR u.region_code = ANY($2::text[]) OR u.city = ANY($3::text[]))
 		  AND (cardinality($1::text[]) = 0 OR u.directions && names.n)
 		ORDER BY cardinality(ARRAY(SELECT unnest(u.directions) INTERSECT SELECT unnest(names.n))) DESC,
-		         5 DESC, u.name
-		LIMIT $3`, nonNil(directionIDs), nonNil(regions), limit)
+		         6 DESC, u.name
+		LIMIT $4 OFFSET $5`, nonNil(directionIDs), regions, cities, limit, offset)
 	if err != nil {
 		return nil, wrap(err)
 	}
 	return collect(rows, scanUniversity)
+}
+
+// placeFilter — места как условие на вузы: регионы (Москва и Петербург —
+// вместе с областью) и города.
+func placeFilter(places []Place) (regions, cities []string) {
+	regions, cities = []string{}, []string{}
+	for _, p := range places {
+		if p.City != "" {
+			cities = append(cities, p.City)
+			continue
+		}
+		for _, code := range refdata.Metro(p.RegionCode) {
+			if !slices.Contains(regions, code) {
+				regions = append(regions, code)
+			}
+		}
+	}
+	return regions, cities
+}
+
+// DirectionsIn — id направлений, по которым есть программы в вузах мест
+// places, в порядке справочника.
+func (s *Store) DirectionsIn(ctx context.Context, places []Place) ([]string, error) {
+	regions, cities := placeFilter(places)
+	rows, err := s.db.Query(ctx, `
+		SELECT d.id FROM directions d
+		WHERE EXISTS (SELECT 1 FROM universities u
+		              WHERE d.name = ANY(u.directions)
+		                AND (cardinality($1::text[]) + cardinality($2::text[]) = 0
+		                     OR u.region_code = ANY($1::text[]) OR u.city = ANY($2::text[])))
+		ORDER BY d.name`, regions, cities)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, func(r rowScanner) (string, error) {
+		var id string
+		return id, r.Scan(&id)
+	})
 }
 
 func nonNil(s []string) []string {
@@ -297,7 +365,7 @@ func nonNil(s []string) []string {
 // там траектории ещё нет, поэтому без признака «мой вуз».
 func (s *Store) FindUniversities(ctx context.Context, search string) ([]University, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT u.id, u.short_name, u.name, u.city, `+benefitOlympiads+`, false
+		SELECT `+universityColumns+`, false
 		FROM universities u
 		WHERE $1 = '' OR u.name ILIKE $2 OR u.short_name ILIKE $2
 		ORDER BY u.name`, search, "%"+escapeLike(search)+"%")

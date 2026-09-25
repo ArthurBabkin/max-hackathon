@@ -79,8 +79,10 @@ export interface DemoState {
   region_name: string
   directions: { id: string; name: string }[]
   goal_status: 'known' | 'suggested' | 'exploring'
-  /** Где ученик хочет учиться; null — не важно. */
-  target_region_code: string | null
+  /** Где ученик хочет учиться, в порядке выбора; пусто — не важно. */
+  places: { region_code: string; city: string | null }[]
+  experience: 'none' | 'school' | 'region' | null
+  home_city: string | null
   subjects: string[]
   universities: string[]
   members: DemoMember[]
@@ -109,7 +111,9 @@ export const state: DemoState = {
   region_name: 'Республика Татарстан',
   directions: [{ id: 'dir-se', name: 'Программная инженерия' }],
   goal_status: 'known',
-  target_region_code: '16',
+  places: [{ region_code: '16', city: null }],
+  experience: 'school',
+  home_city: 'Казань',
   subjects: ['inf', 'math'],
   universities: ['inno', 'kfu', 'hse'],
 

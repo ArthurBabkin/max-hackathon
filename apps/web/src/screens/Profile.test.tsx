@@ -11,8 +11,8 @@ import { ThemedMaxUI, setThemeChoice } from '@/ui/theme'
 vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
 const { ProfileScreen } = await import('./Profile')
 
-// ТЗ F49: в профиле правятся все поля, включая регион, цель и город.
-it('меняет регион, направления и город и отправляет их в PATCH /profile', async () => {
+// ТЗ F49: в профиле правятся все поля, включая регион, цель, места и опыт.
+it('меняет регион, направления, места и опыт и отправляет их в PATCH /profile', async () => {
   const sent: unknown[] = []
   vi.stubGlobal(
     'fetch',
@@ -38,16 +38,32 @@ it('меняет регион, направления и город и отпр�
   await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Регион' }), 'Москва')
   const goals = within(screen.getByRole('group', { name: 'Направления' }))
   await userEvent.click(goals.getByRole('button', { name: /Математика/ }))
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Где хочу учиться' }), 'Санкт-Петербург')
+  const addPlace = screen.getByRole('combobox', { name: '+ Добавить регион' })
+  await userEvent.selectOptions(addPlace, 'Санкт-Петербург')
+  // Повтор не дублирует место, список сбрасывается к подсказке.
+  await userEvent.selectOptions(addPlace, 'Санкт-Петербург')
+  expect(addPlace).toHaveValue('')
+  const experience = within(screen.getByRole('group', { name: 'Опыт в олимпиадах' }))
+  expect(experience.getByRole('button', { name: /Школьный/ })).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(experience.getByRole('button', { name: /Региональный/ }))
   await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
 
   expect(sent).toEqual([
-    expect.objectContaining({ region_code: '77', direction_ids: ['dir-se', 'dir-math'], target_region_code: '78' }),
+    expect.objectContaining({
+      region_code: '77',
+      direction_ids: ['dir-se', 'dir-math'],
+      places: [
+        { region_code: '16', city: null },
+        { region_code: '78', city: null },
+      ],
+      experience: 'region',
+    }),
   ])
+  expect(sent[0]).not.toHaveProperty('target_region_code')
 })
 
-// «Пока не решил» и «не важно»: направления и вузы можно снять все (F8, F9).
-it('отправляет пустые направления и вузы и город «не важно»', async () => {
+// «Пока не решил» и «не важно»: направления, вузы и места можно снять все (F8, F9).
+it('отправляет пустые направления, вузы и места «не важно»', async () => {
   const sent: unknown[] = []
   vi.stubGlobal(
     'fetch',
@@ -70,10 +86,12 @@ it('отправляет пустые направления и вузы и го
   for (const u of data.universities) {
     await userEvent.click(screen.getByRole('button', { name: new RegExp(u.short_name) }))
   }
-  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Где хочу учиться' }), 'Не важно')
+  const places = within(screen.getByRole('group', { name: 'Где хочу учиться' }))
+  await userEvent.click(places.getByRole('button', { name: 'Убрать: Республика Татарстан' }))
+  expect(places.getByRole('button', { name: /Не важно/ })).toHaveAttribute('aria-pressed', 'true')
   await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
 
-  expect(sent).toEqual([expect.objectContaining({ direction_ids: [], university_ids: [], target_region_code: '' })])
+  expect(sent).toEqual([expect.objectContaining({ direction_ids: [], university_ids: [], places: [] })])
 })
 
 /** Профиль в провайдере темы: пустые справочники, сохранение не отвечает. */

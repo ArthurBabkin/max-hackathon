@@ -121,6 +121,10 @@ export function MatchScreen() {
         <span className="tag tag-recommendation">{t('match.recommendationTag')}</span>
         {note}
       </p>
+      {/* Без вузов льготы считаются по всем вузам с направлением (SPEC 2.3). */}
+      {home?.universities_count === 0 ? (
+        <p className="info-line info-line-plain">{t('match.noUniversities')}</p>
+      ) : null}
 
       <div className="match-list" data-tour="match-list">
         {items.map((card) => (
