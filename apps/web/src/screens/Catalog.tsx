@@ -46,7 +46,10 @@ function levelLabel(level: string | null, kind: string, outside: string): string
 /** Мои вузы и сколько направлений в них учитываются: «ВШЭ, КФУ · 2 направления». */
 function mineSummary(profile: Profile): string {
   const names = profile.universities.map((u) => u.nick).join(', ')
-  const count = new Set(profile.universities.flatMap((u) => u.target_directions.map((d) => d.id))).size
+  // Мои направления — цель и выбранные в вузах: что вуз покрывает цель
+  // укрупнённым кодом (09.00.00), числа не меняет.
+  const count = new Set([...profile.directions, ...profile.universities.flatMap((u) => u.chosen_directions)].map((d) => d.id))
+    .size
   return count > 0 ? `${names} · ${count} ${plural(count, 'направление', 'направления', 'направлений')}` : names
 }
 
