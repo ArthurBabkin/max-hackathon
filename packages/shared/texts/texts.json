@@ -663,6 +663,22 @@
     "kid": "Город",
     "parent": "Город"
   },
+  "catalog.filterDirection": {
+    "kid": "Направление",
+    "parent": "Направление"
+  },
+  "catalog.directionOther": {
+    "kid": "Другое…",
+    "parent": "Другое…"
+  },
+  "catalog.onDirection": {
+    "kid": "с льготой на это направление",
+    "parent": "с льготой на это направление"
+  },
+  "catalog.directionToCheck": {
+    "kid": "льготы на это направление уточняются",
+    "parent": "льготы на это направление уточняются"
+  },
   "catalog.mineBadge": {
     "kid": "мой",
     "parent": "{student_gen}"
@@ -1150,6 +1166,10 @@
   "directions.pickerTitle": {
     "kid": "Направления",
     "parent": "Направления"
+  },
+  "directions.pickOne": {
+    "kid": "Направление",
+    "parent": "Направление"
   },
   "directions.search": {
     "kid": "Название или код",

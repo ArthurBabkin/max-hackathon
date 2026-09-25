@@ -33,7 +33,7 @@ import {
 import * as build from './build'
 import { mockStages, progressOf } from './build'
 import { MarkError, apply, hasResults } from './progress'
-import type { StageResult } from '@contract'
+import type { CatalogUniversity, StageResult } from '@contract'
 import { daysLeft, isSoon, moscowDay } from '@/lib/deadline'
 
 const LATENCY_MS = 200
@@ -175,11 +175,25 @@ route('GET', '/olympiads/:id', ({ params }) => {
 route('GET', '/universities', ({ query }) => {
   const q = query.get('q')?.trim() ?? ''
   const city = query.get('city')
+  const direction = query.get('direction')
+  if (direction && !DIRECTIONS.some((d) => d.id === direction)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'Нет такого направления.')
+  }
 
   const items = (wantsEmpty() ? [] : UNIVERSITIES)
     .filter((u) => !q || matches(u.name, q) || matches(u.short_name, q))
     .filter((u) => !city || u.city === city)
-    .map(build.universityListItem)
+    .map((u) => {
+      const item: CatalogUniversity = build.universityListItem(u)
+      if (!direction) return item
+      const match = build.directionMatch(u, direction)
+      return match ? { ...item, direction_match: match } : null
+    })
+    .filter((u): u is CatalogUniversity => u !== null)
+  if (direction) {
+    const rank = (u: CatalogUniversity) => (u.direction_match?.status === 'to_check' ? 1 : 0)
+    items.sort((a, b) => rank(a) - rank(b) || b.direction_match!.olympiads_count - a.direction_match!.olympiads_count)
+  }
 
   return { items }
 })

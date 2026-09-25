@@ -7,6 +7,7 @@ import type {
   AiExchange,
   AiMessage,
   CalendarLink,
+  CatalogUniversity,
   Home,
   OlympiadDetail,
   OlympiadListItem,
@@ -316,6 +317,25 @@ describe('карточка олимпиады', () => {
 
     state.universities = []
     expect(await list('?mine=true')).toEqual([])
+  })
+
+  // Каталог вузов по направлению (F67): с укрупнёнными группами, сначала
+  // где больше олимпиад, непроверенные льготы — в конце.
+  it('каталог вузов по направлению', async () => {
+    const list = async (query: string) =>
+      ((await handleMock('GET', `/universities${query}`)) as { items: CatalogUniversity[] }).items
+
+    const se = await list('?direction=dir-se')
+    expect(se.map((u) => u.id)).not.toContain('mipt')
+    expect(se.find((u) => u.id === 'inno')?.direction_match).toMatchObject({ direction_ids: ['dir-it'], status: 'offered' })
+    const counts = se.map((u) => u.direction_match!.olympiads_count)
+    expect(counts).toEqual([...counts].sort((a, b) => b - a))
+
+    const is = await list('?direction=dir-is')
+    expect(is.at(-1)).toMatchObject({ id: 'kfu', direction_match: { status: 'to_check', olympiads_count: 0 } })
+
+    expect((await list('')).every((u) => u.direction_match === undefined)).toBe(true)
+    await expect(handleMock('GET', '/universities?direction=нет')).rejects.toMatchObject({ status: 400 })
   })
 
   it('БВИ только победителю — призёр получает 100 баллов, а не БВИ', async () => {

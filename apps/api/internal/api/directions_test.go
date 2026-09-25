@@ -269,3 +269,48 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 		t.Fatalf("без вузов пусто: %d", len(items))
 	}
 }
+
+// Каталог вузов по направлению (F67): вузы, где оно есть (с укрупнёнными
+// группами), сколько олимпиад дают на нём льготу и проверены ли льготы.
+func TestUniversitiesCatalog_Direction(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	get := func(query string) resp { return e.do("GET", "/api/v1/universities"+query, token, nil) }
+
+	items := list(t, get("?direction=" + dirSE).body["items"])
+	inno := rowOf(t, withID(items), "innopolis")
+	match, _ := inno["direction_match"].(map[string]any)
+	if match == nil || !slices.Equal(strs(match["direction_ids"]), []string{"napr-09-00-00"}) ||
+		match["olympiads_count"].(float64) == 0 || match["status"] != "offered" {
+		t.Fatalf("Иннополис по ПИ: %v", inno)
+	}
+	for _, u := range items {
+		if u["id"] == "kazan-gmu" {
+			t.Fatal("медвуза без ПИ нет")
+		}
+	}
+
+	items = list(t, get("?direction=napr-01-03-02").body["items"])
+	last := items[len(items)-1]
+	if m := last["direction_match"].(map[string]any); last["id"] != "nsu" || m["status"] != "to_check" || m["olympiads_count"] != float64(0) {
+		t.Fatalf("НГУ по ПМИ — льготы уточняются, в конце: %v", last)
+	}
+
+	for _, u := range list(t, get("").body["items"]) {
+		if _, ok := u["direction_match"]; ok {
+			t.Fatalf("без фильтра — без direction_match: %v", u)
+		}
+	}
+	if r := get("?direction=нет-такого"); r.code != 400 {
+		t.Fatalf("нет направления — 400: %d %s", r.code, r.raw)
+	}
+}
+
+// withID — строки вузов с university_id, как у строк льгот, для rowOf.
+func withID(items []map[string]any) []map[string]any {
+	for _, it := range items {
+		it["university_id"] = it["id"]
+	}
+	return items
+}

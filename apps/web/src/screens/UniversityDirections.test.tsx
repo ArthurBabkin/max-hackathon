@@ -30,9 +30,9 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-function renderSheet(id: string, session = makeSession()) {
+function renderSheet(id: string, session = makeSession(), focus?: string) {
   const data = uni(id)
-  renderApp(<UniversitySheet id={id} sheets={sheets} />, {
+  renderApp(<UniversitySheet id={id} focus={focus} sheets={sheets} />, {
     session,
     seed: (c) => c.setQueryData(keys.university(id), data),
   })
@@ -135,4 +135,15 @@ it('без выбора и цели — подсказка отметить на
 
   expect(block.getByText('Отметьте направления — покажем льготы именно на них.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: /На направления/ })).toBeNull()
+})
+
+// Из каталога с фильтром по направлению (F67): это направление — первым,
+// даже если оно не из цели и в первые пять не попало бы.
+it('открытая на направлении карточка показывает его первым', () => {
+  const block = within(renderSheet('hse', makeSession(), 'dir-is'))
+
+  const rows = block.getAllByRole('checkbox')
+  expect(rows).toHaveLength(5)
+  expect(rows[0]).toHaveAccessibleName(/Информационная безопасность/)
+  expect(rows[1]).toHaveAccessibleName(/Программная инженерия/)
 })

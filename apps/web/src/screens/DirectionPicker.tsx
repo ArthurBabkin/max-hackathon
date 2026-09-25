@@ -1,7 +1,8 @@
 /**
  * Выбор направлений с поиском — экран D4 (F65). Основные направления — чипами
  * в профиле, здесь все: цель сверху, дальше по группам, у каждого — код.
- * Поиск — по части названия или по коду.
+ * Поиск — по части названия или по коду. В фильтре каталога вузов (F67) —
+ * одно направление: выбор сразу закрывает лист.
  */
 
 import { useState } from 'react'
@@ -34,16 +35,23 @@ export function DirectionPicker({
   selected,
   onToggle,
   onClose,
+  single = false,
+  goal: goalIds,
 }: {
   directions: DirectionOption[]
   selected: string[]
   onToggle: (id: string) => void
   onClose: () => void
+  /** Одно направление: строки — переключатели, выбор закрывает лист. */
+  single?: boolean
+  /** Цель сверху; по умолчанию — выбранные. */
+  goal?: string[]
 }) {
   const t = useVoice()
   const [query, setQuery] = useState('')
   // Цель — какой была при открытии: снятое направление не прыгает в группу.
-  const [goal] = useState(() => selected)
+  const [goal] = useState(() => goalIds ?? selected)
+  const title = single ? t('directions.pickOne') : t('directions.pickerTitle')
 
   const row = (d: DirectionOption) => {
     const on = selected.includes(d.id)
@@ -51,10 +59,13 @@ export function DirectionPicker({
       <button
         key={d.id}
         type="button"
-        role="checkbox"
+        role={single ? 'radio' : 'checkbox'}
         aria-checked={on}
         className="uni-direction"
-        onClick={() => onToggle(d.id)}
+        onClick={() => {
+          onToggle(d.id)
+          if (single) onClose()
+        }}
       >
         <span className={`checkbox${on ? ' checkbox-on' : ''}`}>
           {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
@@ -78,13 +89,13 @@ export function DirectionPicker({
 
   return (
     <Sheet
-      label={t('directions.pickerTitle')}
+      label={title}
       canGoBack={false}
       onBack={onClose}
       onClose={onClose}
       header={
         <div className="sheet-title">
-          <h2>{t('directions.pickerTitle')}</h2>
+          <h2>{title}</h2>
         </div>
       }
     >
@@ -104,11 +115,13 @@ export function DirectionPicker({
             {s.items.map(row)}
           </section>
         ))}
-      <div className="sheet-actions">
-        <Button stretched onClick={onClose}>
-          {t('directions.done')}
-        </Button>
-      </div>
+      {single ? null : (
+        <div className="sheet-actions">
+          <Button stretched onClick={onClose}>
+            {t('directions.done')}
+          </Button>
+        </div>
+      )}
     </Sheet>
   )
 }

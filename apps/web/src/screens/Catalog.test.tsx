@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { OlympiadListItem } from '@contract'
+import type { CatalogUniversity, OlympiadListItem } from '@contract'
+import { useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { keys } from '@/api/queries'
 import { profile } from '@/api/mocks/build'
@@ -177,5 +178,99 @@ describe('ведут в мои вузы и на мои направления', 
 
     expect(screen.getByRole('button', { name: 'Все', pressed: true })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Высшая проба/ })).toBeInTheDocument()
+  })
+})
+
+// Каталог вузов по направлению (F67): «Все», направления цели и «Другое…»;
+// в строке — сколько олимпиад дают льготу на это направление.
+describe('вузы по направлению', () => {
+  beforeEach(() => {
+    state.universities = ['inno', 'kfu', 'hse']
+    state.directions = [{ id: 'dir-se', name: 'Программная инженерия' }]
+  })
+
+  const uni = (id: string, name: string, match?: CatalogUniversity['direction_match']) =>
+    ({
+      id,
+      short_name: id.toUpperCase(),
+      nick: id.toUpperCase(),
+      name,
+      city: 'Казань',
+      color: null,
+      benefit_olympiads_count: 30,
+      is_mine: false,
+      ...(match ? { direction_match: match } : {}),
+    }) as CatalogUniversity
+
+  function Probe() {
+    return <output aria-label="адрес">{decodeURIComponent(useLocation().search)}</output>
+  }
+
+  function renderUnis() {
+    renderApp(
+      <>
+        <CatalogScreen />
+        <Probe />
+      </>,
+      {
+        route: '/catalog?segment=universities',
+        seed: (c) => {
+          c.setQueryData(keys.profile, profile())
+          c.setQueryData(keys.directions, {
+            items: [
+              { id: 'dir-se', name: 'Программная инженерия', code: '09.03.04', groups: ['ИТ'], popular: true },
+              { id: 'dir-bio', name: 'Биология', code: '06.03.01', groups: ['Биомед'], popular: true },
+            ],
+          })
+          c.setQueryData(keys.universities('', 'all'), { items: [uni('kfu', 'Казанский университет'), uni('mipt', 'МФТИ')] })
+          c.setQueryData(keys.universities('', 'all', 'dir-se'), {
+            items: [
+              uni('kfu', 'Казанский университет', { direction_ids: ['dir-se'], olympiads_count: 24, status: 'offered' }),
+              uni('nsu', 'Новосибирский университет', { direction_ids: ['dir-se'], olympiads_count: 0, status: 'to_check' }),
+            ],
+          })
+          c.setQueryData(keys.universities('', 'all', 'dir-bio'), {
+            items: [uni('kfu', 'Казанский университет', { direction_ids: ['dir-bio'], olympiads_count: 3, status: 'offered' })],
+          })
+        },
+      },
+    )
+    return within(screen.getByRole('group', { name: 'Направление' }))
+  }
+
+  it('направления цели — чипами, в строке — олимпиады на это направление', async () => {
+    const row = renderUnis()
+    expect(row.getAllByRole('button').map((b) => b.textContent)).toEqual(['Все', 'Программная инженерия', 'Другое…'])
+    expect(row.getByRole('button', { name: 'Все' })).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(row.getByRole('button', { name: 'Программная инженерия' }))
+
+    expect(screen.queryByRole('button', { name: /МФТИ/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Казанский университет/ })).toHaveTextContent(
+      'Казань, 24 олимпиады с льготой на это направление',
+    )
+    expect(screen.getByRole('button', { name: /Новосибирский университет/ })).toHaveTextContent(
+      'Казань, льготы на это направление уточняются',
+    )
+  })
+
+  it('«Другое…» — выбор с поиском, выбранное встаёт чипом', async () => {
+    const row = renderUnis()
+    await userEvent.click(row.getByRole('button', { name: 'Другое…' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Направление' }))
+
+    await userEvent.click(dialog.getByRole('radio', { name: /Биология/ }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(row.getByRole('button', { name: 'Биология' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Казанский университет/ })).toHaveTextContent('3 олимпиады')
+  })
+
+  it('карточка вуза открывается на этом направлении', async () => {
+    const row = renderUnis()
+    await userEvent.click(row.getByRole('button', { name: 'Программная инженерия' }))
+    await userEvent.click(screen.getByRole('button', { name: /Казанский университет/ }))
+
+    expect(screen.getByRole('status', { name: 'адрес' })).toHaveTextContent('sheet=vuz:kfu:dir-se')
   })
 })
