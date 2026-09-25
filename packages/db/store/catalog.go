@@ -165,36 +165,46 @@ func (s *Store) Benefits(ctx context.Context, profileIDs, universityIDs []string
 }
 
 // TrackerState — что из профилей уже в трекере (и отмечено ли) и по чему
-// ждёт ответа предложение: для кнопок карточки.
+// ждёт ответа предложение: для кнопок карточки. TrackedOlympiads и
+// PendingOlympiads — то же по олимпиадам: «Подбор» прячет их целиком.
 type TrackerState struct {
-	InTracker  map[string]bool // профиль → отмечена регистрация
-	Pending    map[string]bool
-	Registered map[string]bool
+	InTracker        map[string]bool // профиль → отмечена регистрация
+	Pending          map[string]bool
+	Registered       map[string]bool
+	TrackedOlympiads map[string]bool
+	PendingOlympiads map[string]bool
 }
 
 func (s *Store) TrackerState(ctx context.Context, trajectoryID string) (TrackerState, error) {
-	st := TrackerState{InTracker: map[string]bool{}, Pending: map[string]bool{}, Registered: map[string]bool{}}
+	st := TrackerState{InTracker: map[string]bool{}, Pending: map[string]bool{}, Registered: map[string]bool{},
+		TrackedOlympiads: map[string]bool{}, PendingOlympiads: map[string]bool{}}
 	rows, err := s.db.Query(ctx, `
-		SELECT olympiad_profile_id, registered_at IS NOT NULL, false FROM tracker_items WHERE trajectory_id = $1
+		SELECT ti.olympiad_profile_id, p.olympiad_id, ti.registered_at IS NOT NULL, false
+		FROM tracker_items ti JOIN olympiad_profiles p ON p.id = ti.olympiad_profile_id
+		WHERE ti.trajectory_id = $1
 		UNION ALL
-		SELECT olympiad_profile_id, false, true FROM proposals WHERE trajectory_id = $1 AND status = 'pending'`,
+		SELECT pr.olympiad_profile_id, p.olympiad_id, false, true
+		FROM proposals pr JOIN olympiad_profiles p ON p.id = pr.olympiad_profile_id
+		WHERE pr.trajectory_id = $1 AND pr.status = 'pending'`,
 		trajectoryID)
 	if err != nil {
 		return st, wrap(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var pid string
+		var pid, oid string
 		var registered, pending bool
-		if err := rows.Scan(&pid, &registered, &pending); err != nil {
+		if err := rows.Scan(&pid, &oid, &registered, &pending); err != nil {
 			return st, wrap(err)
 		}
 		if pending {
 			st.Pending[pid] = true
+			st.PendingOlympiads[oid] = true
 			continue
 		}
 		st.InTracker[pid] = true
 		st.Registered[pid] = registered
+		st.TrackedOlympiads[oid] = true
 	}
 	return st, wrap(rows.Err())
 }

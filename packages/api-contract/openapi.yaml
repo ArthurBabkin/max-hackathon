@@ -105,6 +105,9 @@ paths:
       description: |
         Скоринг и сортировка — на сервере (ТЗ §6.1). Клиент показывает `items`
         в том порядке, в котором они пришли, и не пересчитывает ничего сам.
+        Подходящая олимпиада — та, во что ещё можно вступить (срок первого этапа
+        не прошёл); перечневая — только с льготой в вузах ученика. Уже добавленное
+        в трекер и предложенное не показывается.
       x-tz: "F13, F14, F15, F16"
       parameters:
         - name: filter
@@ -1041,12 +1044,36 @@ components:
 
     Recommendations:
       type: object
-      required: [items, outside, note]
+      required: [items, more, outside, note, tracked_count, proposed_count, state]
       properties:
         items:
           type: array
-          description: Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+          description: |
+            Перечень и ВсОШ, уже отсортированы сервером. Клиент порядок не меняет.
+            Только то, чего нет в трекере и что не ждёт ответа на предложение:
+            места добавленных занимают следующие по скору (C3).
           items: { $ref: "#/components/schemas/OlympiadCard" }
+        more:
+          type: array
+          description: |
+            Остальные подходящие олимпиады перечня по убыванию скора — «Показать ещё N».
+            Добавленные сюда тоже не попадают.
+          items: { $ref: "#/components/schemas/OlympiadCard" }
+        tracked_count:
+          type: integer
+          minimum: 0
+          description: Сколько подходящих под фильтр олимпиад спрятано, потому что они уже в трекере.
+        proposed_count:
+          type: integer
+          minimum: 0
+          description: Сколько подходящих под фильтр олимпиад спрятано, потому что ждут ответа на предложение.
+        state:
+          type: string
+          enum: [ok, all_tracked, all_proposed, none_suitable]
+          description: |
+            `ok` — есть что показать; `all_tracked` — всё подходящее уже в трекере (C7);
+            `all_proposed` — остальное ждёт ответа на предложение; `none_suitable` — подходящих
+            нет: регистрации закрыты или в вузах ученика нет льгот по его предметам.
         outside:
           type: array
           description: Олимпиады вне перечня — отдельный блок, с основным списком не смешиваются (F16).
@@ -1078,6 +1105,7 @@ components:
               reason,
               in_tracker,
               proposal_status,
+              registration_closed,
             ]
           properties:
             olympiad_profile_id: { type: string }
@@ -1110,13 +1138,18 @@ components:
               type: [string, "null"]
               enum: [pending, null]
               description: "`pending` — родитель уже предложил, ученик ещё не ответил."
+            registration_closed:
+              type: boolean
+              description: |
+                Срок первого этапа (регистрации) прошёл — вступить в этом сезоне нельзя, хотя следующий
+                этап может быть ещё впереди. В «Подборе» всегда `false`: закрытые туда не попадают.
 
     OlympiadListItem:
       allOf:
         - $ref: "#/components/schemas/Badge"
         - type: object
           description: Строка каталога — одна на олимпиаду, а не на профиль.
-          required: [olympiad_id, name, kind, primary_profile]
+          required: [olympiad_id, name, kind, primary_profile, registration_closed]
           properties:
             olympiad_id: { type: string }
             name: { type: string }
@@ -1133,6 +1166,9 @@ components:
                 subject_name: { type: string }
                 level: { $ref: "#/components/schemas/Level" }
             profiles_count: { type: integer }
+            registration_closed:
+              type: boolean
+              description: По основному профилю — срок первого этапа прошёл.
 
     ProfileLevel:
       type: object

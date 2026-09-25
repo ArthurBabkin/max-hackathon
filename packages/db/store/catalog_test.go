@@ -147,6 +147,11 @@ func TestTrackerState(t *testing.T) {
 		!st.Pending["p669-2-matematika"] || st.InTracker["p669-2-matematika"] {
 		t.Fatalf("неверное состояние: %+v", st)
 	}
+	// Олимпиады целиком: «Подбор» прячет все профили добавленной олимпиады.
+	if !st.TrackedOlympiads["p669-8"] || !st.TrackedOlympiads["vsosh-informatika"] ||
+		!st.PendingOlympiads["p669-2"] || st.TrackedOlympiads["p669-2"] {
+		t.Fatalf("олимпиады трекера: %+v / %+v", st.TrackedOlympiads, st.PendingOlympiads)
+	}
 }
 
 func TestUniversities_CatalogAndDetail(t *testing.T) {

@@ -69,6 +69,33 @@ func TestAllPassed(t *testing.T) {
 	}
 }
 
+// Вступить можно, пока не прошёл срок первого этапа: регистрации, а если
+// её нет — отборочного или школьного. Порядок этапов на входе не важен.
+func TestJoinable(t *testing.T) {
+	if !Joinable(nto(), *at(2026, 10, 22, 12)) {
+		t.Fatal("в последний день регистрации вступить ещё можно")
+	}
+	if Joinable(nto(), *at(2026, 10, 23, 1)) {
+		t.Fatal("регистрация закрылась — вступить нельзя, хотя отборочный ещё идёт")
+	}
+	reversed := nto()
+	reversed[0], reversed[2] = reversed[2], reversed[0]
+	if Joinable(reversed, *at(2026, 10, 23, 1)) {
+		t.Fatal("первый этап ищется по датам, а не по порядку в срезе")
+	}
+	noReg := nto()[1:]
+	if !Joinable(noReg, *at(2026, 10, 23, 1)) || Joinable(noReg, *at(2026, 10, 24, 0)) {
+		t.Fatal("без регистрации вступают до конца отборочного")
+	}
+	if !Joinable(nil, *at(2027, 3, 1, 0)) {
+		t.Fatal("профиль без этапов не исключается: о сроках просто ничего не известно")
+	}
+	undated := []Stage{{Kind: "registration"}, {Kind: "final"}}
+	if !Joinable(undated, *at(2026, 10, 1, 0)) {
+		t.Fatal("этапы без дат не закрываются")
+	}
+}
+
 func TestRegistrationLike(t *testing.T) {
 	for kind, want := range map[string]bool{"registration": true, "school": true, "qualifying": false, "final": false} {
 		if RegistrationLike(kind) != want {

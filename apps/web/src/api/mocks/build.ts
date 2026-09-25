@@ -231,6 +231,7 @@ export function olympiadCard(profileId: string): OlympiadCard | null {
     reason: o.reason,
     in_tracker: inTracker(profileId),
     proposal_status: pendingProposal(profileId) ? 'pending' : null,
+    registration_closed: o.deadlineIn < 0,
   }
 }
 
@@ -296,6 +297,7 @@ export function olympiadListItem(o: DemoOlympiad): OlympiadListItem | null {
       level: primary.level,
     },
     profiles_count: o.profiles.length,
+    registration_closed: o.deadlineIn < 0,
   }
 }
 

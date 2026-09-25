@@ -58,3 +58,30 @@ it('олимпиада из трекера помечена', () => {
   setup()
   expect(within(screen.getByRole('button', { name: /Олимпиада a/ })).getByText('в трекере')).toBeInTheDocument()
 })
+
+// Из «Подбора» без подходящих олимпиад — «Найти вузы» (C3): каталог сразу на вузах.
+it('?segment=universities открывает вкладку «Вузы»', () => {
+  renderApp(<CatalogScreen />, {
+    route: '/catalog?segment=universities',
+    seed: (c) => {
+      c.setQueryData(keys.profile, profile())
+      c.setQueryData(keys.universities('', 'all'), { items: [] })
+    },
+  })
+  expect(screen.getByRole('tab', { name: 'Вузы', selected: true })).toBeInTheDocument()
+})
+
+// Строка каталога: вступить в этом сезоне уже нельзя — пометка серым, как «в трекере».
+it('закрытую регистрацию помечает в строке', () => {
+  renderApp(<CatalogScreen />, {
+    route: '/catalog',
+    seed: (c) => {
+      c.setQueryData(keys.profile, profile())
+      c.setQueryData(keys.olympiads('', 'inf', 'all'), {
+        items: [{ ...olympiad('z', 'I'), registration_closed: true }, olympiad('y', 'I')],
+      })
+      c.setQueryData(keys.tracker, { items: [], proposals: [] })
+    },
+  })
+  expect(screen.getAllByText('регистрация закрыта')).toHaveLength(1)
+})

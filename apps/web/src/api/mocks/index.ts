@@ -24,6 +24,7 @@ import {
   nextId,
   primaryProfile,
   profileKey,
+  splitProfileId,
   role,
   state,
   universityById,
@@ -99,18 +100,44 @@ route('GET', '/recommendations', ({ query }) => {
     return true
   }
 
-  const items = wantsEmpty()
+  // Как на сервере: уже добавленное и предложенное прячется, их места
+  // занимают следующие; когда добавлено всё — state = all_tracked (C7).
+  const olympiadOf = (profileId: string) => splitProfileId(profileId)?.olympiadId
+  const tracked = new Set(state.tracker.map((t) => olympiadOf(t.profileId)))
+  const proposed = new Set(state.proposals.filter((p) => p.status === 'pending').map((p) => olympiadOf(p.profileId)))
+
+  const suitable = wantsEmpty()
     ? []
     : mine
         .filter((c) => c.kind !== 'other')
         .filter(matchesFilter)
-        // Сортировка по близости срока — как требует ТЗ §6.1 п. 5.
-        .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
+  const hiddenTracked = suitable.filter((c) => tracked.has(c.olympiad_id))
+  const hiddenProposed = suitable.filter((c) => !tracked.has(c.olympiad_id) && proposed.has(c.olympiad_id))
+  const visible = suitable.filter((c) => !tracked.has(c.olympiad_id) && !proposed.has(c.olympiad_id))
+  const vsosh = visible.filter((c) => c.kind === 'vsosh')
+  const perechen = visible.filter((c) => c.kind === 'perechen')
+  const items = [...vsosh, ...perechen.slice(0, 3)]
+    // Сортировка по близости срока — как требует ТЗ §6.1 п. 5.
+    .sort((a, b) => (a.deadline_at ?? '').localeCompare(b.deadline_at ?? ''))
+  const state_ =
+    items.length > 0
+      ? 'ok'
+      : hiddenProposed.length > 0
+        ? 'all_proposed'
+        : hiddenTracked.length > 0
+          ? 'all_tracked'
+          : 'none_suitable'
 
   return {
     items,
-    outside: wantsEmpty() ? [] : mine.filter((c) => c.kind === 'other'),
+    more: perechen.slice(3),
+    outside: wantsEmpty()
+      ? []
+      : mine.filter((c) => c.kind === 'other' && !tracked.has(c.olympiad_id) && !proposed.has(c.olympiad_id)),
     note: 'Сначала ближайшие сроки и точное совпадение профиля',
+    tracked_count: hiddenTracked.length,
+    proposed_count: hiddenProposed.length,
+    state: state_,
   }
 })
 

@@ -108,3 +108,16 @@ it('вне перечня этапы и даты — сразу под «Не в
   renderSheet({ kind: 'other', description: null, official_url: null })
   expect(blockOrder().slice(0, 2)).toEqual(['Не входит в перечень', expect.stringMatching(/^Этапы и даты/)])
 })
+
+// Регистрация закрылась, а отборочный ещё впереди: пилюля срока — уже про
+// отборочный, без пометки казалось бы, что вступить ещё можно.
+it('закрытая регистрация — пометкой под шапкой', () => {
+  renderSheet({ registration_closed: true })
+  expect(screen.getByText('Регистрация на этот сезон закрыта')).toBeInTheDocument()
+  expect(screen.getByText(/Если регистрация уже есть — добавь олимпиаду в трекер/)).toBeInTheDocument()
+})
+
+it('открытая регистрация — без пометки', () => {
+  renderSheet({ registration_closed: false })
+  expect(screen.queryByText('Регистрация на этот сезон закрыта')).toBeNull()
+})
