@@ -178,6 +178,7 @@ func TestPrompt_RoleAndRules(t *testing.T) {
 		"«сейчас не идёт» — этап ещё не начался",
 		"что получит победитель и что призёр",
 		"не обобщай по отдельным олимпиадам",
+		"«Регистрация закрыта» — в этом сезоне в олимпиаду уже не вступить",
 	} {
 		if !strings.Contains(sys, want) {
 			t.Errorf("в промпте нет %q", want)
@@ -305,5 +306,63 @@ func TestKnowledge_StudentCardHasUniversityDirections(t *testing.T) {
 	if !strings.Contains(card, "ВШЭ: Прикладная математика и информатика (выбрано в вузе)") ||
 		!strings.Contains(card, "Иннополис: Информатика и вычислительная техника (по цели)") {
 		t.Fatalf("направления в вузах ученика:\n%s", card)
+	}
+}
+
+// Срок первого этапа прошёл — в карточке прямо сказано, что регистрация
+// закрыта, как плашка в приложении: по одним датам модель советовала
+// олимпиаду, в которую уже не вступить.
+func TestKnowledge_OlympiadCardSaysRegistrationClosed(t *testing.T) {
+	ask := func(now time.Time) string {
+		st, tr := setup(t)
+		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+		a := &Assistant{Store: st, LLM: f, Now: func() time.Time { return now }}
+		if _, err := a.Ask(context.Background(), kid, tr, nil, "Что даёт «Высшая проба»?"); err != nil {
+			t.Fatal(err)
+		}
+		return cardIn(t, f.calls[0][0].Content, "olympiad:p669-8")
+	}
+	if c := ask(time.Date(2027, 3, 1, 9, 0, 0, 0, time.UTC)); !strings.Contains(c, "Регистрация закрыта") {
+		t.Errorf("срок прошёл — «Регистрация закрыта»:\n%s", c)
+	}
+	if c := ask(time.Date(2026, 9, 1, 9, 0, 0, 0, time.UTC)); strings.Contains(c, "Регистрация закрыта") {
+		t.Errorf("регистрация идёт — не закрыта:\n%s", c)
+	}
+}
+
+// Трекер в карточке ученика — как в приложении: регистрация закрылась без
+// отметки — так и написано (ближайший этап остаётся: вдруг ученик записался
+// и не отметил); вторая регистрация видна.
+func TestKnowledge_StudentCardMissedAndSecondRegistration(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	m, _ := st.CurrentMember(ctx, 900000001)
+	bio, _, _ := st.AddTrackerItem(ctx, tr.ID, "p669-14-biologiya", m.MemberID)
+	_, _, _ = st.AddTrackerItem(ctx, tr.ID, "p669-8-informatika", m.MemberID)
+	card := func(now time.Time) string {
+		a := &Assistant{Store: st, Now: func() time.Time { return now }}
+		b, _ := a.loadBase(ctx)
+		c := collected{clock: a.clock(tr)}
+		if err := a.studentCard(ctx, b, tr, &c); err != nil {
+			t.Fatal(err)
+		}
+		return c.cards[0].text
+	}
+	nov := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	text := card(nov)
+	line := text[strings.Index(text, "Всесибирская"):]
+	line = line[:strings.Index(line, "\n")]
+	if !strings.Contains(line, "регистрация закрылась без отметки") {
+		t.Fatalf("пропущенная регистрация: %s", line)
+	}
+
+	if _, err := st.SetStageMark(ctx, tr.ID, bio, "p669-14-biologiya:qualifying:1", m.MemberID, stages.Mark{Result: stages.Passed}, nov); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.SetStageMark(ctx, tr.ID, bio, "p669-14-biologiya:registration:2", m.MemberID, stages.Mark{Registered: true}, nov); err != nil {
+		t.Fatal(err)
+	}
+	if text := card(nov); !strings.Contains(text, "регистрация на заключительный этап — отмечена") {
+		t.Fatalf("вторая регистрация:\n%s", text)
 	}
 }
