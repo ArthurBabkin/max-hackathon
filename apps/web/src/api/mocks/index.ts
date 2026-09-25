@@ -387,8 +387,14 @@ route('PATCH', '/profile', ({ body }) => {
     state.directions = ids.flatMap((id) => DIRECTIONS.filter((d) => d.id === id))
     state.goal_status = state.directions.length > 0 ? 'known' : 'exploring'
   }
-  if (typeof patch.target_region_code === 'string') {
-    state.target_region_code = patch.target_region_code || null
+  if (Array.isArray(patch.places)) {
+    const places = patch.places as { region_code: string; city?: string | null }[]
+    state.places = places.map((p) => ({ region_code: p.region_code, city: p.city ?? null }))
+  } else if (typeof patch.target_region_code === 'string') {
+    state.places = patch.target_region_code ? [{ region_code: patch.target_region_code, city: null }] : []
+  }
+  if (patch.experience === 'none' || patch.experience === 'school' || patch.experience === 'region') {
+    state.experience = patch.experience
   }
   if (Array.isArray(patch.university_ids)) {
     state.universities = patch.university_ids as string[]

@@ -14,6 +14,8 @@ describe('startRoute', () => {
     expect(startRoute('family')).toEqual({ path: '/family' })
     expect(startRoute('match')).toEqual({ path: '/match' })
     expect(startRoute('faq')).toEqual({ path: '/faq' })
+    // «Изменить» под профилем в итоге онбординга (SPEC 9).
+    expect(startRoute('profile')).toEqual({ path: '/profile' })
   })
 
   it('карточка олимпиады по профилю — лист поверх главной', () => {
@@ -21,7 +23,7 @@ describe('startRoute', () => {
   })
 
   it('главная и всё незнакомое — без перехода', () => {
-    for (const p of ['home', '', null, undefined, 'o_', 'profile', 'o_../x', 'tracker?x=1', 'a'.repeat(513)]) {
+    for (const p of ['home', '', null, undefined, 'o_', 'o_../x', 'tracker?x=1', 'a'.repeat(513)]) {
       expect(startRoute(p)).toBeNull()
     }
   })

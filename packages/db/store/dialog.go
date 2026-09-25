@@ -47,6 +47,68 @@ type Draft struct {
 	// Offered — вузы на кнопках шага вузов: предложенные по городу и
 	// направлениям и найденные поиском «Другой вуз».
 	Offered []string `json:"offered,omitempty"`
+
+	// Онбординг v2 (docs/onboarding-v2/SPEC.md, 1.4).
+
+	// HomeCity — город ученика, если известен из поиска или геолокации.
+	HomeCity string `json:"home_city,omitempty"`
+	// PlaceOptions — варианты на кнопках шагов region и target.
+	PlaceOptions []PlaceOption `json:"place_options,omitempty"`
+	// Letter — открытая буква алфавита на шаге region; "*" — открыт список букв.
+	Letter string `json:"letter,omitempty"`
+	// Interests — коды В1 «что нравится», до двух.
+	Interests []string `json:"interests,omitempty"`
+	// Work — код В2 «какая работа ближе».
+	Work string `json:"work,omitempty"`
+	// Suggested — направления, которые бот предложил по интересам.
+	Suggested  []string `json:"suggested,omitempty"`
+	Experience string   `json:"experience,omitempty"`
+	// Places — выбранные места «Где учиться»; PlacesAny — «Не важно».
+	Places    []Place `json:"places,omitempty"`
+	PlacesAny bool    `json:"places_any,omitempty"`
+	// GoalByKid — родитель выбрал «Пусть ребёнок ответит».
+	GoalByKid bool `json:"goal_by_kid,omitempty"`
+	// OfferPage — сколько раз нажали «Показать ещё» на шаге вузов.
+	OfferPage int `json:"offer_page,omitempty"`
+	// Found — места, найденные текстом на шаге target, когда совпадений
+	// несколько: кнопки выбора под отдельным сообщением.
+	Found []PlaceOption `json:"found,omitempty"`
+	// VuzAnywhere — «Все вузы с этим направлением»: подборка вузов без
+	// фильтра по местам.
+	VuzAnywhere bool `json:"vuz_anywhere,omitempty"`
+	// OfferMore — у подборки вузов есть следующая страница.
+	OfferMore bool `json:"offer_more,omitempty"`
+	// Nearby — ближайшие вузы с направлением, когда в выбранных местах
+	// его нет (кнопки «+ вуз»).
+	Nearby []string `json:"nearby,omitempty"`
+	// Similar — похожие направления, которые есть в выбранных местах.
+	Similar []string `json:"similar,omitempty"`
+	// Joined — приглашённый ученик отвечает на вопросы об интересах за
+	// родителя (goal_by_kid): траектория уже есть, «Готово» правит её.
+	Joined bool `json:"joined,omitempty"`
+}
+
+// Place — место «Где учиться»: регион целиком (City пусто) или город в нём.
+type Place struct {
+	RegionCode string `json:"region_code"`
+	City       string `json:"city,omitempty"`
+}
+
+// PlaceOption — вариант места на кнопке: найденный поиском или
+// предложенный ботом.
+type PlaceOption struct {
+	Kind       string `json:"kind"` // region | city
+	RegionCode string `json:"region_code"`
+	City       string `json:"city,omitempty"`
+	Label      string `json:"label"`
+}
+
+// Place — место, которое означает вариант.
+func (o PlaceOption) Place() Place {
+	if o.Kind == "city" {
+		return Place{RegionCode: o.RegionCode, City: o.City}
+	}
+	return Place{RegionCode: o.RegionCode}
 }
 
 // TargetAny — «не важно, где учиться».

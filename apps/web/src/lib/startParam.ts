@@ -5,7 +5,7 @@ import { getWebApp } from '@/bridge'
 /**
  * Куда вести по `start_param` — разделу, который бот кладёт в кнопку
  * «Открыть приложение» (open_app) или в ссылку `?startapp=`:
- * `home`, `match`, `tracker`, `family`, `faq`, `o_<olympiad_profile_id>` — карточка.
+ * `home`, `match`, `tracker`, `family`, `faq`, `profile`, `o_<olympiad_profile_id>` — карточка.
  * Параметр приходит от пользователя, поэтому всё незнакомое — главная.
  */
 
@@ -15,7 +15,13 @@ export interface StartRoute {
   sheet?: string
 }
 
-const TABS: Record<string, string> = { match: '/match', tracker: '/tracker', family: '/family', faq: '/faq' }
+const TABS: Record<string, string> = {
+  match: '/match',
+  tracker: '/tracker',
+  family: '/family',
+  faq: '/faq',
+  profile: '/profile',
+}
 // Алфавит payload MAX: [A-Za-z0-9_-], до 512 символов (ТЗ §11.2).
 const SAFE = /^[A-Za-z0-9_-]{1,512}$/
 
