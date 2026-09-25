@@ -67,9 +67,42 @@ func grid(buttons []maxapi.Button, n int) maxapi.Keyboard {
 	return kb
 }
 
-// prompt — вопрос текущего шага с клавиатурой, собранной из черновика:
-// отмеченное — с «✓» (F7, F9).
+// stepNumbers — номер шага онбординга в счётчике «Шаг N из M». Номера
+// постоянные: пропущенный шаг не сдвигает остальные, счётчик просто
+// перескакивает. «Помоги выбрать» (interest, work, suggest) — часть шага
+// направления, как и поиск вуза — часть шага вузов.
+var stepNumbers = map[string]int{
+	stepRole: 1, stepNameConfirm: 2, stepNameInput: 2, stepGrade: 3, stepRegion: 4, stepSubjects: 5,
+	stepDirection: 6, stepInterest: 6, stepWork: 6, stepSuggest: 6,
+	stepExperience: 7, stepTarget: 8, stepUniversities: 9, stepUniSearch: 9,
+}
+
+// stepsTotal — сколько шагов в счётчике.
+const stepsTotal = 9
+
+// withStep ставит «Шаг N из M» первой строкой вопроса. У приглашённого
+// ученика своя короткая анкета, счётчика там нет.
+func withStep(v voice.Voice, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMessage {
+	n, ok := stepNumbers[d.Step]
+	if !ok || d.Draft.Joined {
+		return msg
+	}
+	msg.Text = maxapi.Truncate(v.T("bot.step", voice.Vars{"count": n, "total": stepsTotal})+"\n\n"+msg.Text, maxapi.MaxTextLen)
+	return msg
+}
+
+// prompt — вопрос текущего шага со счётчиком шагов.
 func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
+	msg, err := b.question(t, d)
+	if err != nil {
+		return msg, err
+	}
+	return withStep(dialogVoice(t, d), d, msg), nil
+}
+
+// question — вопрос текущего шага с клавиатурой, собранной из черновика:
+// отмеченное — с «✓» (F7, F9).
+func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	v := dialogVoice(t, d)
 	cb := maxapi.CallbackButton
 	switch d.Step {
