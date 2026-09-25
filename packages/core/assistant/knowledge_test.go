@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
+	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
 // contextFor — системное сообщение модели на вопрос.
@@ -179,6 +180,7 @@ func TestPrompt_RoleAndRules(t *testing.T) {
 		"что получит победитель и что призёр",
 		"не обобщай по отдельным олимпиадам",
 		"«Регистрация закрыта» — в этом сезоне в олимпиаду уже не вступить",
+		"олимпиады из строки «Только на другие направления вуза» на направления ученика льготы не дают",
 	} {
 		if !strings.Contains(sys, want) {
 			t.Errorf("в промпте нет %q", want)
@@ -364,5 +366,119 @@ func TestKnowledge_StudentCardMissedAndSecondRegistration(t *testing.T) {
 	}
 	if text := card(nov); !strings.Contains(text, "регистрация на заключительный этап — отмечена") {
 		t.Fatalf("вторая регистрация:\n%s", text)
+	}
+}
+
+// contextAfter — системное сообщение модели на вопрос после правки
+// траектории (выбор направлений в вузе и т. п.).
+func contextAfter(t *testing.T, question string, prep func(ctx context.Context, st *store.Store, tr store.Trajectory, member string)) string {
+	t.Helper()
+	st, tr := setup(t)
+	ctx := context.Background()
+	m, err := st.CurrentMember(ctx, 900000001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prep(ctx, st, tr, m.MemberID)
+	tr, _ = st.Trajectory(ctx, tr.ID)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	if _, err := (&Assistant{Store: st, LLM: f}).Ask(ctx, kid, tr, nil, question); err != nil {
+		t.Fatal(err)
+	}
+	return f.calls[0][0].Content
+}
+
+// Направления вуза — как в его карточке в приложении: код, число программ и
+// олимпиад с льготой, «льготы уточняются»; направления ученика помечены, и
+// отдельной строкой — на что ему здесь считаются льготы.
+func TestKnowledge_UniversityCardDirections(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Можно ли поступить в ВШЭ по Высшей пробе?"), "university:hse")
+	for _, want := range []string{
+		"Направления вуза (19) — программ, олимпиад с льготой:",
+		`\n  09.03.04 Программная инженерия — 7 программ, 61 олимпиада с льготой; направление ученика (по цели)\n`,
+		`\n    программы: Дизайн и разработка информационны х продуктов; Компьютерные науки и технологии; `,
+		`\n  38.03.01 Экономика — 11 программ, `,
+		"Льготы ученику здесь считаются на направления: Программная инженерия (по цели)",
+	} {
+		if !strings.Contains(c, want) {
+			t.Errorf("в карточке ВШЭ нет %q:\n%s", want, c)
+		}
+	}
+	if strings.Contains(c, `\nНаправления: `) {
+		t.Errorf("старая строка направлений без кодов и льгот:\n%s", c)
+	}
+
+	nsu := cardIn(t, contextFor(t, "Можно ли поступить в НГУ по Высшей пробе?"), "university:nsu")
+	if !strings.Contains(nsu, `\n  01.03.02 Прикладная математика и информатика — 10 программ, льготы уточняются`) {
+		t.Errorf("непроверенные льготы на направлении:\n%s", nsu)
+	}
+	if !strings.Contains(nsu, "Ни выбранных в вузе, ни из цели ученика направлений здесь нет — льготы указаны по вузу целиком") {
+		t.Errorf("цели ученика в вузе нет:\n%s", nsu)
+	}
+}
+
+// Полная карточка вуза — олимпиады с льготой на направления ученика, как
+// «На мои направления» в приложении; остальные — отдельно, с тем, на скольких
+// направлениях вуза они дают льготу: льгота «где-то в вузе» — не льгота на
+// направление ученика.
+func TestKnowledge_UniversityCardFullOnStudentDirections(t *testing.T) {
+	c := cardIn(t, contextFor(t, "Какие олимпиады принимает ВШЭ?"), "university:hse")
+	mine := strings.Index(c, "Олимпиады с льготой на направления ученика (Программная инженерия)")
+	others := strings.Index(c, "Только на другие направления вуза")
+	if mine < 0 || others < mine {
+		t.Fatalf("олимпиады на направления ученика и остальные:\n%s", c)
+	}
+	if i := strings.Index(c, `\n  Высшая проба — `); i < mine || i > others {
+		t.Errorf("«Высшая проба» даёт льготу на ПИ:\n%s", c)
+	}
+	if !strings.Contains(c[others:], "ВсОШ по экономике (на 6 из 19 направлений)") || strings.Contains(c[:others], "ВсОШ по экономике") {
+		t.Errorf("ВсОШ по экономике — только на другие направления:\n%s", c)
+	}
+	if !strings.Contains(c, "Льготы по уровню олимпиады на направления ученика") {
+		t.Errorf("сводка по уровням — на направления ученика:\n%s", c)
+	}
+	// Примечание вуза уже говорит, от чего зависит льгота, — без повтора.
+	for _, line := range strings.Split(c, `\n`) {
+		if strings.Contains(line, "Зависит от программы:") && strings.Contains(line, "; зависит от программы") {
+			t.Errorf("«зависит от программы» дважды:\n%s", line)
+			break
+		}
+	}
+
+	chosen := cardIn(t, contextAfter(t, "Какие олимпиады принимает ВШЭ?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
+		if err := st.SetUniversityDirections(ctx, tr.ID, "hse", m, []string{"napr-01-03-02"}); err != nil {
+			t.Fatal(err)
+		}
+	}), "university:hse")
+	for _, want := range []string{
+		"Льготы ученику здесь считаются на направления: Прикладная математика и информатика (выбрано в вузе)",
+		"; направление ученика (выбрано в вузе)",
+		"Олимпиады с льготой на направления ученика (Прикладная математика и информатика)",
+	} {
+		if !strings.Contains(chosen, want) {
+			t.Errorf("выбранное в вузе направление: нет %q:\n%s", want, chosen)
+		}
+	}
+	if strings.Contains(chosen, "(по цели)") {
+		t.Errorf("при выборе в вузе цель не помечается:\n%s", chosen)
+	}
+}
+
+// Льготы на выбранные направления ещё проверяются — так и сказано, а ниже
+// льготы вуза целиком с тем, на скольких направлениях они есть.
+func TestKnowledge_UniversityCardUnverifiedDirections(t *testing.T) {
+	c := cardIn(t, contextAfter(t, "Какие олимпиады принимает НГУ?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
+		if err := st.SetUniversityDirections(ctx, tr.ID, "nsu", m, []string{"napr-01-03-02"}); err != nil {
+			t.Fatal(err)
+		}
+	}), "university:nsu")
+	for _, want := range []string{
+		"Льготы ученику здесь считаются на направления: Прикладная математика и информатика (выбрано в вузе) — льготы на них ещё уточняются",
+		"Олимпиады с льготами или баллами в вузе целиком",
+		" из 15 направлений)",
+	} {
+		if !strings.Contains(c, want) {
+			t.Errorf("нет %q:\n%s", want, c)
+		}
 	}
 }
