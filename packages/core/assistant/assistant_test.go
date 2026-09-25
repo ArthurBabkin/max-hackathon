@@ -109,7 +109,7 @@ func TestAsk_Refusals(t *testing.T) {
 		calls    int
 	}{
 		"вне базы — без модели":      {&fakeLLM{}, "Какая завтра погода в Казани?", "", 0},
-		"модель: данных нет":         {&fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}, "Сколько бюджетных мест в ВШЭ?", "rules-hse", 1},
+		"модель: данных нет":         {&fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}, "Какой проходной балл в ВШЭ?", "rules-hse", 1},
 		"ссылка вне контекста":       {&fakeLLM{reply: `{"answer": "Да", "card_ids": ["olympiad:p669-50"], "no_data": false}`}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
 		"ответ без ссылок":           {&fakeLLM{reply: `{"answer": "Конечно!", "card_ids": [], "no_data": false}`}, "Что даёт «Высшая проба»?", "site-p669-8", 1},
 		"не JSON":                    {&fakeLLM{reply: "Я не могу"}, "Что даёт «Высшая проба»?", "site-p669-8", 1},

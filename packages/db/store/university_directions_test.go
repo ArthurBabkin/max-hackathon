@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -246,6 +247,55 @@ func TestTargetsOf(t *testing.T) {
 	}
 	if x := tg["kazan-gmu"]; x.Basis != "university" || len(x.DirectionNames) != 0 {
 		t.Fatalf("Медвуз без ПИ — вуз целиком: %+v", x)
+	}
+}
+
+// Вопрос про направление смотрит льготы на него, а не на цель ученика и не
+// на выбор в вузе: «что даёт олимпиада на ИБ в ВШЭ?». В вузе без
+// направления льготы на него нет; непроверенное — строка вуза с пометкой.
+func TestBenefitsOn(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid") // цель ПИ
+	_ = s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirSE})
+
+	tg, err := s.TargetsOn(ctx, []string{dirIS}, []string{"hse", "innopolis"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if x := tg["hse"]; x.Basis != "goal" || !slices.Equal(x.DirectionNames, []string{"Информационная безопасность"}) {
+		t.Fatalf("ВШЭ на ИБ: %+v", x)
+	}
+	if x := tg["innopolis"]; x.Basis != "university" || len(x.DirectionIDs) != 0 {
+		t.Fatalf("в Иннополисе ИБ нет: %+v", x)
+	}
+
+	rows, err := s.BenefitsOn(ctx, []string{dirIS}, []string{virtual, infosec}, []string{"hse", "innopolis"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]BenefitRow{}
+	for _, b := range rows {
+		got[b.ProfileID+"/"+b.UniversityID] = b
+	}
+	if b := got[virtual+"/hse"]; b.Benefit != "bvi" || !slices.Equal(b.DirectionNames, []string{"Информационная безопасность"}) {
+		t.Fatalf("ВШЭ на ИБ, а не на выбранную ПИ: %+v", b)
+	}
+	if b := got[infosec+"/hse"]; b.Benefit != "bvi" {
+		t.Fatalf("ИБ-профиль на ИБ в ВШЭ: %+v", b)
+	}
+	for k := range got {
+		if strings.HasSuffix(k, "/innopolis") {
+			t.Fatalf("в Иннополисе нет ИБ — и льготы на неё нет: %s", k)
+		}
+	}
+
+	rows, err = s.BenefitsOn(ctx, []string{dirAMI}, []string{infosec}, []string{"nsu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || !rows[0].Unverified || !slices.Equal(rows[0].DirectionNames, []string{"Прикладная математика и информатика"}) {
+		t.Fatalf("ПМИ в НГУ уточняется: %+v", rows)
 	}
 }
 

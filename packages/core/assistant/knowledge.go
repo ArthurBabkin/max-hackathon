@@ -422,7 +422,9 @@ func grants(bn store.BenefitRow) string {
 // (core/targets). full — со всеми олимпиадами и условиями: сначала на
 // направления ученика, остальные — отдельно; иначе только шапка со сводкой
 // по уровням: условия вуза по олимпиаде вопроса уже есть в её карточке.
-func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id string, full bool, c clock) (string, error) {
+// asked — направления из вопроса: тогда льготы — на них, а не на цель
+// ученика; нет их в вузе — только шапка.
+func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id string, asked []string, full bool, c clock) (string, error) {
 	d, err := a.Store.University(ctx, trajectoryID, id)
 	if err != nil {
 		return "", err
@@ -446,12 +448,22 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 	if err != nil {
 		return "", err
 	}
-	tg, err := a.Store.TargetsOf(ctx, trajectoryID, []string{id})
+	l := lens{who: "направления ученика", mark: "направление ученика"}
+	var tg map[string]store.UniversityTarget
+	if len(asked) > 0 {
+		l = lens{who: "направление из вопроса", mark: "направление из вопроса", asked: b.directionNames(asked)}
+		tg, err = a.Store.TargetsOn(ctx, asked, []string{id})
+	} else {
+		tg, err = a.Store.TargetsOf(ctx, trajectoryID, []string{id})
+	}
 	if err != nil {
 		return "", err
 	}
 	t := tg[id]
-	lines = append(lines, directionLines(dirs, t)...)
+	lines = append(lines, directionLines(dirs, t, l)...)
+	if l.asked != nil && t.Basis == "university" {
+		return strings.Join(lines, "\n"), nil
+	}
 	if d.EgeNote != nil {
 		lines = append(lines, "Порог ЕГЭ для подтверждения олимпиадной льготы: "+*d.EgeNote)
 	}
@@ -459,15 +471,20 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 	if err != nil {
 		return "", err
 	}
-	// Льготы на направления ученика — когда они в вузе есть и проверены;
-	// иначе — вуза целиком, как «Все» в приложении.
+	// Льготы на направления ученика (или из вопроса) — когда они в вузе
+	// есть и проверены; иначе — вуза целиком, как «Все» в приложении.
 	onDirs := t.Basis != "university" && !t.Unverified
 	var mine []store.BenefitRow
 	if onDirs {
-		if mine, err = a.Store.TargetBenefits(ctx, trajectoryID, b.profileIDs(), []string{id}); err != nil {
+		if l.asked != nil {
+			mine, err = a.Store.BenefitsOn(ctx, asked, b.profileIDs(), []string{id})
+		} else {
+			mine, err = a.Store.TargetBenefits(ctx, trajectoryID, b.profileIDs(), []string{id})
+		}
+		if err != nil {
 			return "", err
 		}
-		lines = append(lines, b.byLevel(mine, " на направления ученика")...)
+		lines = append(lines, b.byLevel(mine, " на "+l.who)...)
 	} else {
 		lines = append(lines, b.byLevel(rows, "")...)
 	}
@@ -502,13 +519,13 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 		return strings.Join(lines, "\n"), nil
 	}
 	byOlympiad, order := b.byOlympiad(mine, func(bn store.BenefitRow) (string, string) {
-		return grantText(bn) + directionNotes(bn), profileTitle(b.profile[bn.ProfileID])
+		return grantText(bn) + directionNotes(bn, true), profileTitle(b.profile[bn.ProfileID])
 	})
 	who := strings.Join(t.DirectionNames, ", ")
 	if len(order) == 0 {
-		lines = append(lines, "Олимпиады с льготой на направления ученика ("+who+"): в базе нет ни одной.")
+		lines = append(lines, "Олимпиады с льготой на "+l.who+" ("+who+"): в базе нет ни одной.")
 	} else {
-		lines = append(lines, fmt.Sprintf("Олимпиады с льготой на направления ученика (%s) (%d олимпиад, %d профилей) — профили: условие:", who, len(order), len(mine)))
+		lines = append(lines, fmt.Sprintf("Олимпиады с льготой на %s (%s) (%d олимпиад, %d профилей) — профили: условие:", l.who, who, len(order), len(mine)))
 	}
 	for _, oid := range order {
 		lines = append(lines, "  "+short(oid)+" — "+joinGroups(byOlympiad[oid]))
@@ -538,16 +555,22 @@ func (a *Assistant) universityText(ctx context.Context, b base, trajectoryID, id
 				parts[i] += fmt.Sprintf(" (на %d из %d направлений)", x.Count, x.Total)
 			}
 		}
-		lines = append(lines, fmt.Sprintf("Только на другие направления вуза, не на направления ученика (%d олимпиад): %s", len(others), strings.Join(parts, ", ")))
+		lines = append(lines, fmt.Sprintf("Только на другие направления вуза, не на %s (%d олимпиад): %s", l.who, len(others), strings.Join(parts, ", ")))
 	}
 	return strings.Join(lines, "\n"), nil
 }
 
+// lens — на чьи направления смотрит карточка вуза: ученика или из вопроса.
+type lens struct {
+	who, mark string
+	asked     []string // названия направлений из вопроса; nil — цель ученика
+}
+
 // directionLines — направления вуза: код, программы, бюджетные места,
-// олимпиады с льготой или «льготы уточняются»; направления ученика
-// помечены, у них — названия программ. Дальше — на что ученику здесь
+// олимпиады с льготой или «льготы уточняются»; направления ученика (или из
+// вопроса) помечены, у них — названия программ. Дальше — на что здесь
 // считаются льготы.
-func directionLines(dirs []store.UniversityDirection, t store.UniversityTarget) []string {
+func directionLines(dirs []store.UniversityDirection, t store.UniversityTarget, l lens) []string {
 	var lines []string
 	if len(dirs) > 0 {
 		lines = append(lines, fmt.Sprintf("Направления вуза (%d) — программ, олимпиад с льготой:", len(dirs)))
@@ -567,15 +590,25 @@ func directionLines(dirs []store.UniversityDirection, t store.UniversityTarget) 
 		}
 		line := "  " + d.Code + " " + d.Name + " — " + strings.Join(parts, ", ")
 		target := slices.Contains(t.DirectionIDs, d.ID)
-		if target {
-			line += "; направление ученика (" + basisText[t.Basis] + ")"
+		switch {
+		case target && l.asked != nil:
+			line += "; " + l.mark
+		case target:
+			line += "; " + l.mark + " (" + basisText[t.Basis] + ")"
 		}
 		lines = append(lines, line)
 		if target && len(d.ProgramNames) > 0 {
 			lines = append(lines, "    программы: "+strings.Join(d.ProgramNames, "; "))
 		}
 	}
+	names := strings.Join(t.DirectionNames, ", ")
 	switch {
+	case l.asked != nil && (t.Basis == "university" || len(t.DirectionIDs) == 0):
+		lines = append(lines, "Направления из вопроса ("+strings.Join(l.asked, ", ")+") в этом вузе нет.")
+	case l.asked != nil && t.Unverified:
+		lines = append(lines, "Льготы здесь считаются на направление из вопроса: "+names+" — льготы на него ещё уточняются; ниже — льготы вуза целиком.")
+	case l.asked != nil:
+		lines = append(lines, "Льготы здесь считаются на направление из вопроса: "+names+".")
 	case t.Basis == "university" || len(t.DirectionIDs) == 0:
 		lines = append(lines, "Ни выбранных в вузе, ни из цели ученика направлений здесь нет — льготы указаны по вузу целиком.")
 	case t.Unverified:
@@ -588,11 +621,11 @@ func directionLines(dirs []store.UniversityDirection, t store.UniversityTarget) 
 }
 
 // directionNotes — к льготе на направления ученика: зависит ли она от
-// программы (если примечание вуза этого не сказало) и более слабая льгота
-// на других его направлениях.
-func directionNotes(r store.BenefitRow) string {
+// программы (если показанное примечание вуза этого не сказало) и более
+// слабая льгота на других его направлениях.
+func directionNotes(r store.BenefitRow, noteShown bool) string {
 	var s string
-	if r.Varies && (r.Note == nil || !strings.Contains(*r.Note, "Зависит от программы")) {
+	if r.Varies && (!noteShown || r.Note == nil || !strings.Contains(*r.Note, "Зависит от программы")) {
 		s += "; зависит от программы"
 	}
 	for _, o := range r.OtherDirections {
@@ -631,6 +664,83 @@ func (b base) sortOlympiads(order []string) {
 		}
 		return strings.Compare(names.Key(short(x)), names.Key(short(y)))
 	})
+}
+
+// directionNames — названия направлений по id.
+func (b base) directionNames(ids []string) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = b.direction[id].Name
+	}
+	return out
+}
+
+// askedText — льгота профилей олимпиады на направления из вопроса: в вузах
+// из вопроса, иначе во всех вузах базы с этими направлениями. Вузы из
+// вопроса без направления — списком.
+func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string, ps []store.Profile) ([]string, error) {
+	unis := named
+	if len(unis) == 0 {
+		for _, u := range b.unis {
+			unis = append(unis, u.ID)
+		}
+	}
+	tg, err := a.Store.TargetsOn(ctx, asked, unis)
+	if err != nil {
+		return nil, err
+	}
+	var offered, without []string
+	for _, u := range unis {
+		if tg[u].Basis == "university" {
+			without = append(without, pick.Nick(u, b.uni[u].ShortName))
+			continue
+		}
+		offered = append(offered, u)
+	}
+	lines := []string{"Льгота на направление из вопроса (" + strings.Join(b.directionNames(asked), ", ") + ") — главнее льготы вуза целиком:"}
+	if len(offered) > 0 {
+		ids := make([]string, len(ps))
+		for i, p := range ps {
+			ids[i] = p.ID
+		}
+		rows, err := a.Store.BenefitsOn(ctx, asked, ids, offered)
+		if err != nil {
+			return nil, err
+		}
+		byPair := map[string]store.BenefitRow{}
+		for _, r := range rows {
+			byPair[r.ProfileID+"/"+r.UniversityID] = r
+		}
+		for _, p := range ps {
+			indent := "  "
+			if len(ps) > 1 {
+				lines = append(lines, "  "+profileTitle(p)+":")
+				indent = "    "
+			}
+			for _, u := range offered {
+				who := indent + pick.Nick(u, b.uni[u].ShortName) + ": "
+				switch r, ok := byPair[p.ID+"/"+u]; {
+				case !ok:
+					lines = append(lines, who+"льготы нет")
+				case r.Unverified:
+					lines = append(lines, who+"льготы на направление уточняются")
+				default:
+					line := who + grants(r)
+					if r.EgeMin != nil {
+						line += fmt.Sprintf(", ЕГЭ от %d", *r.EgeMin)
+					}
+					if n := strings.TrimPrefix(directionNotes(r, false), "; "); n != "" {
+						line += " (" + n + ")"
+					}
+					lines = append(lines, line)
+				}
+			}
+		}
+	}
+	if len(named) > 0 && len(without) > 0 {
+		lines = append(lines, "  Нет этого направления: "+strings.Join(without, ", "))
+	}
+	return lines, nil
 }
 
 // directionText — карточка направления: в каких вузах базы оно есть (с

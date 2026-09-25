@@ -169,6 +169,23 @@ func (s *Store) targetsOf(ctx context.Context, trajectoryID string, universityID
 	if err != nil {
 		return nil, nil, err
 	}
+	return s.resolveTargets(ctx, trajectoryID, universityIDs, goal)
+}
+
+// targetsOn — цель «направления directionIDs» в каждом из вузов, без выбора
+// ученика в вузе.
+func (s *Store) targetsOn(ctx context.Context, directionIDs, universityIDs []string) (map[string]targets.Target, map[string]string, error) {
+	var codes []string
+	if err := s.db.QueryRow(ctx, `SELECT COALESCE(array_agg(code), '{}') FROM directions WHERE id = ANY($1)`,
+		directionIDs).Scan(&codes); err != nil {
+		return nil, nil, wrap(err)
+	}
+	return s.resolveTargets(ctx, nil, universityIDs, codes)
+}
+
+// resolveTargets — цель по кодам goal в каждом из вузов; trajectory — чей
+// выбор направлений в вузах учитывать (nil — ничей).
+func (s *Store) resolveTargets(ctx context.Context, trajectory any, universityIDs, goal []string) (map[string]targets.Target, map[string]string, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT ud.university_id, d.id, d.code, d.name, ud.status,
 		       EXISTS (SELECT 1 FROM trajectory_university_directions tud
@@ -176,7 +193,7 @@ func (s *Store) targetsOf(ctx context.Context, trajectoryID string, universityID
 		                 AND tud.direction_id = ud.direction_id)
 		FROM university_directions ud JOIN directions d ON d.id = ud.direction_id
 		WHERE ud.university_id = ANY($2)
-		ORDER BY ud.university_id, d.name, d.code`, trajectoryID, universityIDs)
+		ORDER BY ud.university_id, d.name, d.code`, trajectory, universityIDs)
 	if err != nil {
 		return nil, nil, wrap(err)
 	}
@@ -221,6 +238,21 @@ func (s *Store) TargetsOf(ctx context.Context, trajectoryID string, universityID
 	if err != nil {
 		return nil, err
 	}
+	return universityTargets(tg, names), nil
+}
+
+// TargetsOn — цель «направления directionIDs» в каждом из вузов: вопрос про
+// направление смотрит льготы на него, а не на цель ученика. Вуз без
+// направления — Basis university.
+func (s *Store) TargetsOn(ctx context.Context, directionIDs, universityIDs []string) (map[string]UniversityTarget, error) {
+	tg, names, err := s.targetsOn(ctx, directionIDs, universityIDs)
+	if err != nil {
+		return nil, err
+	}
+	return universityTargets(tg, names), nil
+}
+
+func universityTargets(tg map[string]targets.Target, names map[string]string) map[string]UniversityTarget {
 	out := make(map[string]UniversityTarget, len(tg))
 	for u, t := range tg {
 		x := UniversityTarget{Basis: string(t.Basis), DirectionIDs: t.DirectionIDs, Unverified: t.Unverified}
@@ -229,7 +261,7 @@ func (s *Store) TargetsOf(ctx context.Context, trajectoryID string, universityID
 		}
 		out[u] = x
 	}
-	return out, nil
+	return out
 }
 
 // Coverage — на скольких направлениях вуза (из Total) олимпиада даёт льготу.
@@ -290,6 +322,27 @@ func (s *Store) TargetBenefits(ctx context.Context, trajectoryID string, profile
 	if err != nil {
 		return nil, err
 	}
+	return s.benefitsOn(ctx, base, tg, names, profileIDs)
+}
+
+// BenefitsOn — льготы профилей в вузах на направления directionIDs (как
+// TargetBenefits с целью TargetsOn). В вузе без этих направлений льготы на
+// них нет — строк нет.
+func (s *Store) BenefitsOn(ctx context.Context, directionIDs, profileIDs, universityIDs []string) ([]BenefitRow, error) {
+	base, err := s.Benefits(ctx, profileIDs, universityIDs)
+	if err != nil || len(base) == 0 {
+		return base, err
+	}
+	tg, names, err := s.targetsOn(ctx, directionIDs, universityIDs)
+	if err != nil {
+		return nil, err
+	}
+	base = slices.DeleteFunc(base, func(b BenefitRow) bool { return tg[b.UniversityID].Basis == targets.University })
+	return s.benefitsOn(ctx, base, tg, names, profileIDs)
+}
+
+// benefitsOn — строки base (льготы вузов целиком) на цели tg.
+func (s *Store) benefitsOn(ctx context.Context, base []BenefitRow, tg map[string]targets.Target, names map[string]string, profileIDs []string) ([]BenefitRow, error) {
 	var pairUnis, pairDirs []string
 	for u, t := range tg {
 		if t.Basis == targets.University || t.Unverified {

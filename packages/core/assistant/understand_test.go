@@ -119,7 +119,7 @@ func TestAsk_JevOrganizerOnlyIfNamed(t *testing.T) {
 // без модели; первоисточник — правила названного вуза.
 func TestAsk_JevNoDataIntentsRefuseWithoutModel(t *testing.T) {
 	st, tr := setup(t)
-	for intent, q := range map[string]string{"unsupported": "Сколько бюджетных мест в ВШЭ?", "off_topic": "Какая завтра погода в ВШЭ?"} {
+	for intent, q := range map[string]string{"unsupported": "Какой проходной балл в ВШЭ?", "off_topic": "Какая завтра погода в ВШЭ?"} {
 		f := &fakeLLM{reply: `{"answer": "Много", "card_ids": ["university:hse"], "no_data": false}`}
 		a := &Assistant{Store: st, LLM: f, Classifier: said(intent, map[string]float64{none: 1}, map[string]float64{"hse": 0.9, none: 0.1})}
 		ans, err := a.Ask(context.Background(), kid, tr, nil, q)

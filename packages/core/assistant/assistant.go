@@ -123,8 +123,8 @@ type collected struct {
 	fallback []store.Source
 }
 
-// noData — вопрос, ответа на который в базе нет (бюджетные места,
-// проходные баллы), или не по теме: отказ сразу, без модели.
+// noData — вопрос, ответа на который в базе нет (проходные баллы,
+// общежитие), или не по теме: отказ сразу, без модели.
 func (c collected) noData() bool { return c.intent == intentUnsupported || c.intent == intentOffTopic }
 
 func (c collected) has(id string) bool {
@@ -434,7 +434,23 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	mine := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
 		return !slices.Contains(c.myCodes, x.SubjectCode)
 	})
-	targets, err := a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+	// Направление в вопросе — льготы на него, а не на цель ученика.
+	var targets []string
+	if asked := c.mentions.Directions; len(asked) > 0 {
+		// Профили — по предмету из вопроса, иначе по предметам ученика.
+		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+			return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
+		})
+		if len(ps) == 0 {
+			ps = mine
+		}
+		if len(ps) == 0 {
+			ps = b.profiles[oid]
+		}
+		targets, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
+	} else {
+		targets, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+	}
 	if err != nil {
 		return err
 	}
@@ -483,7 +499,7 @@ func (a *Assistant) universityCard(ctx context.Context, b base, c *collected, tr
 	if c.has("university:" + id) {
 		return nil
 	}
-	text, err := a.universityText(ctx, b, trajectoryID, id, full, c.clock)
+	text, err := a.universityText(ctx, b, trajectoryID, id, c.mentions.Directions, full, c.clock)
 	if err != nil {
 		return err
 	}
@@ -620,7 +636,9 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 		"Про льготы вуза по уровням олимпиад отвечай по строкам «Льготы по уровню олимпиады» в карточке вуза и не обобщай по отдельным олимпиадам. " +
 		"Если в карточке вуза льготы считаются на направления ученика — отвечай про них и называй направления; " +
 		"олимпиады из строки «Только на другие направления вуза» на направления ученика льготы не дают. " +
-		"«Льготы уточняются» у направления — скажи, что льготы на нём ещё проверяются.\n")
+		"«Льготы уточняются» у направления — скажи, что льготы на нём ещё проверяются. " +
+		"Если в вопросе названо направление — отвечай про льготы на него (строки «на направление из вопроса»), а не на цель ученика; " +
+		"если этого направления в вузе нет — так и скажи.\n")
 	b.WriteString("9. В card_ids перечисли id карточек, на которых основан ответ. В тексте ответа id карточек не пиши.\n")
 	b.WriteString("10. Прошлые реплики разговора — только чтобы понять, о чём вопрос (например, «а когда у неё регистрация?»). Факты бери из карточек ниже, а не из прошлых ответов.\n")
 	if c.intent == intentChat {
