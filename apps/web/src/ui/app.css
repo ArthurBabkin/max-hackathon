@@ -2168,11 +2168,17 @@
 
 .member-remove {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: var(--tap);
+  padding: 0 12px;
+  border-radius: var(--r-pill);
   color: var(--pk-ink);
   font-size: var(--t-micro);
   font-weight: 700;
+}
+
+/* Первое нажатие «взводит» кнопку: заливка показывает, что второе удалит. */
+.member-remove-armed {
+  background: var(--pks);
 }
 
 .invite-box {
@@ -2211,8 +2217,10 @@
   gap: var(--gap-sm);
 }
 
-.leave-button {
+/* Выход не отменить — розовая подпись, как в прототипе. */
+.leave-button.leave-button {
   margin-top: var(--gap-md);
+  color: var(--pk-ink);
 }
 
 .fine-center {
