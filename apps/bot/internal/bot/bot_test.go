@@ -293,7 +293,8 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 		t.Fatalf("перед итогом — карточка профиля: %q", s)
 	}
 	result := h.fake.Last(artem.UserID)
-	if result.Text != "Подобрали 7 олимпиад под тебя." {
+	if !strings.HasPrefix(result.Text, "Под твою цель подходят 5 олимпиад и ВсОШ.\n\nДля старта советую эту:") ||
+		!strings.HasSuffix(result.Text, "\n\nВ мини-приложении — льготы в твоих вузах, источники и трекер сроков.") {
 		t.Fatalf("итог: %q", result.Text)
 	}
 	// Одна кнопка: приложение на главной, где новичку покажут обучение.
@@ -305,6 +306,33 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 	d := h.dialog(artem)
 	if d.Step != stepDone || d.SourcePayload == nil || *d.SourcePayload != "src_class_9a" {
 		t.Fatalf("диалог закрыт, источник сохранён: %+v", d)
+	}
+}
+
+// Итог: кроме стартовой олимпиады — ближайшая по сроку, если это другая.
+func TestResult_NearestAfterStart(t *testing.T) {
+	h := newHarness(t)
+	h.kidOnboarding()
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 4 || !strings.HasPrefix(blocks[1], "Для старта советую эту:\nInnopolis Open · Информатика\n") ||
+		blocks[2] != "Ближайшая олимпиада:\nФизтех · Математика\nII уровень · до 7 сентября, 6 дней · онлайн" {
+		t.Fatalf("итог: %q", blocks)
+	}
+}
+
+// Стартовая и есть ближайшая — один блок.
+func TestResult_StartIsNearest(t *testing.T) {
+	h := newHarness(t)
+	h.toDirections("inf")
+	h.press(artem, "dir:later")
+	h.press(artem, "exp:none")
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:done")
+	h.press(artem, "sum:ok")
+	blocks := strings.Split(h.lastText(artem), "\n\n")
+	if len(blocks) != 3 || !strings.HasPrefix(blocks[1], "Для старта советую эту — она же ближайшая:\nФизтех · Информатика\n") ||
+		!strings.Contains(blocks[1], "до 7 сентября, 6 дней") {
+		t.Fatalf("итог: %q", blocks)
 	}
 }
 
@@ -321,8 +349,8 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.mustContain(olga, "Где живёт Артём? Напишите город или регион")
 	// Геолокации кнопкой нет: в MAX она работает только в мобильном
 	// приложении, в вебе и на компьютере не нажимается.
-	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно" ||
-		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip"}) {
+	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно | ← Назад" ||
+		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip", "back:region"}) {
 		t.Fatalf("кнопки региона: %s %v", maxtest.Buttons(last), maxtest.Payloads(last))
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
@@ -369,7 +397,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	// Город не известен — подсказка его написать; Москва и Петербург — не свой регион.
 	h.mustContain(olga, "Где Артём хочет учиться? Можно выбрать несколько мест или написать город. Если важно учиться именно в своём городе")
 	last := h.fake.Last(olga.UserID)
-	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово" {
+	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово | ← Назад" {
 		t.Fatalf("варианты мест: %s", b)
 	}
 	id = h.press(olga, "place:done")
@@ -395,7 +423,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 		t.Fatalf("профиль родителю: %q", summary)
 	}
 	result := h.fake.Last(olga.UserID)
-	if !strings.HasPrefix(result.Text, "Подобрали ") || !strings.HasSuffix(result.Text, " по предметам Артёма.") {
+	if !strings.HasPrefix(result.Text, "По предметам Артёма подходят ") {
 		t.Fatalf("итог родителю: %q", result.Text)
 	}
 	if p := maxtest.Payloads(result); !slices.Equal(p, []string{"home"}) {
@@ -862,7 +890,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 		t.Fatalf("цель выбрана ребёнком: %+v", tr)
 	}
 	h.mustContain(olga, "Артём: цель выбрана — лечебное дело")
-	h.mustContain(artem, "Отлично! Подобрали ")
+	h.mustContain(artem, "Отлично! Под твою цель подходят ")
 }
 
 func TestSuggestDirections(t *testing.T) {
@@ -974,7 +1002,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 		t.Fatalf("пригласившему: %q", got)
 	}
 	h.press(artem, "join:ok")
-	h.mustContain(artem, "Отлично! Подобрали ")
+	h.mustContain(artem, "Отлично! Под твою цель подходят ")
 	m, _ := h.st.CurrentMember(context.Background(), artem.UserID)
 	if m.TrajectoryID != parent.TrajectoryID || m.Role != "kid" || m.IsCreator {
 		t.Fatalf("ученик в траектории Ольги: %+v", m)
@@ -1012,7 +1040,7 @@ func TestInvite_KidChangesGoal(t *testing.T) {
 	if len(tr.Directions) != 2 || tr.Directions[1].ID != "napr-01-03-02" || tr.GoalStatus != "known" {
 		t.Fatalf("цель после правки: %+v", tr.Directions)
 	}
-	h.mustContain(artem, "Подобрали ")
+	h.mustContain(artem, "Под твою цель подходят ")
 }
 
 func ptr(s string) *string { return &s }
@@ -1257,12 +1285,19 @@ func TestSummary_EditRegion(t *testing.T) {
 	}
 }
 
-// Вузы: «Изменить места» — шаг назад, правка продолжается до «Готово» вузов.
+// Вузы: «← Назад» при правке — к меню «Что поменять?», места правятся своим
+// полем. «Изменить места» со старого сообщения — шаг назад, правка
+// продолжается до «Готово» вузов.
 func TestSummary_EditUniversitiesViaPlaces(t *testing.T) {
 	h := newHarness(t)
 	h.toSummary()
 	h.edit("vuz")
-	h.press(artem, "vuz:places")
+	h.press(artem, "back:universities")
+	if d := h.dialog(artem); d.Step != stepSummary || !d.Draft.EditMenu || d.Draft.EditStage != 0 {
+		t.Fatalf("назад с вузов при правке: %+v", d)
+	}
+	h.pressAny(artem, "sum:f:vuz", "профиль")
+	h.pressAny(artem, "vuz:places", "")
 	if d := h.dialog(artem); d.Step != stepTarget || d.Draft.EditStage != 9 {
 		t.Fatalf("места при правке вузов: %+v", d)
 	}

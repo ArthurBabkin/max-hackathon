@@ -1,6 +1,6 @@
 /** Семья — экраны G1, G2, G3. Функции F38–F44, F47, F48. */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@maxhub/max-ui'
 import type { Role } from '@contract'
 import { useCreateInvite, useFamily, useLeaveTrajectory, useRemoveMember, useSession } from '@/api/queries'
@@ -23,6 +23,16 @@ export function FamilyScreen() {
 
   const [copied, setCopied] = useState(false)
   const [left, setLeft] = useState(false)
+  // Удаление и выход не отменить, поэтому срабатывают со второго нажатия.
+  // Здесь id участника или 'leave'; через 4 секунды без ответа кнопка
+  // возвращается в обычный вид.
+  const [armed, setArmed] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!armed) return
+    const timer = setTimeout(() => setArmed(null), 4000)
+    return () => clearTimeout(timer)
+  }, [armed])
 
   if (family.isPending) {
     return (
@@ -95,11 +105,11 @@ export function FamilyScreen() {
             {session && canRemoveMember(session, member) ? (
               <button
                 type="button"
-                className="member-remove"
+                className={armed === member.id ? 'member-remove member-remove-armed' : 'member-remove'}
                 disabled={removeMember.isPending}
-                onClick={() => removeMember.mutate(member.id)}
+                onClick={() => (armed === member.id ? removeMember.mutate(member.id) : setArmed(member.id))}
               >
-                {t('family.removeMember')}
+                {armed === member.id ? t('family.removeConfirm') : t('family.removeMember')}
               </button>
             ) : null}
           </div>
@@ -168,9 +178,13 @@ export function FamilyScreen() {
             disabled={left}
             loading={leave.isPending}
             iconBefore={<Icon name="out" size={15} />}
-            onClick={() => leave.mutate(undefined, { onSuccess: () => setLeft(true) })}
+            onClick={() =>
+              armed === 'leave'
+                ? leave.mutate(undefined, { onSuccess: () => setLeft(true) })
+                : setArmed('leave')
+            }
           >
-            {left ? t('toast.left') : t('family.leaveCta')}
+            {left ? t('toast.left') : armed === 'leave' ? t('family.leaveConfirm') : t('family.leaveCta')}
           </Button>
           {creator ? (
             <p className="fine fine-center">{t('family.leaveHint', { creator: creator.name })}</p>
