@@ -122,6 +122,14 @@ func (h *harness) answered(id string) maxapi.CallbackAnswer {
 	return maxapi.CallbackAnswer{}
 }
 
+// step — последний вопрос начинается со счётчика «Шаг n из 9».
+func (h *harness) step(u maxapi.User, n int) {
+	h.t.Helper()
+	if got := h.lastText(u); !strings.HasPrefix(got, fmt.Sprintf("Шаг %d из 9\n\n", n)) {
+		h.t.Fatalf("ждали шаг %d, последнее сообщение: %q", n, got)
+	}
+}
+
 func (h *harness) mustContain(u maxapi.User, want string) {
 	h.t.Helper()
 	if got := h.lastText(u); !strings.Contains(got, want) {
@@ -166,7 +174,7 @@ func (h *harness) toRegion(grade string) {
 	h.press(artem, "role:kid")
 	h.press(artem, "name:ok")
 	h.press(artem, "grade:"+grade)
-	h.mustContain(artem, "Где ты живёшь?")
+	h.mustContain(artem, "Шаг 4 из 9\n\nГде ты живёшь?")
 }
 
 // toDirections — ученик из Казани с предметами до вопроса о направлениях.
@@ -184,32 +192,41 @@ func (h *harness) toDirections(subjects ...string) {
 func (h *harness) kidOnboarding() store.Member {
 	h.t.Helper()
 	h.started(artem, "src_class_9a")
+	h.step(artem, 1)
 	h.mustContain(artem, "Кто вы?")
 	h.press(artem, "role:kid")
+	h.step(artem, 2)
 	h.mustContain(artem, "Тебя зовут Артём?")
 	h.press(artem, "name:ok")
+	h.step(artem, 3)
 	h.mustContain(artem, "Приятно познакомиться, Артём! В каком ты классе?")
 	h.press(artem, "grade:9")
+	h.step(artem, 4)
 	h.mustContain(artem, "Где ты живёшь? Напиши город или регион")
 	h.text(artem, "Казань")
 	if got := h.sentBack(artem, 1); got.Text != "Казань → Татарстан ✓" || !slices.Contains(maxtest.Payloads(got), "region:change") {
 		h.t.Fatalf("найден город: %q %v", got.Text, maxtest.Payloads(got))
 	}
+	h.step(artem, 5)
 	h.press(artem, "subj:t:inf")
 	h.press(artem, "subj:t:math")
 	h.press(artem, "subj:done")
+	h.step(artem, 6)
 	h.mustContain(artem, "Куда думаешь поступать? Под твои предметы подходят")
 	h.press(artem, "dir:t:napr-09-03-04")
 	h.press(artem, "dir:t:napr-09-03-01")
 	h.press(artem, "dir:done")
+	h.step(artem, 7)
 	h.mustContain(artem, "Какой у тебя опыт в олимпиадах?")
 	h.press(artem, "exp:school")
+	h.step(artem, 8)
 	h.mustContain(artem, "Где хочешь учиться? Можно выбрать несколько мест или написать город.")
 	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.HasPrefix(b, "Только Казань | Весь регион · Татарстан | Москва | Санкт-Петербург") {
 		h.t.Fatalf("варианты мест: %s", b)
 	}
 	h.press(artem, "place:t:1")
 	h.press(artem, "place:done")
+	h.step(artem, 9)
 	h.mustContain(artem, "Вот вузы с направлениями программная инженерия, информатика и вычислительная техника в этих местах.")
 	h.press(artem, "vuz:t:innopolis")
 	h.text(artem, "вышка")
@@ -281,7 +298,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
 	id := h.press(olga, "region:abc")
-	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "На какую букву ваш регион?") ||
+	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Шаг 4 из 9\n\nНа какую букву ваш регион?") ||
 		!slices.Contains(maxtest.Payloads(*a.Message), "region:l:Т") {
 		t.Fatalf("буквы на месте вопроса: %+v", a)
 	}
@@ -371,7 +388,7 @@ func TestRegion_TextSingleAndChange(t *testing.T) {
 		t.Fatalf("регион и город: %+v", d)
 	}
 	h.pressAny(artem, "region:change", found.Text)
-	h.mustContain(artem, "Где ты живёшь?")
+	h.mustContain(artem, "Шаг 4 из 9\n\nГде ты живёшь?")
 	if d := h.dialog(artem); d.Step != stepRegion || d.Draft.RegionCode != "" || d.Draft.HomeCity != "" {
 		t.Fatalf("снова регион: %+v", d)
 	}
@@ -397,7 +414,7 @@ func TestRegion_TextMany(t *testing.T) {
 	h.text(artem, "советск")
 	last := h.fake.Last(artem.UserID)
 	p := maxtest.Payloads(last)
-	if last.Text != "Нашёл несколько. Какой твой?" || len(p) != 4 || p[0] != "region:o:0" || p[3] != "region:abc" ||
+	if last.Text != "Шаг 4 из 9\n\nНашёл несколько. Какой твой?" || len(p) != 4 || p[0] != "region:o:0" || p[3] != "region:abc" ||
 		!strings.HasPrefix(maxtest.Buttons(last), "Советск · Калининградская обл.") {
 		t.Fatalf("варианты: %q %s %v", last.Text, maxtest.Buttons(last), p)
 	}
@@ -416,12 +433,12 @@ func TestRegion_TextFuzzy(t *testing.T) {
 	h.toRegion("9")
 	h.text(artem, "Казнь")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Не нашёл «Казнь». Может, это Казань — Татарстан?" ||
+	if last.Text != "Шаг 4 из 9\n\nНе нашёл «Казнь». Может, это Казань — Татарстан?" ||
 		!slices.Equal(maxtest.Payloads(last), []string{"region:o:0", "region:retry", "region:abc"}) {
 		t.Fatalf("переспрос: %q %v", last.Text, maxtest.Payloads(last))
 	}
 	id := h.press(artem, "region:retry")
-	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Где ты живёшь?") {
+	if a := h.answered(id); a.Message == nil || !strings.HasPrefix(a.Message.Text, "Шаг 4 из 9\n\nГде ты живёшь?") {
 		t.Fatalf("написать заново: %+v", a)
 	}
 	h.text(artem, "Казнь")
@@ -436,7 +453,7 @@ func TestRegion_TextNotFound(t *testing.T) {
 	h.toRegion("9")
 	h.text(artem, "asdf")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Не нашёл «asdf». Попробуй написать иначе или выбери по алфавиту." ||
+	if last.Text != "Шаг 4 из 9\n\nНе нашёл «asdf». Попробуй написать иначе или выбери по алфавиту." ||
 		!slices.Equal(maxtest.Payloads(last), []string{"region:abc"}) {
 		t.Fatalf("не найдено: %q %v", last.Text, maxtest.Payloads(last))
 	}
@@ -510,7 +527,7 @@ func TestRegion_Geolocation(t *testing.T) {
 		t.Fatalf("без города: %+v", d)
 	}
 	// Кнопка «Москва» из первого вопроса уже не действует.
-	id := h.pressAny(artem, "region:77", "Где ты живёшь?")
+	id := h.pressAny(artem, "region:77", "Шаг 4 из 9\n\nГде ты живёшь?")
 	if a := h.answered(id); a.Notification != "Этот вопрос уже позади" {
 		t.Fatalf("старая кнопка региона: %+v", a)
 	}
@@ -522,6 +539,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 	h.toDirections("inf", "math")
 	h.press(artem, "dir:help")
 	h.mustContain(artem, "Давай разберёмся вместе — два вопроса.")
+	h.step(artem, 6)
 	id := h.press(artem, "int:done")
 	if a := h.answered(id); a.Notification != "Выбери хотя бы один вариант" {
 		t.Fatalf("«Готово» без интересов: %+v", a)
@@ -537,6 +555,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 		t.Fatalf("интересы после «Готово»: %+v", a.Message)
 	}
 	h.mustContain(artem, "Какая работа тебе ближе?")
+	h.step(artem, 6)
 	id = h.press(artem, "work:text")
 	if a := h.answered(id); a.Notification != "Скоро здесь можно будет написать своими словами. Пока выбери вариант выше." {
 		t.Fatalf("своими словами: %+v", a)
@@ -617,7 +636,7 @@ func TestTarget_AddPlacesByText(t *testing.T) {
 	h.press(artem, "exp:none")
 	h.text(artem, "Иннополис")
 	last := h.fake.Last(artem.UserID)
-	if last.Text != "Добавил Иннополис. Что-то ещё?" || !strings.Contains(maxtest.Buttons(last), "✓ Иннополис · Татарстан") {
+	if last.Text != "Шаг 8 из 9\n\nДобавил Иннополис. Что-то ещё?" || !strings.Contains(maxtest.Buttons(last), "✓ Иннополис · Татарстан") {
 		t.Fatalf("добавлено: %q %s", last.Text, maxtest.Buttons(last))
 	}
 	h.text(artem, "советск")
@@ -683,7 +702,7 @@ func TestUniversities_NoDirectionHere(t *testing.T) {
 	h.press(artem, "place:done")
 	last := h.fake.Last(artem.UserID)
 	p := maxtest.Payloads(last)
-	if last.Text != "В выбранных местах нет программ по направлению «Биотехнология». Ближайшие вузы, где оно есть:" ||
+	if last.Text != "Шаг 9 из 9\n\nВ выбранных местах нет программ по направлению «Биотехнология». Ближайшие вузы, где оно есть:" ||
 		!slices.Contains(p, "vuz:add:sechenov") || !slices.Contains(p, "vuz:add:mipt") || !slices.Contains(p, "vuz:add:itmo") ||
 		!slices.Contains(p, "vuz:alldir") || !slices.Contains(p, "vuz:similar") {
 		t.Fatalf("пустая подборка: %q %v", last.Text, p)
@@ -755,12 +774,14 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	h := newHarness(t)
 	h.started(olga, "")
 	h.press(olga, "role:parent")
+	h.step(olga, 2) // у родителя имя вводится, номер тот же
 	h.text(olga, "Артём")
 	h.press(olga, "grade:10")
 	h.text(olga, "Казань")
 	h.press(olga, "subj:t:bio")
 	h.press(olga, "subj:done")
 	h.press(olga, "dir:kid")
+	h.step(olga, 7)
 	if got := h.sentBack(olga, 1).Text; !strings.HasPrefix(got, "Хорошо. Когда закончим, дам ссылку-приглашение: Артём ответит") {
 		t.Fatalf("ответ на «Пусть ответит»: %q", got)
 	}
@@ -792,6 +813,9 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	}
 	h.press(artem, "join:ok")
 	h.mustContain(artem, "Давай разберёмся вместе")
+	if got := h.lastText(artem); strings.HasPrefix(got, "Шаг ") {
+		t.Fatalf("у приглашённого ученика счётчика нет: %q", got)
+	}
 	h.press(artem, "int:t:bio")
 	h.press(artem, "int:done")
 	h.press(artem, "work:health")
