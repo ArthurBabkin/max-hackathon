@@ -119,7 +119,14 @@ function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRo
   }
   // Разброс порога — от программ; на направлении с одной программой его нет.
   if (tb.basis !== 'university' && tb.benefit !== whole.benefit && !tb.varies) row.ege_max = null
-  return row
+  // Своё у вуза, как на сервере: не на всех программах, льгота уточняется.
+  const notes = [
+    ...(tb.varies ? ['Зависит от программы: на части программ направления льготы нет'] : []),
+    ...(tb.unverified
+      ? [t('cond.unverifiedDirections', { directions: tb.names.map((n) => `«${n}»`).join(', ') })]
+      : []),
+  ]
+  return notes.length > 0 ? { ...row, conditions: notes } : row
 }
 
 function noBenefit(university: DemoUniversity): BenefitRow {
@@ -301,8 +308,9 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
       .map(universityById)
       .filter((u): u is DemoUniversity => u !== null)
       .map((u) => {
-        const notes = u.rules?.[o.id]?.notes
-        return notes ? { ...myBenefitRow(u, o.id), conditions: notes } : myBenefitRow(u, o.id)
+        const row = myBenefitRow(u, o.id)
+        const notes = [...(u.rules?.[o.id]?.notes ?? []), ...(row.conditions ?? [])]
+        return notes.length > 0 ? { ...row, conditions: notes } : row
       }),
   )
 

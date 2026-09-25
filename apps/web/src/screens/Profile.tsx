@@ -1,14 +1,16 @@
 /** Профиль ученика — экран H1, функции F49 и F61 (тема оформления). */
 
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
-import { GRADES, type Grade, type ProfilePatch } from '@contract'
+import { GRADES, type Grade, type Profile, type ProfilePatch } from '@contract'
 import { districts, regions } from '@regions'
 import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip } from '@/ui/primitives'
 import { ThemeSetting } from '@/ui/ThemeSetting'
+import { useSheetStack } from '@/ui/sheets'
+import { DirectionPicker } from './DirectionPicker'
 import { readThemeChoice, setThemeChoice, type ThemeChoice } from '@/ui/theme'
 import { useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
@@ -27,6 +29,47 @@ type PlacePatch = NonNullable<ProfilePatch['places']>[number]
 const samePlace = (a: PlacePatch, b: PlacePatch) =>
   a.region_code === b.region_code && (a.city ?? null) === (b.city ?? null)
 
+/** Поля формы, которые приходят с сервера. */
+interface FormFields {
+  name: string
+  grade: Grade
+  region: string
+  directions: string[]
+  places: PlacePatch[]
+  experience: Experience | null
+  subjects: string[]
+  universities: string[]
+}
+
+const fieldsOf = (p: Profile): FormFields => ({
+  name: p.student_name,
+  grade: p.grade as Grade,
+  region: p.region_code,
+  directions: p.directions.map((d) => d.id),
+  places: p.places.map((x) => ({ region_code: x.region_code, city: x.city })),
+  experience: (p.experience ?? null) as Experience | null,
+  subjects: p.subjects.map((x) => x.code),
+  universities: p.universities.map((u) => u.id),
+})
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+/**
+ * Новая версия профиля поверх несохранённой формы. Нетронутое поле берёт
+ * значение сервера, правка остаётся. Направления и вузы — множества: что
+ * добавили или убрали на сервере (в карточке вуза), то добавляется или
+ * убирается и в форме.
+ */
+export function rebase<T>(local: T, base: T, server: T): T {
+  if (same(local, base)) return server
+  if (Array.isArray(local) && Array.isArray(base) && Array.isArray(server)) {
+    const added = server.filter((x) => !base.includes(x))
+    const removed = base.filter((x) => !server.includes(x))
+    return [...local.filter((x) => !removed.includes(x)), ...added.filter((x) => !local.includes(x))] as T
+  }
+  return local
+}
+
 const SUBJECTS = [
   { code: 'inf', name: 'Информатика' },
   { code: 'math', name: 'Математика' },
@@ -44,6 +87,16 @@ export function ProfileScreen() {
   const directions = useDirections()
   const save = usePatchProfile()
   const serverVersion = useServerVersion()
+  const sheets = useSheetStack()
+  const location = useLocation()
+  const [params, setParams] = useSearchParams()
+  // Выбор направлений — в адресе: системная «Назад» закрывает его, а не экран.
+  const picking = params.get('pick') === 'directions'
+  const openPicker = () => navigate({ search: '?pick=directions' }, { state: { picker: true } })
+  const closePicker = () => {
+    if ((location.state as { picker?: boolean } | null)?.picker) navigate(-1)
+    else setParams({}, { replace: true })
+  }
 
   const [name, setName] = useState('')
   const [grade, setGrade] = useState<Grade>(9)
@@ -57,18 +110,27 @@ export function ProfileScreen() {
   const [warning, setWarning] = useState<string | null>(null)
   const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice)
 
-  // Форма заполняется, когда профиль приехал, и дальше живёт сама: иначе
-  // фоновый перезапрос затирал бы то, что пользователь уже поправил.
+  // Форма заполняется, когда профиль приехал, и дальше живёт сама. Новая
+  // версия с сервера (выбор направлений в карточке вуза поверх профиля)
+  // накладывается на форму, а не затирает то, что пользователь поправил.
+  const base = useRef<FormFields | null>(null)
   useEffect(() => {
     if (!profile.data) return
-    setName(profile.data.student_name)
-    setGrade(profile.data.grade as Grade)
-    setRegion(profile.data.region_code)
-    setSelectedDirections(profile.data.directions.map((d) => d.id))
-    setPlaces(profile.data.places.map((p) => ({ region_code: p.region_code, city: p.city })))
-    setExperience(profile.data.experience ?? null)
-    setSubjects(profile.data.subjects.map((s) => s.code))
-    setSelectedUniversities(profile.data.universities.map((u) => u.id))
+    const server = fieldsOf(profile.data)
+    // Функции-обновления React вызывает позже, когда base уже новая, — прошлую
+    // версию берём сейчас.
+    const was = base.current
+    const next = <T,>(local: T, key: keyof FormFields) =>
+      was ? rebase(local, was[key] as T, server[key] as T) : (server[key] as T)
+    setName((v) => next(v, 'name'))
+    setGrade((v) => next(v, 'grade'))
+    setRegion((v) => next(v, 'region'))
+    setSelectedDirections((v) => next(v, 'directions'))
+    setPlaces((v) => next(v, 'places'))
+    setExperience((v) => next(v, 'experience'))
+    setSubjects((v) => next(v, 'subjects'))
+    setSelectedUniversities((v) => next(v, 'universities'))
+    base.current = server
   }, [profile.data])
 
   if (profile.isPending) {
@@ -136,6 +198,9 @@ export function ProfileScreen() {
   }
 
   const nameInvalid = name.trim().length === 0 || name.trim().length > 40
+  const allDirections = directions.data?.items ?? []
+  // Сохранённые вузы, которые в форме не сняты.
+  const myUniversities = data.universities.filter((u) => selectedUniversities.includes(u.id))
 
   return (
     <div className="screen">
@@ -226,20 +291,35 @@ export function ProfileScreen() {
           <span>{t('profile.goalLabel')}</span>
           <span>{t('profile.selectedCount', { count: selectedDirections.length })}</span>
         </p>
+        {/* Чипами — основные и уже выбранные: иначе сохранение молча
+            выбросило бы цель, выбранную в карточке вуза. Остальные — в D4. */}
         <div className="wrap-chips" role="group" aria-label={t('profile.goalLabel')}>
-          {(directions.data?.items ?? []).map((d) => (
-            <Chip
-              key={d.id}
-              active={selectedDirections.includes(d.id)}
-              onClick={() => setSelectedDirections((list) => toggle(list, d.id))}
-            >
-              {selectedDirections.includes(d.id) ? '✓ ' : ''}
-              {d.name}
-            </Chip>
-          ))}
+          {allDirections
+            .filter((d) => d.popular || selectedDirections.includes(d.id))
+            .map((d) => (
+              <Chip
+                key={d.id}
+                active={selectedDirections.includes(d.id)}
+                onClick={() => setSelectedDirections((list) => toggle(list, d.id))}
+              >
+                {selectedDirections.includes(d.id) ? '✓ ' : ''}
+                {d.name}
+              </Chip>
+            ))}
+          {allDirections.some((d) => !d.popular) ? (
+            <Chip onClick={openPicker}>{t('profile.moreDirections')}</Chip>
+          ) : null}
         </div>
         <p className="field-note">{t('profile.goalHint')}</p>
       </div>
+      {picking ? (
+        <DirectionPicker
+          directions={allDirections}
+          selected={selectedDirections}
+          onToggle={(id) => setSelectedDirections((list) => toggle(list, id))}
+          onClose={closePicker}
+        />
+      ) : null}
 
       <div className="field">
         <p className="field-label">{t('profile.experienceLabel')}</p>
@@ -302,7 +382,7 @@ export function ProfileScreen() {
           <span>{t('profile.universitiesLabel')}</span>
           <span>{t('profile.selectedCount', { count: selectedUniversities.length })}</span>
         </p>
-        <div className="wrap-chips">
+        <div className="wrap-chips" role="group" aria-label={t('profile.universitiesLabel')}>
           {(universities.data?.items ?? []).map((university) => (
             <Chip
               key={university.id}
@@ -316,6 +396,31 @@ export function ProfileScreen() {
             </Chip>
           ))}
         </div>
+        {/* На какие направления вуза смотрим льготы (F65); выбор — в карточке вуза. */}
+        {myUniversities.length > 0 ? (
+          <>
+            <ul className="uni-targets" aria-label={t('profile.uniDirections')}>
+              {myUniversities.map((u) => (
+                <li key={u.id}>
+                  <button type="button" onClick={() => sheets.open({ kind: 'vuz', id: u.id })}>
+                    <b>{u.short_name}</b>
+                    <span>
+                      {u.target_basis === 'chosen'
+                        ? u.chosen_directions.map((d) => d.name).join(', ')
+                        : u.target_basis === 'goal'
+                          ? t('profile.uniDirectionsGoal', {
+                              directions: u.target_directions.map((d) => d.name).join(', '),
+                            })
+                          : t('profile.uniDirectionsNone')}
+                    </span>
+                    <Icon name="chevron" size={15} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="field-note">{t('profile.uniDirectionsHint')}</p>
+          </>
+        ) : null}
       </div>
 
       {warning ? <p className="field-warning">{warning}</p> : null}

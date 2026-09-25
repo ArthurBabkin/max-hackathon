@@ -5,8 +5,10 @@
  * там же — таблицей (BenefitTable). Зеркальная строка — в карточке вуза.
  */
 
-import type { BenefitRow as BenefitRowData } from '@contract'
+import type { BenefitKind, BenefitRow as BenefitRowData } from '@contract'
 import { NO_BENEFIT_LABEL } from '@contract'
+import { ofDirections } from '@/lib/catalog'
+import { useVoice } from '@/voice/useVoice'
 import { Icon } from './Icon'
 import { Tile } from './primitives'
 
@@ -24,6 +26,12 @@ export interface BenefitRowProps {
 }
 
 export function BenefitRow({ data, onOpen }: BenefitRowProps) {
+  const t = useVoice()
+  // «Где ещё даёт льготу» (F65): на скольких направлениях вуза.
+  const coverage =
+    data.directions_count > 0 && data.directions_total > 0
+      ? ` · ${t('university.onDirections', { count: data.directions_count, total: ofDirections(data.directions_total) })}`
+      : ''
   const body = (
     <>
       <span className="benefit-main">
@@ -36,7 +44,10 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
         />
         <span className="benefit-text">
           <b>{data.university_name}</b>
-          <span>{data.city}</span>
+          <span>
+            {data.city}
+            {coverage}
+          </span>
         </span>
       </span>
       <span className={benefitClass(data)}>{data.benefit_label ?? NO_BENEFIT_LABEL}</span>
@@ -59,6 +70,7 @@ export function UniversityOlympiadRow({
   name,
   subtitle,
   label,
+  benefit,
   shortName,
   color,
   onOpen,
@@ -68,6 +80,8 @@ export function UniversityOlympiadRow({
   name: string
   subtitle: string
   label: string
+  /** 100 баллов — своим цветом, как в таблице льгот. */
+  benefit?: BenefitKind
   shortName?: string | null
   color?: string | null
   onOpen: (olympiadProfileId: string) => void
@@ -81,7 +95,7 @@ export function UniversityOlympiadRow({
           <span>{subtitle}</span>
         </span>
       </span>
-      <span className="benefit-value benefit-bvi">{label}</span>
+      <span className={`benefit-value ${benefit === 'score100' ? 'benefit-score' : 'benefit-bvi'}`}>{label}</span>
       <Icon name="chevron" size={15} />
     </button>
   )

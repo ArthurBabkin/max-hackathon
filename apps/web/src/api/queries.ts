@@ -20,7 +20,7 @@ import type {
   AiMessage,
   CalendarLink,
   CalendarMonth,
-  Direction,
+  DirectionOption,
   Family,
   Home,
   Invite,
@@ -199,7 +199,7 @@ export const useProfile = () =>
 export const useDirections = () =>
   useQuery({
     queryKey: keys.directions,
-    queryFn: () => api.get<{ items: Direction[] }>('/directions'),
+    queryFn: () => api.get<{ items: DirectionOption[] }>('/directions'),
     staleTime: Infinity,
   })
 
@@ -352,6 +352,38 @@ export function useSetUniversities() {
     mutationFn: (universityIds: string[]) =>
       api.put<Profile>('/profile/universities', { university_ids: universityIds }),
     onSuccess: () => invalidateProfile(qc),
+  })
+}
+
+/**
+ * Направления в вузе (F65): вуз становится моим, новые направления — в цель.
+ * Галочка ставится сразу; ошибка откатывает её.
+ */
+export function useSetUniversityDirections(universityId: string) {
+  const qc = useQueryClient()
+  const key = keys.university(universityId)
+  return useMutation({
+    mutationFn: (directionIds: string[]) =>
+      api.put<Profile>(`/profile/universities/${encodeURIComponent(universityId)}/directions`, {
+        direction_ids: directionIds,
+      }),
+    onMutate: async (directionIds) => {
+      await qc.cancelQueries({ queryKey: key })
+      const before = qc.getQueryData<UniversityDetail>(key)
+      if (before) {
+        qc.setQueryData<UniversityDetail>(key, {
+          ...before,
+          is_mine: true,
+          offered_directions: before.offered_directions.map((d) => ({ ...d, is_mine: directionIds.includes(d.id) })),
+        })
+      }
+      return { before }
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.before) qc.setQueryData(key, context.before)
+    },
+    onSuccess: (profile) => qc.setQueryData(keys.profile, profile),
+    onSettled: () => invalidateProfile(qc),
   })
 }
 

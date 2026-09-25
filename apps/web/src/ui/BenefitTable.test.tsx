@@ -138,3 +138,28 @@ it('родителю — голос родителя', () => {
   })
   expect(screen.getByText(/не как в большинстве вузов Артёма/)).toBeInTheDocument()
 })
+
+// F65: льгота в моём вузе — на мои направления. Под вузом — на какие; если
+// на других моих направлениях льгота слабее — подстрокой со своими столбцами.
+it('под вузом — мои направления, другая льгота на других — подстрокой', () => {
+  setup(
+    [
+      row('hse', 'ВШЭ', {
+        directions: ['Прикладная математика и информатика'],
+        other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+      }),
+      row('kfu', 'КФУ', { directions: ['Программная инженерия'] }),
+    ],
+    ['winner', 'prizer'],
+  )
+  expect(screen.getByRole('rowheader', { name: 'ВШЭ Прикладная математика и информатика' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'ВШЭ' })).toBeInTheDocument()
+  const sub = screen.getByRole('rowheader', { name: 'Программная инженерия' }).closest('tr')!
+  expect(within(sub).getAllByText('100 баллов')).toHaveLength(2)
+  expect(screen.getByText('Льгота — на твои направления: отмеченные в карточке вуза или из цели.')).toBeInTheDocument()
+})
+
+it('льгота вуза целиком — без направлений и без пояснения о них', () => {
+  setup()
+  expect(screen.queryByText(/на твои направления/)).not.toBeInTheDocument()
+})

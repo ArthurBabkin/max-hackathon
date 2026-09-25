@@ -1322,6 +1322,37 @@
   overflow-wrap: break-word;
 }
 
+/* На какие мои направления льгота (F65) — под названием вуза. */
+.benefit-table-directions {
+  display: block;
+  margin: -4px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--p);
+  /* Название направления переносится по словам: «Программ-ная» не читается. */
+  overflow-wrap: break-word;
+}
+
+.benefit-table tbody .benefit-table-sub {
+  border-top: 0;
+}
+
+.benefit-table-sub th {
+  padding: 0 4px 6px 0;
+  overflow-wrap: break-word;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--p);
+  vertical-align: top;
+}
+
+.benefit-table-sub td {
+  padding-top: 0;
+  vertical-align: top;
+}
+
 .benefit-table .tile {
   width: 28px;
   height: 28px;
@@ -1526,20 +1557,124 @@
   color: var(--mu);
 }
 
-/* Карточка вуза */
-.directions {
+/* Направления вуза — D3 (F65): галочка «моё», код и программы, олимпиады. */
+.uni-direction {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--ln-strong);
+  text-align: left;
 }
 
-.direction {
-  padding: 5px 10px;
-  border: 1px solid var(--ln-strong);
-  border-radius: var(--r-sm);
-  background: var(--surface);
+.uni-direction:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.uni-direction .checkbox {
+  margin-top: 1px;
+}
+
+.uni-direction-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.uni-direction-text b {
+  font-size: var(--t-small);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.uni-direction-text span {
   font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+/* В выборе направлений (D4) код — рядом с названием. */
+.uni-direction-inline {
+  display: block;
+}
+
+.uni-direction-inline b,
+.uni-direction-inline span {
+  display: inline;
+}
+
+.uni-direction-goal {
+  font-style: normal;
   font-weight: 600;
+  color: var(--p);
+}
+
+.uni-direction-count {
+  flex: 0 0 auto;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--p);
+}
+
+.uni-direction-check {
+  color: var(--am-ink);
+}
+
+/* Профиль: на какие направления моих вузов смотрим льготы (F65). */
+.uni-targets {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uni-targets button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--ln-strong);
+  text-align: left;
+}
+
+.uni-targets b {
+  flex: 0 0 auto;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.uni-targets span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--t-micro);
+  color: var(--mu);
+}
+
+.uni-targets svg {
+  flex: 0 0 auto;
+  color: var(--mu);
+}
+
+.block-head-note {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--mu);
+}
+
+.block-hint {
+  margin: 8px 0 0;
+  font-size: var(--t-micro);
+  line-height: 1.4;
+  color: var(--mu);
+}
+
+.chips-inline {
+  margin: 4px 0 6px;
+  padding: 2px 0;
 }
 
 /* Ссылка внутри блока: блок уже на фоне --bg, поэтому строка — на --surface. */

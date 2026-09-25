@@ -57,7 +57,8 @@ it('льготы — таблицей, общие условия — после 
   expect(screen.queryByRole('heading', { name: 'Условия' })).not.toBeInTheDocument()
   const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
   const table = within(block).getByRole('table')
-  expect(within(table).getAllByRole('rowheader').map(spokenText)).toEqual(
+  // Под вузом — направления (F65), порядок сверяется по кнопкам вузов.
+  expect(within(table).getAllByRole('rowheader').map((h) => spokenText(within(h).getByRole('button')))).toEqual(
     base.benefits.filter((row) => row.winner || row.prizer).map((row) => row.university_nick),
   )
   expect(within(table).getByText('Засчитывает только диплом 11 класса')).toBeInTheDocument()

@@ -44,6 +44,8 @@ export interface OlympiadRow<T> {
   subjects: string
   benefit: BenefitKind
   open_profile_id: string
+  /** Все профили олимпиады в порядке появления. */
+  rows: T[]
 }
 
 /** Строка на олимпиаду: предметы её профилей и лучшая из льгот. Порядок — по первому появлению. */
@@ -59,9 +61,11 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
         subjects: r.subject_name ?? '',
         benefit: r.benefit,
         open_profile_id: r.olympiad_profile_id,
+        rows: [r],
       })
       continue
     }
+    seen.rows.push(r)
     if (r.subject_name && !seen.subjects.split(', ').includes(r.subject_name)) {
       seen.subjects = seen.subjects ? `${seen.subjects}, ${r.subject_name}` : r.subject_name
     }
@@ -69,3 +73,7 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
   }
   return [...out.values()]
 }
+
+/** «из 1 направления», «из 8 направлений» — после «на N из». */
+export const ofDirections = (n: number) =>
+  `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'направления' : 'направлений'}`
