@@ -6,7 +6,7 @@ import { Button, Input } from '@maxhub/max-ui'
 import { getWebApp } from '@/bridge'
 import { FAQ, faqKey, searchFaq } from '@/lib/faq'
 import { Icon } from '@/ui/Icon'
-import { StateBlock } from '@/ui/primitives'
+import { Section, StateBlock } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 
@@ -50,28 +50,30 @@ export function FaqScreen() {
         </StateBlock>
       ) : (
         sections.map((section) => (
-          <section key={section.id} className="block block-card faq-section">
-            <h3 className="block-head">{t(section.titleKey)}</h3>
-            {section.items.map((item) => (
-              // При поиске найденное раскрыто сразу: иначе пришлось бы тыкать в каждый.
-              <details key={`${item.id}${searching ? '-found' : ''}`} className="faq-item" open={searching}>
-                <summary>
-                  {t(faqKey(item.id, 'q'))}
-                  <Icon name="chevron" size={16} />
-                </summary>
-                <p>{t(faqKey(item.id, 'a'))}</p>
-                {item.source ? (
-                  <button
-                    type="button"
-                    className="source-line"
-                    onClick={() => getWebApp().openLink(item.source!.url)}
-                  >
-                    <Icon name="doc" size={13} />
-                    {item.source.title}
-                  </button>
-                ) : null}
-              </details>
-            ))}
+          <section key={section.id}>
+            <Section title={t(section.titleKey)} />
+            <div className="block block-card faq-list">
+              {section.items.map((item) => (
+                // При поиске найденное раскрыто сразу: иначе пришлось бы тыкать в каждый.
+                <details key={`${item.id}${searching ? '-found' : ''}`} className="faq-item" open={searching}>
+                  <summary>
+                    {t(faqKey(item.id, 'q'))}
+                    <Icon name="chevron" size={16} />
+                  </summary>
+                  <p>{t(faqKey(item.id, 'a'))}</p>
+                  {item.source ? (
+                    <button
+                      type="button"
+                      className="source-line"
+                      onClick={() => getWebApp().openLink(item.source!.url)}
+                    >
+                      <Icon name="doc" size={13} />
+                      {item.source.title}
+                    </button>
+                  ) : null}
+                </details>
+              ))}
+            </div>
           </section>
         ))
       )}

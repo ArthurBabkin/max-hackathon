@@ -650,9 +650,12 @@
   margin-top: var(--gap-sm);
 }
 
+/* Блок-карточка прямо на экране, а не внутри листа: поле как у остальных
+   карточек экрана. */
 .block-card {
   background: var(--surface);
   margin-top: var(--gap-md);
+  padding-inline: var(--pad-card);
 }
 
 .block-head {
@@ -2416,8 +2419,12 @@
   min-height: 44px;
 }
 
-.faq-section {
-  padding-bottom: 4px;
+/* Заголовок раздела над карточкой, как «Ближайшие сроки» на главной:
+   внутри карточки он сливался с вопросами того же размера. */
+.faq-list {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .faq-item {
