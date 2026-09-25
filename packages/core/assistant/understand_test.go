@@ -300,3 +300,34 @@ func TestAsk_UniversityButtonUsesNick(t *testing.T) {
 		t.Fatalf("кнопка: %+v %v", ans.CardRefs, err)
 	}
 }
+
+// Поиск по предмету — каталог только этого предмета, и у каждой олимпиады её
+// профили по нему с уровнем и классами. Иначе классы приходится сводить из
+// двух списков по всей базе, и модель ошибается: «Бельчонок» (8–11) назвала
+// олимпиадой для 7 класса, а ВсОШ (с 5 класса) пропустила.
+func TestAsk_CatalogOfAskedSubject(t *testing.T) {
+	st, tr := setup(t)
+	f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
+	a := &Assistant{Store: st, LLM: f, Classifier: said("search", map[string]float64{none: 1}, map[string]float64{none: 1})}
+	if _, err := a.Ask(context.Background(), kid, tr, nil, "Какие олимпиады по информатике есть для 7 класса?"); err != nil {
+		t.Fatal(err)
+	}
+	c := cardIn(t, f.calls[0][0].Content, "catalog")
+	line := func(prefix string) string {
+		for _, l := range strings.Split(c, `\n`) {
+			if strings.HasPrefix(strings.TrimSpace(l), prefix) {
+				return l
+			}
+		}
+		return ""
+	}
+	if l := line("Бельчонок —"); !strings.Contains(l, "информатика (II уровень, 8–11 классы)") || strings.Contains(l, "химия") {
+		t.Errorf("строка «Бельчонок» — только информатика с классами: %q", l)
+	}
+	if l := line("ВсОШ по информатике —"); !strings.Contains(l, "5–11 классы") {
+		t.Errorf("строка ВсОШ по информатике: %q", l)
+	}
+	if !strings.Contains(c, "Информатика, I уровень:") || strings.Contains(c, "Потомки Менделеева") || strings.Contains(c, "Химия, ") {
+		t.Errorf("каталог — только информатика:\n%s", c)
+	}
+}
