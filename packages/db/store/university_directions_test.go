@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
@@ -93,6 +94,39 @@ func TestReplaceUniversities_KeepsChosenDirections(t *testing.T) {
 	}
 	if got := chosenAt(t, s, f.trajectoryID, "hse"); len(got) != 0 {
 		t.Fatalf("вуз убрали — выбор ушёл с ним: %v", got)
+	}
+}
+
+// Двое в семье одновременно отмечают направления в одном вузе: оба запроса
+// проходят, выбор — одного из них, цель — без дублей и пропусков.
+func TestSetUniversityDirections_Concurrent(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid")
+	picks := [][]string{{dirAMI}, {dirAMI, dirIS}, {dirIS}, {dirAMI}, {dirAMI, dirIS}, {dirIS}}
+	errs := make([]error, len(picks))
+	var wg sync.WaitGroup
+	for i, ids := range picks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs[i] = s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, ids)
+		}()
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("запрос %d: %v", i, err)
+		}
+	}
+	tr, _ := s.Trajectory(ctx, f.trajectoryID)
+	var goal []string
+	for _, d := range tr.Directions {
+		goal = append(goal, d.ID)
+	}
+	slices.Sort(goal)
+	if want := []string{dirIS, dirAMI, dirSE}; !slices.Equal(goal, slices.Sorted(slices.Values(want))) {
+		t.Fatalf("цель без дублей и пропусков: %v", goal)
 	}
 }
 
