@@ -177,6 +177,20 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 		}
 		lines = append(lines, "  "+who+": "+g.text)
 	}
+	// Как плашка в приложении: по одним датам модель советовала олимпиаду,
+	// в которую уже не вступить.
+	var closed []string
+	for _, x := range ps {
+		if !stages.Joinable(byProfile[x.ID], c.now) {
+			closed = append(closed, profileTitle(x))
+		}
+	}
+	switch {
+	case len(closed) > 0 && len(closed) == len(ps):
+		lines = append(lines, "Регистрация закрыта: срок первого этапа прошёл, в этом сезоне в олимпиаду не вступить.")
+	case len(closed) > 0:
+		lines = append(lines, "Регистрация закрыта по профилям: "+strings.Join(closed, ", ")+" — срок первого этапа прошёл.")
+	}
 
 	year := 0
 	for _, bn := range benefits {
@@ -822,14 +836,28 @@ func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory,
 		}
 		st := byProfile[x.ProfileID]
 		p := stages.Progress{Registered: x.RegisteredAt != nil, Marks: marks[x.ID]}
-		for _, s := range st {
-			if r := p.Marks[s.ID].Result; r != "" {
-				line += "; " + strings.ToLower(s.Title) + " — " + resultText[r]
+		first := stages.FirstRegistration(st)
+		for i, s := range st {
+			m := p.Marks[s.ID]
+			if m.Registered && i != first {
+				line += "; " + strings.ToLower(stageName(s)) + " — отмечена"
+			}
+			if m.Result != "" {
+				line += "; " + strings.ToLower(stageName(s)) + " — " + resultText[m.Result]
 			}
 		}
-		if stages.ClosedAt(st, p) >= 0 {
+		// Статус — как группа в трекере приложения.
+		status, outcome := stages.Status(st, p, c.clock.now)
+		switch {
+		case outcome == stages.OutcomeMissed:
+			line += "; регистрация закрылась без отметки"
+		case outcome == stages.OutcomeUnknown:
+			line += "; сезон прошёл, итог не отмечен"
+		case status == stages.StatusFinished:
 			line += "; участие завершено"
 		}
+		// Регистрация закрылась без отметки, а ближайший этап всё равно
+		// нужен: вдруг ученик записался и не отметил.
 		if i := slices.IndexFunc(stages.States(st, p, c.clock.now), func(s string) bool { return s != "past" }); i >= 0 {
 			line += "; ближайший этап — " + c.clock.dated(st[i:i+1])
 			d.add(names.Olympiad(x.OlympiadName), st[i:i+1])
