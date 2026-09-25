@@ -147,6 +147,10 @@
     "kid": "{direction}, {grade} класс, {region}",
     "parent": "{direction}, {grade} класс, {region}"
   },
+  "match.subtitleNoRegion": {
+    "kid": "{direction}, {grade} класс",
+    "parent": "{direction}, {grade} класс"
+  },
   "match.recommendationTag": {
     "kid": "Рекомендация",
     "parent": "Рекомендация"
@@ -783,6 +787,10 @@
     "kid": "Регион",
     "parent": "Регион"
   },
+  "profile.regionNone": {
+    "kid": "Не указан",
+    "parent": "Не указан"
+  },
   "profile.subjectsLabel": {
     "kid": "Любимые предметы",
     "parent": "Любимые предметы"
@@ -1139,9 +1147,13 @@
     "kid": "Где ты живёшь? Напиши город или регион — например, «Казань» или «Татарстан». Нужно, чтобы напоминания приходили по твоему времени.",
     "parent": "Где живёт {student}? Напишите город или регион — например, «Казань» или «Татарстан». Нужно, чтобы напоминания приходили по местному времени."
   },
-  "bot.region.geo": {
-    "kid": "📍 Отправить геолокацию",
-    "parent": "📍 Отправить геолокацию"
+  "bot.region.skip": {
+    "kid": "Не важно",
+    "parent": "Не важно"
+  },
+  "bot.region.skipped": {
+    "kid": "Хорошо. Напоминания будут приходить по московскому времени — поменять можно в профиле.",
+    "parent": "Хорошо. Напоминания будут приходить по московскому времени — поменять можно в профиле."
   },
   "bot.region.found": {
     "kid": "{place} → {region} ✓",
@@ -1470,6 +1482,10 @@
   "bot.summary.grade": {
     "kid": "Класс: {grade} · {place}",
     "parent": "Класс: {grade} · {place}"
+  },
+  "bot.summary.gradeOnly": {
+    "kid": "Класс: {grade}",
+    "parent": "Класс: {grade}"
   },
   "bot.summary.subjects": {
     "kid": "Предметы: {subjects}",

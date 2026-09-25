@@ -38,9 +38,6 @@ func OpenAppButton(text, botName string, botID int64, payload string) Button {
 	return Button{Type: "open_app", Text: text, WebApp: botName, ContactID: botID, Payload: payload}
 }
 
-// GeoButton просит геопозицию (F6); ответ придёт сообщением с вложением location.
-func GeoButton(text string) Button { return Button{Type: "request_geo_location", Text: text} }
-
 // Keyboard — ряды кнопок.
 type Keyboard [][]Button
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/refdata"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
@@ -272,9 +273,11 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.mustContain(olga, "В каком классе Артём?")
 	h.press(olga, "grade:10")
 	h.mustContain(olga, "Где живёт Артём? Напишите город или регион")
-	if p := maxtest.Payloads(h.fake.Last(olga.UserID)); slices.Contains(p, "region:list") ||
-		!slices.Equal(p, []string{"region:77", "region:78", "region:50", "region:abc"}) {
-		t.Fatalf("кнопки региона без округов: %v", p)
+	// Геолокации кнопкой нет: в MAX она работает только в мобильном
+	// приложении, в вебе и на компьютере не нажимается.
+	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно" ||
+		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip"}) {
+		t.Fatalf("кнопки региона: %s %v", maxtest.Buttons(last), maxtest.Payloads(last))
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
 	id := h.press(olga, "region:abc")
@@ -443,6 +446,47 @@ func TestRegion_TextNotFound(t *testing.T) {
 	}
 	if d := h.dialog(artem); d.Step != stepRegion {
 		t.Fatalf("шаг региона: %+v", d)
+	}
+}
+
+// «Не важно»: регион не указан, напоминания — по Москве.
+func TestRegion_Skip(t *testing.T) {
+	h := newHarness(t)
+	h.toRegion("9")
+	id := h.press(artem, "region:skip")
+	if a := h.answered(id); a.Message == nil || maxtest.Buttons(*a.Message) != "✓ Не важно" {
+		t.Fatalf("выбор на месте вопроса: %+v", a)
+	}
+	if got := h.sentBack(artem, 1).Text; got != "Хорошо. Напоминания будут приходить по московскому времени — поменять можно в профиле." {
+		t.Fatalf("после «Не важно»: %q", got)
+	}
+	h.mustContain(artem, "Какие предметы тебе нравятся?")
+	if d := h.dialog(artem); d.Step != stepSubjects || d.Draft.RegionCode != "" || d.Draft.HomeCity != "" {
+		t.Fatalf("без региона: %+v", d)
+	}
+}
+
+// Без региона траектория создаётся с московским временем; в местах —
+// только Москва и Петербург, в профиле — класс без места.
+func TestRegion_SkipCreatesTrajectory(t *testing.T) {
+	h := newHarness(t)
+	h.toRegion("9")
+	h.press(artem, "region:skip")
+	h.press(artem, "subj:t:inf")
+	h.press(artem, "subj:done")
+	h.press(artem, "dir:later")
+	h.press(artem, "exp:none")
+	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.HasPrefix(b, "Москва | Санкт-Петербург | Другой город") {
+		t.Fatalf("варианты мест: %s", b)
+	}
+	h.press(artem, "place:any")
+	h.press(artem, "vuz:done")
+	tr := h.trajectory(artem)
+	if tr.RegionCode != "" || tr.TZ != "Europe/Moscow" || tr.HomeCity != nil {
+		t.Fatalf("траектория без региона: %+v", tr)
+	}
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Профиль готов, Артём**\nКласс: 9\nПредметы: информатика\n") {
+		t.Fatalf("профиль: %q", s)
 	}
 }
 
@@ -654,6 +698,27 @@ func TestUniversities_NoDirectionHere(t *testing.T) {
 	}
 	if d := h.dialog(artem); len(d.Draft.DirectionIDs) != 3 {
 		t.Fatalf("направления добавлены: %v", d.Draft.DirectionIDs)
+	}
+}
+
+// Ближайшие вузы считаются от своего города или региона, а без региона
+// («Не важно») — от первого выбранного места.
+func TestNearbyOrigin(t *testing.T) {
+	kazanLat, kazanLon, _ := refdata.CityCoords("Казань", "16")
+	spb, _ := refdata.ByCode("78")
+	for _, c := range []struct {
+		name     string
+		dr       store.Draft
+		places   []store.Place
+		lat, lon float64
+	}{
+		{"свой город", store.Draft{RegionCode: "16", HomeCity: "Казань"}, []store.Place{{RegionCode: "78"}}, kazanLat, kazanLon},
+		{"без региона — город места", store.Draft{}, []store.Place{{RegionCode: "16", City: "Казань"}}, kazanLat, kazanLon},
+		{"без региона — регион места", store.Draft{}, []store.Place{{RegionCode: "78"}}, spb.Lat, spb.Lon},
+	} {
+		if lat, lon := nearbyOrigin(c.dr, c.places); lat != c.lat || lon != c.lon {
+			t.Errorf("%s: %v, %v; ждали %v, %v", c.name, lat, lon, c.lat, c.lon)
+		}
 	}
 }
 
