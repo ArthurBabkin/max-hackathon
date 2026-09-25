@@ -211,7 +211,7 @@ func (b *Bot) targetText(t *turn, d store.Dialog, text string) error {
 		if matches[0].Kind == "region" {
 			place = refdata.Short(matches[0].RegionCode)
 		}
-		return b.sendPrompt(t, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place})))
+		return b.sendPrompt(t, withStep(v, d, targetPrompt(v, d, v.T("bot.target.added", voice.Vars{"place": place}))))
 	}
 	var kb maxapi.Keyboard
 	for i, o := range found {
