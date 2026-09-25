@@ -12,7 +12,7 @@ import { ThemedMaxUI, setThemeChoice } from '@/ui/theme'
 
 // Сохранение уходит в «живой» API: моки ответили бы сами и тело не поймать.
 vi.hoisted(() => vi.stubEnv('VITE_USE_MOCKS', 'off'))
-const { ProfileScreen } = await import('./Profile')
+const { ProfileScreen, rebase } = await import('./Profile')
 
 // ТЗ F49: в профиле правятся все поля, включая регион, цель, места и опыт.
 it('меняет регион, направления, места и опыт и отправляет их в PATCH /profile', async () => {
@@ -293,5 +293,24 @@ describe('направления цели и в вузах (F65)', () => {
       expect(goals.getByRole('button', { name: '✓ Информационная безопасность' })).toBeInTheDocument(),
     )
     expect(name).toHaveValue('Тёма')
+  })
+})
+
+// Новая версия профиля поверх несохранённой формы: элементы списков —
+// значения, а не ссылки. Места приходят новыми объектами при каждом ответе.
+describe('rebase', () => {
+  const kazan = { region_code: '16', city: 'Казань' }
+  const moscow = { region_code: '77', city: null }
+
+  it('убранное в форме место не возвращается, если на сервере его не трогали', () => {
+    const base = [kazan, moscow]
+    const server = [{ ...kazan }, { ...moscow }]
+    expect(rebase([kazan], base, server)).toEqual([kazan])
+  })
+
+  it('добавленное на сервере добавляется, убранное на сервере — убирается', () => {
+    const spb = { region_code: '78', city: null }
+    expect(rebase([kazan, moscow], [kazan, moscow], [{ ...kazan }, { ...moscow }, spb])).toEqual([kazan, moscow, spb])
+    expect(rebase([kazan, moscow, spb], [kazan, moscow], [{ ...kazan }])).toEqual([kazan, spb])
   })
 })
