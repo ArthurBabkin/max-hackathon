@@ -96,11 +96,24 @@ var conditionsText = map[string]string{
 	"other":    "Условия: льгот при поступлении не даёт; дополнительные баллы — не больше 10 в сумме за все достижения.",
 }
 
+// scope — чьи условия показывает карточка олимпиады: вузы из вопроса и
+// предметы ученика на «в моих вузах»; пусто — все. Строки соседних вузов и
+// других предметов модель путает с теми, о которых спросили.
+type scope struct{ universities, subjects []string }
+
+// subjectsOf — предметы охвата, которые у олимпиады есть; нет ни одного —
+// пусто, то есть все.
+func (s scope) subjectsOf(ps []store.Profile) []string {
+	return slices.DeleteFunc(slices.Clone(s.subjects), func(code string) bool {
+		return !slices.ContainsFunc(ps, func(x store.Profile) bool { return x.SubjectCode == code })
+	})
+}
+
 // olympiadText — карточка олимпиады, как её лист в приложении, только сразу
-// по всем профилям и всем вузам базы. asked — вузы из вопроса: тогда условия
-// только их, остальные вузы с льготами — списком. Строки соседних вузов
-// модель путает с условиями того, о котором спросили.
-func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked []string, c clock) (string, []store.BenefitRow, dates, error) {
+// по всем профилям и всем вузам базы. s — охват: условия только вузов из
+// вопроса (остальные вузы с льготами — списком) и только по предметам
+// ученика.
+func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scope, c clock) (string, []store.BenefitRow, dates, error) {
 	ps := slices.Clone(b.profiles[oid])
 	slices.SortStableFunc(ps, func(x, y store.Profile) int { return strings.Compare(profileTitle(x), profileTitle(y)) })
 	ids := make([]string, len(ps))
@@ -177,15 +190,28 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked 
 	case len(benefits) > 0:
 		lines = append(lines, fmt.Sprintf("Льготы при поступлении в %d году (вуз — профили: условие):", year))
 	}
+	subjects := s.subjectsOf(ps)
+	if len(subjects) > 0 && len(benefits) > 0 {
+		var titles []string
+		for _, code := range subjects {
+			if i := slices.IndexFunc(ps, func(x store.Profile) bool { return x.SubjectCode == code }); i >= 0 {
+				titles = append(titles, strings.ToLower(ps[i].SubjectName))
+			}
+		}
+		lines = append(lines, "Показаны условия по предметам ученика: "+strings.Join(titles, ", ")+".")
+	}
 	byUni := map[string][]grouped{}
 	var nicks, others []string
 	for _, x := range ps {
+		if len(subjects) > 0 && !slices.Contains(subjects, x.SubjectCode) {
+			continue
+		}
 		for _, bn := range benefits {
 			if bn.ProfileID != x.ID {
 				continue
 			}
 			nick := pick.Nick(bn.UniversityID, bn.UniversityShort)
-			if len(asked) > 0 && !slices.Contains(asked, bn.UniversityID) {
+			if len(s.universities) > 0 && !slices.Contains(s.universities, bn.UniversityID) {
 				if !slices.Contains(others, nick) {
 					others = append(others, nick)
 				}
@@ -203,9 +229,13 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, asked 
 		lines = append(lines, "  "+nick+" — "+joinGroups(byUni[nick]))
 	}
 	if len(benefits) > 0 {
-		for _, id := range asked {
+		nothing := " — по этой олимпиаде ничего не даёт"
+		if len(subjects) > 0 {
+			nothing = " — по этим предметам ничего не даёт"
+		}
+		for _, id := range s.universities {
 			if u, ok := b.uni[id]; ok && !slices.Contains(nicks, pick.Nick(id, u.ShortName)) {
-				lines = append(lines, "  "+pick.Nick(id, u.ShortName)+" — по этой олимпиаде ничего не даёт")
+				lines = append(lines, "  "+pick.Nick(id, u.ShortName)+nothing)
 			}
 		}
 	}
