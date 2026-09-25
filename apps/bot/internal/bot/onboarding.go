@@ -95,13 +95,14 @@ func withStep(v voice.Voice, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMe
 	return msg
 }
 
-// prompt — вопрос текущего шага со счётчиком шагов.
+// prompt — вопрос текущего шага со счётчиком шагов; под вопросом, кроме
+// первого, — «← Назад».
 func (b *Bot) prompt(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	msg, err := b.question(t, d)
 	if err != nil {
 		return msg, err
 	}
-	return withStep(dialogVoice(t, d), d, msg), nil
+	return withBack(t, d, withStep(dialogVoice(t, d), d, msg)), nil
 }
 
 // question — вопрос текущего шага с клавиатурой, собранной из черновика:
@@ -112,16 +113,22 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	switch d.Step {
 	case stepRole:
 		return maxapi.WithKeyboard(v.T("bot.welcome", nil), maxapi.Keyboard{maxapi.Row(
-			cb(v.T("bot.role.kid", nil), "role:kid"), cb(v.T("bot.role.parent", nil), "role:parent"))}), nil
+			cb(check(d.Role == "kid", v.T("bot.role.kid", nil)), "role:kid"),
+			cb(check(d.Role == "parent", v.T("bot.role.parent", nil)), "role:parent"))}), nil
 	case stepNameConfirm:
 		return maxapi.WithKeyboard(v.T("bot.name.confirm", voice.Vars{"me": d.Draft.Name}), maxapi.Keyboard{maxapi.Row(
 			cb(v.T("bot.name.yes", nil), "name:ok"), cb(v.T("bot.name.edit", nil), "name:edit"))}), nil
 	case stepNameInput:
-		return maxapi.Text(v.T("bot.name.ask", nil)), nil
+		// После «Назад» введённое имя — кнопкой: оставить его или написать другое.
+		var kb maxapi.Keyboard
+		if d.Draft.Name != "" {
+			kb = maxapi.Keyboard{maxapi.Row(cb(check(true, d.Draft.Name), "name:keep"))}
+		}
+		return maxapi.WithKeyboard(v.T("bot.name.ask", nil), kb), nil
 	case stepGrade:
 		row := []maxapi.Button{}
 		for g := 8; g <= 11; g++ {
-			row = append(row, cb(strconv.Itoa(g), "grade:"+strconv.Itoa(g)))
+			row = append(row, cb(check(g == d.Draft.Grade, strconv.Itoa(g)), "grade:"+strconv.Itoa(g)))
 		}
 		ask := "bot.grade.ask"
 		if d.Draft.EditStage > 0 {
@@ -147,7 +154,7 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	case stepInterest:
 		return interestPrompt(v, d), nil
 	case stepWork:
-		return workPrompt(v), nil
+		return workPrompt(v, d), nil
 	case stepExperience:
 		return experiencePrompt(v, d), nil
 	case stepTarget:
@@ -251,10 +258,10 @@ func interestPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 
 // workPrompt — В2 «какая работа ближе» (SPEC 5.3). «Своими словами» пока
 // только отвечает «скоро».
-func workPrompt(v voice.Voice) maxapi.NewMessage {
+func workPrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 	var kb maxapi.Keyboard
 	for _, code := range workCodes {
-		kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.work."+code, nil), "work:"+code)))
+		kb = append(kb, maxapi.Row(maxapi.CallbackButton(check(code == d.Draft.Work, v.T("bot.work."+code, nil)), "work:"+code)))
 	}
 	kb = append(kb, maxapi.Row(maxapi.CallbackButton(v.T("bot.work.text", nil), "work:text")))
 	return maxapi.WithKeyboard(v.T("bot.work.ask", nil), kb)
@@ -263,11 +270,10 @@ func workPrompt(v voice.Voice) maxapi.NewMessage {
 // experiencePrompt — опыт в олимпиадах (SPEC 6); у родителя есть «Не знаю».
 func experiencePrompt(v voice.Voice, d store.Dialog) maxapi.NewMessage {
 	cb := maxapi.CallbackButton
-	kb := maxapi.Keyboard{
-		maxapi.Row(cb(v.T("bot.exp.none", nil), "exp:none")),
-		maxapi.Row(cb(v.T("bot.exp.school", nil), "exp:school")),
-		maxapi.Row(cb(v.T("bot.exp.region", nil), "exp:region")),
+	exp := func(code string) maxapi.Button {
+		return cb(check(d.Draft.Experience == code, v.T("bot.exp."+code, nil)), "exp:"+code)
 	}
+	kb := maxapi.Keyboard{maxapi.Row(exp("none")), maxapi.Row(exp("school")), maxapi.Row(exp("region"))}
 	if d.Role == "parent" {
 		kb = append(kb, maxapi.Row(cb(v.T("bot.exp.idk", nil), "exp:none:idk")))
 	}
@@ -280,6 +286,120 @@ func lowerFirst(s string) string {
 		return s
 	}
 	return strings.ToLower(string(r)) + s[size:]
+}
+
+// nameOK — имя от 1 до 40 символов (F4).
+func nameOK(name string) bool {
+	n := utf8.RuneCountInString(name)
+	return n >= 1 && n <= 40
+}
+
+// backStep — куда ведёт «← Назад» с текущего шага; "" — назад некуда
+// (первый вопрос, шаги приглашённого). Предыдущий шаг выводится из
+// черновика: имя из профиля MAX подтверждают, иначе вводят; после «Помоги
+// выбрать» опыт идёт за предложенными направлениями.
+func backStep(t *turn, d store.Dialog) string {
+	switch d.Step {
+	case stepNameConfirm:
+		return stepRole
+	case stepNameInput:
+		if nameStep(t, d.Role) == stepNameConfirm {
+			return stepNameConfirm
+		}
+		return stepRole
+	case stepGrade:
+		return nameStep(t, d.Role)
+	case stepRegion:
+		return stepGrade
+	case stepSubjects:
+		return stepRegion
+	case stepDirection:
+		return stepSubjects
+	case stepInterest:
+		if d.Draft.Joined {
+			return ""
+		}
+		return stepDirection
+	case stepWork:
+		return stepInterest
+	case stepSuggest:
+		return stepWork
+	case stepExperience:
+		if len(d.Draft.Suggested) > 0 {
+			return stepSuggest
+		}
+		return stepDirection
+	case stepTarget:
+		return stepExperience
+	case stepUniversities, stepUniSearch:
+		return stepTarget
+	}
+	return ""
+}
+
+// nameStep — вопрос об имени: ученику с именем в профиле MAX — «Тебя зовут
+// …?», иначе — ввести имя.
+func nameStep(t *turn, role string) string {
+	if role == "kid" && nameOK(strings.TrimSpace(t.user.FirstName)) {
+		return stepNameConfirm
+	}
+	return stepNameInput
+}
+
+// withBack добавляет под вопрос шага «← Назад» (payload back:<шаг>: со
+// старого вопроса кнопка ничего не меняет). Буквы и регионы на букву — не
+// вопрос шага, там своя «← Другая буква».
+func withBack(t *turn, d store.Dialog, msg maxapi.NewMessage) maxapi.NewMessage {
+	if backStep(t, d) == "" || d.Step == stepRegion && d.Draft.Letter != "" {
+		return msg
+	}
+	back := maxapi.CallbackButton(dialogVoice(t, d).T("bot.btn.back", nil), "back:"+d.Step)
+	out := maxapi.WithKeyboard(msg.Text, append(msg.Keyboard(), maxapi.Row(back)))
+	out.Format = msg.Format
+	return out
+}
+
+// backCallback — «← Назад»: предыдущий вопрос на месте текущего. Ответы
+// черновика остаются и отмечены «✓», вперёд их можно пройти заново. При
+// правке из карточки профиля — меню правки.
+func (b *Bot) backCallback(t *turn, cb *maxapi.Callback, step string) error {
+	d, err := b.store.UpdateDialog(t.ctx, t.userID, func(_ *store.Store, d *store.Dialog) error {
+		if err := expect(d, step); err != nil {
+			return err
+		}
+		prev := backStep(t, *d)
+		if prev == "" {
+			return store.ErrStale
+		}
+		if d.Draft.EditStage > 0 && stepNumbers[prev] != d.Draft.EditStage {
+			// Правка из карточки профиля: назад — к меню «Что поменять?»,
+			// внутри поля («Помоги выбрать») — к его прошлому вопросу.
+			d.Step, d.Draft.EditStage, d.Draft.EditMenu = stepSummary, 0, true
+			d.Draft.Letter, d.Draft.Found = "", nil
+			return nil
+		}
+		switch prev {
+		case stepRegion:
+			// Кнопки выбора региона (region:o) берут варианты из PlaceOptions;
+			// варианты «Где учиться» соберутся заново на шаге опыта.
+			d.Draft.PlaceOptions = nil
+		case stepTarget:
+			toTarget(&d.Draft)
+		}
+		d.Draft.Letter, d.Draft.Found, d.Step = "", nil, prev
+		return nil
+	})
+	if errors.Is(err, store.ErrStale) || errors.Is(err, store.ErrNotFound) {
+		return b.staleDialog(t, cb)
+	}
+	if err != nil {
+		return err
+	}
+	msg, err := b.prompt(t, d)
+	if err != nil {
+		return err
+	}
+	return b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Message: &msg})
 }
 
 // ask отправляет вопрос шага и запоминает сообщение: мультивыбор правит
@@ -448,20 +568,41 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			if err := expect(d, stepRole); err != nil {
 				return err
 			}
-			d.Role = role
+			if role == d.Role && d.Draft.Name != "" {
+				// Вернулись к роли и выбрали ту же: имя остаётся.
+				d.Step = nameStep(t, role)
+				return nil
+			}
+			// У родителя имя — ребёнка, у ученика — своё: при смене роли
+			// прежнее не годится.
+			d.Role, d.Draft.Name = role, ""
 			if role == "parent" {
 				d.Step = stepNameInput
 				return nil
 			}
 			d.Draft.Name = strings.TrimSpace(t.user.FirstName)
 			d.Step = stepNameConfirm
-			if n := utf8.RuneCountInString(d.Draft.Name); n < 1 || n > 40 {
+			if !nameOK(d.Draft.Name) {
 				d.Draft.Name = ""
 				d.Step = stepNameInput
 			}
 			return nil
 		})
 	case "name":
+		if arg(0) == "keep" {
+			// Имя, введённое до «Назад».
+			name := ""
+			if d, err := b.store.Dialog(t.ctx, t.userID); err == nil {
+				name = d.Draft.Name
+			}
+			return true, b.transition(t, cb, question, name, func(_ *store.Store, d *store.Dialog) error {
+				if err := expect(d, stepNameInput); err != nil || d.Draft.Name == "" {
+					return store.ErrStale
+				}
+				d.Step = stepGrade
+				return nil
+			})
+		}
 		label := v.T("bot.name.yes", nil)
 		next := stepGrade
 		if arg(0) == "edit" {
@@ -531,6 +672,8 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		return true, b.staleDialog(t, cb)
 	case "vuz":
 		return true, b.universityCallback(t, cb, question, arg(0), arg(1))
+	case "back":
+		return true, b.backCallback(t, cb, arg(0))
 	case "sum":
 		return true, b.summaryCallback(t, cb, question, arg(0), arg(1))
 	}
@@ -586,7 +729,7 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 			if err := expect(d, stepDirection); err != nil {
 				return err
 			}
-			d.Draft.DirectionIDs, d.Draft.AllDirections, d.Draft.Interests, d.Draft.Work = nil, false, nil, ""
+			// Прежние ответы В1–В2 остаются: после «Назад» они отмечены.
 			d.Step = stepInterest
 			return nil
 		})
@@ -595,7 +738,7 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 			if err := expect(d, stepDirection); err != nil || d.Role != "parent" {
 				return store.ErrStale
 			}
-			d.Draft.DirectionIDs, d.Draft.GoalByKid, d.Step = nil, true, stepExperience
+			d.Draft.DirectionIDs, d.Draft.Suggested, d.Draft.GoalByKid, d.Step = nil, nil, true, stepExperience
 			return nil
 		}, func(d store.Dialog) error { return b.say(t, dialogVoice(t, d).T("bot.direction.kidLater", nil)) })
 	case "done", "later":
@@ -618,6 +761,11 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 					return errNotNow{"bot.suggest.need"}
 				}
 				return errNotNow{"bot.direction.need"}
+			}
+			if d.Step == stepDirection {
+				// Выбрано в общем списке, а не из предложенных; «Пусть ребёнок
+				// ответит», если его нажали до «Назад», больше не в силе.
+				d.Draft.Suggested, d.Draft.GoalByKid = nil, false
 			}
 			switch {
 			case d.Step == stepJoinDirection:
@@ -741,7 +889,7 @@ func (b *Bot) experienceCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			return err
 		}
 		d.Draft.Experience, d.Step = code, stepTarget
-		d.Draft.PlaceOptions, d.Draft.Found = defaultPlaces(d.Draft), nil
+		d.Draft.PlaceOptions, d.Draft.Found = targetOptions(d.Draft), nil
 		return nil
 	})
 }
@@ -788,7 +936,7 @@ func (b *Bot) freeText(t *turn, text string) error {
 	switch d.Step {
 	case stepNameInput:
 		name := strings.Join(strings.Fields(text), " ")
-		if n := utf8.RuneCountInString(name); n < 1 || n > 40 {
+		if !nameOK(name) {
 			return b.say(t, dialogVoice(t, d).T("bot.name.invalid", nil))
 		}
 		d, err = b.updateDialog(t, func(_ *store.Store, d *store.Dialog) error {

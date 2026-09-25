@@ -247,7 +247,7 @@ func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi
 	if d.Draft.OfferMore {
 		kb = append(kb, maxapi.Row(cb(v.T("bot.vuz.more", nil), "vuz:more")))
 	}
-	kb = append(kb, maxapi.Row(cb(v.T("bot.vuz.places", nil), "vuz:places"), cb(finish, "vuz:done")))
+	kb = append(kb, maxapi.Row(cb(finish, "vuz:done")))
 	return maxapi.WithKeyboard(text, kb), nil
 }
 
@@ -287,14 +287,10 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			return offer(t, tx, d)
 		}))
 	case "places":
+		// «Изменить места» из сообщений до кнопки «← Назад».
 		return b.transition(t, cb, question, v.T("bot.vuz.places", nil), onStep(func(_ *store.Store, d *store.Dialog) error {
-			d.Step, d.Draft.PlacesAny, d.Draft.Found = stepTarget, false, nil
-			d.Draft.PlaceOptions = placeOptions(d.Draft)
-			if places, _ := draftPlaces(d.Draft); len(d.Draft.Places) == 0 {
-				// Диалог v1: место было в Target.
-				d.Draft.Places = places
-			}
-			d.Draft.Target = ""
+			toTarget(&d.Draft)
+			d.Step, d.Draft.PlacesAny = stepTarget, false
 			return nil
 		}))
 	case "add":
