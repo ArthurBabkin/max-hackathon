@@ -136,7 +136,7 @@ func (s Set) Student() match.Student {
 func (s Set) Candidate(p store.Profile) match.Candidate {
 	c := match.Candidate{
 		ProfileID: p.ID, OlympiadID: p.OlympiadID, Kind: p.Kind, SubjectCode: p.SubjectCode, Level: p.Level,
-		BestBenefit: BestBenefit(s.Benefits[p.ID]), Stages: s.Stages[p.ID], Registered: s.Tracker.Registered[p.ID],
+		BestBenefit: BestBenefit(s.Benefits[p.ID]), Stages: s.Stages[p.ID], Progress: s.Tracker.Progress[p.ID],
 		FinalRegionCode: p.FinalRegionCode,
 	}
 	if best := BestBenefit(s.Potential[p.ID]); c.BestBenefit == "" && best != "" {
