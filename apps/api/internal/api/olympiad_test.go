@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -88,9 +89,19 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	if benefits[0]["ege_max"] != float64(85) || benefits[1]["ege_max"] != nil || benefits[2]["ege_max"] != nil {
 		t.Fatalf("разброс порога ВШЭ: %v", benefits)
 	}
-	for _, row := range benefits {
+	// Столбцы показали всё, кроме того, что льгота ВШЭ на Программную
+	// инженерию есть не на всех программах (F65).
+	for i, row := range benefits {
+		var want []string
+		if i == 0 {
+			want = []string{"Зависит от программы: на «Программирование и инжиниринг компьютерных игр» и «Разработка информационных систем для бизнеса» льготы нет"}
+		}
+		var got []string
 		if row["conditions"] != nil {
-			t.Fatalf("столбцы всё показали, своих условий нет: %v", row)
+			got = strs(row["conditions"])
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("свои условия вуза: %v", row)
 		}
 	}
 	if fmt.Sprint(b["benefit_columns"]) != "[winner prizer ege]" {

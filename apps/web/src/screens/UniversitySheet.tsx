@@ -1,16 +1,16 @@
 /** Карточка вуза — экран D3. Функции F25, F26. */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@maxhub/max-ui'
-import { BENEFIT_LABELS } from '@contract'
-import { useProfile, useSetUniversities, useUniversity } from '@/api/queries'
+import { BENEFIT_LABELS, type UniversityDetail } from '@contract'
+import { useProfile, useSession, useSetUniversities, useSetUniversityDirections, useUniversity } from '@/api/queries'
 import { getWebApp } from '@/bridge'
-import { byOlympiad } from '@/lib/catalog'
-import { formatShortDate } from '@/lib/deadline'
+import { byOlympiad, ofDirections } from '@/lib/catalog'
+import { formatShortDate, plural } from '@/lib/deadline'
 import { UniversityOlympiadRow } from '@/ui/BenefitRow'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
-import { CardSkeletons, SourceTag, Tile } from '@/ui/primitives'
+import { Chip, CardSkeletons, SourceTag, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
@@ -18,11 +18,96 @@ import { ErrorState } from '@/ui/ErrorState'
 /** Сколько олимпиад вуза видно сразу: у Иннополиса их больше шестидесяти. */
 const PREVIEW = 8
 
+/** Сколько направлений видно сразу: у КФУ их сорок. */
+const DIRECTIONS_PREVIEW = 5
+
+type Olympiads = 'mine' | 'all'
+
+/**
+ * Направления вуза (D3, F65): галочка — «моё», выбор сохраняется сразу. Мои
+ * сверху, за ними из цели, дальше — где больше олимпиад с льготой.
+ */
+function Directions({ university, canEdit }: { university: UniversityDetail; canEdit: boolean }) {
+  const t = useVoice()
+  const [showAll, setShowAll] = useState(false)
+  const save = useSetUniversityDirections(university.id)
+  // Порядок запоминается при открытии: отмеченная строка не уезжает из-под
+  // пальца, хотя сервер ставит выбранное первым.
+  const order = useRef<string[]>([])
+  for (const d of university.offered_directions) if (!order.current.includes(d.id)) order.current.push(d.id)
+  const all = [...university.offered_directions].sort(
+    (a, b) => order.current.indexOf(a.id) - order.current.indexOf(b.id),
+  )
+  if (all.length === 0) return null
+  const mine = all.filter((d) => d.is_mine)
+  const shown = showAll ? all : all.slice(0, DIRECTIONS_PREVIEW)
+  const toggle = (id: string) => {
+    const ids = mine.map((d) => d.id)
+    save.mutate(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id])
+  }
+
+  return (
+    <section className="block">
+      <h3 className="block-head">
+        {t('university.directions')}
+        {mine.length > 0 ? (
+          <span className="block-head-note">{t('university.directionsMine', { count: mine.length, total: all.length })}</span>
+        ) : null}
+      </h3>
+      {shown.map((d) => (
+        <button
+          key={d.id}
+          type="button"
+          role="checkbox"
+          aria-checked={d.is_mine}
+          className="uni-direction"
+          disabled={!canEdit || save.isPending}
+          onClick={() => toggle(d.id)}
+        >
+          <span className={`checkbox${d.is_mine ? ' checkbox-on' : ''}`}>
+            {d.is_mine ? <Icon name="check" size={12} strokeWidth={3} /> : null}
+          </span>
+          <span className="uni-direction-text">
+            <b>{d.name}</b>
+            <span>
+              {d.code}
+              {d.programs > 0 ? ` · ${d.programs} ${plural(d.programs, 'программа', 'программы', 'программ')}` : ''}
+              {university.target_basis === 'goal' && d.is_goal ? (
+                <em className="uni-direction-goal"> · {t('university.directionGoal')}</em>
+              ) : null}
+            </span>
+          </span>
+          {d.status === 'to_check' ? (
+            <span className="uni-direction-count uni-direction-check">{t('university.directionToCheck')}</span>
+          ) : d.benefit_olympiads_count > 0 ? (
+            <span className="uni-direction-count">
+              {d.benefit_olympiads_count}{' '}
+              {plural(d.benefit_olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')}
+            </span>
+          ) : null}
+        </button>
+      ))}
+      {all.length > shown.length ? (
+        <button type="button" className="link show-more" onClick={() => setShowAll(true)}>
+          {t('university.allDirections', { count: all.length })}
+        </button>
+      ) : null}
+      {university.target_basis === 'goal' ? (
+        <p className="block-hint">{t('university.directionsHintGoal')}</p>
+      ) : university.target_basis === 'university' ? (
+        <p className="block-hint">{t('university.directionsHintNone')}</p>
+      ) : null}
+    </section>
+  )
+}
+
 export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack }) {
   const t = useVoice()
   const [showAll, setShowAll] = useState(false)
+  const [mode, setMode] = useState<Olympiads | null>(null)
   const query = useUniversity(id)
   const { data: profile } = useProfile()
+  const { data: session } = useSession()
   const setUniversities = useSetUniversities()
 
   const canGoBack = sheets.stack.length > 1
@@ -46,8 +131,23 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
   const university = query.data
   const current = profile?.universities.map((u) => u.id) ?? []
   const isMine = university.is_mine
-  const olympiads = byOlympiad(university.olympiads)
+  const chosen = university.offered_directions.filter((d) => d.is_mine).length
+  const allOlympiads = byOlympiad(university.olympiads)
+  // «На мои направления» — льгота на них; фильтр есть, только если льготы
+  // считаются по направлениям и они проверены.
+  const myOlympiads = byOlympiad(
+    university.olympiads.flatMap((o) => (o.my_benefit ? [{ ...o, benefit: o.my_benefit }] : [])),
+  )
+  const byDirections = university.target_basis !== 'university' && !university.target_unverified
+  const shownMode: Olympiads = mode ?? (byDirections && myOlympiads.length > 0 ? 'mine' : 'all')
+  const olympiads = byDirections && shownMode === 'mine' ? myOlympiads : allOlympiads
   const shown = showAll ? olympiads : olympiads.slice(0, PREVIEW)
+  const coverage = (rows: UniversityDetail['olympiads']) => {
+    const best = rows.reduce((a, r) => (r.directions_count > a.directions_count ? r : a), rows[0]!)
+    return best.directions_total > 0 && best.directions_count > 0
+      ? ` · ${t('university.onDirections', { count: best.directions_count, total: ofDirections(best.directions_total) })}`
+      : ''
+  }
 
   const toggle = () => {
     // Вузы выбирать не обязательно (F9): последний тоже можно убрать.
@@ -106,16 +206,7 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
         ) : null}
       </section>
 
-      <section className="block">
-        <h3 className="block-head">{t('university.directions')}</h3>
-        <div className="directions">
-          {university.directions.map((direction) => (
-            <span key={direction} className="direction">
-              {direction}
-            </span>
-          ))}
-        </div>
-      </section>
+      <Directions university={university} canEdit={session?.permissions.edit_profile !== false} />
 
       {/* Олимпиады, дающие льготу в этом вузе, с переходом в карточку — F26. */}
       <section className="block" data-tour="university-olympiads">
@@ -123,6 +214,20 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
           {t('university.olympiadsTitle')}
           <SourceTag kind="fact" />
         </h3>
+        {byDirections ? (
+          <div className="chips chips-inline">
+            <Chip active={shownMode === 'mine'} onClick={() => setMode('mine')}>
+              {t('university.olympiadsMine', { count: myOlympiads.length })}
+            </Chip>
+            <Chip active={shownMode === 'all'} onClick={() => setMode('all')}>
+              {t('university.olympiadsAll', { count: allOlympiads.length })}
+            </Chip>
+          </div>
+        ) : null}
+        {university.target_unverified ? <p className="block-hint">{t('university.olympiadsUnverified')}</p> : null}
+        {byDirections && shownMode === 'mine' && myOlympiads.length === 0 ? (
+          <p className="block-hint">{t('university.olympiadsMineEmpty')}</p>
+        ) : null}
         {/* Строка на олимпиаду, а не на профиль (D3): предметы через запятую,
             льгота — лучшая из профилей; открывается профиль ученика. */}
         {shown.map((row) => (
@@ -131,8 +236,9 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
             id={row.open_profile_id}
             olympiadId={row.olympiad_id}
             name={row.first.name}
-            subtitle={row.subjects}
+            subtitle={shownMode === 'all' ? row.subjects + coverage(row.rows) : row.subjects}
             label={BENEFIT_LABELS[row.benefit]}
+            benefit={row.benefit}
             shortName={row.first.short_name}
             color={row.first.color}
             onOpen={(profileId) => sheets.open({ kind: 'oly', id: profileId })}
@@ -160,7 +266,13 @@ export function UniversitySheet({ id, sheets }: { id: string; sheets: SheetStack
           iconBefore={<Icon name={isMine ? 'check' : 'plus'} size={16} />}
           onClick={toggle}
         >
-          {isMine ? t('university.inMine') : t('university.addToMine')}
+          {!isMine
+            ? t('university.addToMine')
+            : chosen > 0
+              ? t('university.inMineWith', {
+                  count: `${chosen} ${plural(chosen, 'направление', 'направления', 'направлений')}`,
+                })
+              : t('university.inMine')}
         </Button>
       </div>
 

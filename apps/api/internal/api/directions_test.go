@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -54,8 +56,14 @@ func TestOlympiad_BenefitOnMyDirections(t *testing.T) {
 	benefits := list(t, e.do("GET", "/api/v1/olympiads/"+virtualProfile, token, nil).body["benefits"])
 	hse := rowOf(t, benefits, "hse")
 	if hse["benefit"] != "score100" || !slices.Equal(strs(hse["directions"]), []string{"Программная инженерия"}) ||
-		hse["unverified"] != false {
+		hse["unverified"] != false || hse["varies"] != true {
 		t.Fatalf("ВШЭ на ПИ: %v", hse)
+	}
+	// Льгота не на всех программах направления — плашкой у вуза.
+	if c := strs(hse["conditions"]); !slices.ContainsFunc(c, func(x string) bool {
+		return strings.HasPrefix(x, "Зависит от программы: льгота только на «Компьютерные науки и технологии»")
+	}) {
+		t.Fatalf("ВШЭ: зависит от программы: %v", hse["conditions"])
 	}
 
 	// «Где ещё даёт льготу» — на скольких направлениях вуза.
@@ -139,5 +147,29 @@ func TestUniversity_Directions(t *testing.T) {
 	if virtual == nil || virtual["benefit"] != "bvi" || virtual["my_benefit"] != "score100" ||
 		virtual["directions_count"].(float64) < 2 || virtual["directions_total"] != float64(19) {
 		t.Fatalf("олимпиада в ВШЭ: %v", virtual)
+	}
+}
+
+// Льготы на выбранные направления в вузе ещё проверяются: строка — льгота
+// вуза целиком с плашкой «уточняется».
+func TestOlympiad_BenefitUnverified(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	token := e.login(900000001, "Артём")
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"nsu"}); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.do("PUT", "/api/v1/profile/universities/nsu/directions", token, map[string]any{"direction_ids": []string{"napr-01-03-02"}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	var row map[string]any
+	for _, b := range list(t, e.do("GET", "/api/v1/olympiads/p669-8-informatika", token, nil).body["benefits"]) {
+		if b["university_id"] == "nsu" {
+			row = b
+		}
+	}
+	if row == nil || row["unverified"] != true || !slices.Contains(strs(row["conditions"]),
+		"Льгота на «Прикладная математика и информатика» ещё уточняется — пока показана льгота вуза целиком") {
+		t.Fatalf("НГУ: %v", row)
 	}
 }

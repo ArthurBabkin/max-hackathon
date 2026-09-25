@@ -384,6 +384,22 @@ func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	if len(b.DiplomaGrades) > 0 && !slices.Contains(b.DiplomaGrades, grade) {
 		out = append(out, v.T("cond.gradeMiss", voice.Vars{"grades": gradesLabel(b.DiplomaGrades), "grade": grade}))
 	}
+	// Льгота на мои направления (F65): не на всех программах — как в
+	// правилах вуза; ещё проверяется — показана льгота вуза целиком.
+	if b.Varies {
+		for _, s := range pick.NoteSentences(b.Note) {
+			if strings.HasPrefix(s, "Зависит от программы") {
+				out = append(out, s)
+			}
+		}
+	}
+	if b.Unverified {
+		quoted := make([]string, len(b.DirectionNames))
+		for i, n := range b.DirectionNames {
+			quoted[i] = "«" + n + "»"
+		}
+		out = append(out, v.T("cond.unverifiedDirections", voice.Vars{"directions": strings.Join(quoted, ", ")}))
+	}
 	return out
 }
 
