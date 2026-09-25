@@ -1,10 +1,11 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueryClient } from '@tanstack/react-query'
 import { keys } from '@/api/queries'
-import { profile } from '@/api/mocks/build'
-import { DIRECTIONS } from '@/api/mocks/fixtures'
+import { profile, universityListItem } from '@/api/mocks/build'
+import { DIRECTIONS, UNIVERSITIES } from '@/api/mocks/fixtures'
 import { state } from '@/api/mocks/state'
 import { renderApp } from '@/test/render'
 import { htmlTheme, stubSystemTheme } from '@/test/theme'
@@ -213,18 +214,29 @@ describe('направления цели и в вузах (F65)', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  function renderWithDirections() {
+  function renderWithDirections(universities: typeof UNIVERSITIES = []) {
     let client!: QueryClient
-    renderApp(<ProfileScreen />, {
-      route: '/profile',
-      seed: (c) => {
-        client = c
-        c.setQueryData(keys.profile, profile())
-        c.setQueryData(keys.universities('', 'all'), { items: [] })
-        c.setQueryData(keys.directions, { items: DIRECTIONS })
+    renderApp(
+      <>
+        <ProfileScreen />
+        <Search />
+      </>,
+      {
+        route: '/profile',
+        seed: (c) => {
+          client = c
+          c.setQueryData(keys.profile, profile())
+          c.setQueryData(keys.universities('', 'all'), { items: universities.map(universityListItem) })
+          c.setQueryData(keys.directions, { items: DIRECTIONS })
+        },
       },
-    })
+    )
     return () => client
+  }
+
+  /** Адрес: открытый лист живёт в параметрах поиска. */
+  function Search() {
+    return <output data-testid="search">{useLocation().search}</output>
   }
 
   it('чипами — только основные направления, остальные — в выборе с поиском', async () => {
@@ -272,6 +284,26 @@ describe('направления цели и в вузах (F65)', () => {
     expect(list.getByRole('button', { name: /^Иннополис/ })).toHaveTextContent(
       'по цели: Информатика и вычислительная техника',
     )
+  })
+
+  // Отметил вуз чипом — строка сразу, до «Сохранить»: направления выбирают
+  // в карточке вуза, и выбор там сам добавляет вуз в мои.
+  it('только что отмеченный вуз — сразу строкой, она открывает карточку вуза', async () => {
+    renderWithDirections(UNIVERSITIES)
+    const chips = within(screen.getByRole('group', { name: 'Вузы' }))
+    await userEvent.click(chips.getByRole('button', { name: 'МФТИ' }))
+
+    const list = within(screen.getByRole('list', { name: 'Направления в вузах' }))
+    const row = list.getByRole('button', { name: /^МФТИ/ })
+    expect(row).toHaveTextContent('выбери направления')
+    await userEvent.click(row)
+    expect(screen.getByTestId('search')).toHaveTextContent('mipt')
+
+    // Снятый чип убирает строку сразу, и сохранённого вуза тоже.
+    await userEvent.click(chips.getByRole('button', { name: '✓ МФТИ' }))
+    await userEvent.click(chips.getByRole('button', { name: '✓ ВШЭ' }))
+    expect(list.queryByRole('button', { name: /^МФТИ/ })).not.toBeInTheDocument()
+    expect(list.queryByRole('button', { name: /^ВШЭ/ })).not.toBeInTheDocument()
   })
 
   // Направление выбрали в карточке вуза поверх профиля: профиль обновился,
