@@ -35,6 +35,9 @@ const (
 	// вопросах: ниже — лишние карточки, выше — теряются названные.
 	olympiadThreshold   = 0.15
 	universityThreshold = 0.25
+	// olympiadFloor — доля олимпиады до деления на «не ВсОШ»: меньше —
+	// случайность, и деление её не должно раздувать.
+	olympiadFloor = 0.05
 )
 
 // Assistant отвечает на вопросы по базе. LLM == nil — модель не
@@ -280,7 +283,9 @@ func (a *Assistant) understand(ctx context.Context, b base, c *collected, histor
 	slog.Info("помощник: вопрос понят", "intent", c.intent, "olympiads", m.Olympiads, "universities", m.Universities, "subjects", m.Subjects)
 }
 
-// withoutVSOSH — вероятности олимпиад при условии, что это не ВсОШ.
+// withoutVSOSH — вероятности олимпиад при условии, что это не ВсОШ. Классы
+// с долей меньше olympiadFloor отбрасываются: в вопросе про ВсОШ (0,98) два
+// соседа по 0,01 после деления получили бы по 0,5.
 func withoutVSOSH(probs map[string]float64) map[string]float64 {
 	rest := 1.0
 	for class, p := range probs {
@@ -290,7 +295,7 @@ func withoutVSOSH(probs map[string]float64) map[string]float64 {
 	}
 	out := map[string]float64{}
 	for class, p := range probs {
-		if !strings.HasPrefix(class, "vsosh-") && rest > 0 {
+		if !strings.HasPrefix(class, "vsosh-") && rest > 0 && p >= olympiadFloor {
 			out[class] = p / rest
 		}
 	}

@@ -65,6 +65,9 @@ func TestAsk_JevThresholds(t *testing.T) {
 		{"ВсОШ от Jev не берём", map[string]float64{"vsosh-informatika": 0.9, none: 0.1}, map[string]float64{none: 1}, "", false},
 		// ВсОШ отброшена — её вероятность делится между остальными: 0,12 / (1 − 0,3) ≈ 0,17.
 		{"без ВсОШ — перенормировка", map[string]float64{"p669-8": 0.12, "vsosh-informatika": 0.3, none: 0.58}, map[string]float64{none: 1}, `"id":"olympiad:p669-8"`, true},
+		// Вопрос про ВсОШ: соседи по 0,01 после деления стали бы по 0,5 — но
+		// случайная доля остаётся случайной.
+		{"почти наверняка ВсОШ — соседи не раздуваются", map[string]float64{"vsosh-matematika": 0.98, "p669-50": 0.01, "p669-52": 0.01}, map[string]float64{none: 1}, "", false},
 	}
 	for _, c := range cases {
 		f := &fakeLLM{reply: `{"answer": "", "card_ids": [], "no_data": true}`}
