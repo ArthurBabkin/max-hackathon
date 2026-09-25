@@ -32,6 +32,11 @@ func Olympiads(n int) string {
 	return fmt.Sprintf("%d %s", n, Plural(n, "олимпиада", "олимпиады", "олимпиад"))
 }
 
+// OlympiadsAcc — винительный падеж: «Подобрали 1 олимпиаду», «4 олимпиады».
+func OlympiadsAcc(n int) string {
+	return fmt.Sprintf("%d %s", n, Plural(n, "олимпиаду", "олимпиады", "олимпиад"))
+}
+
 // DaysUntil — календарных дней от now до t в зоне loc: «завтра» — это
 // завтра, даже если до срока 15 часов.
 func DaysUntil(t, now time.Time, loc *time.Location) int {
