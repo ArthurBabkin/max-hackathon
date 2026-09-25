@@ -376,5 +376,171 @@ class KfuTest(unittest.TestCase):
                          ["ped-bio"])
 
 
+HSE_PROGRAMS = [
+    prog("hse-math", "Математика", "НИУ ВШЭ — Москва", "01.03.01"),
+    prog("hse-ib", "Информацион- ная безопасность", "НИУ ВШЭ — Москва", "10.03.01"),
+    prog("nn-psy", "Психология в бизнесе", "НИУ ВШЭ — Нижний Новгород", "37.03.01", "Экономика"),
+    prog("nn-cs", "Компьютерные науки и технологии", "НИУ ВШЭ — Нижний Новгород", "09.03.04"),
+    prog("nn-cs-bi", "Компьютерные науки и технологии", "НИУ ВШЭ — Нижний Новгород", "38.03.05", "Экономика"),
+]
+
+
+class HseTest(unittest.TestCase):
+    """Приложения ВШЭ: ОП — объединённая ячейка на блок строк, её текст
+    напечатан посередине блока, иногда за краем страницы."""
+
+    def test_program_of_rows_by_geometry(self):
+        words = [{"top": -405, "x0": 98, "text": "Математика"},
+                 {"top": 830, "x0": 97, "text": "Совместный"}, {"top": 838, "x0": 97, "text": "бакалавриат"}]
+        self.assertEqual(bb.hse_programs(85, 539, [186, 186.5], words, [100, 150, 300, 520]),
+                         ["Математика", "Математика", "Совместный бакалавриат", "Совместный бакалавриат"])
+
+    def rows(self, head, program, *cells):
+        return bb.hse_rows([(1, [([head], ("", "")), *[(c, (program, c[0])) for c in cells]])], URL, "Москва")
+
+    ROW = ["Олимпиада «Высшая проба»", "математика", "математика", "математика", "75 и более",
+           "право на 100 баллов", "математика", "победителям и призерам", "10, 11 класс"]
+
+    def test_named_program_absent_from_a_gets_nothing(self):
+        r = self.rows("Направление подготовки 01.03.01 Математика", "Совместный бакалавриат ВШЭ и ЦПМ", self.ROW)
+        self.assertEqual(r[0]["benefit"], "100_ballov")
+        self.assertEqual(bb.link("hse", r[0], HSE_PROGRAMS), [])
+
+    def test_single_program_direction(self):
+        r = self.rows("Направление подготовки 01.03.01 Математика", "", self.ROW)
+        self.assertEqual([p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)], ["hse-math"])
+
+    def test_broken_words_in_names(self):
+        r = self.rows("Направление подготовки 10.03.01 Информационная безопасность", "Информационная безопасность", self.ROW)
+        self.assertEqual([p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)], ["hse-ib"])
+
+    def test_several_directions_in_header(self):
+        r = bb.hse_rows([(1, [(["Направления подготовки 01.03.02 Прикладная математика и информатика, "
+                                 "09.03.04 Программная инженерия, 38.03.05 Бизнес-информатика"], ("", "")),
+                                (self.ROW, ("Компьютерные науки и технологии", self.ROW[0]))])], URL, "Нижний Новгород")
+        self.assertEqual(sorted(p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)), ["nn-cs", "nn-cs-bi"])
+
+    def test_olympiad_name_from_merged_cell_not_carried(self):
+        row = ["", "информатика", "информатика", "математика", "75 и более", "Право на прием БВИ",
+               "математика", "Победителям", "11 класс"]
+        r = bb.hse_rows([(1, [(["Направление подготовки 01.03.01 Математика"], ("", "")),
+                              (self.ROW, ("", self.ROW[0])),
+                              (row, ("", "Всероссийская олимпиада школьников «Высшая проба»"))])], URL, "Москва")
+        self.assertEqual([x["olympiad_name"] for x in r],
+                         ["Олимпиада «Высшая проба»", "Всероссийская олимпиада школьников «Высшая проба»"])
+
+    def test_cell_name_wins_over_geometry_unless_fragment(self):
+        row2 = ["«Высшая проба»"] + self.ROW[1:]
+        r = bb.hse_rows([(1, [(["Направление подготовки 01.03.01 Математика"], ("", "")),
+                              (self.ROW, ("", "Олимпиада школьников «Ломоносов»")),
+                              (row2, ("", "Всероссийская олимпиада школьников «Высшая проба»"))])], URL, "Москва")
+        self.assertEqual([x["olympiad_name"] for x in r],
+                         ["Олимпиада «Высшая проба»", "Всероссийская олимпиада школьников «Высшая проба»"])
+
+    def test_typo_in_direction_code(self):
+        r = bb.hse_rows([(1, [(["Направления подготовки 37.04.01 Психология"], ("", "")),
+                                (self.ROW, ("Психология в бизнесе", self.ROW[0]))])], URL, "Нижний Новгород")
+        self.assertEqual([p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)], ["nn-psy"])
+
+
+MSU_PROGRAMS = [
+    prog("sev-pmi", "Прикладная математика и информатика", "Филиал МГУ в г. Севастополе"),
+    prog("fhb", "Фундаментальная и прикладная биология — Физико-химическая биология. Общая биология)",
+         "Биологический факультет", "06.05.02", "Биомед"),
+    prog("culture", "Менеджмент — Менеджмент в культуре)", "Высшая школа культурной политики и управления",
+         "38.03.02", "Экономика"),
+    prog("audit", "Экономика (профиль Государственный и муниципальный аудит)", "Высшая школа государственного аудита",
+         "38.03.01", "Экономика"),
+]
+
+
+class MsuLinkTest(unittest.TestCase):
+    def targets(self, faculty, napr):
+        row = {"match": {"faculty": faculty, "napravlenie": napr}}
+        return [p["program_id"] for p in bb.link("msu", row, MSU_PROGRAMS)]
+
+    def test_unknown_direction_gets_nothing_not_whole_faculty(self):
+        self.assertEqual(self.targets("Филиал МГУ в г. Севастополе", "Психология"), [])
+        self.assertEqual(self.targets("Филиал МГУ в г. Севастополе", "Прикладная математика и информатика"), ["sev-pmi"])
+
+    def test_program_group_must_match(self):
+        self.assertEqual(self.targets("Биологический факультет", "Фундаментальная и прикладная биология (группа программ "
+                                      "«Биоинженерия и биотехнология. Биофизика»)"), [])
+        self.assertEqual(self.targets("Биологический факультет", "Фундаментальная и прикладная биология (группа программ "
+                                      "«Физико- химическая биология. Общая биология»)"), ["fhb"])
+
+    def test_profile_in_brackets(self):
+        f = "Высшая школа культурной политики и управления"
+        self.assertEqual(self.targets(f, "Менеджмент (Менеджмент в спорте)"), [])
+        self.assertEqual(self.targets(f, "Менеджмент (Менеджмент в культуре)"), ["culture"])
+
+    def test_plain_direction_covers_profiled_program(self):
+        self.assertEqual(self.targets("Высшая школа государственного аудита", "Экономика"), ["audit"])
+
+    def test_vsosh_skips_international_olympiads(self):
+        pages = [{"page": 6, "tables": [[
+            ["Биологический факультет", None, None],
+            ["Экология и природопользование", "Всероссийская олимпиада школьников", "Экология"],
+            [None, None, "Биология"],
+            [None, "Международная биологическая олимпиада", "Биология"],
+        ]]}]
+        got = [(r["profile"], r["match"]["napravlenie"]) for r in bb.msu_vsosh_rows(pages, URL)]
+        self.assertEqual(got, [("экология", "Экология и природопользование"), ("биология", "Экология и природопользование")])
+
+
+class KazanGmuTest(unittest.TestCase):
+    def test_row_goes_only_to_its_section(self):
+        pages = [{"page": 1, "tables": [[
+            ["Специальность (направление подготовки) – Лечебное дело, Педиатрия", "", "", "", ""],
+            ["11", "Всероссийская Сеченовская олимпиада школьников", "химия", "химия", "II"],
+            ["Специальность (направление подготовки) –Медицинская биофизика", "", "", "", ""],
+            ["8", "Всероссийская олимпиада школьников «Высшая проба»", "физика", "физика", "II"],
+        ]]}]
+        progs = [prog("led", "Лечебное дело", "", "31.05.01", "Биомед"),
+                 prog("bioph", "Медицинская биофизика", "", "30.05.02", "Биомед")]
+        got = [(r["profile"], [p["program_id"] for p in bb.link("kazan-gmu", r, progs)])
+               for r in bb.kazan_gmu_rows(pages, URL)]
+        self.assertEqual(got, [("химия", ["led"]), ("физика", ["bioph"])])
+
+
+class SpbuTest(unittest.TestCase):
+    """СПбГУ: «—» в перечне — не ВсОШ, а любая олимпиада уровня с профилем
+    или предметом; ВсОШ — отдельным документом."""
+
+    ROWS = [{"page": 1, "tables": [[
+        ["01.03.01 Математика", "Математика (с дополнительной квалификацией)", "очная", "1", "Математика", "85",
+         "I", "—", "—", "Математика", "Победитель, призѐр", "Без вступительных испытаний"],
+        ["", "", "", "2", "Информатика", "75", "I–II", "—", "Информатика", "Информатика", "Призѐр",
+         "100 баллов за ВИ по информатике"],
+        ["01.05.01 Фундаментальные математика и механика", "Фундаментальная математика", "очная", "1", "Математика",
+         "75", "I–III", "—", "—", "Математика", "Победитель, призѐр", "Без вступительных испытаний"],
+    ]]}]
+
+    def test_dash_rows_are_perechen_not_vsosh(self):
+        rows = bb.spbu_rows(self.ROWS, URL)
+        self.assertFalse(any(r.get("vsosh") for r in rows))
+        self.assertEqual([(r.get("by_subject", False), r.get("by_profile", False), r["levels"]) for r in rows],
+                         [(True, False, ["I"]), (False, True, ["I", "II"]), (True, False, ["I", "II", "III"])])
+
+    def test_program_absent_from_a_gets_nothing(self):
+        progs = [prog("mm", "Механика и математическое моделирование (с доп. квалификацией)", "", "01.05.01")]
+        r = bb.spbu_rows(self.ROWS, URL)[2]
+        self.assertEqual(bb.link("spbu", r, progs), [])
+
+    def test_vsosh_document(self):
+        pages = [{"page": 1, "tables": [[
+            ["Предмет Всероссийской олимпиады школьников", "Наименование профильных направлений", "Уровень"],
+            ["Астрономия", "01.03.01 Математика", "Бакалавриат"],
+            ["Астрономия", "02.03.01 Математика и компьютерные науки (ОП «AI360: Математика машинного обучения»)", "Бакалавриат"],
+        ]]}]
+        got = [(r["profile"], r["match"]) for r in bb.spbu_vsosh_rows(pages, URL)]
+        self.assertEqual(got, [("астрономия", {"spbu": None, "code": "01.03.01"}),
+                               ("астрономия", {"spbu": "AI360: Математика машинного обучения", "code": "02.03.01"})])
+
+    def test_subject_expansion_keeps_exact_levels(self):
+        got = {lv for *_, lv in bb.expand_subject("Математика")}
+        self.assertEqual(got, {"I", "II", "III"})
+
+
 if __name__ == "__main__":
     unittest.main()
