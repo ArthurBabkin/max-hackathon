@@ -230,6 +230,14 @@ func TestStatus(t *testing.T) {
 	if status != StatusActive {
 		t.Fatalf("прошёл дальше, а даты финала не опубликованы — участвует, получили %s", status)
 	}
+	// Этапов в данных нет (12 профилей сида): отмеченное участие — «участвую»,
+	// а не «завершено», и без отметки — «нужно записаться».
+	if status, _ := Status(nil, marks(), *at(2026, 10, 1, 0)); status != StatusActive {
+		t.Fatalf("без этапов и с отметкой — участвует, получили %s", status)
+	}
+	if status, _ := Status(nil, Progress{}, *at(2026, 10, 1, 0)); status != StatusOpen {
+		t.Fatalf("без этапов и без отметки — нужно записаться, получили %s", status)
+	}
 	// Олимпиада без регистрации: участие отмечается той же галочкой.
 	noReg := twoRegs()[1:2]
 	if status, _ := Status(noReg, Progress{}, *at(2026, 10, 1, 0)); status != StatusOpen {
@@ -285,6 +293,13 @@ func TestApply(t *testing.T) {
 	}
 	if reopened.Registered != true {
 		t.Fatal("снятие итога не снимает регистрацию")
+	}
+
+	// Регистрация на финал без отметки первой — тоже участие: ученик
+	// записался и на отборочный, просто не отметил.
+	p, err = Apply(st, Progress{}, "r2", Mark{Registered: true}, now)
+	if err != nil || !p.Registered || !p.Marks["r2"].Registered {
+		t.Fatalf("регистрация на финал подразумевает участие: %+v, %v", p, err)
 	}
 
 	p, err = Apply(st, marks(), "q", Mark{Registered: true, Result: Passed}, now)
