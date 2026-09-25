@@ -969,8 +969,14 @@ components:
           type: string
           description: Имя ученика. В текстах подставляется как `{student}`.
         grade: { type: integer, enum: [8, 9, 10, 11] }
-        region_code: { type: string, examples: ["16"] }
-        region_name: { type: string, examples: ["Республика Татарстан"] }
+        region_code:
+          type: string
+          examples: ["16"]
+          description: Код субъекта РФ; пустая строка — регион не указан («Не важно»), напоминания по московскому времени.
+        region_name:
+          type: string
+          examples: ["Республика Татарстан"]
+          description: Пустая строка, если регион не указан.
         directions:
           type: array
           description: Направления-цели в порядке выбора (F8). Пусто — ученик пока не решил.
@@ -1556,8 +1562,12 @@ components:
       properties:
         student_name: { type: string, minLength: 1, maxLength: 40 }
         grade: { type: integer, enum: [8, 9, 10, 11] }
-        region_code: { type: string }
-        region_name: { type: string }
+        region_code:
+          type: string
+          description: Код субъекта РФ; пустая строка — регион не указан.
+        region_name:
+          type: string
+          description: Пустая строка, если регион не указан.
         subjects:
           type: array
           minItems: 1
@@ -1604,7 +1614,9 @@ components:
       properties:
         student_name: { type: string, minLength: 1, maxLength: 40 }
         grade: { type: integer, enum: [8, 9, 10, 11] }
-        region_code: { type: string }
+        region_code:
+          type: string
+          description: Код субъекта РФ, часовой пояс — по нему; пустая строка — регион не указан, время московское.
         subject_codes:
           type: array
           minItems: 1

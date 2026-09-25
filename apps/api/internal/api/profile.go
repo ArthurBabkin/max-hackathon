@@ -219,7 +219,11 @@ func validatePatch(req profilePatch) (store.TrajectoryPatch, error) {
 		p.Grade = req.Grade
 	}
 	if req.RegionCode != nil {
-		reg, ok := refdata.ByCode(*req.RegionCode)
+		// "" — регион не указан («Не важно» в боте): московское время.
+		reg, ok := refdata.Region{TZ: refdata.DefaultTZ}, true
+		if *req.RegionCode != "" {
+			reg, ok = refdata.ByCode(*req.RegionCode)
+		}
 		if !ok {
 			return p, badRequest("Неизвестный регион.")
 		}

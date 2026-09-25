@@ -1461,9 +1461,15 @@ export interface components {
             student_name: string;
             /** @enum {integer} */
             grade: 8 | 9 | 10 | 11;
-            /** @example 16 */
+            /**
+             * @description Код субъекта РФ; пустая строка — регион не указан («Не важно»), напоминания по московскому времени.
+             * @example 16
+             */
             region_code: string;
-            /** @example Республика Татарстан */
+            /**
+             * @description Пустая строка, если регион не указан.
+             * @example Республика Татарстан
+             */
             region_name: string;
             /** @description Направления-цели в порядке выбора (F8). Пусто — ученик пока не решил. */
             directions: components["schemas"]["Direction"][];
@@ -1823,7 +1829,9 @@ export interface components {
             student_name: string;
             /** @enum {integer} */
             grade: 8 | 9 | 10 | 11;
+            /** @description Код субъекта РФ; пустая строка — регион не указан. */
             region_code: string;
+            /** @description Пустая строка, если регион не указан. */
             region_name: string;
             subjects: {
                 code: string;
@@ -1864,6 +1872,7 @@ export interface components {
             student_name?: string;
             /** @enum {integer} */
             grade?: 8 | 9 | 10 | 11;
+            /** @description Код субъекта РФ, часовой пояс — по нему; пустая строка — регион не указан, время московское. */
             region_code?: string;
             subject_codes?: string[];
             /** @description Направления в порядке выбора; пустой список — «пока не решил». */

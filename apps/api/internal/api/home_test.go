@@ -129,6 +129,12 @@ func TestProfile_GetAndPatch(t *testing.T) {
 	if r.code != 200 || tz != "Asia/Vladivostok" {
 		t.Fatalf("Приморье — Владивосток: %d %s", r.code, tz)
 	}
+	// Регион «не важен» (как «Не важно» в боте) — московское время.
+	r = e.do("PATCH", "/api/v1/profile", token, map[string]any{"region_code": ""})
+	_ = e.pool.QueryRow(context.Background(), "SELECT tz FROM trajectories").Scan(&tz)
+	if r.code != 200 || r.body["region_code"] != "" || r.body["region_name"] != "" || tz != "Europe/Moscow" {
+		t.Fatalf("без региона: %d %s %s", r.code, tz, r.raw)
+	}
 
 	if r := e.do("PUT", "/api/v1/profile/universities", token, map[string]any{}); r.code != 400 {
 		t.Fatalf("без списка вузов: %d", r.code)

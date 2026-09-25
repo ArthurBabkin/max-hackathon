@@ -14,6 +14,9 @@ func TestPlural(t *testing.T) {
 	if Olympiads(1) != "1 олимпиада" || Olympiads(3) != "3 олимпиады" || Olympiads(7) != "7 олимпиад" {
 		t.Fatal("олимпиады")
 	}
+	if OlympiadsAcc(1) != "1 олимпиаду" || OlympiadsAcc(21) != "21 олимпиаду" || OlympiadsAcc(3) != "3 олимпиады" || OlympiadsAcc(12) != "12 олимпиад" {
+		t.Fatal("олимпиады в винительном")
+	}
 }
 
 func TestDaysUntil_CalendarDaysInZone(t *testing.T) {
