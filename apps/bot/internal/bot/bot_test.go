@@ -275,8 +275,8 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h.mustContain(olga, "Где живёт Артём? Напишите город или регион")
 	// Геолокации кнопкой нет: в MAX она работает только в мобильном
 	// приложении, в вебе и на компьютере не нажимается.
-	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно" ||
-		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip"}) {
+	if last := h.fake.Last(olga.UserID); maxtest.Buttons(last) != "Москва | Санкт-Петербург | Московская обл. | По алфавиту А–Я | Не важно | ← Назад" ||
+		!slices.Equal(maxtest.Payloads(last), []string{"region:77", "region:78", "region:50", "region:abc", "region:skip", "back:region"}) {
 		t.Fatalf("кнопки региона: %s %v", maxtest.Buttons(last), maxtest.Payloads(last))
 	}
 	// Алфавит правит тот же вопрос, нового сообщения нет.
@@ -323,7 +323,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	// Город не известен — подсказка его написать; Москва и Петербург — не свой регион.
 	h.mustContain(olga, "Где Артём хочет учиться? Можно выбрать несколько мест или написать город. Если важно учиться именно в своём городе")
 	last := h.fake.Last(olga.UserID)
-	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово" {
+	if b := maxtest.Buttons(last); b != "Весь регион · Татарстан | Москва | Санкт-Петербург | Другой город | Не важно | Готово | ← Назад" {
 		t.Fatalf("варианты мест: %s", b)
 	}
 	id = h.press(olga, "place:done")

@@ -52,6 +52,9 @@ type Draft struct {
 
 	// HomeCity — город ученика, если известен из поиска или геолокации.
 	HomeCity string `json:"home_city,omitempty"`
+	// RegionAny — на шаге региона нажали «Не важно»: регион пустой не
+	// потому, что вопрос ещё впереди.
+	RegionAny bool `json:"region_any,omitempty"`
 	// PlaceOptions — варианты на кнопках шагов region и target.
 	PlaceOptions []PlaceOption `json:"place_options,omitempty"`
 	// Letter — открытая буква алфавита на шаге region; "*" — открыт список букв.
