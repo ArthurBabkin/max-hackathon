@@ -63,9 +63,11 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 export function rebase<T>(local: T, base: T, server: T): T {
   if (same(local, base)) return server
   if (Array.isArray(local) && Array.isArray(base) && Array.isArray(server)) {
-    const added = server.filter((x) => !base.includes(x))
-    const removed = base.filter((x) => !server.includes(x))
-    return [...local.filter((x) => !removed.includes(x)), ...added.filter((x) => !local.includes(x))] as T
+    // По значению: места приходят новыми объектами при каждом ответе.
+    const has = (xs: unknown[], x: unknown) => xs.some((y) => same(x, y))
+    const added = server.filter((x) => !has(base, x))
+    const removed = base.filter((x) => !has(server, x))
+    return [...local.filter((x) => !has(removed, x)), ...added.filter((x) => !has(local, x))] as T
   }
   return local
 }
