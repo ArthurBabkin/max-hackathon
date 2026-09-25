@@ -2487,11 +2487,14 @@
 }
 
 /* Окно над целью. Затемнение — его огромная тень, поэтому окно и затемнение
-   двигаются как одно целое, а карточка переезжает вместе с ними. */
+   двигаются как одно целое, а карточка переезжает вместе с ними. Анимация
+   у окна одна и не меняется: сменись она — появление проигралось бы заново,
+   и затемнение мигнуло бы. */
 .tour-spot {
   position: absolute;
   top: 0;
   left: 0;
+  pointer-events: none;
   box-shadow:
     0 0 0 2px var(--p),
     0 0 0 200vmax var(--tour-scrim);
@@ -2508,18 +2511,38 @@
   box-shadow: 0 0 0 200vmax var(--tour-scrim);
 }
 
-/* Нажатие: обводка вспыхивает и расходится, как круг от пальца. */
-.tour-spot[data-pressing] {
-  animation: tour-press 300ms var(--tour-out);
+/* Ждём нажатия: от окна расходится обводка — «нажми сюда». Своим слоем,
+   чтобы не перерисовывать затемнение; начинается, когда окно доехало. */
+.tour[data-mode='tap'] .tour-spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  will-change: transform;
+  animation: tour-pulse 1400ms var(--tour-out) 440ms infinite;
 }
 
-/* Мгновенный переход «Назад»: окно ждёт на месте, карточки нет. */
-.tour[data-mode='moving'] .tour-card {
-  visibility: hidden;
+/* Прозрачная кнопка над настоящей: нажатие по ней нажимает ту. */
+.tour-hit {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tour-hit:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 4px;
 }
 
 .tour-card {
   position: absolute;
+  top: 0;
+  left: 0;
   width: min(calc(100vw - 2 * var(--gap-lg)), 360px);
   padding: var(--gap-md) var(--gap-lg) var(--gap-lg);
   border-radius: var(--r-lg);
@@ -2529,9 +2552,7 @@
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--tx) 8%, transparent),
     0 18px 44px rgba(8, 6, 18, 0.32);
-  transition:
-    top 440ms var(--tour-move),
-    left 440ms var(--tour-move);
+  transition: translate 440ms var(--tour-move);
   animation: tour-card-in 320ms var(--tour-out);
 }
 
@@ -2608,7 +2629,19 @@
   padding: 10px var(--gap-md);
 }
 
+.tour-tap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+/* «Пропустить» в плашке — полная тач-цель, но строку не раздвигает. */
+.tour-tap-row .tour-skip {
+  margin-block: -10px;
+}
+
 .tour-tap {
+  min-width: 0;
   margin: 0;
   font-size: var(--t-base);
   font-weight: 600;
@@ -2730,11 +2763,13 @@
   }
 }
 
-@keyframes tour-press {
-  50% {
-    box-shadow:
-      0 0 0 6px color-mix(in srgb, var(--p) 55%, transparent),
-      0 0 0 200vmax var(--tour-scrim);
+@keyframes tour-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--p) 70%, transparent);
+  }
+
+  to {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--p) 0%, transparent);
   }
 }
 
@@ -2761,7 +2796,7 @@
     transition: none;
   }
 
-  .tour-spot[data-pressing] {
+  .tour[data-mode='tap'] .tour-spot::after {
     animation: none;
   }
 
