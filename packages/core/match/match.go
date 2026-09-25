@@ -45,11 +45,18 @@ type Candidate struct {
 	Stages          []stages.Stage
 	Registered      bool
 	FinalRegionCode *string
+	// PotentialBenefit — вузы у ученика не выбраны, BestBenefit посчитан по
+	// вузам с его направлениями в выбранных местах (SPEC 2.3).
+	PotentialBenefit bool
 }
 
 type Student struct {
 	DirectionSubjects []string
 	RegionCode        string
+	// Experience — опыт в олимпиадах: none | school | region; "" — как none.
+	Experience string
+	// Grade — класс; 0 — не известен, льгота считается полностью.
+	Grade int
 }
 
 type Result struct {
@@ -63,10 +70,60 @@ type Result struct {
 	Deadline *time.Time
 	Stage    *stages.Stage
 	Online   bool
+	// LevelFit — уровень олимпиады подходит под опыт ученика: опыт задан и
+	// вклад уровня не меньше LevelFitShare от максимума. Причина звучит
+	// «Подходит под твой опыт» вместо «Олимпиада I уровня».
+	LevelFit bool
 }
 
 var benefitValue = map[string]float64{"bvi": 1, "bvi_winners": 0.8, "score100": 0.6}
-var levelValue = map[string]float64{"I": 1, "II": 0.6, "III": 0.3}
+
+// levelValue[опыт][уровень]: новичку выше II–III уровень, опытному — I
+// (SPEC 2.1). Пустой опыт — none.
+var levelValue = map[string]map[string]float64{
+	"none":   {"I": 0.4, "II": 0.8, "III": 1.0},
+	"school": {"I": 0.7, "II": 1.0, "III": 0.6},
+	"region": {"I": 1.0, "II": 0.6, "III": 0.3},
+}
+
+// LevelFitShare — с какой доли максимума вклад уровня считается «под опыт».
+const LevelFitShare = 0.8
+
+func experienceOf(s Student) string {
+	if _, ok := levelValue[s.Experience]; ok {
+		return s.Experience
+	}
+	return "none"
+}
+
+// LevelValue — вес уровня олимпиады для опыта ученика. ВсОШ для опытного
+// ученика весит как I уровень (диплом финала — БВИ), для остальных — как
+// II: школьный этап доступен всем.
+func LevelValue(experience, kind string, level *string) float64 {
+	row, ok := levelValue[experience]
+	if !ok {
+		row = levelValue["none"]
+	}
+	switch {
+	case kind == "vsosh" && experience == "region":
+		return row["I"]
+	case kind == "vsosh":
+		return row["II"]
+	case level != nil:
+		return row[*level]
+	}
+	return 0
+}
+
+// BenefitGradeFactor — множитель льготы по классу: у многих вузов диплом
+// засчитывается только за 10–11 класс, поэтому для 8–9 класса льгота весит
+// вдвое меньше (SPEC 2.2).
+func BenefitGradeFactor(grade int) float64 {
+	if grade == 8 || grade == 9 {
+		return 0.5
+	}
+	return 1
+}
 
 // factorOrder — порядок при равном вкладе: так причина стабильна.
 var factorOrder = []Factor{Direction, Benefit, Level, Deadline, Online, Region}
@@ -88,15 +145,10 @@ func Score(c Candidate, s Student, w Weights, now time.Time) Result {
 	if contains(s.DirectionSubjects, c.SubjectCode) {
 		r.Factors[Direction] = w.Direction
 	}
-	r.Factors[Benefit] = w.Benefit * benefitValue[c.BestBenefit]
-	switch {
-	case c.Kind == "vsosh":
-		// У ВсОШ нет уровня перечня, а диплом заключительного этапа даёт
-		// БВИ по профилю — по силе это не ниже I уровня.
-		r.Factors[Level] = w.Level
-	case c.Level != nil:
-		r.Factors[Level] = w.Level * levelValue[*c.Level]
-	}
+	r.Factors[Benefit] = w.Benefit * BenefitGradeFactor(s.Grade) * benefitValue[c.BestBenefit]
+	exp := experienceOf(s)
+	r.Factors[Level] = w.Level * LevelValue(exp, c.Kind, c.Level)
+	r.LevelFit = s.Experience != "" && w.Level > 0 && r.Factors[Level] >= LevelFitShare*w.Level
 	r.Factors[Deadline] = w.Deadline * deadlineValue(r.Deadline, now)
 	if r.Online {
 		r.Factors[Online] = w.Online
@@ -166,10 +218,7 @@ func Recommend(cands []Candidate, s Student, w Weights, now time.Time, filter st
 		}
 		return perechen[i].ProfileID < perechen[j].ProfileID
 	})
-	perechen = bestPerOlympiad(perechen)
-	if len(perechen) > TopN {
-		perechen = perechen[:TopN]
-	}
+	perechen = diverse(bestPerOlympiad(perechen), TopN, MaxPerSubject)
 	items = append(items, perechen...)
 	byDeadline(items)
 	byDeadline(outside)
@@ -193,6 +242,36 @@ func bestPerOlympiad(sorted []Result) []Result {
 		}
 	}
 	return out
+}
+
+// MaxPerSubject — сколько олимпиад одного предмета может быть в топе.
+const MaxPerSubject = 2
+
+// diverse — первые n по скору, но не больше perSubject олимпиад одного
+// предмета: лишние сдвигаются вниз, их места занимают следующие по скору
+// (SPEC 2.4). Если других предметов не хватает, топ добирается лишними —
+// у ученика с одним предметом иначе осталось бы две олимпиады.
+func diverse(sorted []Result, n, perSubject int) []Result {
+	var top, rest []Result
+	count := map[string]int{}
+	for _, r := range sorted {
+		if len(top) == n {
+			break
+		}
+		if count[r.SubjectCode] >= perSubject {
+			rest = append(rest, r)
+			continue
+		}
+		count[r.SubjectCode]++
+		top = append(top, r)
+	}
+	for _, r := range rest {
+		if len(top) == n {
+			break
+		}
+		top = append(top, r)
+	}
+	return top
 }
 
 func passes(r Result, filter string, now time.Time) bool {

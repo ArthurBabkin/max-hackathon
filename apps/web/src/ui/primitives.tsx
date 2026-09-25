@@ -84,12 +84,20 @@ export function Tile({ id, name, shortName, color, size = 'sm', filled = false }
 export interface ChipProps {
   active?: boolean
   onClick?: () => void
+  /** Подпись для скринридера, если текст чипа её не передаёт («Казань ✕»). */
+  'aria-label'?: string
   children: ReactNode
 }
 
-export function Chip({ active = false, onClick, children }: ChipProps) {
+export function Chip({ active = false, onClick, 'aria-label': label, children }: ChipProps) {
   return (
-    <button type="button" className={`chip${active ? ' chip-on' : ''}`} aria-pressed={active} onClick={onClick}>
+    <button
+      type="button"
+      className={`chip${active ? ' chip-on' : ''}`}
+      aria-pressed={active}
+      aria-label={label}
+      onClick={onClick}
+    >
       {children}
     </button>
   )
