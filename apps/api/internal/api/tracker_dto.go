@@ -162,9 +162,11 @@ func trackerStagesOf(st []stages.Stage, p stages.Progress, now time.Time) []trac
 		if result != "" {
 			d.Result = &result
 		}
+		// Отметку можно переключить, если она и правда переключится: итог
+		// школьного этапа ВсОШ держит регистрацию, снять её нечем.
 		if stages.RegistrationLike(x.Kind) {
-			_, err := stages.Apply(st, p, x.ID, stages.Mark{Registered: !registered, Result: result}, now)
-			d.CanRegister = err == nil
+			next, err := stages.Apply(st, p, x.ID, stages.Mark{Registered: !registered, Result: result}, now)
+			d.CanRegister = err == nil && stages.RegisteredOn(st, next, i) != registered
 		}
 		for _, r := range d.Results {
 			if _, err := stages.Apply(st, p, x.ID, stages.Mark{Registered: registered, Result: r}, now); err == nil {

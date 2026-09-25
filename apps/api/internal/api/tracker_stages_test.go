@@ -151,8 +151,13 @@ func TestTracker_StageUnmarkIsNotAnnounced(t *testing.T) {
 		return e.do("PUT", "/api/v1/tracker/"+id+"/stages/"+school, kid, body)
 	}
 
-	if r := mark(map[string]any{"registered": true, "result": "passed"}); r.code != 200 {
+	r := mark(map[string]any{"registered": true, "result": "passed"})
+	if r.code != 200 {
 		t.Fatalf("итог школьного этапа: %d %s", r.code, r.raw)
+	}
+	// Итог держит регистрацию: снять её нельзя, ссылки «Снять» нет.
+	if st := stageByID(t, r.body, school); st["registered"] != true || st["can_register"] != false {
+		t.Fatalf("регистрация под итогом не снимается: %v", st)
 	}
 	if got := e.fake.To(olgaMax); len(got) != 1 {
 		t.Fatalf("родителю — одно сообщение об итоге: %v", got)
