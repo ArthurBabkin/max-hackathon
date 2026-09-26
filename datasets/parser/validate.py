@@ -124,6 +124,12 @@ GOLDEN = [
     # соответствующее ВИ и там, где БВИ по приложению 4 нет; где БВИ есть — только оно.
     ("spbu__programmnaya-inzheneriya", "vsosh-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("spbu__fundamentalnaya-i-prikladnaya-fizika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # ИТМО, приложение 6 (rsosh_100): 100 баллов — по дипломам, «не дающие право
+    # поступления без вступительных испытаний»; уровень — точное множество:
+    # «Техника и технологии … 2 или 3» в приложении 5 не про «Звезду» I уровня.
+    ("itmo__kompyuternye-sistemy-i-tehnologii", "p669-37-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("itmo__ai360-ml-native", "p669-50-informatika", {(POB, "БВИ"), (PRIZ, "100_ballov")}),
+    ("itmo__fizika-nanostruktur", "p669-36-tehnika-i-tehnologii", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
@@ -153,6 +159,8 @@ GOLDEN_CONDITIONS = [
     ("spbu__biznes-informatika", "p669-8-finansovaya-gramotnost", "ege_confirm_subject", "Обществознание"),
     ("spbu__biznes-informatika", "p669-8-finansovaya-gramotnost", "ege_confirm_min_score", 75),
     ("spbu__ai360-matematika-mashinnogo-obucheniya", "p669-81-matematika", "ege_confirm_min_score", 85),
+    # ИТМО, заголовки приложений 5 и 6: дипломы, «полученные в 10-м или 11-м классе».
+    ("itmo__ai360-ml-native", "p669-26-informatika", "eligible_grades", [10, 11]),
 ]
 GOLDEN_STATUS_GRADES = [
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", POB, [10, 11]),

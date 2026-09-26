@@ -433,6 +433,35 @@ class ItmoListsTest(unittest.TestCase):
         self.assertEqual([(r["profile"], sorted(p["program_id"] for p in bb.link("itmo", r, progs))) for r in rows],
                          [("Автономные транспортные системы", ["rob"]), ("Летающая робототехника", ["rob", "tzi"])])
 
+    def test_level_cell_is_exact_set(self):
+        # «2 или 3» — только II и III: олимпиада I уровня по этой строке БВИ не получает.
+        self.assertEqual(bb._level_set("2 или 3"), ["II", "III"])
+        self.assertEqual(bb._level_set("3"), ["III"])
+        self.assertEqual(bb._level_set("1,2 или 3"), ["I", "II", "III"])
+        self.assertEqual(bb._level_set("ОШ, ительн 2026 г"), [])
+
+    def test_rows_carry_levels_and_grades(self):
+        rows = bb.itmo_rows([(3, ["09.03.01 ИВТ", "Все из перечня олимпиад школьников", "Математика",
+                                  "Математика", "2 или 3", "Победитель или призер"])], URL, "БВИ", grades=[10, 11])
+        self.assertEqual([(r["levels"], r["grades"]) for r in rows], [(["II", "III"], [10, 11])])
+
+    def test_grades_from_title(self):
+        # Заголовки приложений 5 и 6: «…полученных в 10-м или 11-м классе…», «…в 10-м и 11-м класс…».
+        self.assertEqual(bb.itmo_grades([{"page": 1, "text": "Учет дипломов … полученных в\n10-м или 11-м классе и"}]),
+                         [10, 11])
+        self.assertEqual(bb.itmo_grades([{"page": 1, "text": "баллов в отношении …, полученных в 10-м и\n11-м класс, не"}]),
+                         [10, 11])
+
+    def test_hundred_only_for_diplomas_without_bvi(self):
+        # Приложение 6: 100 баллов — по дипломам, «не дающие право поступления без
+        # вступительных испытаний»: победителю с БВИ 100 баллов не пишутся, призёру — да.
+        recs = [{"olympiad_id": o, "diploma_status": s, "benefit_type": k} for o, s, k in (
+            ("p1", "pobeditel", "БВИ"), ("p1", "pobeditel", "100_ballov"), ("p1", "prizyor", "100_ballov"),
+            ("p2", "pobeditel", "100_ballov"))]
+        got = [(r["olympiad_id"], r["diploma_status"], r["benefit_type"]) for r in bb.drop_hundred_under_bvi(recs)]
+        self.assertEqual(got, [("p1", "pobeditel", "БВИ"), ("p1", "prizyor", "100_ballov"),
+                               ("p2", "pobeditel", "100_ballov")])
+
 
 class ExpandProfileTest(unittest.TestCase):
     def test_part_of_composite_nto_profile(self):
