@@ -1,7 +1,7 @@
 /** Карточка олимпиады — экраны C4, C5, C6. Функции F17–F23, F28. */
 
 import { Button } from '@maxhub/max-ui'
-import type { OlympiadDetail } from '@contract'
+import type { OlympiadDetail, Source } from '@contract'
 import { useAddToTracker, useOlympiad, usePropose, useSession } from '@/api/queries'
 import { formatShortDate } from '@/lib/deadline'
 import { levelLabel } from '@/lib/level'
@@ -27,6 +27,41 @@ function Stages({ detail }: { detail: OlympiadDetail }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+/**
+ * Источники льгот под таблицей (F18): у каждого вуза свои правила приёма —
+ * ссылка на документ своего вуза; вузы без источника — «данные уточняются»
+ * с их названиями, а не пометкой на весь блок.
+ */
+function BenefitSources({ rows }: { rows: OlympiadDetail['benefits'] }) {
+  const t = useVoice()
+  const counted = rows.filter((row) => row.winner || row.prizer)
+  const sources = new Map<string, Source>()
+  for (const row of counted) if (row.source) sources.set(row.source.id, row.source)
+  const unknown = counted.filter((row) => !row.source).map((row) => row.university_nick)
+  if (sources.size === 0) return <p className="fine">{t('olympiad.benefitsUnknown')}</p>
+  return (
+    <>
+      {[...sources.values()].map((source) => (
+        <SourceLine
+          key={source.id}
+          title={
+            source.verified_at
+              ? t('olympiad.sourceVerified', {
+                  title: source.title,
+                  date: formatShortDate(source.verified_at) ?? '',
+                })
+              : source.title
+          }
+          url={source.url}
+        />
+      ))}
+      {unknown.length > 0 ? (
+        <p className="fine">{t('olympiad.benefitsUnknownAt', { names: unknown.join(', ') })}</p>
+      ) : null}
+    </>
   )
 }
 
@@ -226,21 +261,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
             </ul>
           </div>
         ) : null}
-        {detail.benefits_source ? (
-          <SourceLine
-            title={
-              detail.benefits_source.verified_at
-                ? t('olympiad.sourceVerified', {
-                    title: detail.benefits_source.title,
-                    date: formatShortDate(detail.benefits_source.verified_at) ?? '',
-                  })
-                : detail.benefits_source.title
-            }
-            url={detail.benefits_source.url}
-          />
-        ) : (
-          <p className="fine">{t('olympiad.benefitsUnknown')}</p>
-        )}
+        <BenefitSources rows={detail.benefits} />
       </section>
 
       {/* Почему подходит — F20. */}

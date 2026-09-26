@@ -351,6 +351,10 @@
     "kid": "данные уточняются",
     "parent": "данные уточняются"
   },
+  "olympiad.benefitsUnknownAt": {
+    "kid": "{names}: данные уточняются",
+    "parent": "{names}: данные уточняются"
+  },
   "olympiad.whyTitle": {
     "kid": "Почему подходит",
     "parent": "Почему подходит"
