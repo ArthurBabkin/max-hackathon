@@ -26,7 +26,7 @@ export function TrackerRow({ item, onOpen, showAuthor = true }: TrackerRowProps)
     const date = formatDay(item.deadline_at)
     if (!date) return item.next_stage_title ?? ''
     if (item.kind === 'vsosh') {
-      return t('tracker.stageOn', { stage: item.next_stage_title ?? 'Этап', date })
+      return t('tracker.stageOn', { stage: item.next_stage_title ?? t('tracker.stageFallback'), date })
     }
     return t('tracker.deadlineUntil', { date })
   }

@@ -19,6 +19,7 @@ import { Toaster } from './ui/Toaster'
 import { StateBlock } from './ui/primitives'
 import { Tutorial } from './ui/Tutorial'
 import { useSheetStack } from './ui/sheets'
+import { text } from './voice/texts'
 import { useVoice } from './voice/useVoice'
 import { HomeScreen } from './screens/Home'
 import { MatchScreen } from './screens/Match'
@@ -39,8 +40,8 @@ function Splash() {
   return (
     <div className="splash">
       <Logo size={72} />
-      <p className="splash-title">Траектория</p>
-      <p className="splash-text">Собираем подборку…</p>
+      <p className="splash-title">{text('app.title', 'kid')}</p>
+      <p className="splash-text">{text('app.splashCaption', 'kid')}</p>
       <span className="splash-progress" aria-hidden="true">
         <i />
       </span>
@@ -115,7 +116,7 @@ export function App() {
       <header className="app-top">
         <IconButton variant="ghost" size="small" onClick={() => navigate('/')}>
           <Logo size={26} />
-          <span className="sr-only">На главную</span>
+          <span className="sr-only">{t('app.toHome')}</span>
         </IconButton>
         <div className="app-title">
           <b>{t('app.title')}</b>

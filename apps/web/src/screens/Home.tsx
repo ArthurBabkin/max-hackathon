@@ -3,12 +3,13 @@
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@maxhub/max-ui'
 import { useHome } from '@/api/queries'
-import { daysLabel, daysLeft, formatToday, plural } from '@/lib/deadline'
+import { daysLabel, daysLeft, formatToday, pluralForm } from '@/lib/deadline'
 import { goalTitle } from '@/lib/goal'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Note, Section, SourceLine } from '@/ui/primitives'
 import { TrackerRow } from '@/ui/TrackerRow'
 import { useSheetStack } from '@/ui/sheets'
+import type { TextKey } from '@/voice/texts'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
 
@@ -115,25 +116,23 @@ export function HomeScreen() {
           </svg>
         </span>
         <p className="goal-label">
-          {t('home.goalLabel')}, {trajectory.grade} класс
+          {t('home.goalGrade', { grade: trajectory.grade })}
         </p>
         <h2 className="goal-title">{goalTitle(trajectory.directions, t)}</h2>
         <div className="goal-stats">
           <ProgressRing percent={percent} />
           <ul>
             <li>
-              <b>{data.tracker_count}</b>{' '}
-              {plural(data.tracker_count, 'олимпиада', 'олимпиады', 'олимпиад')} в трекере
+              <b>{data.tracker_count}</b> {t(`home.statTracker.${pluralForm(data.tracker_count)}` as TextKey)}
             </li>
             <li>
-              <b>
-                {data.registered_count} из {data.tracker_count}
-              </b>{' '}
-              {plural(data.registered_count, 'регистрация', 'регистрации', 'регистраций')}
+              {/* Слово зависит от «из N»: «1 из 3 регистраций», при любом числителе. */}
+              <b>{t('home.statRegisteredOf', { count: data.registered_count, total: data.tracker_count })}</b>{' '}
+              {t(`home.statRegistered.${pluralForm(data.tracker_count)}` as TextKey)}
             </li>
             <li>
               <b>{data.universities_count}</b>{' '}
-              {plural(data.universities_count, 'вуз', 'вуза', 'вузов')} в цели
+              {t(`home.statUniversities.${pluralForm(data.universities_count)}` as TextKey)}
             </li>
           </ul>
         </div>
@@ -146,11 +145,12 @@ export function HomeScreen() {
           </span>
           <div className="next-step-main">
             <p className="next-step-label">
-              {t('home.nextStepLabel')}
-              {nextDays !== null && nextDays >= 0 ? `, осталось ${daysLabel(nextDays)}` : ''}
+              {nextDays !== null && nextDays >= 0
+                ? t('home.nextStepLabelDays', { days: daysLabel(nextDays) })
+                : t('home.nextStepLabel')}
             </p>
             <p className="next-step-title">
-              {next.stage_title} {next.stage_kind === 'registration' ? 'на' : ''} «{next.olympiad_name}»
+              {t('home.nextStepTitle', { stage: next.stage_title, olympiad: next.olympiad_name })}
             </p>
           </div>
           <Button size="small" onClick={() => openOlympiad(next.olympiad_profile_id)}>

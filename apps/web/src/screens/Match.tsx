@@ -70,7 +70,7 @@ export function MatchScreen() {
   )
 
   const chips = (
-    <div className="chips" role="group" aria-label="Фильтры подбора">
+    <div className="chips" role="group" aria-label={t('match.filtersLabel')}>
       {MATCH_FILTERS.map((key) => (
         <Chip
           key={key}

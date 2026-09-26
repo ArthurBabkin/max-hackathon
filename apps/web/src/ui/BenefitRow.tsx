@@ -7,8 +7,7 @@
 
 import type { BenefitKind, BenefitRow as BenefitRowData } from '@contract'
 import { NO_BENEFIT_LABEL } from '@contract'
-import { ofDirections } from '@/lib/catalog'
-import { useVoice } from '@/voice/useVoice'
+import { countText, useVoice } from '@/voice/useVoice'
 import { Icon } from './Icon'
 import { Tile } from './primitives'
 
@@ -30,7 +29,7 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
   // «Где ещё даёт льготу» (F65): на скольких направлениях вуза.
   const coverage =
     data.directions_count > 0 && data.directions_total > 0
-      ? ` · ${t('university.onDirections', { count: data.directions_count, total: ofDirections(data.directions_total) })}`
+      ? ` · ${t('university.onDirections', { count: data.directions_count, total: countText(t, 'count.directionsGen', data.directions_total) })}`
       : ''
   const body = (
     <>
