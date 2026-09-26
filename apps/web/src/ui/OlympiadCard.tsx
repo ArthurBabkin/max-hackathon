@@ -9,7 +9,8 @@
 import type { OlympiadCard as OlympiadCardData } from '@contract'
 import { Icon } from './Icon'
 import { Pill, Tile } from './primitives'
-import { useVoice } from '@/voice/useVoice'
+import { levelLabel } from '@/lib/level'
+import { useVoice, type Translate } from '@/voice/useVoice'
 
 export interface OlympiadCardProps {
   card: OlympiadCardData
@@ -19,15 +20,16 @@ export interface OlympiadCardProps {
   onTrack: (card: OlympiadCardData) => void
 }
 
-function levelChip(card: OlympiadCardData): { label: string; className: string } {
-  if (card.kind === 'vsosh') return { label: 'ВсОШ', className: 'level level-vsosh' }
-  if (card.kind === 'other') return { label: 'вне перечня', className: 'level level-outside' }
-  return { label: card.level ? `${card.level} уровень` : 'уровень уточняется', className: 'level' }
+function levelChip(card: OlympiadCardData, t: Translate): { label: string; className: string } {
+  const label = levelLabel(card.kind, card.level, t)
+  if (card.kind === 'vsosh') return { label, className: 'level level-vsosh' }
+  if (card.kind === 'other') return { label, className: 'level level-outside' }
+  return { label, className: 'level' }
 }
 
 export function OlympiadCard({ card, action, busy = false, onOpen, onTrack }: OlympiadCardProps) {
   const t = useVoice()
-  const chip = levelChip(card)
+  const chip = levelChip(card, t)
   const pending = card.proposal_status === 'pending'
 
   const trackButton = () => {

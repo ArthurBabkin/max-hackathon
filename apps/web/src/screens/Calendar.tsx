@@ -57,10 +57,10 @@ export function CalendarView({ month, data, onMonthChange, onOpen }: CalendarVie
           <b>{formatMonthTitle(month)}</b>
           <span>
             <button type="button" onClick={() => onMonthChange(shiftMonth(month, -1))}>
-              <Icon name="back" size={16} title="Предыдущий месяц" />
+              <Icon name="back" size={16} title={t('calendar.prevMonth')} />
             </button>
             <button type="button" onClick={() => onMonthChange(shiftMonth(month, 1))}>
-              <Icon name="chevron" size={16} title="Следующий месяц" />
+              <Icon name="chevron" size={16} title={t('calendar.nextMonth')} />
             </button>
           </span>
         </div>

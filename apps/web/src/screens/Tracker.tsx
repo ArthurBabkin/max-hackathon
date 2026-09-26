@@ -51,8 +51,8 @@ function shortLabels(stages: TrackerStage[], t: Voice): string[] {
 }
 
 /** Когда этап: срок регистрации или день начала, иначе подпись словами. */
-function stageDate(s: TrackerStage): string {
-  if (s.deadline_at) return `до ${formatDay(s.deadline_at)}`
+function stageDate(s: TrackerStage, t: Voice): string {
+  if (s.deadline_at) return t('tracker.stageUntil', { date: formatDay(s.deadline_at) ?? '' })
   if (s.starts_at) return formatDay(s.starts_at) ?? ''
   return s.subtitle ?? ''
 }
@@ -70,14 +70,14 @@ function stripTone(s: TrackerStage): string {
 
 function stripCaption(s: TrackerStage, t: Voice): string {
   if (s.result) return t(`tracker.mark.${s.result}` as TextKey)
-  return stageDate(s) || (s.registered ? t('tracker.mark.registered') : '')
+  return stageDate(s, t) || (s.registered ? t('tracker.mark.registered') : '')
 }
 
 /** Полоска этапов со сроками — вариант B макета E1. */
 function StageStrip({ stages, labels }: { stages: TrackerStage[]; labels: string[] }) {
   const t = useVoice()
   return (
-    <ol className={`strip${stages.length > 3 ? ' strip-grid' : ''}`} aria-label="Этапы">
+    <ol className={`strip${stages.length > 3 ? ' strip-grid' : ''}`} aria-label={t('tracker.stagesLabel')}>
       {stages.map((s, i) => {
         const caption = stripCaption(s, t)
         const done = stripTone(s) === 'strip-done' || stripTone(s) === 'strip-gold'
@@ -242,7 +242,7 @@ function Subtitle({ item }: { item: TrackerItem }) {
   }
   const date = formatDay(item.deadline_at)
   if (item.status === 'open') {
-    if (item.kind === 'vsosh' && date) return <>{t('tracker.stageOn', { stage: item.next_stage_title ?? 'Этап', date })}</>
+    if (item.kind === 'vsosh' && date) return <>{t('tracker.stageOn', { stage: item.next_stage_title ?? t('tracker.stageFallback'), date })}</>
     return <>{date ? t('tracker.deadlineUntil', { date }) : (item.next_stage_title ?? '')}</>
   }
   if (!item.next_stage_title) return <>{t('tracker.waitNext')}</>
@@ -272,11 +272,14 @@ function TrackerCard({
   onOpen,
   canMark,
   canRemove,
+  viewerId,
 }: {
   item: TrackerItem
   onOpen: (id: string) => void
   canMark: boolean
   canRemove: boolean
+  /** Участник, который смотрит: кто добавил олимпиаду, пишем, только если это не он сам. */
+  viewerId: string | undefined
 }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
@@ -287,6 +290,7 @@ function TrackerCard({
   const onMark: Mark = (stageId, registered, result) => mark.mutate({ item, stageId, registered, result })
   const disabled = !canMark || mark.isPending
   const diploma = item.outcome === 'winner' || item.outcome === 'prizer'
+  const addedBy = item.added_by && item.added_by.id !== viewerId ? item.added_by.name : null
 
   return (
     <article className="tracker-card" data-tour="tracker-item">
@@ -297,6 +301,7 @@ function TrackerCard({
           <span className="row-subtitle">
             <Subtitle item={item} />
           </span>
+          {addedBy ? <span className="row-meta">{t('tracker.addedBy', { name: addedBy })}</span> : null}
         </span>
         <StatusPill item={item} />
       </button>
@@ -581,7 +586,14 @@ export function TrackerScreen() {
                 {group.title}: {group.items.length}
               </p>,
               ...group.items.map((item) => (
-                <TrackerCard key={item.id} item={item} onOpen={openOlympiad} canMark={canMark} canRemove={canRemove} />
+                <TrackerCard
+                  key={item.id}
+                  item={item}
+                  onOpen={openOlympiad}
+                  canMark={canMark}
+                  canRemove={canRemove}
+                  viewerId={session?.member.id}
+                />
               )),
             ]
           : [],

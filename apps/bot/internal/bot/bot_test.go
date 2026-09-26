@@ -199,7 +199,7 @@ func (h *harness) toSummary() {
 	h.press(artem, "place:t:1")
 	h.press(artem, "place:done")
 	h.press(artem, "vuz:done")
-	h.mustContain(artem, "**Артём, сформировали твой профиль**")
+	h.mustContain(artem, "**Артём, собрали твой профиль**")
 }
 
 // edit открывает меню правки и выбирает поле.
@@ -261,7 +261,7 @@ func (h *harness) kidOnboarding() store.Member {
 		h.t.Fatal("траектория создана до «Готово»")
 	}
 	summary := h.fake.Last(artem.UserID)
-	if summary.Text != "**Артём, сформировали твой профиль**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
+	if summary.Text != "**Артём, собрали твой профиль**\nКласс: 9 · Казань\nПредметы: информатика, математика\n"+
 		"Цель: программная инженерия, информатика и вычислительная техника\nОпыт: школьный или муниципальный этап\n"+
 		"Где учиться: Татарстан\nВузы: Иннополис, ВШЭ\n\nВсё верно? Если нужно поправить — нажми «Изменить»." ||
 		summary.Format != "markdown" || !slices.Equal(maxtest.Payloads(summary), []string{"sum:edit", "sum:ok"}) {
@@ -289,7 +289,7 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 		t.Fatalf("траектория: %+v", tr)
 	}
 	// После «Готово» — только итог: профиль уже был на подтверждении.
-	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**") {
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, собрали твой профиль**") {
 		t.Fatalf("перед итогом — карточка профиля: %q", s)
 	}
 	result := h.fake.Last(artem.UserID)
@@ -418,7 +418,7 @@ func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 		t.Fatalf("цель не выбрана, место не важно: %+v", tr)
 	}
 	summary := h.sentBack(olga, 1).Text
-	if summary != "**Ольга, сформировали профиль Артёма**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
+	if summary != "**Ольга, собрали профиль Артёма**\nКласс: 10 · Татарстан\nПредметы: физика\nЦель: пока не выбрана\n"+
 		"Опыт: первые олимпиады\nГде учиться: не важно\nВузы: не выбраны\n\nВсё верно? Если нужно поправить — нажмите «Изменить»." {
 		t.Fatalf("профиль родителю: %q", summary)
 	}
@@ -561,7 +561,7 @@ func TestRegion_SkipCreatesTrajectory(t *testing.T) {
 	if tr.RegionCode != "" || tr.TZ != "Europe/Moscow" || tr.HomeCity != nil {
 		t.Fatalf("траектория без региона: %+v", tr)
 	}
-	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, сформировали твой профиль**\nКласс: 9\nПредметы: информатика\n") {
+	if s := h.sentBack(artem, 1).Text; !strings.HasPrefix(s, "**Артём, собрали твой профиль**\nКласс: 9\nПредметы: информатика\n") {
 		t.Fatalf("профиль: %q", s)
 	}
 }
@@ -597,7 +597,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 	h := newHarness(t)
 	h.toDirections("inf", "math")
 	h.press(artem, "dir:help")
-	h.mustContain(artem, "Давай разберёмся вместе — два вопроса.")
+	h.mustContain(artem, "Два вопроса про интересы.")
 	h.step(artem, 6)
 	id := h.press(artem, "int:done")
 	if a := h.answered(id); a.Notification != "Выбери хотя бы один вариант" {
@@ -657,7 +657,7 @@ func TestDirectionHelp_ParentStillUndecided(t *testing.T) {
 	h.press(olga, "subj:t:bio")
 	h.press(olga, "subj:done")
 	h.press(olga, "dir:help")
-	h.mustContain(olga, "Давайте разберёмся — два вопроса. Что из этого больше всего нравится Артёму?")
+	h.mustContain(olga, "Два вопроса про интересы. Что из этого больше всего нравится Артёму?")
 	h.press(olga, "int:t:bio")
 	h.press(olga, "int:done")
 	h.mustContain(olga, "Какая работа ближе Артёму?")
@@ -876,7 +876,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 		t.Fatalf("проверка профиля: %q", check.Text)
 	}
 	h.press(artem, "join:ok")
-	h.mustContain(artem, "Давай разберёмся вместе")
+	h.mustContain(artem, "Два вопроса про интересы")
 	if got := h.lastText(artem); strings.HasPrefix(got, "Шаг ") {
 		t.Fatalf("у приглашённого ученика счётчика нет: %q", got)
 	}
@@ -1240,7 +1240,7 @@ func TestSummary_EditGrade(t *testing.T) {
 		t.Fatalf("вопрос при правке: %q", got)
 	}
 	h.press(artem, "grade:10")
-	h.mustContain(artem, "**Артём, сформировали твой профиль**\nКласс: 10 · Казань\n")
+	h.mustContain(artem, "**Артём, собрали твой профиль**\nКласс: 10 · Казань\n")
 	if d := h.dialog(artem); d.Step != stepSummary || d.Draft.EditStage != 0 || d.Draft.RegionCode != "16" {
 		t.Fatalf("после правки — профиль, регион прежний: %+v", d)
 	}

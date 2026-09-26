@@ -4,6 +4,7 @@ import { Button } from '@maxhub/max-ui'
 import type { OlympiadDetail } from '@contract'
 import { useAddToTracker, useOlympiad, usePropose, useSession } from '@/api/queries'
 import { formatShortDate } from '@/lib/deadline'
+import { levelLabel } from '@/lib/level'
 import { getWebApp } from '@/bridge'
 import { trackerAction } from '@/lib/permissions'
 import { BenefitRow } from '@/ui/BenefitRow'
@@ -14,12 +15,6 @@ import { CardSkeletons, Pill, SourceLine, SourceTag, Tile } from '@/ui/primitive
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
-
-function levelLabel(detail: OlympiadDetail): string {
-  if (detail.kind === 'vsosh') return 'ВсОШ'
-  if (detail.kind === 'other') return 'вне перечня'
-  return detail.level ? `${detail.level} уровень` : 'уровень уточняется'
-}
 
 /** Таймлайн этапов: пройденные серым, ближайший выделен (F21). */
 function Stages({ detail }: { detail: OlympiadDetail }) {
@@ -47,7 +42,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
 
   if (query.isPending) {
     return (
-      <Sheet label="Карточка олимпиады" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
+      <Sheet label={t('sheet.olympiad')} canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
         <CardSkeletons count={2} />
       </Sheet>
     )
@@ -55,7 +50,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
 
   if (query.isError || !query.data) {
     return (
-      <Sheet label="Карточка олимпиады" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
+      <Sheet label={t('sheet.olympiad')} canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       </Sheet>
     )
@@ -127,7 +122,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
     >
       <div className="oly-card-tags sheet-tags">
         <span className={`level${detail.kind === 'vsosh' ? ' level-vsosh' : detail.kind === 'other' ? ' level-outside' : ''}`}>
-          {levelLabel(detail)}
+          {levelLabel(detail.kind, detail.level, t)}
         </span>
         {detail.format ? <span className="pill pill-ok">{detail.format}</span> : null}
         <Pill deadlineAt={detail.deadline_at} doneLabel={t('pill.done')} />
@@ -233,11 +228,14 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         ) : null}
         {detail.benefits_source ? (
           <SourceLine
-            title={`${detail.benefits_source.title}${
+            title={
               detail.benefits_source.verified_at
-                ? `. Проверено ${formatShortDate(detail.benefits_source.verified_at)}`
-                : ''
-            }`}
+                ? t('olympiad.sourceVerified', {
+                    title: detail.benefits_source.title,
+                    date: formatShortDate(detail.benefits_source.verified_at) ?? '',
+                  })
+                : detail.benefits_source.title
+            }
             url={detail.benefits_source.url}
           />
         ) : (

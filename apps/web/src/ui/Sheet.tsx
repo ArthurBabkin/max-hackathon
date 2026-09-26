@@ -7,6 +7,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { IconButton } from '@maxhub/max-ui'
 import { Icon } from './Icon'
+import { useVoice } from '@/voice/useVoice'
 
 export interface SheetProps {
   label: string
@@ -21,6 +22,7 @@ export interface SheetProps {
 }
 
 export function Sheet({ label, canGoBack, onBack, onClose, header, children, tall = false }: SheetProps) {
+  const t = useVoice()
   // Пока лист открыт, фон под ним не должен прокручиваться: иначе на телефоне
   // экран уезжает под листом и возвращается уже не туда.
   useEffect(() => {
@@ -47,13 +49,13 @@ export function Sheet({ label, canGoBack, onBack, onClose, header, children, tal
         {canGoBack ? (
           <button type="button" className="sheet-back" onClick={onBack}>
             <Icon name="back" size={16} />
-            Назад
+            {t('sheet.back')}
           </button>
         ) : null}
         <div className="sheet-head">
           {header}
           <IconButton variant="secondary" size="small" className="sheet-close" data-tour="sheet-close" onClick={onClose}>
-            <Icon name="close" size={15} title="Закрыть" />
+            <Icon name="close" size={15} title={t('sheet.close')} />
           </IconButton>
         </div>
         {tall ? children : <div className="sheet-body">{children}</div>}

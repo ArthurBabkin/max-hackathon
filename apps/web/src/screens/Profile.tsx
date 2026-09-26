@@ -202,7 +202,24 @@ export function ProfileScreen() {
   const nameInvalid = name.trim().length === 0 || name.trim().length > 40
   const allDirections = directions.data?.items ?? []
   // Сохранённые вузы, которые в форме не сняты.
-  const myUniversities = data.universities.filter((u) => selectedUniversities.includes(u.id))
+  // Строки — по чипам формы, а не по сохранённому: только что отмеченный вуз
+  // виден сразу, его направления выбирают в карточке вуза до «Сохранить».
+  const universityRows = selectedUniversities.flatMap((id) => {
+    const saved = data.universities.find((u) => u.id === id)
+    if (saved) {
+      const note =
+        saved.target_basis === 'chosen'
+          ? saved.chosen_directions.map((d) => d.name).join(', ')
+          : saved.target_basis === 'goal'
+            ? t('profile.uniDirectionsGoal', {
+                directions: saved.target_directions.map((d) => d.name).join(', '),
+              })
+            : t('profile.uniDirectionsNone')
+      return [{ id, nick: saved.nick, note }]
+    }
+    const listed = universities.data?.items.find((u) => u.id === id)
+    return listed ? [{ id, nick: listed.nick, note: t('profile.uniDirectionsPick') }] : []
+  })
 
   return (
     <div className="screen">
@@ -225,7 +242,7 @@ export function ProfileScreen() {
           maxLength={40}
           aria-label={t('profile.nameLabel')}
           aria-invalid={nameInvalid}
-          hint={nameInvalid ? 'Имя от 1 до 40 символов' : undefined}
+          hint={nameInvalid ? t('profile.nameInvalid') : undefined}
           onChange={(event) => setName(event.target.value)}
         />
       </div>
@@ -254,7 +271,7 @@ export function ProfileScreen() {
         <select className="field-select" value={region} onChange={(event) => setRegion(event.target.value)}>
           <option value="">{t('profile.regionNone')}</option>
           {districts.map((district) => (
-            <optgroup key={district.n} label={`${district.name} округ`}>
+            <optgroup key={district.n} label={t('profile.district', { region: district.name })}>
               {regions
                 .filter((r) => r.district === district.n)
                 .map((r) => (
@@ -365,7 +382,7 @@ export function ProfileScreen() {
         >
           <option value="">{t('profile.placesAdd')}</option>
           {districts.map((district) => (
-            <optgroup key={district.n} label={`${district.name} округ`}>
+            <optgroup key={district.n} label={t('profile.district', { region: district.name })}>
               {regions
                 .filter((r) => r.district === district.n)
                 .map((r) => (
@@ -399,22 +416,14 @@ export function ProfileScreen() {
           ))}
         </div>
         {/* На какие направления вуза смотрим льготы (F65); выбор — в карточке вуза. */}
-        {myUniversities.length > 0 ? (
+        {universityRows.length > 0 ? (
           <>
             <ul className="uni-targets" aria-label={t('profile.uniDirections')}>
-              {myUniversities.map((u) => (
+              {universityRows.map((u) => (
                 <li key={u.id}>
                   <button type="button" onClick={() => sheets.open({ kind: 'vuz', id: u.id })}>
                     <b>{u.nick}</b>
-                    <span>
-                      {u.target_basis === 'chosen'
-                        ? u.chosen_directions.map((d) => d.name).join(', ')
-                        : u.target_basis === 'goal'
-                          ? t('profile.uniDirectionsGoal', {
-                              directions: u.target_directions.map((d) => d.name).join(', '),
-                            })
-                          : t('profile.uniDirectionsNone')}
-                    </span>
+                    <span>{u.note}</span>
                     <Icon name="chevron" size={15} />
                   </button>
                 </li>

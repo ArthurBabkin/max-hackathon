@@ -196,6 +196,16 @@ it('делит трекер на «нужно зарегистрироватьс
   expect(heading('Завершено: 1')).toBeInTheDocument()
 })
 
+it('пишет, кто добавил олимпиаду, если не сам смотрящий (ТЗ §3.2)', () => {
+  setup([
+    hse({ added_by: { id: 'm-2', name: 'Ольга', role: 'parent' } }),
+    { ...hse({ added_by: { id: 'm-1', name: 'Артём', role: 'kid' } }), id: 'mine', olympiad_name: 'Моя олимпиада' },
+  ])
+
+  expect(screen.getByText('Добавлено: Ольга')).toBeInTheDocument()
+  expect(screen.queryByText('Добавлено: Артём')).not.toBeInTheDocument()
+})
+
 it('полоска этапов: короткие названия, текущий выделен', () => {
   setup([hse()])
 
@@ -288,7 +298,7 @@ it('этапы впереди итог не предлагают, даже бе�
   expect(screen.getByRole('button', { name: 'Прохожу дальше' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Диплом призёра' })).not.toBeInTheDocument()
   expect(screen.getByText('февраль, очно · итог — после этапа')).toBeInTheDocument()
-  expect(screen.getByText(/регистрация есть · отметил\(а\) Артём/)).toBeInTheDocument()
+  expect(screen.getByText(/регистрация есть · отмечено: Артём/)).toBeInTheDocument()
 })
 
 it('«Не прохожу» закрывает олимпиаду: дальше серое, отметку можно снять', async () => {

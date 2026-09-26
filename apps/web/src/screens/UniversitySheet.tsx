@@ -5,14 +5,14 @@ import { Button } from '@maxhub/max-ui'
 import { BENEFIT_LABELS, type UniversityDetail } from '@contract'
 import { useProfile, useSession, useSetUniversities, useSetUniversityDirections, useUniversity } from '@/api/queries'
 import { getWebApp } from '@/bridge'
-import { byOlympiad, ofDirections } from '@/lib/catalog'
-import { formatShortDate, plural } from '@/lib/deadline'
+import { byOlympiad } from '@/lib/catalog'
+import { formatShortDate } from '@/lib/deadline'
 import { UniversityOlympiadRow } from '@/ui/BenefitRow'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
 import { Chip, CardSkeletons, SourceTag, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
-import { useVoice } from '@/voice/useVoice'
+import { countText, useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
 
 /** Сколько олимпиад вуза видно сразу: у Иннополиса их больше шестидесяти. */
@@ -82,7 +82,7 @@ function Directions({
             <b>{d.name}</b>
             <span>
               {d.code}
-              {d.programs > 0 ? ` · ${d.programs} ${plural(d.programs, 'программа', 'программы', 'программ')}` : ''}
+              {d.programs > 0 ? ` · ${countText(t, 'count.programs', d.programs)}` : ''}
               {university.target_basis === 'goal' && d.is_goal ? (
                 <em className="uni-direction-goal"> · {t('university.directionGoal')}</em>
               ) : null}
@@ -92,8 +92,7 @@ function Directions({
             <span className="uni-direction-count uni-direction-check">{t('university.directionToCheck')}</span>
           ) : d.benefit_olympiads_count > 0 ? (
             <span className="uni-direction-count">
-              {d.benefit_olympiads_count}{' '}
-              {plural(d.benefit_olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')}
+              {countText(t, 'count.olympiads', d.benefit_olympiads_count)}
             </span>
           ) : null}
         </button>
@@ -125,7 +124,7 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
 
   if (query.isPending) {
     return (
-      <Sheet label="Карточка вуза" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
+      <Sheet label={t('sheet.university')} canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
         <CardSkeletons count={2} />
       </Sheet>
     )
@@ -133,7 +132,7 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
 
   if (query.isError || !query.data) {
     return (
-      <Sheet label="Карточка вуза" canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
+      <Sheet label={t('sheet.university')} canGoBack={canGoBack} onBack={sheets.back} onClose={sheets.closeAll}>
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       </Sheet>
     )
@@ -156,7 +155,7 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
   const coverage = (rows: UniversityDetail['olympiads']) => {
     const best = rows.reduce((a, r) => (r.directions_count > a.directions_count ? r : a), rows[0]!)
     return best.directions_total > 0 && best.directions_count > 0
-      ? ` · ${t('university.onDirections', { count: best.directions_count, total: ofDirections(best.directions_total) })}`
+      ? ` · ${t('university.onDirections', { count: best.directions_count, total: countText(t, 'count.directionsGen', best.directions_total) })}`
       : ''
   }
 
@@ -281,7 +280,7 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
             ? t('university.addToMine')
             : chosen > 0
               ? t('university.inMineWith', {
-                  count: `${chosen} ${plural(chosen, 'направление', 'направления', 'направлений')}`,
+                  count: countText(t, 'count.directions', chosen),
                 })
               : t('university.inMine')}
         </Button>

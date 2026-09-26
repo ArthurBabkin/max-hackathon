@@ -323,7 +323,9 @@ async function main() {
   // Семья: необратимое — только отказами.
   const family = (await call('GET', '/family', { token: kid, expect: 200 })).data
   const me = family.members.find((m) => m.is_me)
-  await call('POST', '/family/invites', { token: kid, body: { role: 'parent' }, expect: 201 })
+  const invite = (await call('POST', '/family/invites', { token: kid, body: { role: 'parent' }, expect: 201 })).data
+  await call('DELETE', '/family/invites/{id}', { token: kid, params: { id: invite.id }, expect: 204 })
+  await call('DELETE', '/family/invites/{id}', { token: kid, params: { id: invite.id }, expect: 404 })
   await call('POST', '/family/invites', { token: kid, body: { role: 'kid' }, expect: 409 })
   await call('POST', '/family/invites', { token: kid, body: { role: 'admin' }, expect: 400 })
   await call('DELETE', '/family/members/{id}', { token: kid, params: { id: me.id }, expect: 403 })
