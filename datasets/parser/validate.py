@@ -139,6 +139,20 @@ GOLDEN = [
     ("hse__fizika", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("hse__fizika", "p669-41-fizika", {(POB, "100_ballov")}),
     ("hse__yurisprudenciya-pravovoe-regulirovanie-biznesa-o", "p669-8-obschestvoznanie", set()),
+    # МГУ, olymp_benefits.pdf: секции высших школ «… (ФАКУЛЬТЕТ)» (стр. 37);
+    # Севастополь, «Физика» — 03.05.02 (стр. 61); ФиПФ — БВИ победителю и II
+    # уровня, объединённая ячейка (стр. 5); экономфак — олимпиады через «;»
+    # (стр. 20); МШЭ — «*» уровня II, уровень I назван только у Вернадского.
+    ("msu__biznes-informatika-cifrovaya-transformaciya-bizn", "p669-50-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("msu__fundamentalnaya-i-prikladnaya-fizika-030502", "p669-54-fizika",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("msu__fundamentalnaya-i-prikladnaya-fizika", "p669-8-fizika", {(POB, "БВИ"), (PRIZ, "100_ballov")}),
+    ("msu__ekonomika", "p669-54-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("msu__ekonomika-380301", "p669-8-ekonomika", set()),
+    # МГУ, Правила п. 26 (стр. 19): ВсОШ — 100 баллов ЕГЭ по предмету на любую
+    # программу, где он ВИ (kcp_bak стр. 2: у ФИИТ физика — ЕГЭ); где БВИ — только оно.
+    ("msu__fundamentalnaya-informatika-i-informacionnye-teh", "vsosh-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("msu__prikladnaya-matematika-i-informatika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно

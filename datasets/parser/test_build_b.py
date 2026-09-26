@@ -144,6 +144,27 @@ class MsuTablesTest(unittest.TestCase):
                   ["Геофизика", "", "", "", "II", "", "Победитель, призер", "", self.MAX_CELL])
         self.assertEqual([(n, p) for n, p, *_ in got], [("Геология", "Математика"), ("Геофизика", "")])
 
+    def test_merged_benefit_cell_carried_down(self):
+        # ФиПФ, стр. 5: «Зачисление без ВИ» — одна ячейка на победителя I и II уровня.
+        got = msu(self.FACULTY,
+                  ["Физика", "Физика", "Физика", "*", "I", "11 класс", "Победитель", "Физика", self.BVI_CELL],
+                  ["", "", "", "", "II", "11 класс", "Победитель", "", ""])
+        self.assertEqual([(lv, b) for _, _, _, lv, _, b, *_ in got], [("I", "БВИ"), ("II", "БВИ")])
+
+    def test_names_split_by_semicolon(self):
+        # Экономфак, стр. 19–21: олимпиады перечислены через «;».
+        got = msu(self.FACULTY, ["Экономика", "Математика", "Математика",
+                                 "Московская олимпиада школьников; Олимпиада школьников «Физтех»", "I, II", "11",
+                                 "Победитель, призер", "Математика", self.MAX_CELL])
+        self.assertEqual([n for _, _, n, *_ in got], ["Московская олимпиада школьников", "Олимпиада школьников «Физтех»"])
+
+    def test_star_row_levels_exact(self):
+        # «I, III» нарочно пропускает II: уровни — множество, а не «не ниже».
+        rows = bb.msu_rows([{"page": 9, "tables": [[self.FACULTY, ["Экономика", "Экономика", "Экономика", "*",
+                                                                   "I, III", "11", "Победитель", "Математика",
+                                                                   self.MAX_CELL]]]}], URL)
+        self.assertEqual([r["levels"] for r in rows], [["I", "III"]])
+
 
 SCHOOLS = ["ФРКТ", "ЛФИ", "ФАКТ", "ПИШ ФАЛТ", "ФЭФМ", "ФПМИ", "ФБМФ/ ВШБИ", "КНТ", "ФБВТ", "ВШПИ", "ВШ М"]
 
@@ -908,6 +929,57 @@ class MsuLinkTest(unittest.TestCase):
 
     def test_plain_direction_covers_profiled_program(self):
         self.assertEqual(self.targets("Высшая школа государственного аудита", "Экономика"), ["audit"])
+
+    def test_school_section_with_faculty_suffix(self):
+        # Секции высших школ: «ВЫСШАЯ ШКОЛА ГОСУДАРСТВЕННОГО АУДИТА (ФАКУЛЬТЕТ)».
+        self.assertEqual(self.targets("ВЫСШАЯ ШКОЛА ГОСУДАРСТВЕННОГО АУДИТА (ФАКУЛЬТЕТ)", "Экономика"), ["audit"])
+
+    KCP = [{"page": 2, "tables": [[
+        ["Факультет, … образовательная программа", None, "Количество бюджетных мест", "…", "Вступительные испытания"],
+        ["Факультет вычислительной математики и кибернетики", None, None, None, None],
+        ["01.03.02", 'Направление подготовки "Прикладная математика и информатика" (очная форма, бюджет и договор)',
+         "312", "120", "математика (ДВИ, письменно) (1) математика (ЕГЭ) (2) физика (ЕГЭ) (3) "
+                       "информатика (ЕГЭ) (4) русский язык (ЕГЭ) (5)"],
+        [None, "в том числе для поступающих по особой квоте", "32", "", None],
+        ["Филиал МГУ в г. Севастополе", None, None, None, None],
+        ["03.05.02", 'Специальность "Фундаментальная и прикладная физика" (очная форма, бюджет и договор)', "8", "5",
+         "физика (ДВИ, письменно) (1) физика (ЕГЭ) (2) математика (ЕГЭ) или информатика (ЕГЭ), или химия (ЕГЭ) "
+         "(один по выбору поступающего) (3) русский язык (ЕГЭ) (4)"],
+    ]]}]
+
+    def test_program_exams_from_plan(self):
+        # ВИ по ЕГЭ — те, где 100 баллов по ВсОШ засчитываются (п. 26 Правил); ДВИ — нет.
+        self.assertEqual(bb.msu_program_exams(self.KCP), {
+            ("факультет вычислительной математики и кибернетики", "01.03.02", "Прикладная математика и информатика"):
+                {"Математика", "Физика", "Информатика", "Русский язык"},
+            ("филиал мгу в г. севастополе", "03.05.02", "Фундаментальная и прикладная физика"):
+                {"Физика", "Математика", "Информатика", "Химия", "Русский язык"}})
+
+    def test_vsosh_hundred_rows_link_to_program(self):
+        rows = bb.msu_vsosh_hundred_rows(self.KCP, URL)
+        pmi = [r for r in rows if r["match"]["msu_program"][1] == "01.03.02"]
+        self.assertEqual(sorted(r["profile"] for r in pmi), ["информатика", "математика", "русский язык", "физика"])
+        self.assertEqual({(r["benefit"], tuple(r["statuses"]), r["unless_bvi"]) for r in rows},
+                         {(bb.HUNDRED, (bb.POB, bb.PRIZ), True)})
+        progs = [prog("pmi", "Прикладная математика и информатика", "Факультет вычислительной математики и кибернетики"),
+                 prog("pmi-sev", "Прикладная математика и информатика", "Филиал МГУ в г. Севастополе")]
+        self.assertEqual([p["program_id"] for p in bb.link("msu", pmi[0], progs)], ["pmi"])
+
+    def test_hundred_dropped_where_same_diploma_gives_bvi(self):
+        recs = [{"olympiad_id": "vsosh-fizika", "diploma_status": "pobeditel", "benefit_type": "БВИ"},
+                {"olympiad_id": "vsosh-fizika", "diploma_status": "pobeditel", "benefit_type": "100_ballov",
+                 "_unless_bvi": True},
+                {"olympiad_id": "vsosh-himiya", "diploma_status": "pobeditel", "benefit_type": "100_ballov",
+                 "_unless_bvi": True}]
+        self.assertEqual([(r["olympiad_id"], r["benefit_type"], "_unless_bvi" in r) for r in bb.drop_unless_bvi(recs)],
+                         [("vsosh-fizika", "БВИ", False), ("vsosh-himiya", "100_ballov", False)])
+
+    def test_sevastopol_physics(self):
+        # Севастополь, стр. 60–61: «Физика» — это 03.05.02 «Фундаментальная и
+        # прикладная физика» (kcp стр. 30), другой физики у филиала нет.
+        progs = [prog("sev-fiz", "Фундаментальная и прикладная физика", "Филиал МГУ в г. Севастополе", "03.05.02")]
+        row = {"match": {"faculty": "ФИЛИАЛ МГУ В Г. СЕВАСТОПОЛЕ", "napravlenie": "Физика"}}
+        self.assertEqual([p["program_id"] for p in bb.link("msu", row, progs)], ["sev-fiz"])
 
     def test_vsosh_skips_international_olympiads(self):
         pages = [{"page": 6, "tables": [[
