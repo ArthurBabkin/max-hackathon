@@ -842,12 +842,15 @@ def build_university_directions(seed: Seed) -> UniversityDirections:
                 excluded.add(pid)
             p = programs.setdefault(pid, {
                 "program_id": pid, "vuz": r["vuz_id"], "code": r["napravlenie_code"],
-                "program_name": r["program_name"], "faculty": r["faculty"], "places": None,
+                "program_name": r["program_name"], "faculty": r["faculty"],
+                "places": None, "group_places": False,
                 "groups": set(), "b_status": None, "year": r["admission_year"], "records": [],
             })
             p["groups"].add(r["profile_group"])
             if p["places"] is None:
-                p["places"] = r["budget_places_2026"]
+                # Число есть, но демо — места не программы, а её конкурсной
+                # группы (МФТИ): одно число на все программы группы.
+                p["places"], p["group_places"] = r["budget_places_2026"], not in_b and r["is_demo"]
             if in_b:
                 p["b_status"], p["records"] = r["status"], r["prinimaemye_olimpiady"]
     by_pair: dict[tuple, list[dict]] = defaultdict(list)
@@ -880,7 +883,15 @@ def build_university_directions(seed: Seed) -> UniversityDirections:
     for (vuz, code) in sorted(by_pair):
         progs = by_pair[(vuz, code)]
         labels = program_labels(progs)
-        places = [p["places"] for p in progs if p["places"] is not None]
+        places, groups_seen = [], set()
+        for p in progs:
+            if p["places"] is None:
+                continue
+            if p["group_places"]:
+                if (p["faculty"], p["places"]) in groups_seen:
+                    continue
+                groups_seen.add((p["faculty"], p["places"]))
+            places.append(p["places"])
         offered = [p for p in progs if p["b_status"] == "offered"]
         ud.pairs.append({
             "university_id": vuz, "direction_id": direction_id(code),
