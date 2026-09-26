@@ -1006,17 +1006,25 @@ def kazan_gmu_rows(pages: list[dict], url: str) -> list[dict]:
 
 
 def rows_nsu():
+    return nsu_rows(load_html("nsu", "olymp_list__olimpiady-privilege"),
+                    "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/")
+
+
+def nsu_rows(html: str, url: str) -> list[dict]:
     """Льготы заданы по предмету/профилю олимпиады, а не по её названию."""
     out = []
-    url = "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/"
-    html = load_html("nsu", "olymp_list__olimpiady-privilege")
     chunks = re.split(r'<span class="name line">([^<]+)</span>', html)
     for i in range(1, len(chunks), 2):
         header = clean(chunks[i])
-        m = CODE_RE.search(header)
-        if not m:
+        # Льгота — на направление целиком: его профили в A — отдельные
+        # программы («Физика» и «Физическая информатика» в 03.03.02).
+        # Заголовок группы «Математика и механика (01.03.00): Математика
+        # (01.03.01); …» перечисляет её направления; код группы XX.XX.00 — не
+        # направление. Подстрокой по названию нельзя: «Физика. Фундаментальная
+        # и экспериментальная физика» совпадала только с программой «Физика».
+        codes = [c for c in CODE_RE.findall(header) if not c.endswith(".00")]
+        if not codes:
             continue
-        prog = clean(header.split("(")[0])
         for c in html_rows(chunks[i + 1][:60000]):
             if len(c) < 2:
                 continue
@@ -1026,7 +1034,7 @@ def rows_nsu():
             profile = c[0]
             if not profile or "предмет" in profile.lower():
                 continue
-            base = {"match": {"program": prog, "code": m.group(1)},
+            base = {"match": {"codes": codes},
                     "olympiad_name": None, "profile": profile, "benefit": benefit,
                     "statuses": [POB, PRIZ], "page": None, "url": url}
             if len(c) == 2:

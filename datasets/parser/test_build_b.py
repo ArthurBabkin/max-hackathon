@@ -624,6 +624,39 @@ class HseTest(unittest.TestCase):
         self.assertEqual(r[0]["ege_subject"], "физика / информатика")
 
 
+NSU_PROGRAMS = [
+    prog("m-alg", "Алгебра и математическая логика", "Математика", "01.03.01"),
+    prog("pmi-prog", "Программирование", "Прикладная математика и информатика", "01.03.02"),
+    prog("mech", "Гидродинамика", "Механика и математическое моделирование", "01.03.03"),
+    prog("mcs-prog", "Программирование", "Математика и компьютерные науки", "02.03.01"),
+    prog("phys", "Физика", "Физика. Фундаментальные исследования", "03.03.02", "Физика"),
+    prog("phys-inf", "Физическая информатика", "Физика. Фундаментальные исследования", "03.03.02", "Физика"),
+]
+
+
+class NsuTest(unittest.TestCase):
+    """НГУ задаёт льготы по направлению (его профили в A — отдельные
+    программы), а заголовок группы перечисляет её направления."""
+
+    def targets(self, header):
+        html = (f'<span class="name line">{header}</span>'
+                + html_table(["", "Победители и призеры"], ["Математика", "Без экзаменов"]))
+        return sorted(p["program_id"] for p in bb.link("nsu", bb.nsu_rows(html, URL)[0], NSU_PROGRAMS))
+
+    def test_group_header_lists_its_directions(self):
+        self.assertEqual(self.targets("Математика и механика (01.03.00, бакалавр): (Математика (01.03.01); Прикладная "
+                                      "математика и информатика (01.03.02); Механика и математическое моделирование (01.03.03))"),
+                         ["m-alg", "mech", "pmi-prog"])
+
+    def test_direction_covers_all_its_profiles(self):
+        self.assertEqual(self.targets("Физика. Фундаментальная и экспериментальная физика (03.03.02, бакалавр)"),
+                         ["phys", "phys-inf"])
+
+    def test_same_program_name_in_another_direction_is_not_matched(self):
+        self.assertEqual(self.targets("Математика и компьютерные науки (02.03.01, бакалавр) (в том числе "
+                                      "Системное программирование)"), ["mcs-prog"])
+
+
 class CanonSubjectTest(unittest.TestCase):
     """Предмет ЕГЭ для подтверждения — только из списка предметов ЕГЭ.
     Остальное — обрывки соседних колонок PDF, в примечание им нельзя."""
