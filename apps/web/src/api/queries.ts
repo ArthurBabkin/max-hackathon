@@ -323,6 +323,15 @@ export function useCreateInvite() {
   })
 }
 
+/** Отозвать неиспользованную ссылку-приглашение (ТЗ §16). */
+export function useRevokeInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (inviteId: string) => api.delete<void>(`/family/invites/${encodeURIComponent(inviteId)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.family }),
+  })
+}
+
 export function useRemoveMember() {
   const qc = useQueryClient()
   return useMutation({

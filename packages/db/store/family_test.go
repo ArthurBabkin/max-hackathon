@@ -31,6 +31,35 @@ func TestInvites_KidRoleOnlyWithoutKid(t *testing.T) {
 	}
 }
 
+func TestRevokeInvite_AuthorOrCreator(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid")
+	uid, _ := s.UpsertUser(ctx, 900000002, "Ольга")
+	olga := addMember(t, s, f.trajectoryID, uid, "parent", false)
+	creators, _ := s.CreateInvite(ctx, f.trajectoryID, f.creatorMember, "parent", "creatorInvite01")
+	olgas, _ := s.CreateInvite(ctx, f.trajectoryID, olga, "parent", "olgaInviteTok01")
+	if olgas.CreatedBy != olga {
+		t.Fatalf("автор ссылки: %+v", olgas)
+	}
+
+	if err := s.RevokeInvite(ctx, f.trajectoryID, creators.ID, olga, false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("чужую ссылку не автор и не создатель не отзывает: %v", err)
+	}
+	if err := s.RevokeInvite(ctx, f.trajectoryID, olgas.ID, olga, false); err != nil {
+		t.Fatalf("автор отзывает свою: %v", err)
+	}
+	if err := s.RevokeInvite(ctx, f.trajectoryID, olgas.ID, f.creatorMember, true); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("отозванную второй раз — ErrNotFound: %v", err)
+	}
+	if err := s.RevokeInvite(ctx, f.trajectoryID, creators.ID, f.creatorMember, true); err != nil {
+		t.Fatalf("создатель отзывает: %v", err)
+	}
+	if invs, _ := s.ActiveInvites(ctx, f.trajectoryID); len(invs) != 0 {
+		t.Fatalf("отозванные не активны: %+v", invs)
+	}
+}
+
 func TestRemoveAndLeave(t *testing.T) {
 	s := New(dbtest.Open(t))
 	ctx := context.Background()
