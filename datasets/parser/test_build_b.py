@@ -846,5 +846,28 @@ class CatalogScopeTest(unittest.TestCase):
         self.assertFalse(bb.in_catalog("vsosh-russkiy-yazyk"))
 
 
+class ConditionsTest(unittest.TestCase):
+    """Условия записи: ВсОШ результатом ЕГЭ не подтверждается (ч. 4 ст. 71),
+    поэтому ни предмета, ни порога, и отсутствие порога — не заглушка."""
+
+    def test_vsosh_has_no_ege_confirmation(self):
+        row = {"ege_subject": "биология", "ege_score": None, "score_is_demo": True}
+        self.assertEqual(bb.conditions("vsosh-biologiya", row, "kfu", {}),
+                         {"ege_confirm_subject": None, "ege_confirm_min_score": None, "is_demo": False})
+
+    def test_vsosh_demo_benefit_stays_demo(self):
+        row = {"ege_subject": None, "ege_score": None, "benefit_is_demo": True}
+        self.assertTrue(bb.conditions("vsosh-himiya", row, "kazan-gmu", {})["is_demo"])
+
+    def test_perechen_keeps_confirmation(self):
+        row = {"ege_subject": "физика", "ege_score": 75}
+        self.assertEqual(bb.conditions("p669-54-fizika", row, "itmo", {}),
+                         {"ege_confirm_subject": "Физика", "ege_confirm_min_score": 75, "is_demo": False})
+
+    def test_perechen_without_score_is_demo(self):
+        row = {"ege_subject": "физика", "ege_score": None}
+        self.assertTrue(bb.conditions("p669-54-fizika", row, "itmo", {})["is_demo"])
+
+
 if __name__ == "__main__":
     unittest.main()

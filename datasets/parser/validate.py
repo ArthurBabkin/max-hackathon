@@ -182,7 +182,12 @@ def main() -> int:
                 err("B: поле diploma_valid_years не должно существовать")
             if not ben.get("source_url"):
                 err(f"B: льгота без source_url ({oid})")
-            if not ben.get("is_demo") and ben.get("ege_confirm_min_score") is None:
+            if oid.startswith("vsosh-"):
+                # Ч. 4 ст. 71 273-ФЗ: ВсОШ результатом ЕГЭ не подтверждается —
+                # порог 75 по ч. 12 касается только олимпиад школьников.
+                if ben.get("ege_confirm_subject") or ben.get("ege_confirm_min_score") is not None:
+                    err(f"B: у ВсОШ не бывает подтверждения ЕГЭ ({x['program_id']} ← {oid})")
+            elif not ben.get("is_demo") and ben.get("ege_confirm_min_score") is None:
                 err(f"B: балл подтверждения не заполнен и не помечен is_demo ({oid})")
             if str(ben["source_url"]).lower().endswith(".pdf") and ben.get("source_page") is None:
                 warn(f"B: PDF-источник без source_page ({oid})")

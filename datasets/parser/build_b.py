@@ -1604,6 +1604,22 @@ def dedup_benefits(records: list[dict]) -> list[dict]:
     return list(out.values())
 
 
+def conditions(oid: str, row: dict, vuz_id: str, prog: dict) -> dict:
+    """Подтверждение ЕГЭ и пометка is_demo. ВсОШ результатом ЕГЭ не
+    подтверждается (ч. 4 ст. 71 273-ФЗ; порог 75 по ч. 12 — только для
+    олимпиад школьников), поэтому пустой порог у неё — факт, а не заглушка."""
+    if oid.startswith("vsosh-"):
+        return {"ege_confirm_subject": None, "ege_confirm_min_score": None,
+                "is_demo": bool(row.get("benefit_is_demo"))}
+    return {
+        "ege_confirm_subject": narrow_subject(canon_subject(row.get("ege_subject")),
+                                              program_exams(vuz_id, prog)),
+        "ege_confirm_min_score": row.get("ege_score"),
+        "is_demo": bool(row.get("score_is_demo") or row.get("benefit_is_demo")
+                        or row.get("ege_score") is None),
+    }
+
+
 def main() -> int:
     a_rows = json.loads((DATA / "vuz_napravleniya.json").read_text(encoding="utf-8"))["vuz_napravleniya"]
     offered = [x for x in a_rows if x["status"] == "offered"]
@@ -1671,14 +1687,10 @@ def main() -> int:
                         "diploma_status": status,
                         "benefit_type": row["benefit"],
                         "eligible_grades": row.get("grades"),
-                        "ege_confirm_subject": narrow_subject(canon_subject(row.get("ege_subject")),
-                                                              program_exams(vuz_id, prog)),
-                        "ege_confirm_min_score": row.get("ege_score"),
+                        **conditions(oid, row, vuz_id, prog),
                         "source_url": row["url"],
                         "source_page": row.get("page"),
                         "source_date": fetched_date(row["url"]),
-                        "is_demo": bool(row.get("score_is_demo") or row.get("benefit_is_demo")
-                                        or row.get("ege_score") is None),
                     })
         print(f"  {vuz_id:11s} строк привязано: {linked_rows:5d} | пропущено: {skipped[vuz_id]:5d}"
               )
