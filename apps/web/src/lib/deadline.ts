@@ -18,12 +18,17 @@ const SOON_DAYS = 16
  * Перенесено из прототипа (`plural`), чтобы «4 дня» в интерфейсе читалось так же.
  */
 export function plural(n: number, one: string, few: string, many: string): string {
+  return { one, few, many }[pluralForm(n)]
+}
+
+/** Форма слова при числе: 1 олимпиада — `one`, 2 олимпиады — `few`, 5 олимпиад — `many`. */
+export function pluralForm(n: number): 'one' | 'few' | 'many' {
   const hundreds = Math.abs(n) % 100
   const units = hundreds % 10
-  if (hundreds > 10 && hundreds < 20) return many
-  if (units > 1 && units < 5) return few
-  if (units === 1) return one
-  return many
+  if (hundreds > 10 && hundreds < 20) return 'many'
+  if (units > 1 && units < 5) return 'few'
+  if (units === 1) return 'one'
+  return 'many'
 }
 
 /** «4 дня», «1 день», «10 дней». */

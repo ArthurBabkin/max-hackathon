@@ -4,18 +4,15 @@
  * растягивает карточку на весь экран.
  */
 
-import type { useVoice } from '@/voice/useVoice'
-import { plural } from './deadline'
+import { countText, type Translate } from '@/voice/useVoice'
 
-type Voice = ReturnType<typeof useVoice>
-
-export function goalTitle(directions: { name: string }[], t: Voice): string {
+export function goalTitle(directions: { name: string }[], t: Translate): string {
   const [first, ...rest] = directions
   if (!first) return t('home.goalEmpty')
   if (rest.length < 2) return directions.map((d) => d.name).join(', ')
   const n = rest.length
   return t('home.goalMore', {
     direction: first.name,
-    count: `${n} ${plural(n, 'направление', 'направления', 'направлений')}`,
+    count: countText(t, 'count.directions', n),
   })
 }

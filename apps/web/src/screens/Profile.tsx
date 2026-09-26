@@ -242,7 +242,7 @@ export function ProfileScreen() {
           maxLength={40}
           aria-label={t('profile.nameLabel')}
           aria-invalid={nameInvalid}
-          hint={nameInvalid ? 'Имя от 1 до 40 символов' : undefined}
+          hint={nameInvalid ? t('profile.nameInvalid') : undefined}
           onChange={(event) => setName(event.target.value)}
         />
       </div>
@@ -271,7 +271,7 @@ export function ProfileScreen() {
         <select className="field-select" value={region} onChange={(event) => setRegion(event.target.value)}>
           <option value="">{t('profile.regionNone')}</option>
           {districts.map((district) => (
-            <optgroup key={district.n} label={`${district.name} округ`}>
+            <optgroup key={district.n} label={t('profile.district', { region: district.name })}>
               {regions
                 .filter((r) => r.district === district.n)
                 .map((r) => (
@@ -382,7 +382,7 @@ export function ProfileScreen() {
         >
           <option value="">{t('profile.placesAdd')}</option>
           {districts.map((district) => (
-            <optgroup key={district.n} label={`${district.name} округ`}>
+            <optgroup key={district.n} label={t('profile.district', { region: district.name })}>
               {regions
                 .filter((r) => r.district === district.n)
                 .map((r) => (
