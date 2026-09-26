@@ -272,11 +272,14 @@ function TrackerCard({
   onOpen,
   canMark,
   canRemove,
+  viewerId,
 }: {
   item: TrackerItem
   onOpen: (id: string) => void
   canMark: boolean
   canRemove: boolean
+  /** Участник, который смотрит: кто добавил олимпиаду, пишем, только если это не он сам. */
+  viewerId: string | undefined
 }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
@@ -287,6 +290,7 @@ function TrackerCard({
   const onMark: Mark = (stageId, registered, result) => mark.mutate({ item, stageId, registered, result })
   const disabled = !canMark || mark.isPending
   const diploma = item.outcome === 'winner' || item.outcome === 'prizer'
+  const addedBy = item.added_by && item.added_by.id !== viewerId ? item.added_by.name : null
 
   return (
     <article className="tracker-card" data-tour="tracker-item">
@@ -297,6 +301,7 @@ function TrackerCard({
           <span className="row-subtitle">
             <Subtitle item={item} />
           </span>
+          {addedBy ? <span className="row-meta">{t('tracker.addedBy', { name: addedBy })}</span> : null}
         </span>
         <StatusPill item={item} />
       </button>
@@ -581,7 +586,14 @@ export function TrackerScreen() {
                 {group.title}: {group.items.length}
               </p>,
               ...group.items.map((item) => (
-                <TrackerCard key={item.id} item={item} onOpen={openOlympiad} canMark={canMark} canRemove={canRemove} />
+                <TrackerCard
+                  key={item.id}
+                  item={item}
+                  onOpen={openOlympiad}
+                  canMark={canMark}
+                  canRemove={canRemove}
+                  viewerId={session?.member.id}
+                />
               )),
             ]
           : [],
