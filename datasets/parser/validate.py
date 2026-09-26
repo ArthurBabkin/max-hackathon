@@ -89,6 +89,20 @@ GOLDEN = [
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("sechenov__menedzhment", "vsosh-ekonomika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("sechenov__biotehnologiya", "vsosh-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # Сеченов, приложение 5: стр. 1 «2. "Формула Единства"/"Третье тысячелетие"
+    # математика математика математика право на 100 баллов»; стр. 6 «23.
+    # Межрегиональная олимпиада школьников имени И.Я. Верченко» — математика;
+    # стр. 13 «Олимпиада школьников по программированию "ТехноКубок"» —
+    # информатика; стр. 2, НТО: «квантовый инжиниринг математика … / физика …».
+    # У Лечебного дела ВИ — химия и биология (приложение 2): ни математики, ни физики.
+    ("sechenov__mehanika-i-matematicheskoe-modelirovanie", "p669-2-matematika",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("sechenov__mehanika-i-matematicheskoe-modelirovanie", "p669-31-matematika",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("sechenov__informacionnye-sistemy-i-tehnologii", "p669-57-informatika",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("sechenov__biotehnologiya", "p669-5-kvantovyy-inzhiniring", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("sechenov__lechebnoe-delo", "p669-5-kvantovyy-inzhiniring", set()),
     # КГМУ, «Информация о предоставлении особых прав» стр. 2 (п. 6.4):
     # 30.05.01–34.03.01 — «Химия, биология, русский язык»; «30.05.02 Медицинская
     # биофизика — Физика, математика, биология, русский язык», химии нет.
@@ -170,6 +184,10 @@ GOLDEN_CONDITIONS = [
     ("kfu__biologiya", "vsosh-biologiya", "eligible_grades", None),
     # Сеченов, приложение 5 стр. 1: «должны быть получены за 10 или 11 класс».
     ("sechenov__lechebnoe-delo", "p669-11-biologiya", "eligible_grades", [10, 11]),
+    # Приложение 5 стр. 2, НТО: «нейротехнологии и когнитивные науки информатика
+    # информатика … / биология биология …» — у Лечебного дела среди ВИ только биология.
+    ("sechenov__lechebnoe-delo", "p669-5-neyrotehnologii-i-kognitivnye-nauki", "ege_confirm_subject", "Биология"),
+    ("sechenov__biotehnologiya", "p669-5-kvantovyy-inzhiniring", "ege_confirm_subject", "Математика или Физика"),
     # КГМУ, «Информация о предоставлении особых прав» стр. 3–4, таблица п. 6.5:
     # «Класс обучения» — 11; профиль «Медицина» — «Химия / Биология».
     ("kazan-gmu__lechebnoe-delo", "p669-59-medicina", "eligible_grades", [11]),

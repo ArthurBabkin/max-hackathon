@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from common import (ADMISSION_YEAR, CODE_RE, DATA, SNAP, TODAY, clean, fetched_date,
                     html_rows, load_html, load_pages, meta, to_int, write_json)
-from olymp_match import (level_in_perechen, match_number, match_number_for_profile,
+from olymp_match import (cut_profile, level_in_perechen, match_number, match_number_for_profile,
                          olympiad_id, profile_slug, vsosh_id, _index)
 
 BVI = "БВИ"
@@ -1087,61 +1087,66 @@ def sechenov_rows(pages: list[dict], url: str) -> list[dict]:
     """Приложение 5: БВИ по перечневым Сеченов не даёт — только 100 баллов
     (стр. 1), и только на программы, где предмет профиля — среди ВИ.
 
-    Вёрстка: ширина таблиц и сдвиг колонок гуляют, значение бывает задвоено
-    в соседние колонки («биология», «биология») — остаётся правая копия.
-    Поля считаются справа от «право на …»: предмет ЕГЭ, ВИ, профиль; что
-    левее колонки профиля (её даёт строка с №) — куски названия. Два поля —
-    тот же профиль с другим предметом. Строка без «права» — продолжение
-    многострочных ячеек предыдущей. № — порядковый номер Сеченова, не
+    Вёрстка: ширина таблиц гуляет (8–16 колонок), но у каждой таблицы есть
+    заголовок, и графа — это колонки от её заголовка до следующего. Внутри
+    графы значение бывает задвоено в соседние колонки или дано целиком в
+    одной и построчно в другой — берётся самое длинное. Строка с «правом» —
+    льгота; без него — продолжение многострочных ячеек: название — олимпиады,
+    профиль — текущего профиля, ВИ и предмет — последней льготы. Олимпиада
+    переходит на следующую страницу. № — порядковый номер Сеченова, не
     номер перечня: олимпиада ищется по названию."""
-    out, name, profile, last, split = [], None, None, [], {}
+    out, olymp, profile, last = [], None, None, None
     for pg in pages:
         for table in pg["tables"]:
-            for row in table:
+            head = [clean(x) for x in table[0]] if table else []
+            if not any(x.startswith("Профиль олимпиады") for x in head):
+                continue
+            starts = [i for i, x in enumerate(head) if x]
+            if len(starts) != 6:    # №, название, профиль, ВИ, предмет ЕГЭ, право
+                continue
+            bounds = list(zip(starts, starts[1:] + [len(head)]))
+            for row in table[1:]:
                 c = [clean(x) for x in row]
-                if len(c) < 4 or any(x.startswith("Профиль олимпиады") for x in c):
+                num, name, prof, exam, subj, right = [{i: c[i] for i in range(a, min(b, len(c))) if c[i]}
+                                                      for a, b in bounds]
+                if num:
+                    olymp, profile, last = {}, None, None
+                if olymp is None:
                     continue
-                vals = [(i, x) for i, x in enumerate(c) if x and not (i + 1 < len(c) and c[i + 1] == x)]
-                if not vals:
+                _grow(olymp, name)
+                if not any(right.values()):
+                    if profile is not None:
+                        _grow(profile, prof)
+                    if last:
+                        _grow(last["exam"], exam)
+                        _grow(last["subject"], subj)
                     continue
-                numbered = re.fullmatch(r"\d+\.?", vals[0][1])
-                if numbered:
-                    vals = vals[1:]
-                    if len(vals) >= 4 and "право" in vals[-1][1].lower():
-                        split[len(c)] = vals[-4][0]
-                    name, profile, last = "", None, []
-                cut = split.get(len(c), 0)
-                frags = [x for i, x in vals if i < cut]
-                data = [x for i, x in vals if i >= cut]
-                if frags and name is not None:
-                    name = clean(f"{name} {' '.join(frags)}")
-                if not data:
+                if prof:
+                    profile = dict(prof)
+                if profile is None:
                     continue
-                if "право" not in data[-1].lower():
-                    keys = {1: ("profile",), 2: ("exam", "subject"), 3: ("profile", "exam", "subject")}.get(len(data), ())
-                    for r in last:                # продолжение многострочных ячеек
-                        for k, v in zip(keys, data):
-                            r[k] = clean(f"{r[k]} {v}")
-                    if "profile" in keys and last:
-                        profile = last[0]["profile"]
-                    continue
-                benefit, data = _benefit(data[-1]), data[:-1]
-                if len(data) == 3:
-                    profile, last = data[0], []
-                if len(data) not in (2, 3) or not (name and profile and benefit):
-                    continue
-                rec = {"name": name, "profile": profile, "exam": data[-2], "subject": data[-1],
-                       "benefit": benefit, "page": pg["page"]}
-                out.append(rec)
-                last.append(rec)
+                last = {"olymp": olymp, "profile": profile, "exam": dict(exam), "subject": dict(subj),
+                        "benefit": _benefit(_longest(right)), "page": pg["page"]}
+                out.append(last)
     # Стр. 1: «Результаты победителя (призера) должны быть получены за 10 или 11 класс».
     clause = next((m for pg in pages for m in [re.search(r"получены\s+за\s+([\d\s,иили-]+?)\s*класс",
                                                            clean(pg.get("text") or ""))] if m), None)
     grades = _grades(clause.group(1)) if clause else None
-    return [{"match": {"exams": sorted(subject_keys(r["exam"]))}, "olympiad_name": r["name"],
-             "profile": r["profile"], "level": None, "statuses": [POB, PRIZ],
-             "benefit": r["benefit"], "ege_subject": r["subject"], "ege_score": 75,
-             "grades": grades, "page": r["page"], "url": url} for r in out]
+    return [{"match": {"exams": sorted(subject_keys(_longest(r["exam"])))}, "olympiad_name": _longest(r["olymp"]),
+             "profile": _longest(r["profile"]), "level": None, "statuses": [POB, PRIZ],
+             "benefit": r["benefit"], "ege_subject": _longest(r["subject"]), "ege_score": 75,
+             "grades": grades, "page": r["page"], "url": url} for r in out
+            if r["benefit"] and _longest(r["exam"]) and _longest(r["subject"])]
+
+
+def _grow(cells: dict[int, str], more: dict[int, str]) -> None:
+    """Дописать строки-продолжения многострочной ячейки, колонка к колонке."""
+    for i, x in more.items():
+        cells[i] = clean(f"{cells.get(i, '')} {x}")
+
+
+def _longest(cells: dict[int, str]) -> str:
+    return max(cells.values(), key=len, default="")
 
 
 def sechenov_exams(pages: list[dict]) -> dict[str, set[str]]:
@@ -1910,6 +1915,8 @@ def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:
     if not name:
         return None, None, "строка без названия олимпиады"
     slug = profile_slug(profile.lower())
+    if slug is None and (full := cut_profile(row.get("number") or match_number(name), profile)):
+        profile, slug = full, profile_slug(full.lower())
     if slug is None:
         return None, name, f"профиль «{profile}» отсутствует в перечне"
     num = row.get("number") or match_number(name)
