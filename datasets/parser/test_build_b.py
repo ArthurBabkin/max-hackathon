@@ -16,7 +16,24 @@ def page(n, *rows):
 
 def parsed(pages):
     return [(r["olympiad_name"], r["profile"], r["level"], r["ege_subject"], r["page"])
-            for r in bb.innopolis_rows(pages, URL)]
+            for r in bb.innopolis_rows(pages, URL) if r["benefit"] == "БВИ"]
+
+
+class InnopolisBenefitsTest(unittest.TestCase):
+    """Правила п. 57–62: олимпиада из приложения 3 даёт и БВИ, и 100 баллов по
+    предмету графы 5; графа 5 пустая — только БВИ. ВсОШ (приложение 2) — БВИ
+    и особое преимущество: 100 баллов по предмету графы 3."""
+
+    def test_hundred_along_with_bvi(self):
+        rows = bb.innopolis_rows([page(5, *HEADER,
+                                       ["«Формула Единства»/«Третье тысячелетие»", "математика", "математика", "II", "математика"],
+                                       [None, "физика", "физика", "I", ""])], URL)
+        self.assertEqual(sorted((r["profile"], r["benefit"]) for r in rows),
+                         [("математика", "100_ballov"), ("математика", "БВИ"), ("физика", "БВИ")])
+
+    def test_vsosh_hundred(self):
+        rows = bb.innopolis_rows([page(4, ["1", "Математика", "Математика"])], URL)
+        self.assertEqual(sorted(r["benefit"] for r in rows), ["100_ballov", "БВИ"])
 
 
 class InnopolisTablesTest(unittest.TestCase):

@@ -1343,11 +1343,13 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
                 if page == 4:
                     if len(c) < 3 or not c[1] or not profile_slug(c[1].lower()):
                         continue
-                    out.append((None, {"match": None, "vsosh": True, "olympiad_name": None,
-                                       "profile": c[1].lower(), "level": "ВсОШ",
-                                       "statuses": [POB, PRIZ], "benefit": BVI,
-                                       "ege_subject": c[2] or c[1], "ege_score": None,
-                                       "grades": [9, 10, 11], "page": page, "url": url}))
+                    bvi = {"match": None, "vsosh": True, "olympiad_name": None,
+                           "profile": c[1].lower(), "level": "ВсОШ",
+                           "statuses": [POB, PRIZ], "benefit": BVI,
+                           "ege_subject": c[2] or c[1], "ege_score": None,
+                           "grades": [9, 10, 11], "page": page, "url": url}
+                    # Особое преимущество: 100 баллов по предмету графы 3.
+                    out += [(None, bvi)] + ([(None, {**bvi, "benefit": HUNDRED})] if c[2] else [])
                     continue
                 lv = next((i for i, x in enumerate(c) if x in ("I", "II", "III", "1", "2", "3")), None)
                 cells = [(i, x) for i, x in enumerate(c[:lv]) if x]
@@ -1361,10 +1363,13 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
                 if not (name and cells):
                     continue
                 profile = cells[0][1]
-                out.append((name, {"match": None, "profile": profile, "level": _level(c[lv]),
-                                   "statuses": [POB, PRIZ], "benefit": BVI,
-                                   "ege_subject": next((x for x in c[lv + 1:] if x), profile),
-                                   "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}))
+                exam = next((x for x in c[lv + 1:] if x), None)      # графа 5
+                bvi = {"match": None, "profile": profile, "level": _level(c[lv]),
+                       "statuses": [POB, PRIZ], "benefit": BVI,
+                       "ege_subject": exam or profile,
+                       "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}
+                # П. 57–62 Правил: кроме БВИ — 100 баллов по предмету графы 5.
+                out += [(name, bvi)] + ([(name, {**bvi, "benefit": HUNDRED})] if exam else [])
     return [dict(r, olympiad_name=n[0]) if n else r for n, r in out]
 
 

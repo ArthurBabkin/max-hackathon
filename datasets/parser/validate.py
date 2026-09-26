@@ -98,6 +98,13 @@ GOLDEN = [
     # МФТИ, приложение 2: ВсОШ по информатике на ФРКТ — только группа «КТВТ»;
     # «Все конкурсные группы ФРКТ» — у подпрофилей ИБ и робототехники.
     ("mipt__radiotehnika-i-kompyuternye-tehnologii", "vsosh-informatika", set()),
+    # Иннополис, Правила п. 57–62 и приказ от 19.01.2026: приложение 3 — БВИ и
+    # 100 баллов по предмету графы 5 (Innopolis Open — «информатика»); ВсОШ —
+    # БВИ и особое преимущество по графе 3 приложения 2.
+    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-22-informatika",
+     {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("innopolis__informatika-i-vychislitelnaya-tehnika", "vsosh-fizika",
+     {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
