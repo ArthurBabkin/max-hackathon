@@ -463,6 +463,34 @@ class ItmoListsTest(unittest.TestCase):
                                ("p2", "pobeditel", "100_ballov")])
 
 
+class OlympiadNameTest(unittest.TestCase):
+    """Название из документа вуза -> номер перечня. Общие слова («олимпиада
+    школьников») не делают олимпиады одной: иначе Кондратьевская и «Газпром»
+    становились Московской (ВШЭ)."""
+
+    def test_generic_words_do_not_match(self):
+        self.assertIsNone(bb.match_number_for_profile(
+            "Всероссийская экономическая олимпиада школьников имени Н.Д. Кондратьева", "экономика"))
+        self.assertIsNone(bb.match_number_for_profile("Отраслевая олимпиада школьников «Газпром»", "математика"))
+        self.assertIsNone(bb.match_number_for_profile("Олимпиада школьников «Будущее Сибири»", "математика"))
+
+    def test_typographic_quotes(self):
+        self.assertEqual(bb.match_number_for_profile("Олимпиада “Физтех”", "физика"), 54)
+
+    def test_real_names_still_match(self):
+        self.assertEqual(bb.match_number_for_profile("Московская олимпиада школьников", "экономика"), 37)
+        self.assertEqual(bb.match_number_for_profile("Олимпиада школьников «Ломоносов»", "математика"), 50)
+        self.assertEqual(bb.match_number("Олимпиада школьников «Физтех»"), 54)
+        # ОММО в перечне — «Объединенная межвузовская олимпиада школьников» (№41).
+        self.assertEqual(bb.match_number_for_profile("Объединённая межвузовская математическая олимпиада школьников",
+                                                     "математика"), 41)
+
+    def test_other_olympiad_with_profile_is_not_substituted(self):
+        # Иннополис: у «Росатома» (№70) нет инженерного дела — это не «Газпром» (№69).
+        self.assertIsNone(bb.match_number_for_profile("Отраслевая физико- математическая олимпиада школьников «Росатом»",
+                                                      "инженерное дело"))
+
+
 class ExpandProfileTest(unittest.TestCase):
     def test_part_of_composite_nto_profile(self):
         got = [oid for oid, *_ in bb.expand_profile("Аэрокосмические системы", "II")]
@@ -602,6 +630,15 @@ class HseTest(unittest.TestCase):
                                 (self.ROW, ("Компьютерные науки и технологии", self.ROW[0]))])], URL, "Нижний Новгород")
         self.assertEqual(sorted(p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)), ["nn-cs", "nn-cs-bi"])
 
+    def test_row_without_program_in_block_with_named_programs_dropped(self):
+        # Стр. 110: ОП называется, только если в направлении их несколько. Строки
+        # блока, где геометрия имени не нашла, — не «все ОП направления»: в A
+        # у 40.03.01 одна ОП, и чужие льготы доставались ей.
+        law = "Направление подготовки 40.03.01 Юриспруденция"
+        r = bb.hse_rows([(1, [([law], ("", "")), (self.ROW, ("", self.ROW[0])),
+                              (self.ROW, ("Юриспруденция", self.ROW[0]))])], URL, "Москва")
+        self.assertEqual([x["match"]["program"] for x in r], ["Юриспруденция"])
+
     def test_olympiad_name_from_merged_cell_not_carried(self):
         row = ["", "информатика", "информатика", "математика", "75 и более", "Право на прием БВИ",
                "математика", "Победителям", "11 класс"]
@@ -655,6 +692,14 @@ class HseTest(unittest.TestCase):
         self.assertEqual([(x["benefit"], x["statuses"], x["grades"], x["ege_subject"]) for x in r],
                          [("БВИ", ["pobeditel"], [10, 11], "информатика"),
                           ("100_ballov", ["pobeditel"], [9, 10, 11], "информатика")])
+
+    def test_merged_score_cell_carried_down(self):
+        # ПМИ, стр. 7: порог 90 — одна ячейка на строки БВИ и 100 баллов.
+        bvi = ["", "информатика", "информатика", "информатика", "90 и более", "Право на прием БВИ", "информатика",
+               "Победителям", "11 класс"]
+        cont = ["", "", "", "", "", "Право на 100 баллов", "", "Победителям и призерам", "10, 11 класс"]
+        r = self.table(self.HEAD_MSK, "Москва", ("Высшая проба", bvi), ("Высшая проба", cont))
+        self.assertEqual([x["ege_score"] for x in r], [90, 90])
 
     def test_merged_status_not_carried_into_next_olympiad(self):
         first = ["", "информатика", "информатика", "информатика", "75 и более", "Право на прием БВИ", "информатика",
