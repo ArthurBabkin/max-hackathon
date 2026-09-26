@@ -67,6 +67,11 @@ GOLDEN = [
     ("nsu__prikladnaya-matematika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("nsu__prikladnaya-matematika", "vsosh-biologiya", set()),
     ("nsu__fizicheskaya-informatika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # НГУ, «Биология» (06.03.01): матрица «степень × уровень», «Без экзам.» —
+    # БВИ; ПМФ (03.03.01): «Информатика и ИКТ — Без экзаменов».
+    ("nsu__obschaya-biologiya", "p669-50-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("nsu__molekulyarnaya-biologiya", "p669-8-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("nsu__prikladnye-matematika-i-fizika", "p669-37-informatika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     # Граница B — каталог продукта (C и missing_in_C), а не слова в профиле:
     # Сеченов, приложение 5 стр. 7: «29. Московская олимпиада школьников
     # вероятность и статистика математика математика право на 100 баллов»;
@@ -112,6 +117,8 @@ GOLDEN_CONDITIONS = [
     # олимпиаде за 11 класс»; п. 5 — победителям «Физтеха» и за 10 класс.
     ("mipt__programmnaya-inzheneriya", "p669-50-informatika", "eligible_grades", [11]),
     ("mipt__obschaya-i-prikladnaya-fizika", "vsosh-fizika", "eligible_grades", None),
+    # НГУ, 15.03.06: сноска «обучавшихся в период участия в олимпиаде в 9-11 класс».
+    ("nsu__deep-robotics", "p669-37-informatika", "eligible_grades", [9, 10, 11]),
 ]
 GOLDEN_STATUS_GRADES = [
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", POB, [10, 11]),

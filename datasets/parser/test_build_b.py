@@ -659,6 +659,49 @@ class NsuTest(unittest.TestCase):
                                       "Системное программирование)"), ["mcs-prog"])
 
 
+class NsuRowsTest(unittest.TestCase):
+    """olimpiady-privilege: классы — из сноски под своей таблицей РСОШ;
+    у биологии льгота — матрица «степень диплома × уровень олимпиады»."""
+    HEAD3 = ["Предмет олимпиады/Профиль олимпиады", "Предмет вступительных испытаний", "Льгота"]
+    HEADM = ["Предмет олимпиады/Профиль олимпиады", "Предмет вступительных испытаний",
+             "I", "II", "III", "I", "II", "III", "I", "II", "III"]
+
+    @staticmethod
+    def foot(grades):
+        return ("<p>* льгота предоставляется при наличии результатов ЕГЭ не ниже 75 баллов по предмету "
+                f"олимпиады для абитуриентов, обучавшихся в период участия в олимпиаде в {grades}</p>")
+
+    def rows(self, body, header="Мехатроника и робототехника (15.03.06, бакалавр)"):
+        return [r for r in bb.nsu_rows(f'<span class="name line">{header}</span>' + body, URL) if not r.get("vsosh")]
+
+    def test_grades_from_footnote(self):
+        r = self.rows(html_table(self.HEAD3, ["Информатика", "Информатика и ИКТ", "Без экзаменов"]) + self.foot("9-11 класс"))
+        self.assertEqual([x["grades"] for x in r], [[9, 10, 11]])
+
+    def test_informatics_and_ict_is_the_informatics_profile(self):
+        r = self.rows(html_table(self.HEAD3, ["Информатика и ИКТ", "Информатика и ИКТ", "Без экзаменов"]) + self.foot("10-11 классе"))
+        self.assertTrue(bb.expand_profile(r[0]["profile"], None))
+
+    def test_matrix_by_degree_level_and_grade(self):
+        body = (html_table(self.HEADM, ["Биология", "Биология"] + ["Без экзам."] * 9,
+                           ["Математика", "Математика"] + ["100"] * 8 + ["—"]) + self.foot("<b>11 классе</b>")
+                + html_table(self.HEADM, ["Биология", "Биология"] + ["Без экзам."] * 7 + ["100", "—"])
+                + self.foot("<b>10 классе </b>"))
+        got = sorted((r["profile"], tuple(r["statuses"]), r["benefit"], tuple(r["levels"]), tuple(r["grades"]))
+                     for r in self.rows(body, "Биология (06.03.01, бакалавр)"))
+        self.assertEqual(got, [
+            ("Биология", ("pobeditel",), "БВИ", ("I", "II", "III"), (10,)),
+            ("Биология", ("pobeditel",), "БВИ", ("I", "II", "III"), (11,)),
+            # призёр — худшее из II и III степени: у III степени за 10 класс
+            # уровень II — 100 баллов, уровень III — ничего
+            ("Биология", ("prizyor",), "100_ballov", ("II",), (10,)),
+            ("Биология", ("prizyor",), "БВИ", ("I",), (10,)),
+            ("Биология", ("prizyor",), "БВИ", ("I", "II", "III"), (11,)),
+            ("Математика", ("pobeditel",), "100_ballov", ("I", "II", "III"), (11,)),
+            ("Математика", ("prizyor",), "100_ballov", ("I", "II"), (11,)),
+        ])
+
+
 class SechenovTest(unittest.TestCase):
     ROW = ["1.", "Олимпиада школьников «Физтех»", "физика", "Физика", "физика", "Право на 100 баллов"]
 

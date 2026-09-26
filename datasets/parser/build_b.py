@@ -28,7 +28,7 @@ def _benefit(text: str) -> str | None:
     t = clean(text).lower()
     if not t or t in ("—", "-", "нет"):
         return None
-    if "без вступительных" in t or "бви" in t or "без экзаменов" in t:
+    if "без вступительных" in t or "бви" in t or "без экзам" in t:
         return BVI
     if "100" in t or "максимальное количество" in t or "приравн" in t:
         return HUNDRED
@@ -52,8 +52,11 @@ def _statuses(text: str) -> list[str]:
 
 
 def _grades(text: str) -> list[int] | None:
-    found = sorted({int(g) for g in re.findall(r"\b(9|10|11)\b", clean(text))})
-    return found or None
+    t = clean(text)
+    found = {int(g) for g in re.findall(r"\b(9|10|11)\b", t)}
+    for a, b in re.findall(r"\b(9|10)\s*[-–]\s*(10|11)\b", t):   # «9-11 класс»
+        found |= set(range(int(a), int(b) + 1))
+    return sorted(found) or None
 
 
 THRESHOLD = re.compile(r"(?:не\s+ниже|не\s+менее|от)\s+(\d{2,3})|(\d{2,3})\s*балл\w*\s*и\s*выше|(\d{2,3})\s*и\s*более")
@@ -1128,26 +1131,46 @@ def nsu_rows(html: str, url: str) -> list[dict]:
         codes = [c for c in CODE_RE.findall(header) if not c.endswith(".00")]
         if not codes:
             continue
-        for c in html_rows(chunks[i + 1][:60000]):
-            if len(c) < 2:
-                continue
-            benefit = _benefit(c[-1])
-            if not benefit:
-                continue
-            profile = c[0]
-            if not profile or "предмет" in profile.lower():
-                continue
-            base = {"match": {"codes": codes},
-                    "olympiad_name": None, "profile": profile, "benefit": benefit,
-                    "statuses": [POB, PRIZ], "page": None, "url": url}
-            if len(c) == 2:
-                # таблица из двух колонок — это ВсОШ (предмет + льгота)
-                out.append({**base, "vsosh": True, "level": "ВсОШ",
-                            "ege_subject": profile, "ege_score": None,
-                            "grades": None, "score_is_demo": True})
-            else:
-                out.append({**base, "by_profile": True, "level": None,
-                            "ege_subject": c[1], "ege_score": 75, "grades": [10, 11]})
+        # Сноска «…обучавшихся в период участия в олимпиаде в 9-11 класс»
+        # стоит под своей таблицей РСОШ: у биологии их две, за 11 и за 10 класс.
+        parts = re.split(r"обучавшихся\s+в\s+период\s+участия\s+в\s+олимпиаде\s+в\s+(?:<[^>]+>\s*)*"
+                         r"([\d\s,и–-]+?)\s*класс",
+                         chunks[i + 1][:60000])
+        for k in range(0, len(parts), 2):
+            grades = _grades(parts[k + 1]) if k + 1 < len(parts) else None
+            for c in html_rows(parts[k]):
+                out += _nsu_row(c, codes, grades, url)
+    return out
+
+
+NSU_LEVELS = ["I", "II", "III"]
+_RANK = {BVI: 2, HUNDRED: 1, None: 0}
+
+
+def _nsu_row(c: list[str], codes: list[str], grades, url: str) -> list[dict]:
+    profile = re.sub(r"\s+и\s+ИКТ$", "", c[0]) if c else ""   # «Информатика и ИКТ» — профиль «информатика»
+    if len(c) < 2 or not profile or "предмет" in profile.lower():
+        return []
+    base = {"match": {"codes": codes}, "olympiad_name": None, "profile": profile,
+            "page": None, "url": url}
+    if len(c) == 2:                                 # ВсОШ: предмет + льгота
+        benefit = _benefit(c[1])
+        return [{**base, "vsosh": True, "level": "ВсОШ", "benefit": benefit, "statuses": [POB, PRIZ],
+                 "ege_subject": None, "ege_score": None, "grades": None}] if benefit else []
+    rsosh = {**base, "by_profile": True, "level": None, "ege_subject": c[1], "ege_score": 75, "grades": grades}
+    if len(c) < 11:
+        benefit = _benefit(c[-1])
+        return [{**rsosh, "benefit": benefit, "statuses": [POB, PRIZ]}] if benefit else []
+    # Матрица: степень диплома I, II, III × уровень олимпиады I, II, III.
+    # Победитель — I степень; призёр — худшее из II и III степени.
+    deg = [[_benefit(x) for x in c[2 + 3 * d:5 + 3 * d]] for d in range(3)]
+    by_status = {POB: deg[0], PRIZ: [min(a, b, key=_RANK.get) for a, b in zip(deg[1], deg[2])]}
+    out = []
+    for status, cells in by_status.items():
+        for benefit in (BVI, HUNDRED):
+            levels = [lv for lv, b in zip(NSU_LEVELS, cells) if b == benefit]
+            if levels:
+                out.append({**rsosh, "benefit": benefit, "statuses": [status], "levels": levels})
     return out
 
 
