@@ -112,7 +112,7 @@ function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRo
   const tb = targetBenefit(university, olympiadId)
   const whole = benefitRow(university, olympiadId)
   const row: BenefitRow = {
-    ...(tb.benefit === null ? noBenefit(university) : benefitRow(university, olympiadId, tb.benefit)),
+    ...(tb.benefit === null ? noBenefit(university, olympiadId) : benefitRow(university, olympiadId, tb.benefit)),
     directions: tb.names,
     other_directions: tb.others.map((o) => ({
       benefit: o.benefit,
@@ -135,8 +135,10 @@ function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRo
   return notes.length > 0 ? { ...row, conditions: notes } : row
 }
 
-function noBenefit(university: DemoUniversity): BenefitRow {
-  return { ...benefitRow(university, ''), source: null }
+// Льготы на мои направления нет, но на других направлениях вуза она может
+// быть — сколько их, строка знает, как на сервере.
+function noBenefit(university: DemoUniversity, olympiadId: string): BenefitRow {
+  return { ...benefitRow(university, ''), source: null, ...coverage(university, olympiadId) }
 }
 
 function benefitRow(university: DemoUniversity, olympiadId: string, override?: BenefitKind): BenefitRow {

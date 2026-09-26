@@ -132,6 +132,29 @@ it('ни один вуз олимпиаду не учитывает — табл
   expect(screen.getByText('Не учитывает эту олимпиаду: СПбГУ')).toBeInTheDocument()
 })
 
+// Вуз засчитывает олимпиаду, но не на мои направления (ВсОШ по биологии в
+// КФУ) — это не «не учитывает»: сервер присылает, на скольких направлениях
+// вуза льгота есть.
+const elsewhere = (id: string, nick: string) => ({
+  ...notCounted(id, nick),
+  directions: ['Программная инженерия'],
+  directions_count: 8,
+  directions_total: 40,
+})
+
+it('льгота только на другие направления — отдельно от «не учитывает»', () => {
+  setup([row('hse', 'ВШЭ'), elsewhere('kfu', 'КФУ'), elsewhere('mipt', 'МФТИ'), notCounted('innopolis', 'Иннополис')])
+  expect(screen.getByText('Льгота есть, но не на твои направления: КФУ, МФТИ')).toBeInTheDocument()
+  expect(screen.getByText('Не учитывает эту олимпиаду: Иннополис')).toBeInTheDocument()
+})
+
+it('родителю — «не на направления» ребёнка по имени', () => {
+  renderApp(<BenefitTable rows={[elsewhere('kfu', 'КФУ')]} columns={['winner', 'prizer', 'ege']} onOpen={() => {}} />, {
+    session: makeSession({ role: 'parent' }),
+  })
+  expect(screen.getByText('Льгота есть, но не на направления Артёма: КФУ')).toBeInTheDocument()
+})
+
 it('родителю — голос родителя', () => {
   renderApp(<BenefitTable rows={ROWS} columns={['winner', 'prizer', 'ege']} onOpen={() => {}} />, {
     session: makeSession({ role: 'parent' }),

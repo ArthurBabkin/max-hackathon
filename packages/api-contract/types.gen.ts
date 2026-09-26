@@ -1849,7 +1849,10 @@ export interface components {
             benefit: components["schemas"]["BenefitKind"] | null;
             /** @description Готовая подпись — «БВИ», «100 баллов», «БВИ победителям», «доп. баллы». */
             benefit_label: string | null;
-            /** @description Что получит победитель; `null` — вуз олимпиаду не учитывает. */
+            /**
+             * @description Что получит победитель; `null` — льготы нет: в строке вуза ученика — на его направления
+             *     (на других она может быть, см. `directions_count`).
+             */
             winner: components["schemas"]["BenefitGrant"] | null;
             /** @description Что получит призёр; `null` — призёру льготы нет или вуз олимпиаду не учитывает. */
             prizer: components["schemas"]["BenefitGrant"] | null;
@@ -1885,7 +1888,10 @@ export interface components {
             unverified: boolean;
             /** @description Льгота или порог зависит от программы внутри направления. */
             varies: boolean;
-            /** @description «Где ещё даёт льготу»: на скольких направлениях вуза есть льгота. */
+            /**
+             * @description На скольких направлениях вуза есть льгота: в «Где ещё даёт льготу» и в строке вуза ученика
+             *     без льготы на его направления — там 0 значит «не учитывает эту олимпиаду».
+             */
             directions_count: number;
             /** @description Сколько направлений у вуза в данных; 0 — данных по направлениям нет. */
             directions_total: number;

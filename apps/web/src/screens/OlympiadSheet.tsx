@@ -41,6 +41,7 @@ function BenefitSources({ rows }: { rows: OlympiadDetail['benefits'] }) {
   const sources = new Map<string, Source>()
   for (const row of counted) if (row.source) sources.set(row.source.id, row.source)
   const unknown = counted.filter((row) => !row.source).map((row) => row.university_nick)
+  if (counted.length === 0) return null
   if (sources.size === 0) return <p className="fine">{t('olympiad.benefitsUnknown')}</p>
   return (
     <>
