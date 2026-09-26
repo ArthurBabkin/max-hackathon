@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
@@ -16,8 +17,8 @@ import (
 // dates — олимпиады карточки с фактическими и с примерными датами.
 type dates struct{ factual, approximate []string }
 
-// add учитывает этапы олимпиады name: примерные, если хоть один этап — по
-// прошлому году, как в dated.
+// add учитывает этапы олимпиады name: примерные, если хоть один этап —
+// демо (сроки сезона не опубликованы), как в dated.
 func (d *dates) add(name string, st []stages.Stage) {
 	switch {
 	case len(st) == 0:
@@ -39,7 +40,7 @@ var (
 	// dateRe — в ответе есть дата: «11.10», «23 сентября», «в октябре».
 	dateRe = regexp.MustCompile(`\d{1,2}\.\d{1,2}|(?i)(?:^|[^\p{L}])(?:январ|феврал|март|апрел|ма[еяй]|июн|июл|август|сентябр|октябр|ноябр|декабр)`)
 	// datesSaid — модель сама сказала, какие даты.
-	datesSaid = []string{"фактическ", "примерн", "ориентировочн", "предварительн", "прошлому году"}
+	datesSaid = []string{"фактическ", "примерн", "ориентировочн", "предварительн", "прошлому году", "не опубликова"}
 )
 
 // withNotes — ответ с оговорками, которых в нём нет: о датах, если в ответе
@@ -67,9 +68,9 @@ func withNotes(text string, used []card) string {
 		case len(d.approximate) == 0 && len(d.factual) > 0:
 			notes = append(notes, "Даты фактические — с сайта олимпиады.")
 		case len(d.approximate) > 0 && len(d.factual) == 0:
-			notes = append(notes, "Даты примерные, по прошлому году — точные будут на сайте олимпиады.")
+			notes = append(notes, "Даты примерные: сроки этого сезона ещё не опубликованы — точные будут на сайте олимпиады.")
 		case len(d.approximate) > 0:
-			notes = append(notes, "Даты примерные, по прошлому году, у: "+strings.Join(d.approximate, ", ")+"; остальные — фактические.")
+			notes = append(notes, "Даты примерные, сроки ещё не опубликованы, у: "+strings.Join(d.approximate, ", ")+"; остальные — фактические.")
 		}
 	}
 	switch {
@@ -80,6 +81,15 @@ func withNotes(text string, used []card) string {
 		notes = append(notes, strings.Join(unverified, ", ")+": условия льгот ещё уточняются — точные в правилах приёма вузов.")
 	}
 	return strings.Join(append([]string{text}, notes...), " ")
+}
+
+// appendNewUni — вуз в оговорку «уточняется», без повторов.
+func appendNewUni(xs []uniName, id, short string) []uniName {
+	n := uniName{pick.Nick(id, short), short}
+	if slices.Contains(xs, n) {
+		return xs
+	}
+	return append(xs, n)
 }
 
 func appendNew(xs []string, x string) []string {

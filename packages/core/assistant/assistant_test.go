@@ -259,14 +259,15 @@ func TestAsk_NotesModelSkipped(t *testing.T) {
 	cases := []struct{ name, question, reply, want string }{
 		{"фактические даты", "Когда отборочный этап «Высшей пробы»?", reply("Первый тур — до 11.10.2026.", "olympiad:p669-8"),
 			"Первый тур — до 11.10.2026. Даты фактические — с сайта олимпиады."},
-		{"примерные даты", "Когда школьный этап ВсОШ по информатике?", reply("Школьный этап — с 23 сентября.", "olympiad:vsosh-informatika"),
-			"Школьный этап — с 23 сентября. Даты примерные, по прошлому году — точные будут на сайте олимпиады."},
+		{"примерные даты", "Когда регистрация на олимпиаду «Ломоносов» по информатике?", reply("Регистрация — с 24 октября.", "olympiad:p669-50"),
+			"Регистрация — с 24 октября. Даты примерные: сроки этого сезона ещё не опубликованы — точные будут на сайте олимпиады."},
 		{"модель сказала сама", "Когда отборочный этап «Высшей пробы»?", reply("Первый тур — до 11.10.2026, даты фактические.", "olympiad:p669-8"),
 			"Первый тур — до 11.10.2026, даты фактические."},
-		{"условия уточняются", "Что даёт «Высшая проба» по информатике в ВШЭ?", reply("В ВШЭ победителю — БВИ.", "olympiad:p669-8"),
-			"В ВШЭ победителю — БВИ. ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."},
-		{"вуза нет в ответе", "Что даёт «Высшая проба» по информатике в ВШЭ?", reply("Победителю — БВИ.", "olympiad:p669-8"),
-			"Победителю — БВИ."},
+		// У КГМУ вид льготы по перечню документом не подтверждён — строки демо.
+		{"условия уточняются", "Что даёт Сеченовская олимпиада по химии в КГМУ?", reply("В КГМУ победителю — 100 баллов.", "olympiad:p669-11"),
+			"В КГМУ победителю — 100 баллов. КГМУ: условия льготы ещё уточняются — точные в правилах приёма вуза."},
+		{"вуза нет в ответе", "Что даёт Сеченовская олимпиада по химии в КГМУ?", reply("Победителю — 100 баллов.", "olympiad:p669-11"),
+			"Победителю — 100 баллов."},
 	}
 	for _, c := range cases {
 		ans, err := (&Assistant{Store: st, LLM: &fakeLLM{reply: c.reply}}).Ask(context.Background(), kid, tr, nil, c.question)
@@ -279,6 +280,30 @@ func TestAsk_NotesModelSkipped(t *testing.T) {
 	}
 }
 
+// Льготы на выбранное в вузе направление ещё проверяются (ВШЭ,
+// «Юриспруденция»): ответ, который об этом молчит, получает оговорку, как у
+// демо-строк.
+func TestAsk_NoteUnverifiedDirections(t *testing.T) {
+	dbtest.ToCheck(t, dbtest.Open(t), "hse", "napr-40-03-01", "Юриспруденция")
+	st, tr := setup(t)
+	ctx := context.Background()
+	fam, err := st.FamilyMembers(ctx, tr.ID)
+	if err != nil || len(fam) == 0 {
+		t.Fatal(err)
+	}
+	if err := st.SetUniversityDirections(ctx, tr.ID, "hse", fam[0].ID, []string{"napr-40-03-01"}); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeLLM{reply: `{"answer": "В ВШЭ победителю и призёру — БВИ.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(ctx, kid, tr, nil, "Что даёт «Высшая проба» по информатике в ВШЭ?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if want := "В ВШЭ победителю и призёру — БВИ. ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; ans.Text != want {
+		t.Fatalf("%q", ans.Text)
+	}
+}
+
 // Даты из трекера разные: у одних олимпиад фактические, у других примерные —
 // оговорка называет, у каких примерные.
 func TestAsk_NotesForMixedTrackerDates(t *testing.T) {
@@ -288,19 +313,19 @@ func TestAsk_NotesForMixedTrackerDates(t *testing.T) {
 	if err != nil || len(fam) == 0 {
 		t.Fatal(err)
 	}
-	for _, p := range []string{"p669-8-informatika", "vsosh-informatika"} {
+	for _, p := range []string{"p669-8-informatika", "p669-50-informatika"} {
 		if _, _, err := st.AddTrackerItem(ctx, tr.ID, p, fam[0].ID); err != nil {
 			t.Fatal(err)
 		}
 	}
-	f := &fakeLLM{reply: `{"answer": "Ближайшее — отборочный этап «Высшей пробы» до 11.10.2026 и школьный этап ВсОШ до 28.10.2026.", "card_ids": ["student"], "no_data": false}`}
+	f := &fakeLLM{reply: `{"answer": "Ближайшее — отборочный этап «Высшей пробы» до 11.10.2026 и регистрация на «Ломоносов» до 13.11.2026.", "card_ids": ["student"], "no_data": false}`}
 	a := &Assistant{Store: st, LLM: f, Classifier: said("personal", map[string]float64{none: 1}, map[string]float64{none: 1}),
 		Now: func() time.Time { return time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC) }}
 	ans, err := a.Ask(ctx, kid, tr, nil, "Что у меня ближайшее в трекере?")
 	if err != nil || ans.Refused {
 		t.Fatalf("%+v %v", ans, err)
 	}
-	if want := "Даты примерные, по прошлому году, у: ВсОШ по информатике; остальные — фактические."; !strings.HasSuffix(ans.Text, want) {
+	if want := "Даты примерные, сроки ещё не опубликованы, у: Ломоносов; остальные — фактические."; !strings.HasSuffix(ans.Text, want) {
 		t.Fatalf("оговорка о датах трекера:\n%s", ans.Text)
 	}
 }
@@ -324,7 +349,8 @@ func TestAsk_UniversitiesByStudentName(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := cardIn(t, f.calls[0][0].Content, "olympiad:p669-8")
-	if !strings.Contains(c, `\n  ВШЭ — `) || !strings.Contains(c, `\n  Иннополис — `) || strings.Contains(c, `\n  МФТИ — `) {
+	if !strings.Contains(c, "ВШЭ (направления ученика") || !strings.Contains(c, "Иннополис (направления ученика") ||
+		strings.Contains(c, "МФТИ (направления ученика") || strings.Contains(c, `\n  МФТИ — `) {
 		t.Fatalf("условия — только вузов ученика:\n%s", c)
 	}
 }

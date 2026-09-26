@@ -10,12 +10,13 @@
 """
 import json, re, sys
 from collections import defaultdict
+from difflib import SequenceMatcher
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from common import (ADMISSION_YEAR, CODE_RE, DATA, SNAP, TODAY, clean, fetched_date,
                     html_rows, load_html, load_pages, meta, to_int, write_json)
-from olymp_match import (level_in_perechen, match_number, match_number_for_profile,
+from olymp_match import (cut_profile, level_in_perechen, match_number, match_number_for_profile,
                          olympiad_id, profile_slug, vsosh_id, _index)
 
 BVI = "БВИ"
@@ -27,7 +28,7 @@ def _benefit(text: str) -> str | None:
     t = clean(text).lower()
     if not t or t in ("—", "-", "нет"):
         return None
-    if "без вступительных" in t or "бви" in t or "без экзаменов" in t:
+    if "без вступительных" in t or "бви" in t or "без экзам" in t:
         return BVI
     if "100" in t or "максимальное количество" in t or "приравн" in t:
         return HUNDRED
@@ -38,9 +39,9 @@ def _benefit(text: str) -> str | None:
 
 def _statuses(text: str) -> list[str]:
     """«Победителям и призерам» -> оба статуса; «Победителям» -> только победитель."""
-    t = clean(text).lower()
+    t = clean(text).lower().replace("ё", "е").replace("ѐ", "е")   # СПбГУ: «Призѐр» с U+0450
     has_p = "побед" in t
-    has_z = "призер" in t or "призёр" in t
+    has_z = "призер" in t
     if has_p and has_z:
         return [POB, PRIZ]
     if has_z:
@@ -51,8 +52,11 @@ def _statuses(text: str) -> list[str]:
 
 
 def _grades(text: str) -> list[int] | None:
-    found = sorted({int(g) for g in re.findall(r"\b(9|10|11)\b", clean(text))})
-    return found or None
+    t = clean(text)
+    found = {int(g) for g in re.findall(r"\b(9|10|11)\b", t)}
+    for a, b in re.findall(r"\b(9|10)\s*[-–]\s*(10|11)\b", t):   # «9-11 класс»
+        found |= set(range(int(a), int(b) + 1))
+    return sorted(found) or None
 
 
 THRESHOLD = re.compile(r"(?:не\s+ниже|не\s+менее|от)\s+(\d{2,3})|(\d{2,3})\s*балл\w*\s*и\s*выше|(\d{2,3})\s*и\s*более")
@@ -82,7 +86,23 @@ def _level(text: str) -> str | None:
 
 
 # =============================================================== парсеры вузов
-SPLIT_NAMES = re.compile(r",\s*(?=[А-ЯЁ«\"])")
+# Экономфак МГУ перечисляет олимпиады через «;», остальные — через запятую.
+SPLIT_NAMES = re.compile(r",\s*(?=[А-ЯЁ«\"])|;\s*")
+
+
+def _trim_name(name: str) -> str:
+    """Название из списка без пробелов и лишних кавычек, но с парными «»."""
+    n = clean(name).strip(' "')
+    if n.count("«") > n.count("»"):
+        n = n[1:] if n.startswith("«") else n + "»"
+    elif n.count("»") > n.count("«"):
+        n = n[:-1] if n.endswith("»") else "«" + n
+    return n
+
+
+def _roman_levels(text: str) -> list[str]:
+    """«I, III» -> [I, III]: МГУ перечисляет допустимые уровни, II пропущен нарочно."""
+    return _levels(text) or [lv for lv in ("I", "II", "III") if re.search(rf"(?<![IV]){lv}(?![IV])", clean(text))]
 
 
 def rows_msu():
@@ -99,11 +119,11 @@ def rows_msu():
 
 
 def msu_rows(pages: list[dict], url: str) -> list[dict]:
-    """Профиль, перечень, класс и предмет ЕГЭ — объединённые ячейки на
+    """Профиль, перечень, уровень, класс и предмет ЕГЭ — объединённые ячейки на
     несколько уровней или статусов («Математика, *: I — БВИ, II — 100 баллов»).
     pdfplumber кладёт текст в первую строку, у продолжений ячейки пустые, и без
     переноса вниз терялось 88 строк: химия II уровня на химфаке, призёры и т. п."""
-    out, faculty, napravlenie, above = [], None, None, None
+    out, faculty, napravlenie, above, prev = [], None, None, None, None
     for pg in pages:
         for table in pg["tables"]:
             for row in table:
@@ -121,7 +141,14 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
                 if c[1]:
                     above = c
                 elif above:
-                    c = [x or (above[i] if i in (1, 2, 3, 5, 7) else x) for i, x in enumerate(c)]
+                    # уровень — своя объединённая ячейка внутри профиля: победитель
+                    # и призёр одного уровня, поэтому берётся у предыдущей строки
+                    c = [x or (prev[i] if i == 4 else above[i] if i in (1, 2, 3, 5, 7) else x)
+                         for i, x in enumerate(c)]
+                if not c[8] and not c[0] and prev and c[6]:
+                    # льгота — тоже объединённая ячейка: БВИ победителю I и II уровня (ФиПФ)
+                    c = c[:8] + [prev[8]] + c[9:]
+                prev = c
                 benefit = _benefit(c[8])
                 if not benefit or not napravlenie:
                     continue
@@ -134,10 +161,10 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
                 }
                 listed = c[3]
                 if not listed or listed == "*":
-                    out.append({**common, "by_profile": True, "olympiad_name": None})
+                    out.append({**common, "by_profile": True, "olympiad_name": None, "levels": _roman_levels(c[4])})
                     continue
                 for name in SPLIT_NAMES.split(listed):
-                    name = clean(name).strip("«»\" ")
+                    name = _trim_name(name)
                     if len(name) > 5:
                         out.append({**common, "olympiad_name": name})
     return out
@@ -146,10 +173,65 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
 def rows_msu_vsosh():
     """olymp_disciplines.pdf: предметы ВсОШ, дающие льготу, по направлениям.
     Лежит в отдельном файле от перечневых олимпиад — легко потерять целиком."""
-    out, faculty, napravlenie = [], None, None
     f = "vsosh_list__olymp_disciplines.pdf"
-    url = meta("msu", f)["url"]
-    for pg in load_pages("msu", f):
+    return (msu_vsosh_rows(load_pages("msu", f), meta("msu", f)["url"])
+            + msu_vsosh_hundred_rows(load_pages("msu", "kcp__kcp_bak.pdf"), meta("msu", "rules__rules.pdf")["url"]))
+
+
+def _msu_kcp_name(cell: str) -> str:
+    """Название программы в плане приёма — так же, как его берёт build_a.py."""
+    name = re.sub(r'^(Направление подготовки|Специальность)\s*', "", cell)
+    name = re.sub(r'\s*\((очная|заочная|очно).*$', "", name, flags=re.I)
+    name = re.sub(r'\s*\(образовательная программа\s*', " — ", name)
+    return name.strip('"«» ').replace('"', "") or cell
+
+
+def msu_program_exams(pages: list[dict]) -> dict[tuple[str, str, str], set[str]]:
+    """kcp_bak.pdf: (факультет, код, программа) -> предметы ВИ в форме ЕГЭ.
+    ДВИ МГУ сюда не входят: 100 баллов по ВсОШ — это результат ЕГЭ."""
+    out, faculty = {}, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if not any(c) or len(c) < 5:
+                    continue
+                if c[0] and not CODE_RE.fullmatch(c[0]) and not any(c[2:4]):
+                    if len(c[0]) > 5 and not c[0][0].isdigit():
+                        faculty = c[0]
+                    continue
+                if not CODE_RE.fullmatch(c[0]) or not faculty:
+                    continue
+                exams = {canon_subject(x) for x in re.findall(r"([а-яё ]+?)\s*\(егэ\)", c[4].lower())}
+                out[(_msu_faculty(faculty), c[0], _msu_kcp_name(c[1]))] = exams - {None}
+    return out
+
+
+def msu_vsosh_hundred_rows(kcp: list[dict], url: str) -> list[dict]:
+    """Правила, п. 26: победители и призёры ВсОШ — ещё и 100 баллов ЕГЭ по
+    соответствующему предмету при поступлении без БВИ, на любую программу, где
+    этот предмет — ВИ. Где тот же диплом даёт БВИ, 100 баллов не пишутся."""
+    return [{"match": {"msu_program": key}, "vsosh": True, "olympiad_name": None, "profile": subject.lower(),
+             "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": HUNDRED, "ege_subject": subject,
+             "ege_score": None, "grades": None, "page": 19, "url": url, "unless_bvi": True}
+            for key, exams in msu_program_exams(kcp).items() for subject in sorted(exams)]
+
+
+def drop_unless_bvi(records: list[dict]) -> list[dict]:
+    """Записи с пометкой «только без БВИ» — если тот же диплом на этой
+    программе даёт БВИ, они лишние. Пометка в B не выводится."""
+    bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == BVI}
+    out = []
+    for r in records:
+        if r.get("_unless_bvi") and (r["olympiad_id"], r["diploma_status"]) in bvi:
+            continue
+        out.append({k: v for k, v in r.items() if k != "_unless_bvi"})
+    return out
+
+
+def msu_vsosh_rows(pages: list[dict], url: str) -> list[dict]:
+    out, faculty, napravlenie, olympiad = [], None, None, None
+    for pg in pages:
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
@@ -161,9 +243,13 @@ def rows_msu_vsosh():
                 if len(c) < 3 or c[0].lower().startswith(("направление", "специальность")):
                     continue
                 if c[0]:
-                    napravlenie = c[0]
+                    napravlenie, olympiad = c[0], None
+                olympiad = c[1] or olympiad
                 subject = c[2]
-                if not (napravlenie and subject) or not profile_slug(subject.lower()):
+                # «Международная биологическая олимпиада» — не ВсОШ, а сборные.
+                if not (napravlenie and subject) or "всероссийская" not in (olympiad or "").lower():
+                    continue
+                if not profile_slug(subject.lower()):
                     continue
                 out.append({"match": {"faculty": faculty, "napravlenie": napravlenie},
                             "vsosh": True, "olympiad_name": None, "profile": subject.lower(),
@@ -173,39 +259,164 @@ def rows_msu_vsosh():
     return out
 
 
+HSE_VSOSH_CAMPUSES = ("Москва", "Пермь", "Нижний Новгород", "Санкт-Петербург")
+
+
 def rows_hse_vsosh():
-    """Приложение 1: направление -> предметы ВсОШ на БВИ и на 100 баллов."""
-    out, program = [], None
     f = "vsosh_list__1133957386"
-    url = meta("hse", f)["url"]
-    for pg in load_pages("hse", f):
-        for table in pg["tables"]:
-            for row in table:
-                c = [clean(x) for x in row]
-                if len(c) < 4 or c[1].lower().startswith("направление"):
+    return hse_vsosh_rows(((n, [(c, m[0]) for c, m in rows]) for n, rows in _hse_pages(SNAP / "hse" / f)),
+                          meta("hse", f)["url"])
+
+
+def _hse_vsosh_subject(cell: str) -> tuple[str, str] | None:
+    """-> (предмет ВсОШ, предмет ЕГЭ). «Экономика (предоставляется 100 баллов
+    по математике)»; «Для дипломов 2026 года выдачи: Информатика (профили …);
+    для дипломов, выданных ранее 2026 года: Информатика»."""
+    t = clean(cell)
+    if "для дипломов" in t.lower():
+        t = t.rsplit(":", 1)[-1]
+    by = re.search(r"\(предоставляется 100 баллов по ([^)]*)\)", t)
+    subject = clean(re.sub(r"\(.*", "", t))
+    if not subject or not profile_slug(subject.lower()):
+        return None
+    return subject, (by.group(1).capitalize() if by else subject)
+
+
+def hse_vsosh_rows(pages, url: str) -> list[dict]:
+    """Приложение 1: ОП -> предметы ВсОШ на БВИ и на 100 баллов, четыре
+    таблицы подряд — Москва, Пермь, Нижний Новгород, Петербург (каждая
+    начинается шапкой «№ п/п»). № и название ОП — объединённые ячейки на
+    блок строк, их текст посередине блока, у блока на стыке страниц номер
+    теряется, поэтому ОП строки — по геометрии (_hse_pages). Код направления
+    бывает в названии: «09.03.04 Программная инженерия / "Разработка …"»
+    (Пермь), «… (по направлению 09.03.04 …)», «… (направление подготовки
+    38.03.01 Экономика)».
+
+    pages — [(номер, [(ячейки, ОП строки)])]."""
+    out, campus_no = [], -1
+    for page_no, rows in pages:
+        for c, name in rows:
+            c = [clean(x) for x in c]
+            if len(c) < 4:
+                continue
+            if c[0].lower().startswith(("no п/п", "№")):
+                campus_no += 1
+                continue
+            if not 0 <= campus_no < len(HSE_VSOSH_CAMPUSES) or not name:
+                continue
+            aside = re.search(r"\((?:по )?направлени[^)]*\)", name)
+            if "/" in name:
+                head, tail = name.split("/", 1)
+                codes = CODE_RE.findall(head)
+                quoted = re.search(r"[\"«]([^\"»]+)[\"»]", tail)
+                program = quoted.group(1) if quoted else tail
+            else:
+                codes = CODE_RE.findall(aside.group(0)) if aside else []
+                program = name.replace(aside.group(0), "") if aside else name
+            for col, benefit in ((2, BVI), (3, HUNDRED)):
+                subj = _hse_vsosh_subject(c[col])
+                if not subj:
                     continue
-                if c[1]:
-                    program = c[1]
-                if not program:
-                    continue
-                for col, benefit in ((2, BVI), (3, HUNDRED)):
-                    subject = c[col]
-                    if not subject or not profile_slug(subject.lower()):
-                        continue
-                    out.append({"match": {"program": program}, "vsosh": True,
-                                "olympiad_name": None, "profile": subject.lower(),
-                                "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": benefit,
-                                "ege_subject": subject, "ege_score": None, "grades": None,
-                                "page": pg["page"], "url": url, "score_is_demo": True})
+                out.append({"match": {"campus": HSE_VSOSH_CAMPUSES[campus_no], "codes": codes,
+                                      "program": clean(program)},
+                            "vsosh": True, "olympiad_name": None, "profile": subj[0].lower(),
+                            "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": benefit,
+                            "ege_subject": subj[1], "ege_score": None, "grades": None,
+                            "page": page_no, "url": url, "score_is_demo": True})
     return out
 
 
+DASH = ("", "—", "-", "–")
+
+
+def _levels(text: str) -> list[str]:
+    """«I–III» -> [I, II, III], «II» -> [II]: СПбГУ задаёт уровень точно,
+    льгота у уровней разная."""
+    t = clean(text).replace("–", "-").replace("—", "-")
+    m = re.fullmatch(r"(I{1,3})\s*-\s*(I{1,3})", t)
+    order = ["I", "II", "III"]
+    if m:
+        return order[order.index(m.group(1)):order.index(m.group(2)) + 1]
+    return [t] if t in order else []
+
+
 def rows_spbu():
-    """bac_spec_olymp_2_2026.pdf: 12 колонок, порог ЕГЭ отдельной колонкой."""
-    out, prog, code = [], None, None
     f = "olymp_list__bac_spec_olymp_2_2026.pdf"
-    url = meta("spbu", f)["url"]
-    for pg in load_pages("spbu", f):
+    return spbu_rows(load_pages("spbu", f), meta("spbu", f)["url"])
+
+
+def spbu_rows(pages: list[dict], url: str) -> list[dict]:
+    """bac_spec_olymp_2_2026.pdf — перечневые олимпиады: 12 колонок, порог
+    ЕГЭ отдельной колонкой. «—» вместо названия — любая олимпиада перечня
+    этого уровня с указанным профилем, а если и профиль «—», то любая, чей
+    профиль соответствует предмету. Это не ВсОШ: ВсОШ — в отдельном
+    документе (spbu_vsosh_rows).
+
+    Предмет ВИ и минимальный балл — объединённые ячейки: действуют на все
+    строки льгот этого ВИ до следующего ВИ или следующей программы. Предмет
+    подтверждения и 100 баллов — это ВИ, а не колонка «предмет или УГН»
+    («Экономика» под ВИ «Обществознание»)."""
+    out, prog, code, vi, vi_score = [], None, None, None, None
+    grades = spbu_grades(pages)
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) < 12:
+                    continue
+                if c[0]:
+                    m = CODE_RE.search(c[0])
+                    code = m.group(1) if m else code
+                if c[1]:
+                    prog, vi, vi_score = c[1], None, None
+                if c[4]:
+                    vi, vi_score = c[4], to_int(c[5])
+                benefit = _benefit(c[11])
+                levels = _levels(c[6])
+                if not benefit or not prog or not levels:
+                    continue
+                name, profile = c[7], c[8]
+                base = {"match": {"spbu": prog, "code": code}, "levels": levels,
+                        "level": levels[-1], "statuses": _statuses(c[10]), "benefit": benefit,
+                        "ege_subject": vi, "ege_score": vi_score,
+                        "grades": grades, "page": pg["page"], "url": url}
+                if name not in DASH and profile in DASH:
+                    # любой профиль этой олимпиады, соответствующий предмету
+                    out.append({**base, "by_subject": True, "olympiad_name": name, "profile": c[9]})
+                elif name not in DASH:
+                    out.append({**base, "olympiad_name": name, "profile": profile})
+                elif profile not in DASH:
+                    out.append({**base, "by_profile": True, "olympiad_name": None, "profile": profile})
+                else:
+                    out.append({**base, "by_subject": True, "olympiad_name": None, "profile": c[9]})
+    return out
+
+
+def spbu_grades(pages: list[dict]) -> list[int] | None:
+    """Шапка приложения 9: «(только при получении результатов за 10 или 11 класс)»."""
+    for pg in pages:
+        m = re.search(r"результатов\s+за\s+([\d\s,или–-]+?)\s*класс", pg.get("text") or "")
+        if m:
+            return _grades(m.group(1))
+    return None
+
+
+SPBU_OLYMP = "olymp_list__bac_spec_olymp_2_2026.pdf"
+SPBU_RULES = "rules__pravila_priema_2026.pdf"
+
+
+def rows_spbu_vsosh():
+    f = "vsosh_list__bac_spec_olymp_1_2026.pdf"
+    bvi = spbu_vsosh_rows(load_pages("spbu", f), meta("spbu", f)["url"])
+    return bvi + spbu_vsosh_hundred_rows(load_pages("spbu", SPBU_RULES), load_pages("spbu", SPBU_OLYMP),
+                                         bvi, meta("spbu", SPBU_RULES)["url"])
+
+
+def spbu_program_exams(pages: list[dict]) -> dict[tuple[str, str], list[str]]:
+    """(код, ОП) -> предметы ВИ из приложения 9: у каждой ОП перечислены все
+    её ВИ, и те, по которым особых прав нет."""
+    out, prog, code = {}, None, None
+    for pg in pages:
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
@@ -216,18 +427,57 @@ def rows_spbu():
                     code = m.group(1) if m else code
                 if c[1]:
                     prog = c[1]
-                benefit = _benefit(c[11])
-                if not benefit or not prog:
+                if prog and c[4]:
+                    out.setdefault((code, prog), []).append(c[4])
+    return out
+
+
+def spbu_vsosh_hundred_rows(rules: list[dict], olymp: list[dict], bvi: list[dict], url: str) -> list[dict]:
+    """Правила п. 7.5 и приложение 7: победителям и призёрам ВсОШ — ещё и
+    100 баллов за ВИ, соответствующее предмету олимпиады, на любой ОП, где
+    такое ВИ есть. Где по этой же ВсОШ дают БВИ, строка не нужна."""
+    pairs = []
+    for pg in rules:
+        if "Приложение 7 к Правилам" not in (pg.get("text") or ""):
+            continue
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) == 2 and c[1] not in DASH and profile_slug(c[0].split(",")[0].lower()):
+                    pairs.append((c[0].split(",")[0].lower(), {canon_subject(x) for x in c[1].split(",")}, pg["page"]))
+
+    def has_bvi(subject, code, prog):
+        return any(b["profile"] == subject and b["match"]["code"] == code
+                   and (b["match"]["spbu"] is None or _norm_prog(b["match"]["spbu"]) == _norm_prog(prog))
+                   for b in bvi)
+
+    out = []
+    for (code, prog), exams in spbu_program_exams(olymp).items():
+        for subject, vi, page in pairs:
+            hit = next((e for e in exams if canon_subject(e) in vi), None)
+            if hit and not has_bvi(subject, code, prog):
+                out.append({"match": {"spbu": prog, "code": code}, "vsosh": True, "olympiad_name": None,
+                            "profile": subject, "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": HUNDRED,
+                            "ege_subject": hit, "ege_score": None, "grades": None, "page": page, "url": url})
+    return out
+
+
+def spbu_vsosh_rows(pages: list[dict], url: str) -> list[dict]:
+    """bac_spec_olymp_1_2026.pdf: предмет ВсОШ -> направление, иногда с
+    уточнением «(ОП «…»)»; победители и призёры — без ВИ."""
+    out = []
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) < 2 or not CODE_RE.match(c[1]) or not profile_slug(c[0].lower()):
                     continue
-                name, profile = c[7], c[8]
-                out.append({
-                    "match": {"program": prog, "code": code},
-                    "olympiad_name": name, "profile": profile, "level": _level(c[6]),
-                    "statuses": _statuses(c[10]), "benefit": benefit,
-                    "ege_subject": c[9], "ege_score": to_int(c[5]),
-                    "grades": None, "page": pg["page"], "url": url,
-                    "vsosh": name in ("", "—", "-", "–"), "vsosh_subject": c[9],
-                })
+                op = re.search(r"\(ОП «(.+)»\)", c[1])
+                out.append({"match": {"spbu": op.group(1) if op else None, "code": CODE_RE.match(c[1]).group(1)},
+                            "vsosh": True, "olympiad_name": None, "profile": c[0].lower(),
+                            "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": BVI,
+                            "ege_subject": c[0], "ege_score": None, "grades": None,
+                            "page": pg["page"], "url": url, "score_is_demo": True})
     return out
 
 
@@ -242,90 +492,270 @@ def rows_hse():
     продолжениях: pdfplumber выбрасывает пустые ведущие колонки), поэтому
     колонки отсчитываем от якоря «Вид особого права», а не по номеру.
     Приложение сгруппировано по направлению подготовки; имя ОП указано
-    только там, где внутри направления их несколько.
+    только там, где внутри направления их несколько, — в объединённой ячейке,
+    которую таблица теряет, поэтому ОП строки берётся по геометрии
+    (hse_programs).
     """
     out = []
     for f, campus in HSE_OLYMP.items():
-        url = meta("hse", f)["url"]
-        code = napr = name = profile = None
-        for pg in load_pages("hse", f):
-            for table in pg["tables"]:
-                for row in table:
-                    c = [clean(x) for x in row]
-                    if not c:
-                        continue
-                    head = c[0]
-                    m = re.match(r"(?:Направление подготовки|Специальность)\s+(\d{2}\.\d{2}\.\d{2})\s*(.*)", head)
-                    if m:
-                        code, napr, name, profile = m.group(1), clean(m.group(2)), None, None
-                        continue
-                    j = next((i for i, x in enumerate(c) if x.startswith("Право на")), None)
-                    if j is None or j < 4 or not code:
-                        continue
-                    benefit = _benefit(c[j])
-                    if not benefit:
-                        continue
-                    if j >= 5 and c[j - 5]:
-                        name = c[j - 5]
-                        profile = None
-                    if j >= 4 and c[j - 4]:
-                        profile = c[j - 4]
-                    program = c[j - 6] if j >= 6 and c[j - 6] else None
-                    if not name or not profile:
-                        continue
-                    out.append({
-                        "match": {"code": code, "campus": campus, "program": program},
-                        "olympiad_name": name, "profile": profile, "level": None,
-                        "statuses": _statuses(c[j + 2] if len(c) > j + 2 else ""),
-                        "benefit": benefit,
-                        # Колонки справа от якоря есть не во всех строках
-                        # (узкие строки теряют хвост), слева смещение стабильно:
-                        # j-3 — предмет олимпиады, j-2 — предметы ВИ.
-                        "ege_subject": (c[j - 3] if j >= 3 and c[j - 3]
-                                        else (c[j - 2] if j >= 2 else "")),
-                        "ege_score": _score(c[j - 1]),
-                        "grades": _grades(c[j + 3] if len(c) > j + 3 else ""),
-                        "page": pg["page"], "url": url,
-                    })
+        out += hse_rows(_hse_pages(SNAP / "hse" / f, merged=2), meta("hse", f)["url"], campus)
     return out
+
+
+HSE_HEAD = re.compile(r"(?:Направлени[ея] подготовки|Специальность)\s+(\d{2}\.\d{2}\.\d{2}.*)")
+# Смещения колонок от «Вида особого права», если заголовка таблицы не видно:
+# так устроены приложения Москвы, Нижнего Новгорода и Перми.
+HSE_LAYOUT = {"status": 2, "grades": 3, "ege": -2}
+
+
+def _hse_layout(head: list[str]) -> dict:
+    """Смещения колонок от «Вида особого права» — по заголовку. В приложении
+    Петербурга нет «Предмета зачета 100 баллов»: статус и классы стоят на
+    колонку левее, чем у остальных кампусов."""
+    low = [x.lower() for x in head]
+    h = next(i for i, x in enumerate(low) if x.startswith("вид особого права"))
+
+    def off(*prefixes):
+        return next((i - h for p in prefixes for i, x in enumerate(low) if x.startswith(p)), None)
+    return {"status": off("кому предоставляется"), "grades": off("в каких классах"),
+            "ege": off("предмет егэ, который подтверждает", "один или несколько предметов")}
+
+
+def hse_rows(pages, url: str, campus: str) -> list[dict]:
+    """pages — [(номер, [(ячейки, (ОП, олимпиада) строки)])]. Название
+    олимпиады — тоже объединённая ячейка на блок профилей; у блока на стыке
+    страниц ячейка в таблице пуста, и перенос сверху подставлял название
+    предыдущей олимпиады («Турнир городов» с информатикой и экономикой)."""
+    out, block = [], 0
+    codes = name = profile = None
+    layout, who, ege, score = HSE_LAYOUT, "", "", None
+    for page_no, rows in pages:
+        for c, (program, olympiad) in rows:
+            c = [clean(x) for x in c]
+            if not c:
+                continue
+            if any(x.lower().startswith("вид особого права") for x in c):
+                layout = _hse_layout(c)
+                continue
+            m = HSE_HEAD.match(c[0])
+            if m:
+                # «Направления подготовки 01.03.01 Математика; 01.03.04 Прикладная математика»
+                codes, name, profile, block = CODE_RE.findall(m.group(1)), None, None, block + 1
+                continue
+            # В пермском приложении «право на …» со строчной буквы.
+            j = next((i for i, x in enumerate(c) if x.lower().startswith("право на")), None)
+            if j is None or j < 4 or not codes:
+                continue
+            benefit = _benefit(c[j])
+            if not benefit:
+                continue
+            cell = c[j - 5] if j >= 5 else ""
+            # Ячейка надёжнее геометрии (соседний блок иногда подменяет текст),
+            # кроме обрывка названия, разбитого по строкам («"Высшая проба"»).
+            # Пустая ячейка — геометрия: перенос сверху давал чужую олимпиаду.
+            if cell and olympiad and _squash(cell) != _squash(olympiad) and _squash(cell) in _squash(olympiad):
+                cell = olympiad
+            new_name = cell or olympiad or name
+            if new_name != name:
+                name, profile, who, ege, score = new_name, None, "", "", None
+            if j >= 4 and c[j - 4]:
+                profile = c[j - 4]
+            if not name or not profile:
+                continue
+
+            def col(off):
+                return c[j + off] if off is not None and 0 <= j + off < len(c) else ""
+            # «Кому», предмет подтверждения и порог — объединённые ячейки на несколько
+            # строк (БВИ за 10–11 класс и 100 баллов за 9–11 у одного профиля):
+            # у продолжений они пусты и берутся сверху, а не «всем».
+            who = col(layout["status"]) or who
+            ege = col(layout["ege"]) or ege
+            score = _score(c[j - 1]) or score
+            if not who:
+                WARNINGS.append(f"ВШЭ {campus}, стр. {page_no}: нет статуса у «{name}» / {profile}")
+                continue
+            out.append({
+                "match": {"codes": codes, "campus": campus, "program": program or None},
+                "olympiad_name": name, "profile": profile, "level": None,
+                "statuses": _statuses(who),
+                "benefit": benefit,
+                "ege_subject": ege,
+                "ege_score": score,
+                "grades": _grades(col(layout["grades"])),
+                "page": page_no, "url": url, "_block": block,
+            })
+    # ОП называется, только если в направлении их несколько. Строка такого
+    # блока, у которой имени нет (геометрия его не нашла), — не «все ОП
+    # направления», а неизвестная ОП.
+    named = {r["_block"] for r in out if r["match"]["program"]}
+    keep = []
+    for r in out:
+        if r.pop("_block") in named and not r["match"]["program"]:
+            WARNINGS.append(f"ВШЭ {campus}, стр. {r['page']}: не найдена ОП у «{r['olympiad_name']}» / {r['profile']}")
+            continue
+        keep.append(r)
+    return keep
+
+
+def hse_programs(top: float, bottom: float, edges: list[float], words: list[dict],
+                 row_mids: list[float]) -> list[str]:
+    """ОП строки таблицы ВШЭ. Колонка ОП — объединённая ячейка на блок строк,
+    блоки разделены горизонтальными отрезками. Текст ячейки напечатан на
+    каждой странице, через которую проходит блок, даже за краем страницы
+    (y < 0 или y > высоты): слово за краем относится к крайнему блоку."""
+    ys = sorted({top, bottom, *[y for y in edges if top < y < bottom]})
+    spans = list(zip(ys, ys[1:]))
+
+    def span_of(y):
+        y = min(max(y, top), bottom - 0.01)
+        return next(i for i, (a, b) in enumerate(spans) if a <= y < b)
+
+    text = defaultdict(list)
+    for w in sorted(words, key=lambda w: (round(w["top"]), w["x0"])):
+        text[span_of(w["top"])].append(w["text"])
+    return [clean(" ".join(text[span_of(y)])) for y in row_mids]
+
+
+def _hse_pages(pdf_path, merged: int = 1):
+    """[(номер, [(ячейки, текст объединённых ячеек строки)])]: колонки 1..merged
+    слева (ОП, название олимпиады) — объединённые ячейки, их текст — по
+    геометрии (hse_programs), кортежем по колонкам."""
+    import pdfplumber
+    with pdfplumber.open(pdf_path) as pdf:
+        xs = None
+        for page in pdf.pages:
+            tables = page.find_tables()
+            if xs is None and tables:
+                xs = sorted({round(cell[0]) for cell in tables[0].cells})   # № | ОП | олимпиада …
+            words = page.extract_words()
+            rows = []
+            for t in tables:
+                x0, top, x1, bottom = t.bbox
+                mids = [(r.bbox[1] + r.bbox[3]) / 2 for r in t.rows]
+                cols = []
+                for k in range(1, merged + 1):
+                    left, right = xs[k], xs[k + 1]
+                    edges = [v for r in page.rects if r["height"] < 12
+                             and r["x0"] <= left + 2 and r["x1"] >= right - 2
+                             for v in (r["top"], r["bottom"])]
+                    inside = [w for w in words if w["x0"] >= left and w["x1"] <= right + 2]
+                    cols.append(hse_programs(top, bottom, edges, inside, mids))
+                rows += list(zip(t.extract(), zip(*cols)))
+            yield page.page_number, rows
+
+
+MIPT_URL = "https://pk.mipt.ru/bachelor/2026_olympiads/"
+MIPT_RULES = "rules__2026_rules"
 
 
 def rows_mipt():
-    """Матрица 146x16: 11 правых колонок — физтех-школы, БВИ зависит от школы."""
+    return mipt_rows(load_html("mipt", "olymp_list__2026_olympiads"), MIPT_URL)
+
+
+def mipt_plan(html: str) -> dict[tuple[str, str], dict]:
+    """Правила приёма МФТИ: (код направления, программа) -> конкурсная группа
+    и предметы ВИ. Одна программа бывает в двух направлениях (ВШБИ — 03.03.01
+    и 19.03.01) с разными группами и ВИ, поэтому ключ — с кодом."""
+    out, code = {}, None
+    for c in html_rows(html):
+        m = re.match(r"Направление\s+(\d{2}\.\d{2}\.\d{2})", c[0]) if c else None
+        if m:
+            code = m.group(1)
+        elif len(c) == 3 and code and c[0] and c[0] != "Образовательные программы":
+            out[(code, _squash(c[0]))] = {"group": c[1], "exams": subject_keys(c[2])}
+    return out
+
+
+_MIPT_PLAN = None
+
+
+def _mipt_program(p: dict) -> dict | None:
+    global _MIPT_PLAN
+    if _MIPT_PLAN is None:
+        _MIPT_PLAN = mipt_plan(load_html("mipt", MIPT_RULES))
+    return _MIPT_PLAN.get((p["napravlenie_code"], _squash(p["program_name"])))
+
+
+def _mipt_schools(header: list[str]) -> tuple[int, list[str]] | None:
+    """Колонки физтех-школ начинаются с «ФРКТ». Школа — по позиции в той же
+    строке заголовка: срез непустых ячеек сдвигал каждую школу на соседнюю."""
+    if "ФРКТ" not in header or "ФПМИ" not in header:
+        return None
+    first = header.index("ФРКТ")
+    return first, header[first:first + 11]
+
+
+def _mipt_clauses(school: str, cell: str) -> list[dict]:
+    """Ячейка школы: «Все конкурсные группы ФБМФ, ВШБИ Победителям …» или
+    конкурсные группы в кавычках, иногда несколько условий через «;»."""
     out = []
-    url = "https://pk.mipt.ru/bachelor/2026_olympiads/"
-    rows = html_rows(load_html("mipt", "olymp_list__2026_olympiads"))
-    schools = None
-    for c in rows:
-        if schools is None and "ФПМИ" in c and "ФРКТ" in c:
-            schools = [x for x in c if x][:11]
+    for clause in clean(cell).split(";"):
+        clause = clause.strip()
+        if not clause:
             continue
+        m = re.match(r"Все конкурсные группы (.+?)\s+(?:Победител|победител|Призер|призер|Член)", clause)
+        out.append({
+            "match": {"school": m.group(1) if m else school,
+                      "groups": None if m else re.findall(r"[\"«]([^\"»]+)[\"»]", clause)},
+            "statuses": _statuses(clause), "ege_subject": _subject_from(clause),
+            "ege_score": _score(clause),
+        })
+    return out
+
+
+def mipt_rows(html: str, url: str) -> list[dict]:
+    """Матрица 146x16: 11 правых колонок — физтех-школы, БВИ зависит от школы."""
+    out, cols = [], None
+    for c in html_rows(html):
+        cols = cols or _mipt_schools(c)
         if not (c and c[0].isdigit() and len(c) >= 6):
             continue
         num, name, profile, level = int(c[0]), c[1], c[2], _level(c[3])
-        if c[4]:                                    # общая колонка «100 баллов»
-            out.append({"match": None, "olympiad_name": name, "profile": profile,
-                        "level": level, "statuses": _statuses(c[4]), "benefit": HUNDRED,
-                        "ege_subject": _subject_from(c[4]), "ege_score": _score(c[4]),
-                        "grades": None, "page": None, "url": url, "number": num})
-        for i, cell in enumerate(c[5:16]):
-            if not clean(cell) or not schools:
-                continue
-            out.append({"match": {"school": schools[i] if i < len(schools) else None},
-                        "olympiad_name": name, "profile": profile, "level": level,
-                        "statuses": _statuses(cell), "benefit": BVI,
-                        "ege_subject": _subject_from(cell), "ege_score": _score(cell),
-                        "grades": None, "page": None, "url": url, "number": num})
+        # Общая колонка «100 баллов по <предмету>»: только программам, где
+        # этот предмет — вступительное испытание. В ячейке бывает два предмета.
+        for clause in filter(None, map(str.strip, clean(c[4]).split(";"))):
+            subject = _subject_from(clause)
+            out += _by_grades({"match": {"mipt_exam": subject}, "olympiad_name": name, "profile": profile,
+                               "level": level, "statuses": _statuses(clause), "benefit": HUNDRED,
+                               "ege_subject": subject, "ege_score": _score(clause),
+                               "page": None, "url": url, "number": num}, num)
+        if not cols:
+            continue
+        first, schools = cols
+        for school, cell in zip(schools, c[first:first + len(schools)]):
+            for cl in _mipt_clauses(school, cell):
+                out += _by_grades({**cl, "olympiad_name": name, "profile": profile, "level": level,
+                                   "benefit": BVI, "page": None, "url": url, "number": num}, num, school)
     return out
+
+
+def mipt_grades(num: int, status: str, school: str = "") -> list[int]:
+    """П. 4–6 «Порядка»: результат — за 11 класс; победителям «Физтеха»
+    (№ 54) — и за 10; победителям олимпиады по ИИ (№ 7) за 10 класс — только
+    на программах ВШПИ."""
+    if status == POB and (num == 54 or (num == 7 and "ВШПИ" in school)):
+        return [10, 11]
+    return [11]
+
+
+def _by_grades(row: dict, num: int, school: str = "") -> list[dict]:
+    """Строка на каждую группу статусов с одинаковыми классами."""
+    groups: dict[tuple, list[str]] = {}
+    for st in row["statuses"]:
+        groups.setdefault(tuple(mipt_grades(num, st, school)), []).append(st)
+    return [{**row, "statuses": sts, "grades": list(g)} for g, sts in groups.items()]
 
 
 def _subject_from(text: str) -> str | None:
     t = clean(text).lower()
-    for s in ("информатик", "математик", "физик", "хими", "биолог", "обществознани", "экономик"):
+    # «нформатик» — в документе встречается «по тнформатике».
+    for s in ("нформатик", "математик", "физик", "хими", "биолог", "обществознани", "экономик",
+              "русск", "иностранн"):
         if s in t:
-            return {"информатик": "Информатика", "математик": "Математика", "физик": "Физика",
+            return {"нформатик": "Информатика", "математик": "Математика", "физик": "Физика",
                     "хими": "Химия", "биолог": "Биология", "обществознани": "Обществознание",
-                    "экономик": "Экономика"}[s]
+                    "экономик": "Экономика", "русск": "Русский язык",
+                    "иностранн": "Иностранный язык"}[s]
     return None
 
 
@@ -352,157 +782,539 @@ def _itmo_rows(pdf_path, cols=None):
 
 
 def rows_mipt_vsosh():
+    return mipt_vsosh_rows(load_html("mipt", "olymp_list__2026_olympiads"), MIPT_URL)
+
+
+def mipt_vsosh_rows(html: str, url: str) -> list[dict]:
     """Приложение 2 на той же странице: предмет ВсОШ x физтех-школы.
     Лежит отдельной таблицей от перечневых олимпиад — легко пропустить."""
-    out = []
-    url = "https://pk.mipt.ru/bachelor/2026_olympiads/"
-    tables = re.findall(r"<table.*?</table>", load_html("mipt", "olymp_list__2026_olympiads"), re.S)
-    if len(tables) < 3:
-        return out
-    schools = None
-    for c in html_rows(tables[2]):
-        if schools is None and "ФПМИ" in c and "ФРКТ" in c:
-            schools = [x for x in c if x][:11]
+    out, cols, profiles = [], None, mipt_profile_subjects(html)
+    for c in html_rows(html):
+        if c and c[0] == "Общеобразовательный предмет":
+            cols = _mipt_schools(c)
             continue
-        if not schools or len(c) < 2 or not c[0]:
+        if not cols or len(c) < 2 or not c[0]:
             continue
-        subject = c[0].split(";")[0].split(",")[0]
+        base = c[0].split(";")[0]
+        # «Информатика, профиль "ИБ"» — подпрофиль со своими условиями, а в
+        # каталоге ВсОШ по предмету одна: её условия — в базовой строке.
+        if "профиль" in base.lower():
+            continue
+        subject = base.split(",")[0]
         if not profile_slug(subject.lower()):
             continue
-        for i, cell in enumerate(c[1:12]):
-            if not clean(cell) or i >= len(schools):
-                continue
-            out.append({"match": {"school": schools[i]}, "vsosh": True,
-                        "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
-                        "statuses": _statuses(cell), "benefit": BVI,
-                        "ege_subject": subject, "ege_score": None, "grades": None,
-                        "page": None, "url": url, "score_is_demo": True})
+        first, schools = cols
+        exam = profiles.get(subject.lower())
+        for school, cell in zip(schools, c[first:first + len(schools)]):
+            for cl in _mipt_clauses(school, cell):
+                row = {**cl, "vsosh": True, "olympiad_name": None,
+                       "profile": subject.lower(), "level": "ВсОШ", "benefit": BVI,
+                       "ege_subject": subject, "ege_score": None, "grades": None,
+                       "page": None, "url": url, "score_is_demo": True}
+                out.append(row)
+                # П. 8: обладатель БВИ может зачесть 100 баллов по предмету
+                # профиля в той же конкурсной группе — где предмет среди ВИ.
+                if exam:
+                    out.append({**row, "match": {**row["match"], "exam": exam}, "benefit": HUNDRED,
+                                "ege_subject": exam})
     return out
 
 
+def mipt_profile_subjects(html: str) -> dict[str, str]:
+    """П. 8: таблица «Соответствие профиля олимпиады предмету ЕГЭ или ВИ» —
+    «Астрономия, физика и астрономия» -> Физика, «Экономика» -> Математика."""
+    out, on = {}, False
+    for c in html_rows(html):
+        if c[:2] == ["Профиль олимпиады", "Предмет ЕГЭ или ВИ"] and len(c) == 2:
+            on = True
+            continue
+        if not on:
+            continue
+        if len(c) != 2:
+            break
+        subject = sorted(subject_keys(c[1]))
+        if len(subject) == 1:
+            out.update({clean(x).lower(): subject[0] for x in c[0].split(",")})
+    return out
+
+
+KFU_OLYMP = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
+KFU_PLAN_DOC = "programs__plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf"
+
+
 def rows_kfu_vsosh():
-    """Страницы 4-6 приложения 3: предмет ВсОШ -> направления подготовки."""
-    out = []
-    f = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
-    url = meta("kfu", f)["url"]
+    """Страницы 4-6 приложения 3: предмет ВсОШ -> направления подготовки.
+    Список направлений предмета продолжается на следующих строках; пустой
+    список — «все направления, где этот предмет — первое ВИ»."""
+    url = meta("kfu", KFU_OLYMP)["url"]
+    subjects: dict[str, dict] = {}
     subject = None
-    for pg in load_pages("kfu", f):
+    for pg in load_pages("kfu", KFU_OLYMP):
         if pg["page"] not in (4, 5, 6):
             continue
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
-                if len(c) < 4:
+                if len(c) < 4 or c[1].lower().startswith("предмет"):
                     continue
-                if c[1] and not c[1].lower().startswith("предмет"):
+                if c[1]:
                     subject = c[1]
-                codes = CODE_RE.findall(c[3])
-                if not subject or not codes or not profile_slug(subject.lower()):
-                    continue
-                out.append({"match": {"codes": codes}, "vsosh": True,
-                            "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
-                            "statuses": [POB, PRIZ], "benefit": BVI,
-                            "ege_subject": c[2] or subject, "ege_score": None,
-                            "grades": None, "page": pg["page"], "url": url,
-                            "score_is_demo": True})
+                    subjects.setdefault(subject, {"vi": c[2], "targets": [], "page": pg["page"]})
+                if subject and c[3]:
+                    subjects[subject]["targets"].append(c[3])
+    out = []
+    for subject, d in subjects.items():
+        if not profile_slug(subject.lower()) or d["vi"] in ("", "-"):
+            continue
+        targets = " ".join(d["targets"])
+        bvi = {"match": kfu_match(targets or KFU_ALL, d["vi"]), "vsosh": True,
+               "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
+               "statuses": [POB, PRIZ], "benefit": BVI,
+               "ege_subject": d["vi"], "ege_score": None,
+               "grades": None, "page": d["page"], "url": url, "score_is_demo": True}
+        out += [bvi, {**bvi, "benefit": HUNDRED, "match": {**bvi["match"], "hundred": True}}]
     return out
 
 
 def rows_itmo_vsosh():
-    """Соотнесение профилей ВсОШ с направлениями. Вёрстка рваная: коды и
-    предметы вытаскиваем регулярками из ячеек, а не по позициям."""
-    out = []
+    import pdfplumber
     f = "vsosh_list__vsosh_2026.pdf"
-    url = meta("itmo", f)["url"]
-    for page_no, c in _itmo_rows(SNAP / "itmo" / f, cols=[36, 172, 425, 439, 530, 551]):
-        codes = CODE_RE.findall(" ".join(c[:2]))
-        tail = " ".join(c[2:])
-        if not codes:
-            continue
-        for word in re.findall(r"[А-ЯЁ][а-яё]{4,}", tail):
-            if not profile_slug(word.lower()):
+    pages = []
+    with pdfplumber.open(SNAP / "itmo" / f) as pdf:
+        for page in pdf.pages:
+            lines = [r["top"] for r in page.rects if r["height"] < 3 and r["width"] > 3
+                     and r["x0"] >= ITMO_VSOSH_SPLIT - 4]
+            pages.append((page.page_number, page.extract_words(), lines))
+    return itmo_vsosh_rows(pages, meta("itmo", f)["url"])
+
+
+ITMO_VSOSH_SPLIT = 426    # граница колонок «направление» и «предмет олимпиады»
+
+
+def itmo_vsosh_rows(pages, url: str) -> list[dict]:
+    """Соотнесение предметов ВсОШ с направлениями. Предмет — объединённая
+    ячейка на блок направлений, блоки разделены отрезками в колонке
+    предмета. Часть блока в начале страницы без предмета — продолжение
+    блока с прошлой страницы. Пояснение в скобках («Информатика
+    (Искусственный интеллект …)») предметом не считается.
+
+    pages — [(номер, слова pdfplumber, [y отрезков колонки предмета])]."""
+    blocks = []                        # [коды, текст предмета]
+    for page_no, words, lines in pages:
+        ys = sorted(lines)
+        edges = [float("-inf"), *ys, float("inf")]
+        first = True
+        for lo, hi in zip(edges, edges[1:]):
+            inside = sorted((w for w in words if lo <= w["top"] < hi), key=lambda w: (round(w["top"]), w["x0"]))
+            left = " ".join(w["text"] for w in inside if w["x0"] < ITMO_VSOSH_SPLIT)
+            right = " ".join(w["text"] for w in inside if w["x0"] >= ITMO_VSOSH_SPLIT)
+            codes = CODE_RE.findall(left)
+            if not codes:
+                continue
+            if first and not right.strip() and blocks:
+                blocks[-1][0] += codes
+            else:
+                blocks.append([codes, right, page_no])
+            first = False
+    out = []
+    for codes, subjects, page_no in blocks:
+        subjects = re.sub(r"\([^)]*\)?", " ", subjects)
+        for word in dict.fromkeys(w.lower() for w in re.findall(r"[А-ЯЁ][а-яё]{4,}", subjects)):
+            if not profile_slug(word):
                 continue
             out.append({"match": {"codes": codes}, "vsosh": True, "olympiad_name": None,
-                        "profile": word.lower(), "level": "ВсОШ", "statuses": [POB, PRIZ],
-                        "benefit": BVI, "ege_subject": word, "ege_score": None,
+                        "profile": word, "level": "ВсОШ", "statuses": [POB, PRIZ],
+                        "benefit": BVI, "ege_subject": word.capitalize(), "ege_score": None,
                         "grades": None, "page": page_no, "url": url, "score_is_demo": True})
     return out
 
 
-def rows_itmo():
-    """Два плоских перечня на весь вуз: один даёт БВИ, другой — 100 баллов.
-    Название олимпиады задано один раз на блок профилей, переносим вниз."""
-    out = []
-    for f, benefit in (("olymp_list__rsosh_bvi_2026.pdf", BVI),
-                       ("olymp_list__rsosh_100_2026.pdf", HUNDRED)):
-        url = meta("itmo", f)["url"]
-        name = None
-        for page_no, c in _itmo_rows(SNAP / "itmo" / f):
-            if len(c) < 5:
-                continue
-            junk = ("Министерст", "государственное", "федеральное", "ыдаипмило",
-                    "Наименование", "победителей", "Приложение", "УТВЕРЖДАЮ",
-                    "учрежде", "университет", "ИТМО")
-            if c[0] and not any(x in c[0] for x in junk):
-                name = c[0]
-            profile, subject, level, status = c[1], c[2], c[3], c[4]
-            if not (name and profile and level and status):
-                continue
-            # «Все из перечня олимпиад школьников» — не название, а правило:
-            # подходит любая перечневая олимпиада этого профиля.
-            by_profile = name.lower().startswith("все из перечня")
-            out.append({"match": None,
-                        "by_profile": by_profile,
-                        "olympiad_name": None if by_profile else name,
-                        "profile": profile,
-                        "level": _level(level), "statuses": _statuses(status),
-                        "benefit": benefit, "ege_subject": subject or profile,
-                        "ege_score": 75, "grades": None, "page": page_no, "url": url})
+# Колонки перечней ИТМО: направление, название, профиль, предмет ЕГЭ, уровень,
+# статус диплома. У файлов разная сетка; прежняя общая начиналась с x=136 и
+# отрезала направление, а файл «100 баллов» читала вообще не по его колонкам.
+ITMO_LISTS = (("olymp_list__rsosh_bvi_2026.pdf", BVI, [36, 136, 248, 369, 425, 461, 551]),
+              ("olymp_list__rsosh_100_2026.pdf", HUNDRED, [44, 163, 234, 347, 418, 467, 538]))
+ITMO_LEVEL_COL = 4
+
+
+def itmo_merged_rows(pages) -> list[tuple[int, list[str]]]:
+    """Строки перечня ИТМО с объединёнными ячейками.
+
+    Таблица нарисована отрезками. Строка — промежуток между отрезками в
+    колонке уровня; объединённая ячейка другой колонки — промежуток между её
+    собственными отрезками, текст собирается из всех её частей («Все из
+    перечня олимпиад» + «школьников», направление на десяток строк).
+
+    Блок направлений, разорванный страницей, режется на две части. Текст
+    блока всегда начинается с кода, поэтому часть в начале страницы без
+    кода в начале текста (или пустая) — продолжение блока с прошлой
+    страницы, как и часть после текста, оборванного на запятой или коде;
+    пустая часть в конце страницы — начало блока со следующей.
+    У склеенного блока текст обеих частей.
+
+    pages — [(номер, [(top, bottom, [ячейки])], {колонка: [y отрезков]})]."""
+    rows, parts = [], []               # части блоков направлений: [страница, текст]
+    for page_no, fine, lines in pages:
+        if not fine:
+            continue
+        top, bottom = fine[0][0], fine[-1][1]
+
+        def spans(col):
+            ys = sorted({top, bottom, *[y for y in lines.get(col, []) if top <= y <= bottom]})
+            return list(zip(ys, ys[1:]))
+
+        col_spans = {j: spans(j) for j in range(6)}
+
+        def span_of(j, y):
+            return next((sp for sp in col_spans[j] if sp[0] <= y < sp[1]), None)
+
+        def text(j, lo, hi):
+            return clean(" ".join(cells[j] for t, b, cells in fine
+                                  if lo <= (t + b) / 2 < hi and j < len(cells) and cells[j]))
+
+        page_parts = {}
+        for sp in col_spans[ITMO_LEVEL_COL]:
+            mid = (sp[0] + sp[1]) / 2
+            # Направление и название — объединённые ячейки на блок строк.
+            # Остальное — в пределах строки: у колонки статуса отрезков
+            # местами нет, и статусы соседних строк склеивались бы.
+            row = [text(j, *span_of(j, mid)) if j < 2 else
+                   (text(j, *sp) or text(j, *span_of(j, mid))) for j in range(6)]
+            if not _level(row[ITMO_LEVEL_COL]):
+                continue                  # шапка документа и таблицы
+            dsp = span_of(0, mid)
+            if dsp not in page_parts:
+                page_parts[dsp] = len(parts)
+                parts.append([page_no, row[0]])
+            rows.append((page_no, row, page_parts[dsp]))
+    group = list(range(len(parts)))
+    for i in range(1, len(parts)):
+        (pg, text), (prev_pg, prev_text) = parts[i], parts[i - 1]
+        if pg == prev_pg:
+            continue                      # внутри страницы блоки разделены отрезком
+        cut = re.search(r"(,|\d{2}\.\d{2}\.\d{2})\s*$", prev_text)   # оборвано на полуслове
+        if not CODE_RE.match(text) or not prev_text or cut:
+            group[i] = group[i - 1]
+    merged = defaultdict(list)
+    for i, g in enumerate(group):
+        merged[g].append(parts[i][1])
+    out, name, last = [], "", None
+    for page_no, row, k in rows:
+        # Название — тоже объединённая ячейка: на следующей странице блока
+        # («Все из перечня олимпиад школьников») её текста нет.
+        if row[1] or group[k] != last:
+            name = row[1]
+        last = group[k]
+        out.append((page_no, [clean(" ".join(merged[group[k]])), name] + row[2:]))
     return out
+
+
+def _itmo_pages(pdf_path, cols):
+    import pdfplumber
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_no, page in enumerate(pdf.pages, start=1):
+            ys = sorted({round(v) for r in page.rects for v in (r["top"], r["bottom"])})
+            ys = [y for i, y in enumerate(ys) if i == 0 or y - ys[i - 1] > 3]
+            if len(ys) < 3:
+                continue
+            t = page.find_table({"vertical_strategy": "explicit", "explicit_vertical_lines": cols,
+                                 "horizontal_strategy": "explicit", "explicit_horizontal_lines": ys})
+            if not t:
+                continue
+            fine = [(row.bbox[1], row.bbox[3], [clean(c) for c in cells])
+                    for row, cells in zip(t.rows, t.extract())]
+            lines = {}
+            for j in range(len(cols) - 1):
+                left, right = cols[j], cols[j + 1]
+                lines[j] = [r["top"] for r in page.rects
+                            if r["height"] < 3 and r["width"] > 3
+                            and r["x0"] <= left + 4 and r["x1"] >= right - 4]
+            yield page_no, fine, lines
+
+
+def rows_itmo():
+    out = []
+    for f, benefit, cols in ITMO_LISTS:
+        out += itmo_rows(itmo_merged_rows(_itmo_pages(SNAP / "itmo" / f, cols)),
+                         meta("itmo", f)["url"], benefit, itmo_grades(load_pages("itmo", f)))
+    return out
+
+
+def itmo_grades(pages: list[dict]) -> list[int] | None:
+    """Заголовок приложения: «…дипломов …, полученных в 10-м или 11-м классе»."""
+    for pg in pages:
+        m = re.search(r"полученных\s+в\s+((?:\d+-м|или|и|,|\s)+?)\s*класс", pg.get("text") or "")
+        if m:
+            return _grades(m.group(1))
+    return None
+
+
+def _level_set(text: str) -> list[str]:
+    """Колонка уровня ИТМО — точное множество: «2 или 3» -> [II, III], «3» -> [III]."""
+    return [lv for d, lv in (("1", "I"), ("2", "II"), ("3", "III")) if re.search(rf"\b{d}\b", clean(text))]
+
+
+# Приложение 6 ИТМО: 100 баллов — по дипломам, «не дающие право поступления без
+# вступительных испытаний». Где тот же диплом даёт БВИ, 100 баллов не пишутся.
+HUNDRED_WITHOUT_BVI = {"itmo"}
+
+
+def drop_hundred_under_bvi(records: list[dict]) -> list[dict]:
+    bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == BVI}
+    return [r for r in records
+            if not (r["benefit_type"] == HUNDRED and (r["olympiad_id"], r["diploma_status"]) in bvi)]
+
+
+def itmo_rows(rows, url: str, benefit: str, grades: list[int] | None = None) -> list[dict]:
+    """Два перечня: один даёт БВИ, другой — 100 баллов. Льгота адресована
+    направлениям из первой колонки; «(только на направление 10.03.01)» в
+    профиле сужает блок. Уровень — точное множество из колонки."""
+    out = []
+    for page_no, c in rows:
+        direction, name, profile, subject, level, status = c
+        codes = CODE_RE.findall(direction)
+        levels = _level_set(level)
+        if not (codes and name and profile and levels and _statuses(status) and "ыдаипмило" not in name):
+            continue
+        only = re.search(r"\((?:учитывается )?(?:только )?на [^)]*\)?", profile)
+        programs = None
+        if only:
+            clause = only.group(0)
+            codes = CODE_RE.findall(clause) or codes
+            if "программ" in clause:
+                # «(учитывается только на программе Робототехника и ИИ)»,
+                # «(… на программах «Робототехника и ИИ» и «Технологии защиты информации»)»
+                names = re.findall(r"«([^»]+)»", clause) or [re.sub(r".*программе\s+|\)$", "", clause)]
+                programs = [clean(re.sub(r"\bИИ\b", "искусственный интеллект", n)) for n in names]
+            profile = clean(profile.replace(clause, ""))
+        # «Все из перечня олимпиад школьников» — не название, а правило:
+        # подходит любая перечневая олимпиада этого профиля.
+        by_profile = name.lower().startswith("все из перечня")
+        out.append({"match": {"codes": codes, "programs": programs},
+                    "by_profile": by_profile,
+                    "olympiad_name": None if by_profile else name,
+                    "profile": profile, "level": levels[-1],
+                    **({"levels": levels} if by_profile else {}), "statuses": _statuses(status),
+                    "benefit": benefit, "ege_subject": subject or profile,
+                    "ege_score": 75, "grades": grades, "page": page_no, "url": url})
+    return out
+
+
+SECHENOV_OLYMP = "olymp_list__Pravila-priema_2026_2027_BS_pril5_Perechen-olimpiad.pdf"
+SECHENOV_EXAMS = "rules__Pravila-priema_2026_2027_BS_pril2_Perechen-VI.pdf"
 
 
 def rows_sechenov():
-    """Приложение 5: БВИ по перечневым Сеченов не даёт — только 100 баллов (стр.1)."""
-    out, name, profile = [], None, None
-    f = "olymp_list__Pravila-priema_2026_2027_BS_pril5_Perechen-olimpiad.pdf"
-    url = meta("sechenov", f)["url"]
-    for pg in load_pages("sechenov", f):
+    return sechenov_rows(load_pages("sechenov", SECHENOV_OLYMP), meta("sechenov", SECHENOV_OLYMP)["url"])
+
+
+def sechenov_rows(pages: list[dict], url: str) -> list[dict]:
+    """Приложение 5: БВИ по перечневым Сеченов не даёт — только 100 баллов
+    (стр. 1), и только на программы, где предмет профиля — среди ВИ.
+
+    Вёрстка: ширина таблиц гуляет (8–16 колонок), но у каждой таблицы есть
+    заголовок, и графа — это колонки от её заголовка до следующего. Внутри
+    графы значение бывает задвоено в соседние колонки или дано целиком в
+    одной и построчно в другой — берётся самое длинное. Строка с «правом» —
+    льгота; без него — продолжение многострочных ячеек: название — олимпиады,
+    профиль — текущего профиля, ВИ и предмет — последней льготы. Олимпиада
+    переходит на следующую страницу. № — порядковый номер Сеченова, не
+    номер перечня: олимпиада ищется по названию."""
+    out, olymp, profile, last = [], None, None, None
+    for pg in pages:
+        for table in pg["tables"]:
+            head = [clean(x) for x in table[0]] if table else []
+            if not any(x.startswith("Профиль олимпиады") for x in head):
+                continue
+            starts = [i for i, x in enumerate(head) if x]
+            if len(starts) != 6:    # №, название, профиль, ВИ, предмет ЕГЭ, право
+                continue
+            bounds = list(zip(starts, starts[1:] + [len(head)]))
+            for row in table[1:]:
+                c = [clean(x) for x in row]
+                num, name, prof, exam, subj, right = [{i: c[i] for i in range(a, min(b, len(c))) if c[i]}
+                                                      for a, b in bounds]
+                if num:
+                    olymp, profile, last = {}, None, None
+                if olymp is None:
+                    continue
+                _grow(olymp, name)
+                if not any(right.values()):
+                    if profile is not None:
+                        _grow(profile, prof)
+                    if last:
+                        _grow(last["exam"], exam)
+                        _grow(last["subject"], subj)
+                    continue
+                if prof:
+                    profile = dict(prof)
+                if profile is None:
+                    continue
+                last = {"olymp": olymp, "profile": profile, "exam": dict(exam), "subject": dict(subj),
+                        "benefit": _benefit(_longest(right)), "page": pg["page"]}
+                out.append(last)
+    # Стр. 1: «Результаты победителя (призера) должны быть получены за 10 или 11 класс».
+    clause = next((m for pg in pages for m in [re.search(r"получены\s+за\s+([\d\s,иили-]+?)\s*класс",
+                                                           clean(pg.get("text") or ""))] if m), None)
+    grades = _grades(clause.group(1)) if clause else None
+    return [{"match": {"exams": sorted(subject_keys(_longest(r["exam"])))}, "olympiad_name": _longest(r["olymp"]),
+             "profile": _longest(r["profile"]), "level": None, "statuses": [POB, PRIZ],
+             "benefit": r["benefit"], "ege_subject": _longest(r["subject"]), "ege_score": 75,
+             "grades": grades, "page": r["page"], "url": url} for r in out
+            if r["benefit"] and _longest(r["exam"]) and _longest(r["subject"])]
+
+
+def _grow(cells: dict[int, str], more: dict[int, str]) -> None:
+    """Дописать строки-продолжения многострочной ячейки, колонка к колонке."""
+    for i, x in more.items():
+        cells[i] = clean(f"{cells.get(i, '')} {x}")
+
+
+def _longest(cells: dict[int, str]) -> str:
+    return max(cells.values(), key=len, default="")
+
+
+def sechenov_exams(pages: list[dict]) -> dict[str, set[str]]:
+    """Приложение 2: программа -> предметы общеобразовательных ВИ. Берётся
+    первое вхождение программы: дальше — те же программы для других
+    категорий поступающих."""
+    out, key = {}, None
+    for pg in pages:
         for table in pg["tables"]:
             for row in table:
-                c = [clean(x) for x in row if clean(x) != ""]
+                c = [clean(x) for x in row]
                 if len(c) < 4:
                     continue
-                if c[0] and re.fullmatch(r"\d+\.?", c[0]) and len(c) > 1:
-                    name = c[1]
-                    c = c[1:]
-                benefit = _benefit(c[-1])
-                if not benefit or not name:
-                    continue
-                profile = c[1] if len(c) > 2 else profile
-                out.append({"match": None, "olympiad_name": name, "profile": profile or "",
-                            "level": None, "statuses": [POB, PRIZ], "benefit": benefit,
-                            "ege_subject": c[-2] if len(c) > 2 else None, "ege_score": 75,
-                            "grades": None, "page": pg["page"], "url": url})
+                m = CODE_RE.match(c[0])
+                if m:
+                    key = c[0][m.end():].strip()
+                    if _squash(key) in out:
+                        key = None
+                    else:
+                        out[_squash(key)] = set()
+                elif c[0] and key and not any(c[1:3]):
+                    # название продолжается строкой ниже
+                    out[_squash(key + " " + c[0])] = out.pop(_squash(key))
+                    key = key + " " + c[0]
+                if key and c[3]:
+                    out[_squash(key)] |= subject_keys(c[3])
     return out
 
 
-def rows_kazan_gmu():
-    """5 колонок, причём № по перечню указан прямо в документе."""
+_SECHENOV_EXAMS = None
+
+
+def sechenov_link(exams: list[str], programs: list[dict]) -> list[dict]:
+    global _SECHENOV_EXAMS
+    if _SECHENOV_EXAMS is None:
+        _SECHENOV_EXAMS = sechenov_exams(load_pages("sechenov", SECHENOV_EXAMS))
+    return [p for p in programs if _SECHENOV_EXAMS.get(_squash(p["program_name"]), set()) & set(exams)]
+
+
+SECHENOV_RULES = "rules__Pravila-priema_2026_2027_BS-s-izmeneniyami-_1_-_2_3.pdf"
+KGMU_RIGHTS = "olymp_list__Informaciya_20o_20predostavlenii_20osobyh_20prav_20i_20osobo"
+
+
+def vsosh_code_rows(pages: list[dict], url: str) -> list[dict]:
+    """Таблица «код — специальность — профили ВсОШ» (Сеченов п. 5.1, КГМУ
+    п. 6.4): победителям и призёрам — БВИ на направление целиком. Пустая
+    ячейка профилей — объединённая, это профили строки выше."""
+    out, profiles = [], None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) < 3 or not re.fullmatch(r"\d{2}\.\d{2}\.\d{2}", c[0]):
+                    continue
+                profiles = [x.strip().lower() for x in c[2].split(",") if x.strip()] if c[2] else profiles
+                for prof in profiles or []:
+                    out.append({"vsosh": True, "olympiad_name": None, "profile": prof, "level": "ВсОШ",
+                                "match": {"codes": [c[0]]}, "statuses": [POB, PRIZ], "benefit": BVI,
+                                "ege_subject": None, "ege_score": None, "grades": None,
+                                "page": pg["page"], "url": url})
+    return out
+
+
+def sechenov_vsosh_hundred_rows(pages: list[dict], url: str) -> list[dict]:
+    """П. 5.3: особое преимущество ВсОШ — 100 баллов за ВИ, совпадающее с
+    профилем (экономика — за обществознание), там, где это ВИ есть."""
     out = []
+    for pg in pages:
+        for table in pg["tables"]:
+            if not table or not clean(table[0][0] or "").startswith("Профиль заключительного этапа"):
+                continue
+            for row in table[1:]:
+                prof, exam = (clean(x or "").lower() for x in row[:2])
+                if prof and exam:
+                    out.append({"vsosh": True, "olympiad_name": None, "profile": prof, "level": "ВсОШ",
+                                "match": {"exams": sorted(subject_keys(exam))},
+                                "statuses": [POB, PRIZ], "benefit": HUNDRED,
+                                "ege_subject": None, "ege_score": None, "grades": None,
+                                "page": pg["page"], "url": url})
+    return out
+
+
+def rows_sechenov_vsosh():
+    pages = load_pages("sechenov", SECHENOV_RULES)
+    url = meta("sechenov", SECHENOV_RULES)["url"]
+    return vsosh_code_rows(pages, url) + sechenov_vsosh_hundred_rows(pages, url)
+
+
+def rows_kazan_gmu_vsosh():
+    return vsosh_code_rows(load_pages("kazan-gmu", KGMU_RIGHTS), meta("kazan-gmu", KGMU_RIGHTS)["url"])
+
+
+def rows_kazan_gmu():
     f = "olymp_list__download"
-    url = meta("kazan-gmu", f)["url"]
-    num = name = None
-    for pg in load_pages("kazan-gmu", f):
+    return with_kgmu_rights(kazan_gmu_rows(load_pages("kazan-gmu", f), meta("kazan-gmu", f)["url"]),
+                            kgmu_rights(load_pages("kazan-gmu", KGMU_RIGHTS)))
+
+
+def kgmu_rights(pages: list[dict]) -> dict[str, tuple]:
+    """Таблица п. 6.5 «Информации о предоставлении особых прав»: профиль
+    олимпиады -> (предметы подтверждения, классы). В перечне олимпиад у
+    профиля «медицина» вместо предмета — список укрупнённых групп."""
+    out = {}
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x or "") for x in row]
+                if len(c) < 6 or not c[2] or not re.fullmatch(r"\d{1,2}", c[4]):
+                    continue
+                out[(canon_subject(c[2]) or c[2]).lower()] = (canon_subject(c[3]), _grades(c[4]))
+    return out
+
+
+def with_kgmu_rights(rows: list[dict], rights: dict[str, tuple]) -> list[dict]:
+    out = []
+    for r in rows:
+        hit = rights.get((canon_subject(r["profile"]) or r["profile"]).lower())
+        out.append({**r, "ege_subject": hit[0], "grades": hit[1]} if hit else r)
+    return out
+
+
+def kazan_gmu_rows(pages: list[dict], url: str) -> list[dict]:
+    """5 колонок, причём № по перечню указан прямо в документе. Документ
+    разбит на секции «Специальность (направление подготовки) – Лечебное
+    дело, Педиатрия, …»: строка секции — только этим специальностям, а не
+    всему вузу (химия уходила на «Медицинскую биофизику»)."""
+    out = []
+    num = name = programs = None
+    for pg in pages:
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
                 if len(c) < 5:
                     continue
+                head = re.match(r"Специальность \(направление подготовки\)\s*[–-]\s*(.+)", c[0])
+                if head:
+                    programs, num, name = [clean(x) for x in head.group(1).split(",")], None, None
+                    continue
                 if c[0].isdigit():
                     num, name = int(c[0]), c[1]
-                if not name or not c[2]:
+                if not name or not c[2] or not programs:
                     continue
-                out.append({"match": None, "olympiad_name": name, "profile": c[2],
+                out.append({"match": {"names": programs}, "olympiad_name": name, "profile": c[2],
                             "level": _level(c[4]), "statuses": [POB, PRIZ], "benefit": HUNDRED,
                             "ege_subject": c[3], "ege_score": 75, "grades": None,
                             "page": pg["page"], "url": url, "number": num,
@@ -511,48 +1323,81 @@ def rows_kazan_gmu():
 
 
 def rows_nsu():
+    return nsu_rows(load_html("nsu", "olymp_list__olimpiady-privilege"),
+                    "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/")
+
+
+def nsu_rows(html: str, url: str) -> list[dict]:
     """Льготы заданы по предмету/профилю олимпиады, а не по её названию."""
     out = []
-    url = "https://www.nsu.ru/n/education/apply-info/olimpiady-privilege/"
-    html = load_html("nsu", "olymp_list__olimpiady-privilege")
     chunks = re.split(r'<span class="name line">([^<]+)</span>', html)
     for i in range(1, len(chunks), 2):
         header = clean(chunks[i])
-        m = CODE_RE.search(header)
-        if not m:
+        # Льгота — на направление целиком: его профили в A — отдельные
+        # программы («Физика» и «Физическая информатика» в 03.03.02).
+        # Заголовок группы «Математика и механика (01.03.00): Математика
+        # (01.03.01); …» перечисляет её направления; код группы XX.XX.00 — не
+        # направление. Подстрокой по названию нельзя: «Физика. Фундаментальная
+        # и экспериментальная физика» совпадала только с программой «Физика».
+        codes = [c for c in CODE_RE.findall(header) if not c.endswith(".00")]
+        if not codes:
             continue
-        prog = clean(header.split("(")[0])
-        for c in html_rows(chunks[i + 1][:60000]):
-            if len(c) < 2:
-                continue
-            benefit = _benefit(c[-1])
-            if not benefit:
-                continue
-            profile = c[0]
-            if not profile or "предмет" in profile.lower():
-                continue
-            base = {"match": {"program": prog, "code": m.group(1)},
-                    "olympiad_name": None, "profile": profile, "benefit": benefit,
-                    "statuses": [POB, PRIZ], "page": None, "url": url}
-            if len(c) == 2:
-                # таблица из двух колонок — это ВсОШ (предмет + льгота)
-                out.append({**base, "vsosh": True, "level": "ВсОШ",
-                            "ege_subject": profile, "ege_score": None,
-                            "grades": None, "score_is_demo": True})
-            else:
-                out.append({**base, "by_profile": True, "level": None,
-                            "ege_subject": c[1], "ege_score": 75, "grades": [10, 11]})
+        # Сноска «…обучавшихся в период участия в олимпиаде в 9-11 класс»
+        # стоит под своей таблицей РСОШ: у биологии их две, за 11 и за 10 класс.
+        parts = re.split(r"обучавшихся\s+в\s+период\s+участия\s+в\s+олимпиаде\s+в\s+(?:<[^>]+>\s*)*"
+                         r"([\d\s,и–-]+?)\s*класс",
+                         chunks[i + 1][:60000])
+        for k in range(0, len(parts), 2):
+            grades = _grades(parts[k + 1]) if k + 1 < len(parts) else None
+            for c in html_rows(parts[k]):
+                out += _nsu_row(c, codes, grades, url)
+    return out
+
+
+NSU_LEVELS = ["I", "II", "III"]
+_RANK = {BVI: 2, HUNDRED: 1, None: 0}
+
+
+def _nsu_row(c: list[str], codes: list[str], grades, url: str) -> list[dict]:
+    profile = re.sub(r"\s+и\s+ИКТ$", "", c[0]) if c else ""   # «Информатика и ИКТ» — профиль «информатика»
+    if len(c) < 2 or not profile or "предмет" in profile.lower():
+        return []
+    base = {"match": {"codes": codes}, "olympiad_name": None, "profile": profile,
+            "page": None, "url": url}
+    if len(c) == 2:                                 # ВсОШ: предмет + льгота
+        benefit = _benefit(c[1])
+        return [{**base, "vsosh": True, "level": "ВсОШ", "benefit": benefit, "statuses": [POB, PRIZ],
+                 "ege_subject": None, "ege_score": None, "grades": None}] if benefit else []
+    rsosh = {**base, "by_profile": True, "level": None, "ege_subject": c[1], "ege_score": 75, "grades": grades}
+    if len(c) < 11:
+        benefit = _benefit(c[-1])
+        return [{**rsosh, "benefit": benefit, "statuses": [POB, PRIZ]}] if benefit else []
+    # Матрица: степень диплома I, II, III × уровень олимпиады I, II, III.
+    # Победитель — I степень; призёр — худшее из II и III степени.
+    deg = [[_benefit(x) for x in c[2 + 3 * d:5 + 3 * d]] for d in range(3)]
+    by_status = {POB: deg[0], PRIZ: [min(a, b, key=_RANK.get) for a, b in zip(deg[1], deg[2])]}
+    out = []
+    for status, cells in by_status.items():
+        for benefit in (BVI, HUNDRED):
+            levels = [lv for lv, b in zip(NSU_LEVELS, cells) if b == benefit]
+            if levels:
+                out.append({**rsosh, "benefit": benefit, "statuses": [status], "levels": levels})
     return out
 
 
 def rows_kfu():
     """Приложение 3: 7 колонок. № и название олимпиады заданы один раз на блок
-    строк-профилей, поэтому их надо переносить вниз, иначе теряется почти всё."""
+    строк-профилей, поэтому их надо переносить вниз, иначе теряется почти всё.
+    Берётся только перечень 2025/26 (стр. 7–38): дальше перечни прошлых лет со
+    своей нумерацией, номер из них указал бы на другую олимпиаду №669."""
     out = []
-    f = "olymp_list__prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf"
-    url = meta("kfu", f)["url"]
+    url = meta("kfu", KFU_OLYMP)["url"]
+    pages = load_pages("kfu", KFU_OLYMP)
+    grades = kfu_grades(pages)
     num = name = None
-    for pg in load_pages("kfu", f):
+    for pg in pages:
+        if not 7 <= pg["page"] <= 38:
+            continue
         for table in pg["tables"]:
             for row in table:
                 c = [clean(x) for x in row]
@@ -563,17 +1408,121 @@ def rows_kfu():
                 profile, level, targets = c[2], _level(c[4]), c[6]
                 if not (name and profile and level and targets):
                     continue
-                codes = CODE_RE.findall(targets)
-                all_directions = "на все направления" in targets.lower()
-                if not codes and not all_directions:
+                if not CODE_RE.search(targets) and "на все направления" not in targets.lower():
                     continue
-                out.append({
-                    "match": {"codes": codes, "all": all_directions},
+                bvi = {
+                    "match": kfu_match(targets, c[5] or c[3]),
                     "olympiad_name": name, "profile": profile, "level": level,
                     "statuses": [POB, PRIZ], "benefit": BVI,
                     "ege_subject": c[5] or c[3], "ege_score": 75,
-                    "grades": None, "page": pg["page"], "url": url, "number": num,
-                })
+                    "grades": grades, "page": pg["page"], "url": url, "number": num,
+                }
+                out += [bvi, {**bvi, "benefit": HUNDRED, "match": {**bvi["match"], "hundred": True}}]
+    return out
+
+
+def kfu_grades(pages: list[dict]) -> list[int] | None:
+    """Стр. 1: «победители и призеры олимпиад школьников за 10 и 11 класс»."""
+    for pg in pages:
+        m = re.search(r"олимпиад\s+школьников\s+за\s+([\d\s,иили-]+?)\s*класс", clean(pg.get("text") or ""))
+        if m:
+            return _grades(m.group(1))
+    return None
+
+
+KFU_ALL = "На все направления"
+SUBJECT_STEMS = {"информатик": "Информатика", "математик": "Математика", "физик": "Физика",
+                 "хими": "Химия", "биолог": "Биология", "обществозн": "Обществознание",
+                 "истори": "История", "иностран": "Иностранный язык", "русск": "Русский язык",
+                 "литератур": "Литература", "географ": "География", "эконом": "Экономика"}
+
+
+def subject_keys(text: str) -> set[str]:
+    """«Математика / Информатика и ИКТ*» -> {Математика, Информатика}."""
+    t = re.sub(r"\s+", "", clean(text).lower())
+    return {v for k, v in SUBJECT_STEMS.items() if k in t}
+
+
+def kfu_plan(pages) -> dict[tuple[str, str], dict]:
+    """План приёма КФУ (приложение 1): программа -> институт и ВИ по
+    приоритету. Ключ — (код, название программы), как в датасете A."""
+    out, institute = {}, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if c and c[0] and not CODE_RE.fullmatch(c[0]) and not any(c[1:]):
+                    institute = c[0]
+                    continue
+                if len(c) < 10 or not CODE_RE.fullmatch(c[0]):
+                    continue
+                items = re.split(r"\s*\d\)\s*", (row[9] or "").replace("\n", " "))[1:]
+                out.setdefault((c[0], (c[2] or c[1]).lower()), {
+                    "institute": institute or "", "vi": [subject_keys(x) for x in items]})
+    return out
+
+
+_KFU_PLAN = None
+
+
+def kfu_program(p: dict) -> dict | None:
+    global _KFU_PLAN
+    if _KFU_PLAN is None:
+        _KFU_PLAN = kfu_plan(load_pages("kfu", KFU_PLAN_DOC))
+    return _KFU_PLAN.get((p["napravlenie_code"], clean(p["program_name"]).lower()))
+
+
+def kfu_match(targets: str, vi: str) -> dict:
+    """Графа 7 приложения 3: либо направления («КОД Название (профиль: A;
+    B)»), либо «На все направления, где вступительные испытания
+    соответствуют графе 6 … и являются первыми в Плане приема», и
+    возможно «кроме 09.03.04 …» / «кроме Института …»."""
+    head, _, excl = clean(targets).partition("кроме")
+    starts = [m.start() for m in CODE_RE.finditer(head)]
+    entries = []
+    for a, b in zip(starts, starts[1:] + [len(head)]):
+        entry = head[a:b]
+        prof = re.search(r"\(профил[ья]:?\s*[\"«]?([^)]*?)[\"»]?\)", entry)
+        entries.append((CODE_RE.match(entry).group(1),
+                        [_norm_prog(x) for x in prof.group(1).split(";")] if prof else []))
+    inst = re.search(r"институт\w*\s+(.+)", excl, re.I)
+    return {"kfu": True, "entries": entries,
+            "all": not entries and "на все направления" in head.lower(),
+            "first_vi": sorted(subject_keys(vi)),
+            "except_codes": CODE_RE.findall(excl),
+            "except_institute": clean(inst.group(1)).lower() if inst else None}
+
+
+def kfu_link(m: dict, programs: list[dict]) -> list[dict]:
+    """Кому строка приложения 3 даёт БВИ, а с hundred — 100 баллов: «на
+    направления, не соответствующие профилю олимпиады», если предмет
+    олимпиады — среди ВИ программы (стр. 1–2, вне зависимости от уровня)."""
+    if m.get("hundred"):
+        bvi = {p["program_id"] for p in kfu_link({**m, "hundred": False}, programs)}
+        subjects = set(m["first_vi"])
+        return [p for p in programs if p["program_id"] not in bvi and (info := kfu_program(p))
+                and info["vi"] and subjects & set().union(*info["vi"])]
+    out, codes = [], {p["napravlenie_code"] for p in programs}
+    for p in programs:
+        info = kfu_program(p)
+        if m["entries"]:
+            # Код без профиля покрывает все программы направления: где КФУ
+            # сужает, он пишет «(профиль: …)» (44.03.05 у истории, но не у
+            # биологии), ВИ документ не проверяет. Кода, которого у КФУ нет,
+            # — опечатка, если профиль дословно равен программе (стр. 24:
+            # «15.03.01 … (профиль: Компьютерные технологии в мехатронике…)»).
+            name = _norm_prog(p["program_name"])
+            ok = any((any(x == name or x in name or name in x for x in profs) if profs else True)
+                     if code == p["napravlenie_code"] else code not in codes and name in profs
+                     for code, profs in m["entries"])
+        else:
+            ok = bool(m["all"] and info and info["vi"] and info["vi"][0] & set(m["first_vi"]))
+        if p["napravlenie_code"] in m["except_codes"]:
+            ok = False
+        if m["except_institute"] and info and m["except_institute"] in info["institute"].lower():
+            ok = False
+        if ok:
+            out.append(p)
     return out
 
 
@@ -593,48 +1542,82 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
     после — предмет вступительного испытания. Название, разорванное на две
     строки, склеивается: у всех строк олимпиады оно общее."""
     out = []  # (название, строка): название — [текст], продолжение дописывается
-    name = None
+    name, last = None, None     # last: (колонка профиля, колонка уровня, куски графы 3)
     for pg in pages:
         page = pg["page"]
         if page not in range(4, 17):
             continue
         for table in pg["tables"]:
             name_col = None
-            for row in table:
+            for idx, row in enumerate(table):
                 c = [clean(x) for x in row]
                 if page == 4:
                     if len(c) < 3 or not c[1] or not profile_slug(c[1].lower()):
                         continue
-                    out.append((None, {"match": None, "vsosh": True, "olympiad_name": None,
-                                       "profile": c[1].lower(), "level": "ВсОШ",
-                                       "statuses": [POB, PRIZ], "benefit": BVI,
-                                       "ege_subject": c[2] or c[1], "ege_score": None,
-                                       "grades": [9, 10, 11], "page": page, "url": url}))
+                    bvi = {"match": None, "vsosh": True, "olympiad_name": None,
+                           "profile": c[1].lower(), "level": "ВсОШ",
+                           "statuses": [POB, PRIZ], "benefit": BVI,
+                           "ege_subject": c[2] or c[1], "ege_score": None,
+                           "grades": [9, 10, 11], "page": page, "url": url}
+                    # Особое преимущество: 100 баллов по предмету графы 3.
+                    out += [(None, bvi)] + ([(None, {**bvi, "benefit": HUNDRED})] if c[2] else [])
                     continue
                 lv = next((i for i, x in enumerate(c) if x in ("I", "II", "III", "1", "2", "3")), None)
                 cells = [(i, x) for i, x in enumerate(c[:lv]) if x]
                 if lv is None:
-                    if name and len(cells) == 1 and cells[0][0] == name_col:
+                    if name and name[0] and len(cells) == 1 and cells[0][0] == name_col:
                         name[0] += " " + cells[0][1]
+                    elif last:              # хвост графы 3 («…вычислительная / техника, …»)
+                        last[2].extend(x for i, x in cells if last[0] < i < last[1])
                     continue
                 if len(cells) >= 3 and len(cells[0][1]) > 6:
-                    name_col, name = cells[0][0], [cells[0][1]]
-                    cells = cells[1:]
+                    if name and name[0] is None:            # ячейка, начатая внизу прошлой страницы
+                        name[0] = cells[0][1]
+                    else:
+                        name = [cells[0][1]]
+                    name_col, cells = cells[0][0], cells[1:]
+                elif row and row[0] == "" and idx > 0:
+                    # '' не в первой строке — новая объединённая ячейка названия, её
+                    # текст напечатан ниже, на следующей странице («Газпром», стр. 13–14);
+                    # None и '' в первой строке страницы — продолжение прошлой.
+                    name, name_col = [None], 0
                 if not (name and cells):
                     continue
                 profile = cells[0][1]
-                out.append((name, {"match": None, "profile": profile, "level": _level(c[lv]),
-                                   "statuses": [POB, PRIZ], "benefit": BVI,
-                                   "ege_subject": next((x for x in c[lv + 1:] if x), profile),
-                                   "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}))
-    return [dict(r, olympiad_name=n[0]) if n else r for n, r in out]
+                exam = next((x for x in c[lv + 1:] if x), None)      # графа 5
+                col3 = [", ".join(x for _, x in cells[1:])]
+                last = (cells[0][0], lv, col3)
+                bvi = {"profile": profile, "level": _level(c[lv]),
+                       "statuses": [POB, PRIZ], "benefit": BVI,
+                       "ege_subject": exam or profile,
+                       "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}
+                # П. 57–62 Правил: кроме БВИ — 100 баллов по предмету графы 5.
+                out += [(name, {**bvi, "col3": col3})] + ([(name, {**bvi, "match": None, "benefit": HUNDRED})]
+                                                          if exam else [])
+    return [dict(r, **({"olympiad_name": n[0]} if n else {}),
+                 **({"match": _innopolis_match(" ".join(r.pop("col3")))} if "col3" in r else {}))
+            for n, r in out]
+
+
+def _innopolis_match(col3: str) -> dict | None:
+    """П. 61 а): БВИ — на направления, сопоставленные профилю (графа 3). Там
+    предметы — подходят все направления, как раньше; только УГСН — направления
+    этих УГСН."""
+    items = {clean(x).lower() for x in col3.split(",") if clean(x)}
+    subjects = any((canon_subject(x) or "").lower() == x for x in items)
+    return None if subjects or not items else {"ugn": sorted(items)}
+
+
+# УГСН направлений Иннополиса — как их пишет графа 3 приложения 3.
+INNOPOLIS_UGN = {"09": "информатика и вычислительная техника", "15": "машиностроение"}
 
 
 PARSERS = {"msu": rows_msu, "msu_vsosh": rows_msu_vsosh, "hse_vsosh": rows_hse_vsosh, "spbu": rows_spbu, "hse": rows_hse, "mipt": rows_mipt,
            "itmo": rows_itmo, "nsu": rows_nsu, "kfu": rows_kfu,
            "innopolis": rows_innopolis, "sechenov": rows_sechenov, "kazan-gmu": rows_kazan_gmu,
            "mipt_vsosh": rows_mipt_vsosh, "kfu_vsosh": rows_kfu_vsosh,
-           "itmo_vsosh": rows_itmo_vsosh}
+           "itmo_vsosh": rows_itmo_vsosh, "spbu_vsosh": rows_spbu_vsosh,
+           "sechenov_vsosh": rows_sechenov_vsosh, "kazan-gmu_vsosh": rows_kazan_gmu_vsosh}
 
 
 # =============================================================== линковка и сборка
@@ -671,42 +1654,40 @@ SUBJECT_GROUPS = {
 }
 
 
-CANON_SUBJECTS = ("Информатика и ИКТ", "Информатика", "Математика", "Физика", "Химия",
-                  "Биология", "Обществознание", "Экономика", "Русский язык",
-                  "Иностранный язык", "История", "География", "Литература")
+EGE_STEMS = (("информат", "Информатика"), ("математ", "Математика"), ("физик", "Физика"),
+             ("хими", "Химия"), ("биолог", "Биология"), ("обществозн", "Обществознание"),
+             ("истори", "История"), ("литератур", "Литература"), ("географ", "География"),
+             ("русск", "Русский язык"), ("иностран", "Иностранный язык"),
+             ("английск", "Иностранный язык"), ("немецк", "Иностранный язык"),
+             ("французск", "Иностранный язык"), ("испанск", "Иностранный язык"),
+             ("китайск", "Иностранный язык"))
 
 
 def canon_subject(subject: str) -> str | None:
-    """«Информат ика» -> «Информатика»: экстракция рвёт слово на границе колонки."""
-    t = clean(subject or "")
-    if not t:
-        return None
-    flat = re.sub(r"[\s,]+", "", t).lower()
-    for good in CANON_SUBJECTS:
-        if re.sub(r"\s+", "", good).lower() in flat:
-            return good
-    return t
+    """Предметы ЕГЭ из ячейки, в порядке упоминания, через «или»:
+    «физика / информатика» -> «Физика или Информатика». Экстракция рвёт
+    слово на границе колонки («Обществоз нанию»), поэтому ищем по основам в
+    тексте без пробелов. Не предмет ЕГЭ (обрывок соседней колонки,
+    «клиническая медицина…», «—») -> None: в примечание мусор не идёт."""
+    flat = re.sub(r"\s+", "", clean(subject or "").lower().replace("ё", "е"))
+    found = sorted((flat.find(stem), name) for stem, name in EGE_STEMS if stem in flat)
+    return " или ".join(dict.fromkeys(name for _, name in found)) or None
 
 
-# Профили олимпиад, пересекающиеся со скоупом проекта. Датасет C по п.4 спеки
-# собирается только по ним, поэтому и B обязан держаться той же границы:
-# иначе join B->C даёт пропуски не из-за ошибки, а из-за разной ширины скоупа.
-SCOPE_PROFILE_WORDS = {
-    "ИТ": ("информатик", "программирован", "вычислительн", "компьютерн", "кибернетик",
-           "искусственный интеллект", "данны", "информационн", "робототехник",
-           "инфокоммуникац", "математик"),
-    "Физика": ("физик", "астроном", "ядерн", "нанотехнолог", "фотоник", "техник",
-               "инженерн", "механик", "высокие технологии", "наносистем", "математик"),
-    "Биомед": ("биолог", "хими", "медицин", "генетик", "инфохими", "естественные науки",
-               "экологи", "агро"),
-    "Экономика": ("эконом", "финанс", "обществознан", "бизнес", "менеджм",
-                  "предпринимат", "математик"),
-}
+# Граница B — каталог продукта: олимпиады датасета C и missing_in_C (их сид
+# добавляет сам). Других сид не знает, а у олимпиад каталога льготы терять
+# нельзя: раньше границу держали слова в профиле, и «вероятность и
+# статистика» или «Физтех» научно-технический выпадали, хотя в C они есть.
+_CATALOG: set[str] | None = None
 
 
-def profile_in_scope(profile: str) -> bool:
-    t = clean(profile or "").lower()
-    return any(w in t for ws in SCOPE_PROFILE_WORDS.values() for w in ws)
+def in_catalog(oid: str) -> bool:
+    global _CATALOG
+    if _CATALOG is None:
+        c = json.loads((DATA / "olimpiady_spravochnik.json").read_text(encoding="utf-8"))["olimpiady"]
+        m = json.loads((DATA / "missing_in_C.json").read_text(encoding="utf-8"))["missing_in_C"]
+        _CATALOG = {x["olympiad_id"] for x in c + m}
+    return oid in _CATALOG
 
 
 def subject_fits(subject: str, profile_group: str) -> bool:
@@ -724,6 +1705,22 @@ def subject_fits(subject: str, profile_group: str) -> bool:
     return profile_group in groups if matched else True
 
 
+def _squash(name: str) -> str:
+    """Название ОП только из букв и цифр, без «(реализуется на …)»: в A и в
+    приложениях ВШЭ слова рвутся по-разному («Информацион- ная», «Sociolo gy»)."""
+    n = re.sub(r"\(реализуется[^)]*\)?", "", clean(name).lower().replace("ё", "е"))
+    return re.sub(r"[^a-zа-я0-9]", "", n)
+
+
+def _same_program(a: str, b: str) -> bool:
+    """Точное совпадение ОП, в том числе с одной из частей через «/»:
+    «Международная программа по бизнесу и экономике/ International Program …».
+    Не по префиксу: «Экономика» — не «Экономика и статистика»."""
+    def names(x):
+        return {_squash(x)} | {_squash(part) for part in x.split("/")} - {""}
+    return bool(names(a) & names(b))
+
+
 def _norm_prog(name: str) -> str:
     n = clean(name).lower().replace("ё", "е")
     n = re.sub(r"\(.*?\)", " ", n)
@@ -736,24 +1733,42 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
     m = row.get("match")
     if m is None:                                   # плоский перечень на весь вуз
         return programs
+    if "spbu" in m:                                 # СПбГУ: ОП внутри направления, только точно
+        pool = [p for p in programs if p["napravlenie_code"] == m["code"]]
+        if not m["spbu"]:
+            return pool
+        return [p for p in pool if _norm_prog(p["program_name"]) == _norm_prog(m["spbu"])
+                or _same_program(p["program_name"], m["spbu"])]
+    if "ugn" in m:                                  # Иннополис: УГСН из графы 3
+        return [p for p in programs if INNOPOLIS_UGN.get(p["napravlenie_code"][:2]) in m["ugn"]]
+    if "exams" in m:                                # Сеченов: предмет — среди ВИ программы
+        return sechenov_link(m["exams"], programs)
+    if "names" in m:                                # КГМУ: секция перечисляет специальности
+        return [p for p in programs if any(_same_program(p["program_name"], n) for n in m["names"])]
+    if "mipt_exam" in m:                            # МФТИ, 100 баллов: предмет — среди ВИ программы
+        return [p for p in programs
+                if m["mipt_exam"] in (_mipt_program(p) or {}).get("exams", set())]
     if "school" in m:                               # МФТИ: льгота адресована физтех-школе
-        school = clean(m["school"])
-        if not school:
-            return []
-        return [p for p in programs if school.split()[0] in (p["faculty"] or "")]
-    if "codes" in m:                                # КФУ: перечислены коды направлений
+        out = mipt_link(m["school"], m.get("groups"), programs)
+        # 100 баллов обладателю БВИ (п. 8) — где предмет среди ВИ программы
+        return [p for p in out if m["exam"] in (_mipt_program(p) or {}).get("exams", set())] if "exam" in m else out
+    if m.get("kfu"):                                # КФУ: коды, профили, «первое ВИ», «кроме»
+        return kfu_link(m, programs)
+    if m.get("campus"):                             # ВШЭ: направление внутри кампуса
+        campus = [p for p in programs if m["campus"] in (p["faculty"] or "")]
+        pool = [p for p in campus if not m["codes"] or p["napravlenie_code"] in m["codes"]]
+        if not m.get("program"):
+            return pool                             # у направления одна ОП
+        named = [p for p in pool if _same_program(p["program_name"], m["program"])]
+        # Опечатка в коде заголовка («37.04.01 Психология» в Нижнем Новгороде
+        # вместо 37.03.01): ОП с тем же названием в кампусе — та самая.
+        return named or [p for p in campus if _same_program(p["program_name"], m["program"])]
+    if "codes" in m:                                # ИТМО: перечислены коды направлений
         if m.get("all"):
             return programs
-        return [p for p in programs if p["napravlenie_code"] in m["codes"]]
-    if m.get("campus"):                             # ВШЭ: направление внутри кампуса
-        pool = [p for p in programs if m["campus"] in (p["faculty"] or "")
-                and p["napravlenie_code"] == m.get("code")]
-        if m.get("program"):
-            target = _norm_prog(m["program"])
-            narrowed = [p for p in pool if target in _norm_prog(p["program_name"])
-                        or _norm_prog(p["program_name"]) in target]
-            if narrowed:
-                return narrowed
+        pool = [p for p in programs if p["napravlenie_code"] in m["codes"]]
+        if m.get("programs"):                       # «(учитывается только на программе …)»
+            pool = [p for p in pool if any(_same_program(p["program_name"], n) for n in m["programs"])]
         return pool
     if "program" in m:                              # СПбГУ / НГУ: адресовано ОП
         target = _norm_prog(m["program"])
@@ -772,39 +1787,156 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
         if m.get("code"):
             return [p for p in pool if p["napravlenie_code"] == m["code"]]
         return []
+    if "msu_program" in m:                          # МГУ, план приёма: программа точно
+        fac, code, name = m["msu_program"]
+        return [p for p in programs if (_msu_faculty(p["faculty"]), p["napravlenie_code"], p["program_name"])
+                == (fac, code, name)]
     if "faculty" in m:                              # МГУ: секция факультета + направление
-        want = clean(m.get("faculty") or "").lower()
-        pool = [p for p in programs if want and want == clean(p["faculty"] or "").lower()]
-        napr = _norm_prog(m.get("napravlenie", ""))
-        code = CODE_RE.search(m.get("napravlenie", "") or "")
+        want = _msu_faculty(m.get("faculty"))
+        pool = [p for p in programs if want and want == _msu_faculty(p["faculty"])]
+        napr = m.get("napravlenie", "") or ""
+        napr = MSU_ALIASES.get((want, napr.lower()), napr)
+        code = CODE_RE.search(napr)
         if code:
-            hit = [p for p in pool if p["napravlenie_code"] == code.group(1)]
-            if hit:
-                return hit
-        if napr:
-            hit = [p for p in pool if napr in _norm_prog(p["napravlenie_name"])
-                   or _norm_prog(p["napravlenie_name"]) in napr]
-            if hit:
-                return hit
-        return pool
+            return [p for p in pool if p["napravlenie_code"] == code.group(1)]
+        return [p for p in pool if msu_same_direction(napr, p)]
     return []
+
+
+def _msu_faculty(name: str | None) -> str:
+    """«ВЫСШАЯ ШКОЛА ГОСУДАРСТВЕННОГО АУДИТА (ФАКУЛЬТЕТ)» в документе — «Высшая
+    школа государственного аудита» в A."""
+    return re.sub(r"\s*\(факультет\)\s*$", "", clean(name or "").lower())
+
+
+# Направление в документе МГУ названо не так, как в A. Севастополь, стр. 60–61:
+# «Физика» — это 03.05.02 «Фундаментальная и прикладная физика» (kcp_bak стр. 30,
+# olymp_disciplines стр. 43), другой физики у филиала нет.
+MSU_ALIASES = {("филиал мгу в г. севастополе", "физика"): "Фундаментальная и прикладная физика"}
+
+
+def _msu_split(name: str) -> tuple[str, str | None]:
+    """«Фундаментальная и прикладная биология (группа программ «Физико-
+    химическая биология. Общая биология»)», «Менеджмент (Менеджмент в
+    спорте)», в A — «… — Физико-химическая биология. Общая биология)»,
+    «Экономика (профиль Государственный и муниципальный аудит)» ->
+    (направление, уточнение)."""
+    t = clean(name)
+    m = re.match(r"(.+?)\s+[—(]\s*(.*)$", t)
+    if not m:
+        return _squash(t), None
+    sub = m.group(2).rstrip(")")
+    q = re.search(r"«(.+)»", sub)
+    sub = q.group(1) if q else re.sub(r"^(группа программ|профиль)\s*", "", sub)
+    return _squash(m.group(1)), _squash(sub) or None
+
+
+def msu_same_direction(napr: str, p: dict) -> bool:
+    """Направление из документа МГУ — программа A того же факультета.
+    Основа названия совпадает точно; уточнение документа (группа программ,
+    профиль) обязано совпасть с уточнением программы. Подстрокой нельзя:
+    «Биоинженерия и биотехнология. Биофизика» — не ФХБ, «Менеджмент в
+    спорте» — не «Менеджмент в культуре». Не нашлось — льготы нет, а не
+    льгота всему факультету (так ВсОШ по биологии для «Психологии» в
+    Севастополе уходила на ПМИ)."""
+    base, sub = _msu_split(napr)
+    a_base, a_sub = _msu_split(p["program_name"])
+    if base != a_base and base != _msu_split(p["napravlenie_name"] or "")[0]:
+        return False
+    return sub is None or sub == a_sub
+
+
+def _school_tags(text: str) -> set[str]:
+    """«ФБМФ/ ВШБИ», «ФБМФ, ВШБИ» -> {ФБМФ, ВШБИ}; «ВШ М» -> {ВШМ}."""
+    return {t for t in re.split(r"[,/]", re.sub(r"\s+", "", text or "")) if t}
+
+
+def mipt_link(school: str, groups: list[str] | None, programs: list[dict]) -> list[dict]:
+    """Программы физтех-школы. У ФБМФ и ВШБИ факультет в A общий, а школа —
+    в скобках названия: «Все конкурсные группы ФБМФ» ВШБИ не касается.
+    Названные конкурсные группы сужают школу. Группа — это колонка
+    «Конкурсная группа» правил приёма или название самой программы, точно:
+    подстрокой «Системное программирование и прикладная математика» ловила
+    программу «Математика» из группы ПМИ. Ячейка может назвать две программы
+    через «и» («Авиационные технологии и беспилотные авиационные системы»)."""
+    want = _school_tags(school)
+    pool = []
+    for p in programs:
+        if not want & _school_tags(p["faculty"]):
+            continue
+        tag = re.search(r"\((ФБМФ|ВШБИ)\)", p["program_name"])
+        if tag and tag.group(1) not in want:
+            continue
+        pool.append(p)
+    if groups is None:
+        return pool
+    def fits(p, g):
+        own = {_norm_prog(p["program_name"]), _norm_prog((_mipt_program(p) or {}).get("group", ""))} - {""}
+        return any(g == o or SequenceMatcher(None, g, o).ratio() > 0.9 for o in own)
+
+    out = []
+    for g in map(_norm_prog, groups):
+        hit = [p for p in pool if fits(p, g)]
+        parts = g.split(" и ")
+        for i in range(1, len(parts)):
+            if hit:
+                break
+            a = [p for p in pool if fits(p, " и ".join(parts[:i]))]
+            b = [p for p in pool if fits(p, " и ".join(parts[i:]))]
+            hit = a + b if a and b else []
+        out += [p for p in hit if p not in out]
+    return out
 
 
 def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, str]]:
     """Вуз задал профиль, а не название: подходит любая перечневая олимпиада
     с этим профилем. Уровень I сильнее II и III, поэтому требование «не ниже
-    уровня N» пропускает олимпиады с уровнем N и выше."""
-    want = clean(profile).lower()
+    уровня N» пропускает олимпиады с уровнем N и выше.
+
+    Если точного профиля нет, вуз мог назвать часть составного профиля НТО
+    («Аэрокосмические системы» — из «беспилотный транспорт: аэрокосмические
+    системы, …»), чуть иначе его записать («… финансовых технологий») или
+    оборвать («виртуальные миры: …, технологии дополненной реальности»)."""
+    want = re.sub(r"(\w)- (\w)", r"\1-\2", clean(profile).lower())   # перенос «бизнес- процессов»
     rank = {"I": 1, "II": 2, "III": 3}
     cap = rank.get(min_level or "III", 3)
-    hits = []
-    for row in _index:
-        if row["profile"].strip().lower() != want:
-            continue
-        if rank.get(row["level"], 3) > cap:
-            continue
-        hits.append((row["olympiad_id"], row["name"], row["level"]))
-    return hits
+
+    def fits(row, loose):
+        have = row["profile"].strip().lower()
+        if not loose:
+            return have == want
+        parts = [clean(x) for x in re.split(r"[:,]", have)]
+        return (want in parts or SequenceMatcher(None, want, have).ratio() > 0.9
+                or (len(want) >= 20 and have.startswith(want)))   # профиль без хвоста
+
+    for loose in (False, True):
+        hits = [(row["olympiad_id"], row["name"], row["level"]) for row in _index
+                if fits(row, loose) and rank.get(row["level"], 3) <= cap]
+        if hits or any(fits(row, loose) for row in _index):
+            return hits
+    return []
+
+
+def _subject_cell(text: str) -> str:
+    """Предмет или УГН для точного сравнения: «информационно- библиотечное»
+    из PDF и «информационно-библиотечное» из перечня — одно и то же."""
+    return re.sub(r"[\s-]+", "", clean(text).lower().replace("ё", "е"))
+
+
+def expand_subject(subject: str, name: str | None = None) -> list[tuple[str, str, str]]:
+    """Любая олимпиада перечня (или профиль названной), у которой в графе
+    «общеобразовательные предметы или УГН» перечня стоит именно этот предмет
+    или УГН. Сравнение точное: СПбГУ отличает «Математику» от УГН «математика
+    и механика» и «Информатику» от «информатики и вычислительной техники»."""
+    want = _subject_cell(subject)
+    num = match_number(name) if name else None
+    if name and num is None:
+        return []
+    # Только олимпиады каталога: иначе «любая, соответствующая математике»
+    # тянет лингвистику и основы государственности.
+    return [(row["olympiad_id"], row["name"], row["level"]) for row in _index
+            if want in {_subject_cell(s) for s in row["subjects"]} and in_catalog(row["olympiad_id"])
+            and (num is None or row["perechen_number_669"] == num)]
 
 
 def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:
@@ -820,6 +1952,8 @@ def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:
     if not name:
         return None, None, "строка без названия олимпиады"
     slug = profile_slug(profile.lower())
+    if slug is None and (full := cut_profile(row.get("number") or match_number(name), profile)):
+        profile, slug = full, profile_slug(full.lower())
     if slug is None:
         return None, name, f"профиль «{profile}» отсутствует в перечне"
     num = row.get("number") or match_number(name)
@@ -830,6 +1964,73 @@ def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:
             return None, name, "пара «олимпиада + профиль» не найдена в перечне №669"
         num = better
     return f"p669-{num}-{slug}", name, None
+
+
+WARNINGS: list[str] = []
+
+
+def program_exams(vuz_id: str, p: dict) -> set[str] | None:
+    """Предметы ВИ программы — где вуз их публикует и они разобраны."""
+    if vuz_id == "mipt":
+        return (_mipt_program(p) or {}).get("exams") or None
+    if vuz_id == "kfu":
+        plan = kfu_program(p)
+        return set().union(*plan["vi"]) if plan and plan["vi"] else None
+    if vuz_id == "sechenov":
+        global _SECHENOV_EXAMS
+        if _SECHENOV_EXAMS is None:
+            _SECHENOV_EXAMS = sechenov_exams(load_pages("sechenov", SECHENOV_EXAMS))
+        return _SECHENOV_EXAMS.get(_squash(p["program_name"])) or None
+    return None
+
+
+def narrow_subject(subject: str | None, exams: set[str] | None) -> str | None:
+    """Документ называет предметы профиля («математика, обществознание»), а
+    подтверждать надо тот, что среди ВИ программы. Нет пересечения или ВИ
+    неизвестны — как в документе."""
+    if not subject or not exams:
+        return subject
+    keep = [s for s in subject.split(" или ") if s in exams]
+    return " или ".join(keep) if keep else subject
+
+
+def dedup_benefits(records: list[dict]) -> list[dict]:
+    """Одна (олимпиада, статус, льгота) из нескольких строк документа — БВИ за
+    10 класс и за 11 отдельными строками: классы объединяются (None — без
+    ограничения — поглощает остальные), порог ЕГЭ берётся строже, предметы
+    подтверждения — любой из строк (олимпиада подошла под два ВИ)."""
+    out: dict[tuple, dict] = {}
+    for b in records:
+        key = (b["olympiad_id"], b["diploma_status"], b["benefit_type"])
+        a = out.get(key)
+        if a is None:
+            out[key] = dict(b)
+            continue
+        ga, gb = a.get("eligible_grades"), b.get("eligible_grades")
+        a["eligible_grades"] = None if ga is None or gb is None else sorted(set(ga) | set(gb))
+        sa, sb = a.get("ege_confirm_min_score"), b.get("ege_confirm_min_score")
+        if sb is not None and (sa is None or sb > sa):
+            a["ege_confirm_min_score"] = sb
+        ea, eb = a.get("ege_confirm_subject"), b.get("ege_confirm_subject")
+        if ea and eb:
+            a["ege_confirm_subject"] = " или ".join(dict.fromkeys(ea.split(" или ") + eb.split(" или ")))
+    return list(out.values())
+
+
+def conditions(oid: str, row: dict, vuz_id: str, prog: dict) -> dict:
+    """Подтверждение ЕГЭ и пометка is_demo. ВсОШ результатом ЕГЭ не
+    подтверждается (ч. 4 ст. 71 273-ФЗ; порог 75 по ч. 12 — только для
+    олимпиад школьников), поэтому пустой порог у неё — факт, а не заглушка."""
+    if oid.startswith("vsosh-"):
+        return {"ege_confirm_subject": None, "ege_confirm_min_score": None,
+                "is_demo": bool(row.get("benefit_is_demo"))}
+    return {
+        "ege_confirm_subject": narrow_subject(canon_subject(row.get("ege_subject")),
+                                              program_exams(vuz_id, prog)),
+        "ege_confirm_min_score": row.get("ege_score"),
+        "is_demo": bool(row.get("score_is_demo") or row.get("benefit_is_demo")
+                        or row.get("ege_score") is None),
+    }
 
 
 def main() -> int:
@@ -852,9 +2053,11 @@ def main() -> int:
         programs = by_vuz[vuz_id]
         linked_rows = 0
         for row in fn():
-            if row.get("by_profile"):
-                variants = [(oid, nm, lv) for oid, nm, lv in
-                            expand_profile(row.get("profile") or "", row.get("level"))]
+            if row.get("by_profile") or row.get("by_subject"):
+                variants = (expand_subject(row["profile"], row.get("olympiad_name")) if row.get("by_subject") else
+                            expand_profile(row.get("profile") or "", row.get("level")))
+                if row.get("levels"):             # СПбГУ: уровень задан точно
+                    variants = [v for v in variants if v[2] in row["levels"]]
                 if not variants:
                     skipped[vuz_id] += 1
                     reasons[vuz_id]["профиль не найден в перечне"] += 1
@@ -866,17 +2069,14 @@ def main() -> int:
                     reasons[vuz_id][why or "?"] += 1
                     continue
                 variants = [(oid, disp, row.get("level"))]
-            # У строк ВсОШ профиль помечен прочерком (он к ВсОШ неприменим),
-            # предмет лежит в отдельной колонке — проверять надо его.
-            probe = next((clean(row.get(k) or "") for k in
-                          ("profile", "vsosh_subject", "ege_subject")
-                          if clean(row.get(k) or "") not in ("", "—", "-", "–")), "")
-            if not profile_in_scope(probe):
+            variants = [v for v in variants if in_catalog(v[0])]
+            if not variants:
                 skipped[vuz_id] += 1
-                reasons[vuz_id]["профиль олимпиады вне скоупа 4 групп (как и в датасете C)"] += 1
+                reasons[vuz_id]["олимпиады нет в каталоге (C и missing_in_C)"] += 1
                 continue
             targets = link(vuz_id, row, programs)
-            if row.get("match") is None or (row.get("match") or {}).get("all"):
+            # КФУ проверяет «первое ВИ» по плану приёма — точнее, чем группа.
+            if row.get("match") is None or (row["match"].get("all") and not row["match"].get("kfu")):
                 subj = row.get("ege_subject") or row.get("profile")
                 before = len(targets)
                 targets = [t for t in targets if subject_fits(subj, t["profile_group"])]
@@ -900,13 +2100,11 @@ def main() -> int:
                         "diploma_status": status,
                         "benefit_type": row["benefit"],
                         "eligible_grades": row.get("grades"),
-                        "ege_confirm_subject": canon_subject(row.get("ege_subject")),
-                        "ege_confirm_min_score": row.get("ege_score"),
+                        **conditions(oid, row, vuz_id, prog),
                         "source_url": row["url"],
                         "source_page": row.get("page"),
                         "source_date": fetched_date(row["url"]),
-                        "is_demo": bool(row.get("score_is_demo") or row.get("benefit_is_demo")
-                                        or row.get("ege_score") is None),
+                        **({"_unless_bvi": True} if row.get("unless_bvi") else {}),
                     })
         print(f"  {vuz_id:11s} строк привязано: {linked_rows:5d} | пропущено: {skipped[vuz_id]:5d}"
               )
@@ -928,13 +2126,10 @@ def main() -> int:
         if x["program_id"] in emitted:
             continue
         emitted.add(x["program_id"])
-        benefits, seen = [], set()
-        for b in per_program.get(x["program_id"], []):
-            key = (b["olympiad_id"], b["diploma_status"], b["benefit_type"])
-            if key in seen:
-                continue
-            seen.add(key)
-            benefits.append(b)
+        benefits = dedup_benefits(per_program.get(x["program_id"], []))
+        if x["vuz_id"] in HUNDRED_WITHOUT_BVI:
+            benefits = drop_hundred_under_bvi(benefits)
+        benefits = drop_unless_bvi(benefits)
         benefits.sort(key=lambda b: (b["olympiad_id"], b["diploma_status"]))
         objects.append({
             "program_id": x["program_id"], "vuz_id": x["vuz_id"],
@@ -947,6 +2142,8 @@ def main() -> int:
             "prinimaemye_olimpiady": benefits,
         })
 
+    for w in WARNINGS:
+        print("  ! " + w)
     total = sum(len(o["prinimaemye_olimpiady"]) for o in objects)
     empty = sum(1 for o in objects if o["status"] == "to_check")
     print(f"\nпрограмм: {len(objects)}, записей о льготах: {total}, без льгот (to_check): {empty}")

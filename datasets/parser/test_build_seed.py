@@ -61,12 +61,43 @@ class AggregateKeyTest(unittest.TestCase):
         self.assertIsNone(a["ege_min"])
         self.assertIsNone(a["note"])
 
+    def test_ege_subjects_listed_once_across_combined_records(self):
+        # КФУ: у программ предмет подтверждения — «Математика», «Обществознание»
+        # или сразу «Математика или Обществознание».
+        a = bs.aggregate_key([rec("pobeditel", "БВИ", subject="Математика"),
+                              rec("prizyor", "БВИ", subject="Математика или Обществознание"),
+                              rec("prizyor", "БВИ", subject="Обществознание")])
+        self.assertEqual(a["note"], "Подтвердить ЕГЭ: Математика или Обществознание")
+
     def test_diploma_grades_null_when_any_record_is_unrestricted(self):
         self.assertIsNone(bs.aggregate_key([rec("pobeditel", "БВИ", grades=[11]),
                                             rec("prizyor", "БВИ", grades=None)])["diploma_grades"])
         self.assertEqual(bs.aggregate_key([rec("pobeditel", "БВИ", grades=[11]),
                                            rec("prizyor", "БВИ", grades=[10, 11])])["diploma_grades"],
                          [10, 11])
+
+    def test_diploma_grades_of_best_benefit_other_grades_in_note(self):
+        # ВШЭ, Нижний Новгород: БВИ за диплом 10–11 класса, 100 баллов — за 9–11.
+        # Девятикласснику строка не должна обещать БВИ (#78).
+        a = bs.aggregate_key([rec(s, b, grades=g) for s in ("pobeditel", "prizyor")
+                              for b, g in (("БВИ", [10, 11]), ("100_ballov", [9, 10, 11]))])
+        self.assertEqual(a["benefit"], "bvi")
+        self.assertEqual(a["diploma_grades"], [10, 11])
+        self.assertIn("За диплом 9 класса — 100 баллов", a["note"])
+
+    def test_winner_bvi_grades_prize_winner_grades_in_note(self):
+        a = bs.aggregate_key([rec("pobeditel", "БВИ", grades=[11]),
+                              rec("prizyor", "100_ballov", grades=[10, 11])])
+        self.assertEqual(a["benefit"], "bvi_winners")
+        self.assertEqual(a["diploma_grades"], [11])
+        self.assertIn("За диплом 10 класса — 100 баллов", a["note"])
+
+    def test_no_grade_note_when_weaker_grades_are_covered_or_unknown(self):
+        for weaker in ([10, 11], None):
+            a = bs.aggregate_key([rec("pobeditel", "БВИ", grades=[10, 11]),
+                                  rec("prizyor", "100_ballov", grades=weaker)])
+            self.assertEqual(a["diploma_grades"], [10, 11])
+            self.assertNotIn("класса", a["note"])
 
     def test_any_demo_record_marks_key_as_demo(self):
         self.assertTrue(bs.aggregate_key([rec("pobeditel", "БВИ"),
@@ -137,10 +168,30 @@ class StagesTest(unittest.TestCase):
         self.assertEqual(final["starts_at"], "2026-12-30 00:00:00+03")
         self.assertEqual(final["ends_at"], "2027-01-01 23:59:59+03")
 
-    def test_vsosh_has_four_stages_in_order(self):
-        st = bs.vsosh_stages("vsosh-fizika")
+    def test_vsosh_school_stage_from_sirius_schedule(self):
+        # «Сириус.Курсы», график школьного этапа 2026/27: математика 7–11 класс —
+        # 13–16 октября в зависимости от группы регионов, онлайн.
+        seed = bs.Seed()
+        st = bs.vsosh_stages(seed, "vsosh-matematika")
         self.assertEqual([s["kind"] for s in st], ["school", "municipal", "regional", "final"])
-        self.assertEqual(sorted(s["starts_at"] for s in st), [s["starts_at"] for s in st])
+        school = st[0]
+        self.assertEqual((school["starts_at"], school["ends_at"], school["is_online"], school["is_demo"]),
+                         ("2026-10-13 00:00:00+03", "2026-10-16 23:59:59+03", True, False))
+        self.assertEqual(seed.sources[school["source_id"]]["url"], "https://siriusolymp.ru/school2026/about")
+
+    def test_vsosh_other_stages_are_deadlines_of_the_order(self):
+        # Порядок проведения ВсОШ (vserosolimp.edsoo.ru): школьный этап — не
+        # позднее 1 ноября, муниципальный — 25 декабря, региональный — 1 марта,
+        # заключительный — до конца апреля. Экологии на «Сириусе» нет.
+        seed = bs.Seed()
+        st = {s["kind"]: s for s in bs.vsosh_stages(seed, "vsosh-ekologiya")}
+        self.assertEqual({k: (s["starts_at"], s["deadline_at"]) for k, s in st.items()}, {
+            "school": (None, "2026-11-01 23:59:59+03"),
+            "municipal": (None, "2026-12-25 23:59:59+03"),
+            "regional": (None, "2027-03-01 23:59:59+03"),
+            "final": (None, "2027-04-30 23:59:59+03"),
+        })
+        self.assertTrue(all(not s["is_demo"] and s["source_id"] for s in st.values()))
 
 
 class BuildTest(unittest.TestCase):
@@ -152,10 +203,17 @@ class BuildTest(unittest.TestCase):
         cls.demo = bs.build_demo()
 
     def test_benefit_keys_match_dataset(self):
-        # 1149 + 34 льготы Иннополиса со стр. 8, 9, 11, 16 его приказа
-        # + 9 МГУ из строк-продолжений объединённых ячеек.
-        self.assertEqual(self.seed.stats["benefit_keys"], 1192)
-        self.assertEqual(self.seed.stats["benefit_level_filtered"], 91)
+        # После исправления привязки льгот к программам (#68): ушли льготы,
+        # приписанные чужим программам и взятые из перечней прошлых лет КФУ,
+        # добавились ВсОШ СПбГУ, льготы ВШЭ в Перми и правила «любая олимпиада
+        # уровня» СПбГУ. Уровень строже профиля — только Всесибирская по
+        # информатике (II) на «Экономике» МГУ, где нужен I. КФУ даёт 100 баллов
+        # там, где предмет олимпиады — ВИ, но не первое (приложение 3, стр. 1–2).
+        # Затем сверка с документами по вузам: НГУ по кодам заголовка, ВсОШ
+        # СПбГУ и МГУ со 100 баллами, строки Сеченова в несколько строк,
+        # профили НТО, коды КФУ без профиля.
+        self.assertEqual(self.seed.stats["benefit_keys"], 1462)
+        self.assertEqual(self.seed.stats["benefit_level_filtered"], 2)
         self.assertEqual(self.seed.stats["benefit_unknown_profile"], 0)
 
     def test_programs_to_check_add_no_keys(self):
@@ -187,7 +245,8 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(all(by_profile[p] == 4 for p in vsosh))
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 112)
+        # +1 к 23.09 — Московская олимпиада по информатике (26.09).
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 113)
         self.assertEqual(self.seed.stats["stages_profiles_none"], 12)
 
     def test_stage_ids_unique_and_windows_ordered(self):
@@ -196,6 +255,16 @@ class BuildTest(unittest.TestCase):
         for s in self.seed.stages:
             if s["starts_at"]:
                 self.assertLessEqual(s["starts_at"], s["ends_at"], s["id"])
+
+    def test_moscow_olympiad_informatics_tours_of_10_11_grades(self):
+        # mos.olimpiada.ru/schedule, 26.09.2026: туры 10–11 классов — 14 и 28
+        # февраля; финала в расписании нет — демо; регистрации в нём нет.
+        by_id = {s["id"]: s for s in self.seed.stages}
+        tours = [by_id[f"p669-37-informatika:qualifying:{n}"] for n in (1, 2)]
+        self.assertEqual([t["starts_at"][:10] for t in tours], ["2027-02-14", "2027-02-28"])
+        self.assertFalse(any(t["is_demo"] or t["is_online"] for t in tours))
+        self.assertTrue(by_id["p669-37-informatika:final:1"]["is_demo"])
+        self.assertNotIn("p669-37-informatika:registration:1", by_id)
 
     def test_calendars_found_on_2026_09_23(self):
         by_id = {s["id"]: s for s in self.seed.stages}
@@ -288,6 +357,31 @@ class ProgramLabelTest(unittest.TestCase):
         self.assertEqual(bs.program_title("Управление инновациями (сетевая программа МШУ «СКОЛКОВО» )"),
                          "Управление инновациями (сетевая программа МШУ «СКОЛКОВО»)")
         self.assertEqual(bs.program_title("Биотехнология (ФБМФ)"), "Биотехнология (ФБМФ)")
+
+    def test_title_joins_words_broken_by_pdf_line_wrap(self):
+        # В таблицах ВШЭ слово переносится по слогам: дефис переноса уходит,
+        # у «бизнес-» дефис свой; «микро- и нано…» — не перенос.
+        for raw, want in [
+            ("Информацион- ная безопасность", "Информационная безопасность"),
+            ("Цифровые технологии и телеком- муникации", "Цифровые технологии и телекоммуникации"),
+            ("Бизнес- информатика", "Бизнес-информатика"),
+            ("Иностранные языки и межкультурная бизнес- коммуникация",
+             "Иностранные языки и межкультурная бизнес-коммуникация"),
+            ("Физика перспективных технологий: микро- и наноэлектроника",
+             "Физика перспективных технологий: микро- и наноэлектроника"),
+        ]:
+            self.assertEqual(bs.program_title(raw), want)
+
+    def test_title_joins_letter_split_off_a_word(self):
+        self.assertEqual(bs.program_title("Дизайн и разработка информационны х продуктов"),
+                         "Дизайн и разработка информационных продуктов")
+        self.assertEqual(bs.program_title("Экономика и анализ данных"), "Экономика и анализ данных")
+        self.assertEqual(bs.program_title("Физика с углублённой математикой"),
+                         "Физика с углублённой математикой")
+
+    def test_title_drops_trailing_semicolon(self):
+        self.assertEqual(bs.program_title("Бухгалтерский учет, анализ и аудит; Финансы и кредит;"),
+                         "Бухгалтерский учет, анализ и аудит; Финансы и кредит")
 
     def test_same_name_in_pair_is_told_apart_by_faculty(self):
         labels = bs.program_labels([
@@ -392,10 +486,13 @@ class UniversityDirectionsTest(unittest.TestCase):
             self.assertTrue(set(d["subject_codes"]) <= codes, d["id"])
 
     def test_pairs_and_statuses(self):
-        self.assertEqual(len(self.ud.pairs), 174)
+        self.assertEqual(len(self.ud.pairs), 173)
         to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
-        self.assertEqual(to_check, [("nsu", "napr-01-03-01"), ("nsu", "napr-01-03-02"),
-                                    ("nsu", "napr-01-03-03"), ("spbu", "napr-06-03-01")])
+        # СПбГУ 06.03.01 получил свою ВсОШ (bac_spec_olymp_1), НГУ 01.03.01–03 —
+        # льготы заголовка «Математика и механика». Пара ВШЭ — 40.03.01 держалась
+        # на очно-заочной программе, её в A больше нет (#79).
+        self.assertEqual(to_check, [])
+        self.assertNotIn(("hse", "napr-40-03-01"), self.pairs)
 
     def test_program_in_two_groups_is_counted_once(self):
         # В A программа повторяется на каждую профильную группу.
@@ -403,10 +500,18 @@ class UniversityDirectionsTest(unittest.TestCase):
         self.assertEqual((kfu["programs"], kfu["budget_places"], kfu["program_names"]),
                          (2, 23, ["Бизнес-информатика", "Цифровое предприятие"]))
 
-    def test_programs_to_check_count_but_places_unknown_stay_null(self):
+    def test_places_of_competition_group_are_counted_once(self):
+        # МФТИ публикует места на конкурсную группу: у пяти программ ФПМИ на
+        # 01.03.02 одно число 180 — и это места всего направления (план
+        # приёма 2026, строка «01.03.02 … 180»), а не 5 × 180.
+        for code, places in (("01-03-02", 180), ("03-03-01", 517), ("09-03-01", 196), ("19-03-01", 66)):
+            self.assertEqual(self.pairs[("mipt", "napr-" + code)]["budget_places"], places, code)
+
+    def test_places_unknown_stay_null(self):
         hse = self.pairs[("hse", "napr-38-03-01")]
-        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 11, None))
-        self.assertIn("Экономика и бизнес", hse["program_names"])
+        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 10, None))
+        # «Экономика и бизнес» в Нижнем — очно-заочная, в A её нет (#79).
+        self.assertNotIn("Экономика и бизнес", hse["program_names"])
 
     def test_branches_are_named_by_faculty(self):
         msu = self.pairs[("msu", "napr-01-03-02")]
@@ -415,7 +520,7 @@ class UniversityDirectionsTest(unittest.TestCase):
                       msu["program_names"])
 
     def test_direction_benefits_refine_university_benefits(self):
-        self.assertEqual(len(self.ud.benefits), 9466)
+        self.assertEqual(len(self.ud.benefits), 12769)
         keys = {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
                 for b in self.ud.benefits}
         self.assertEqual(keys, {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
@@ -428,19 +533,19 @@ class UniversityDirectionsTest(unittest.TestCase):
 
     def test_varies_rows_explain_themselves(self):
         varies = [b for b in self.ud.benefits if b["varies"]]
-        self.assertEqual(len(varies), 1146)
+        self.assertEqual(len(varies), 1631)
         for b in self.ud.benefits:
             self.assertEqual(b["varies"], (b["note"] or "").startswith("Зависит от программы: "),
                              (b["olympiad_profile_id"], b["university_id"], b["direction_id"]))
-        # ВШЭ, 01.03.01: «Высшая проба» по физике — 100 баллов победителю
-        # только на «Математике».
+        # ВШЭ, 01.03.01: Всесибирская по физике — БВИ на «Фундаментальной и
+        # прикладной математике» (Нижний Новгород, стр. 8) и 100 баллов
+        # победителю на «Математике» (Москва, стр. 1).
         b = next(b for b in self.ud.benefits if (b["olympiad_profile_id"], b["university_id"],
                                                   b["direction_id"]) ==
                  ("p669-14-fizika", "hse", "napr-01-03-01"))
-        self.assertEqual(b["benefit"], "score100")
+        self.assertEqual(b["benefit"], "bvi")
         self.assertTrue(b["note"].startswith(
-            "Зависит от программы: на «Фундаментальная и прикладная математика» льготы нет. "
-            "100 баллов только победителю"), b["note"])
+            "Зависит от программы: на «Математика» — 100 баллов только победителю"), b["note"])
 
     def test_down_removes_only_sources_of_its_own(self):
         own = {k for k in self.ud.sources if k not in self.seed.sources}

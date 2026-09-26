@@ -19,11 +19,55 @@ function renderSheet(patch: Partial<OlympiadDetail>) {
 // ТЗ F18: льгота без источника — «данные уточняются» и никакой метки.
 // «Демо-даты» относится к этапам, у льгот её быть не может.
 it('льготы без источника не помечает ни «Фактом», ни «Демо-датами»', () => {
-  renderSheet({ benefits_source: null })
+  const base = olympiadDetail('hse:inf')!
+  renderSheet({ benefits_source: null, benefits: base.benefits.map((row) => ({ ...row, source: null })) })
   const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
   expect(within(block).getByText('данные уточняются')).toBeInTheDocument()
   expect(within(block).queryByText('Демо-даты')).not.toBeInTheDocument()
   expect(within(block).queryByText('Факт')).not.toBeInTheDocument()
+})
+
+// У каждого вуза свои правила приёма: ссылка — на документ своего вуза, а
+// «уточняется» — только у вуза без источника, а не у всего блока.
+it('источник льготы — у каждого вуза свой, «уточняется» — с названием вуза', () => {
+  const first = olympiadDetail('hse:inf')!.benefits[0]!
+  const src = (id: string, title: string) => ({
+    id,
+    kind: 'rules' as const,
+    title,
+    url: `https://${id}.example/rules.pdf`,
+    verified_at: '2026-09-21',
+  })
+  renderSheet({
+    benefits_source: null,
+    benefits: [
+      { ...first, university_id: 'itmo', university_nick: 'ИТМО', source: src('itmo', 'ИТМО: особые права, 2026') },
+      { ...first, university_id: 'hse', university_nick: 'ВШЭ', source: src('hse', 'ВШЭ: особые права, 2026') },
+      { ...first, university_id: 'kazan-gmu', university_nick: 'КГМУ', source: null },
+    ],
+  })
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  expect(within(block).getByRole('link', { name: /ИТМО: особые права, 2026/ })).toHaveAttribute(
+    'href',
+    'https://itmo.example/rules.pdf',
+  )
+  expect(within(block).getByRole('link', { name: /ВШЭ: особые права, 2026/ })).toHaveAttribute(
+    'href',
+    'https://hse.example/rules.pdf',
+  )
+  expect(within(block).getByText('КГМУ: данные уточняются')).toBeInTheDocument()
+})
+
+// Олимпиаду не учитывает ни один вуз ученика — уточнять нечего: строки
+// таблицы уже это говорят, «данные уточняются» под ними вводит в заблуждение.
+it('без учитывающих вузов не пишет «данные уточняются»', () => {
+  const first = olympiadDetail('hse:inf')!.benefits[0]!
+  renderSheet({
+    benefits_source: null,
+    benefits: [{ ...first, winner: null, prizer: null, source: null }],
+  })
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  expect(within(block).queryByText(/данные уточняются/)).not.toBeInTheDocument()
 })
 
 it('рассказывает об олимпиаде и ведёт на её сайт с самого верха карточки', async () => {
@@ -80,7 +124,14 @@ it('льготы — таблицей, общие условия — после 
 it('ни один вуз олимпиаду не учитывает — без таблицы и подписи «Во всех вузах»', () => {
   const base = olympiadDetail('hse:inf')!
   renderSheet({
-    benefits: base.benefits.map((row) => ({ ...row, benefit: null, benefit_label: null, winner: null, prizer: null })),
+    benefits: base.benefits.map((row) => ({
+      ...row,
+      benefit: null,
+      benefit_label: null,
+      winner: null,
+      prizer: null,
+      directions_count: 0,
+    })),
     conditions: ['Вузы из базы льгот по этому профилю не дают'],
   })
   const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!

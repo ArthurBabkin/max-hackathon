@@ -2,7 +2,6 @@ package pick
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
@@ -31,30 +30,7 @@ func Grants(b store.BenefitRow) (winner, prizer string) {
 }
 
 // NoteSentences — предложения примечания к льготе без точек на концах.
-func NoteSentences(note *string) []string {
-	if note == nil {
-		return nil
-	}
-	var out []string
-	// Точка в скобках или кавычках — сокращение («в г. Севастополе»),
-	// предложение там не кончается.
-	depth, start := 0, 0
-	text := *note
-	for i, r := range text {
-		switch r {
-		case '(', '«':
-			depth++
-		case ')', '»':
-			depth = max(depth-1, 0)
-		case '.':
-			if depth == 0 && strings.HasPrefix(text[i:], ". ") {
-				out = append(out, strings.TrimSpace(text[start:i]))
-				start = i + len(". ")
-			}
-		}
-	}
-	return append(out, strings.TrimSuffix(strings.TrimSpace(text[start:]), "."))
-}
+func NoteSentences(note *string) []string { return store.NoteSentences(note) }
 
 // universityNicks — как вуз называют в строке льгот, если аббревиатура
 // из справочника ничего не скажет школьнику.

@@ -20,8 +20,9 @@
 * `is_demo` — признак, а не фильтр: если хоть одна запись ключа демо, у льготы
   нет источника, и API честно отдаёт «данные уточняются».
 * Даты этапов: опубликованные — как есть, а если опубликованы только ранние
-  этапы, финал — демо; ВсОШ и остальные профили — демо, с пометкой is_demo,
-  чтобы работали трекер, календарь и напоминания.
+  этапы, финал — демо. ВсОШ — по графику «Сириуса» и предельным срокам
+  Порядка проведения (vsosh_stages). Остальные профили — демо, с пометкой
+  is_demo, чтобы работали трекер, календарь и напоминания.
 
 Вторым файлом генератор пишет 0021_university_directions_content.sql —
 направления вузов и льготы по направлениям (схема — 0020). Правила — у
@@ -408,18 +409,39 @@ def published_stages(seed: Seed, p: dict) -> list[dict]:
     return out
 
 
-def vsosh_stages(pid: str) -> list[dict]:
-    """Форма календаря ВсОШ — факт (четыре этапа), конкретные даты — демо."""
-    s = fnv32(pid)
-    school = date(2026, 9, 20) + timedelta(days=s % 7)
-    municipal = date(2026, 11, 10) + timedelta(days=s % 20)
-    regional = date(2027, 1, 15) + timedelta(days=s % 25)
-    final = date(2027, 3, 22) + timedelta(days=s % 20)
+# ВсОШ 2026/27. Школьный этап по шести предметам — на «Сириус.Курсах»: день
+# зависит от группы регионов, здесь — окно от первой группы до последней
+# (7–11 класс). По остальным предметам и дальше — предельные сроки Порядка
+# проведения: день назначает регион, а заключительный этап — Минпросвещения.
+VSOSH_SIRIUS = {
+    "vsosh-astronomiya": ("2026-09-22", "2026-09-25"),
+    "vsosh-fizika": ("2026-09-29", "2026-10-02"),
+    "vsosh-biologiya": ("2026-10-06", "2026-10-09"),
+    "vsosh-himiya": ("2026-10-12", "2026-10-16"),
+    "vsosh-matematika": ("2026-10-13", "2026-10-16"),
+    "vsosh-informatika": ("2026-10-19", "2026-10-23"),
+}
+VSOSH_CHECKED = "2026-09-26"
+
+
+def vsosh_stages(seed: Seed, pid: str) -> list[dict]:
+    """Четыре этапа ВсОШ: школьный — по графику «Сириуса» или «не позднее
+    1 ноября», муниципальный — до 25 декабря, региональный — до 1 марта,
+    заключительный — до конца апреля (Порядок проведения)."""
+    order = add_source(seed, "https://vserosolimp.edsoo.ru/", None, "site",
+                       "ВсОШ: сроки этапов по Порядку проведения", VSOSH_CHECKED)
+    if pid in VSOSH_SIRIUS:
+        start, end = VSOSH_SIRIUS[pid]
+        sirius = add_source(seed, "https://siriusolymp.ru/school2026/about", None, "site",
+                            "ВсОШ: график школьного этапа на «Сириус.Курсах», 2026/27", VSOSH_CHECKED)
+        school = stage(pid, "school", 1, start, end, True, False, sirius)
+    else:
+        school = stage(pid, "school", 1, None, "2026-11-01", False, False, order)
     return [
-        stage(pid, "school", 1, school, school + timedelta(days=35), False, True),
-        stage(pid, "municipal", 1, municipal, municipal, False, True),
-        stage(pid, "regional", 1, regional, regional + timedelta(days=1), False, True),
-        stage(pid, "final", 1, final, final + timedelta(days=6), False, True),
+        school,
+        stage(pid, "municipal", 1, None, "2026-12-25", False, False, order),
+        stage(pid, "regional", 1, None, "2027-03-01", False, False, order),
+        stage(pid, "final", 1, None, "2027-04-30", False, False, order),
     ]
 
 
@@ -448,7 +470,7 @@ def build_stages(seed: Seed):
         p = seed.profiles[pid]
         c = p["_c"]
         if pid.startswith("vsosh-"):
-            rows, tier = vsosh_stages(pid), "vsosh"
+            rows, tier = vsosh_stages(seed, pid), "vsosh"
         elif c and c["etapy"]:
             rows, tier = published_stages(seed, p), "published"
         elif c:
@@ -494,6 +516,13 @@ def level_ok(profile_level, required, is_vsosh: bool) -> bool:
     return LEVEL_RANK[profile_level] <= LEVEL_RANK[required]
 
 
+def grades_text(grades: list[int]) -> str:
+    """9, 9–10, 9, 11."""
+    if len(grades) > 1 and grades[-1] - grades[0] == len(grades) - 1:
+        return f"{grades[0]}–{grades[-1]}"
+    return ", ".join(map(str, grades))
+
+
 def aggregate_key(records: list[dict]) -> dict:
     """Свернуть записи вуза по одному профилю и году в строку benefits."""
     by_status = defaultdict(set)
@@ -516,18 +545,30 @@ def aggregate_key(records: list[dict]) -> dict:
         if not pri:
             notes.append("100 баллов только победителю")
 
+    # Классы — у записей лучшей льготы: строка БВИ не обещает её за диплом
+    # класса, которому дают только 100 баллов; такие классы — в заметке (#78).
+    best = [r for r in records if r["benefit_type"] == "БВИ"
+            and (benefit != "bvi_winners" or r["diploma_status"] == "pobeditel")] or records
+    grade_lists = [r["eligible_grades"] for r in best]
+    diploma_grades = (sorted({g for gl in grade_lists for g in gl})
+                      if all(grade_lists) else None)
+    taken = {id(r) for r in best}
+    rest = [r["eligible_grades"] for r in records if id(r) not in taken]
+    if diploma_grades and rest and all(rest):
+        extra = sorted({g for gl in rest for g in gl} - set(diploma_grades))
+        if extra:
+            notes.append(f"За диплом {grades_text(extra)} класса — 100 баллов")
+
     scores = sorted({r["ege_confirm_min_score"] for r in records
                      if r["ege_confirm_min_score"] is not None})
     ege_min = scores[0] if scores else None
     if len(scores) > 1:
         notes.append(f"Порог ЕГЭ зависит от программы: {scores[0]}–{scores[-1]} баллов")
-    subjects = sorted({r["ege_confirm_subject"] for r in records if r["ege_confirm_subject"]})
+    # Предмет записи бывает составным: «Математика или Обществознание».
+    subjects = sorted({s for r in records if r["ege_confirm_subject"]
+                       for s in r["ege_confirm_subject"].split(" или ")})
     if subjects:
         notes.append("Подтвердить ЕГЭ: " + " или ".join(subjects))
-
-    grade_lists = [r["eligible_grades"] for r in records]
-    diploma_grades = (sorted({g for gl in grade_lists for g in gl})
-                      if all(grade_lists) else None)
 
     demo = any(r["is_demo"] for r in records)
     src_counter = Counter((r["source_url"], r["source_page"]) for r in records)
@@ -700,16 +741,30 @@ def direction_id(code: str) -> str:
     return "napr-" + code.replace(".", "-")
 
 
+HYPHEN_PREFIXES = {"бизнес"}  # у них дефис свой, а не перенос строки
+
+
+def _join_wrapped(m: re.Match) -> str:
+    head, tail = m.group(1), m.group(2)
+    return f"{head}-{tail}" if head.lower() in HYPHEN_PREFIXES else head + tail
+
+
 def program_title(name: str) -> str:
-    """Название программы для людей: без лишних пробелов и непарной скобки.
+    """Название программы для людей: без лишних пробелов, непарной скобки,
+    переносов строки и хвостовой «;».
 
     В выгрузке МГУ хвост с профилем теряет открывающую скобку:
-    «Менеджмент — Менеджмент в культуре)».
+    «Менеджмент — Менеджмент в культуре)». В таблицах ВШЭ слово
+    переносится по слогам: «Информацион- ная безопасность», а буква
+    откалывается: «информационны х продуктов».
     """
     name = re.sub(r"\s+\)", ")", " ".join(name.split()))
     if name.endswith(")") and name.count(")") > name.count("("):
         name = name[:-1].rstrip()
-    return name
+    name = re.sub(r"(\w+)- (?!(?:и|или)\b)(\w)", _join_wrapped, name)
+    # Буква, отколотая от слова: «информационны х продуктов».
+    name = re.sub(r"(?<=[а-яё]) ([бгджзйлмнпртфхцчшщъыьэю])(?=[\s,.;»)]|$)", r"\1", name)
+    return name.rstrip(" ;")
 
 
 def program_labels(programs: list[dict]) -> dict[str, tuple[str, str | None]]:
@@ -823,12 +878,15 @@ def build_university_directions(seed: Seed) -> UniversityDirections:
                 excluded.add(pid)
             p = programs.setdefault(pid, {
                 "program_id": pid, "vuz": r["vuz_id"], "code": r["napravlenie_code"],
-                "program_name": r["program_name"], "faculty": r["faculty"], "places": None,
+                "program_name": r["program_name"], "faculty": r["faculty"],
+                "places": None, "group_places": False,
                 "groups": set(), "b_status": None, "year": r["admission_year"], "records": [],
             })
             p["groups"].add(r["profile_group"])
             if p["places"] is None:
-                p["places"] = r["budget_places_2026"]
+                # Число есть, но демо — места не программы, а её конкурсной
+                # группы (МФТИ): одно число на все программы группы.
+                p["places"], p["group_places"] = r["budget_places_2026"], not in_b and r["is_demo"]
             if in_b:
                 p["b_status"], p["records"] = r["status"], r["prinimaemye_olimpiady"]
     by_pair: dict[tuple, list[dict]] = defaultdict(list)
@@ -861,7 +919,15 @@ def build_university_directions(seed: Seed) -> UniversityDirections:
     for (vuz, code) in sorted(by_pair):
         progs = by_pair[(vuz, code)]
         labels = program_labels(progs)
-        places = [p["places"] for p in progs if p["places"] is not None]
+        places, groups_seen = [], set()
+        for p in progs:
+            if p["places"] is None:
+                continue
+            if p["group_places"]:
+                if (p["faculty"], p["places"]) in groups_seen:
+                    continue
+                groups_seen.add((p["faculty"], p["places"]))
+            places.append(p["places"])
         offered = [p for p in progs if p["b_status"] == "offered"]
         ud.pairs.append({
             "university_id": vuz, "direction_id": direction_id(code),

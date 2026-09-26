@@ -9,7 +9,7 @@ func TestCalendar(t *testing.T) {
 	e := newEnv(t)
 	f := e.withParent(e.kidCreator())
 	nto := e.track(f, "p669-5-iskusstvennyy-intellekt", false) // регистрация до 22.10, первый этап до 23.10
-	e.track(f, "vsosh-informatika", false)                     // школьный этап до 28.10
+	e.track(f, "vsosh-informatika", false)                     // школьный этап на «Сириусе» до 23.10
 	token := e.login(900000002, "Ольга")
 
 	r := e.do("GET", "/api/v1/calendar?month=2026-10", token, nil)
@@ -25,8 +25,8 @@ func TestCalendar(t *testing.T) {
 	}
 	want := []entry{
 		{"2026-10-22", "p669-5-iskusstvennyy-intellekt", "Регистрация"},
+		{"2026-10-23", "vsosh-informatika", "Школьный этап"},
 		{"2026-10-23", "p669-5-iskusstvennyy-intellekt", "Первый (индивидуальный) этап"},
-		{"2026-10-28", "vsosh-informatika", "Школьный этап"},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("два срока одного пункта — две записи: %v", got)
@@ -42,7 +42,7 @@ func TestCalendar(t *testing.T) {
 		t.Fatal(err)
 	}
 	days := list(t, e.do("GET", "/api/v1/calendar?month=2026-10", token, nil).body["days"])
-	if len(days) != 2 || days[0]["date"] != "2026-10-23" {
+	if len(days) != 1 || days[0]["date"] != "2026-10-23" || len(list(t, days[0]["items"])) != 2 {
 		t.Fatalf("после отметки: %v", days)
 	}
 

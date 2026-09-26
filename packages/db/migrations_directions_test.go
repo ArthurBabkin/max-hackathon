@@ -48,7 +48,8 @@ func queryStrings(t *testing.T, q rowQuerier, sql string) []string {
 	return out
 }
 
-// Счётчики контента 0021 — числа из датасетов на 21.09.2026.
+// Счётчики контента 0021 — числа из датасетов на 21.09.2026 с исправленной
+// привязкой льгот к программам (0022).
 func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 	t.Helper()
 	return map[string]int{
@@ -65,8 +66,8 @@ func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 
 var wantUniversityDirections = map[string]int{
 	"directions": 72, "onboarding": 16, "no_groups": 0,
-	"pairs": 174, "to_check": 4,
-	"benefits": 9466, "varies": 1146,
+	"pairs": 173, "to_check": 0,
+	"benefits": 12769, "varies": 1631,
 	"user_choices": 0,
 }
 
@@ -75,12 +76,10 @@ func TestMigration_UniversityDirections_Content(t *testing.T) {
 	if got := universityDirectionCounts(t, pool); !maps.Equal(got, wantUniversityDirections) {
 		t.Fatalf("контент 0021:\n%v\nожидали:\n%v", got, wantUniversityDirections)
 	}
-	// Все программы этих пар в датасете B ждут проверки, хотя в A они есть.
-	toCheck := queryStrings(t, pool, `SELECT university_id || ' ' || direction_id
-		FROM university_directions WHERE status = 'to_check'`)
-	want := []string{"nsu napr-01-03-01", "nsu napr-01-03-02", "nsu napr-01-03-03", "spbu napr-06-03-01"}
-	if !slices.Equal(toCheck, want) {
-		t.Fatalf("to_check: %v, ожидали %v", toCheck, want)
+	// Пар «льготы уточняются» в сиде нет: ВШЭ — 40.03.01 держалась на
+	// очно-заочной программе, её в A больше нет (#79).
+	if n := queryInt(t, pool, `SELECT count(*) FROM university_directions WHERE status = 'to_check'`); n != 0 {
+		t.Fatalf("to_check: %d, ожидали 0", n)
 	}
 	// Иннополис принимает на укрупнённую группу — её покрывает targets.Covers.
 	var status string
@@ -286,4 +285,120 @@ func TestMigration_UniversityDirections_ChoiceGoesWithUniversity(t *testing.T) {
 	if n := queryInt(t, tx, `SELECT count(*) FROM trajectory_university_directions WHERE trajectory_id = '`+tid+`'`); n != 0 {
 		t.Fatalf("выбор направлений пережил вуз: %d", n)
 	}
+}
+
+// 0022: льготы, которые парсер приписывал чужим программам (#68). До миграции
+// ВсОШ по биологии давала льготу направлению ПМИ МГУ (через филиал в
+// Севастополе), после — нет; контент совпадает со свежим сидом, события
+// «изменились льготы» — только по парам профиль@вуз, где льгота правда
+// поменялась, а повторный прогон ничего не меняет.
+func TestMigration_BenefitLinking(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw := readMigration(t, "0022_benefit_linking.sql")
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const bioOnPmi = `SELECT count(*) FROM direction_benefits WHERE olympiad_profile_id = 'vsosh-biologiya'
+		AND university_id = 'msu' AND direction_id = 'napr-01-03-02'`
+	benefits := queryInt(t, tx, `SELECT count(*) FROM benefits`)
+
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, dbtest.DownSection(raw))
+	if n := queryInt(t, tx, bioOnPmi); n != 1 {
+		t.Fatalf("до 0022 ВсОШ по биологии на ПМИ МГУ: %d строк, ожидали 1", n)
+	}
+	// Ученик выбрал в ВШЭ «Юриспруденцию» — пару, которая держалась на
+	// очно-заочной программе (#79).
+	const tid = "00000000-0000-4000-8000-00000000f022"
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, goal_status) VALUES
+		('`+tid+`', 'Артём', 10, '16', 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_directions (trajectory_id, direction_id, position) VALUES ('`+tid+`', 'napr-40-03-01', 0)`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_universities (trajectory_id, university_id) VALUES ('`+tid+`', 'hse')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_university_directions (trajectory_id, university_id, direction_id) VALUES
+		('`+tid+`', 'hse', 'napr-40-03-01')`)
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, bioOnPmi); n != 0 {
+		t.Fatalf("после 0022 ВсОШ по биологии на ПМИ МГУ: %d строк", n)
+	}
+	// Пары больше нет — её выбор снят каскадом (user_choices ниже — 0), а
+	// направление и вуз в цели ученика остались.
+	if n := queryInt(t, tx, `SELECT count(*) FROM trajectory_directions WHERE trajectory_id = '`+tid+`'`) +
+		queryInt(t, tx, `SELECT count(*) FROM trajectory_universities WHERE trajectory_id = '`+tid+`'`); n != 2 {
+		t.Fatalf("цель ученика после 0022: направлений и вузов %d, ожидали 2", n)
+	}
+	if got := universityDirectionCounts(t, tx); !maps.Equal(got, wantUniversityDirections) {
+		t.Fatalf("после 0022:\n%v\nожидали:\n%v", got, wantUniversityDirections)
+	}
+	if n := queryInt(t, tx, `SELECT count(*) FROM benefits`); n != benefits {
+		t.Fatalf("льгот вузов после 0022: %d, в сиде %d", n, benefits)
+	}
+	changed := queryInt(t, tx, `SELECT count(DISTINCT entity_id) FROM content_changes WHERE entity = 'benefit'`)
+	other := queryInt(t, tx, `SELECT count(*) FROM content_changes WHERE entity <> 'benefit'`)
+	if changed != 1126 || other != 0 {
+		t.Fatalf("события 0022: льгот %d (ожидали 1126), других %d", changed, other)
+	}
+
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, `SELECT count(*) FROM content_changes`); n != 0 {
+		t.Fatalf("повторный прогон 0022 породил %d событий", n)
+	}
+}
+
+// На чистой базе 0017 и 0018 перезаписывают строки нового сида 0003, а 0022
+// обязана вернуть их к сиду: после всех миграций льготы — ровно 0003 и 0021,
+// без устаревших строк.
+func TestMigration_BenefitLinkingMatchesSeed(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const rows = `SELECT 'benefits ' || b::text FROM benefits b
+		UNION ALL SELECT 'direction_benefits ' || d::text FROM direction_benefits d
+		UNION ALL SELECT 'university_directions ' || u::text FROM university_directions u`
+	got := queryStrings(t, tx, rows)
+	mustExec(t, tx.Exec, `DELETE FROM direction_benefits; DELETE FROM benefits`)
+	mustExec(t, tx.Exec, dbtest.UpSection(readMigration(t, "0003_seed_content.sql")))
+	mustExec(t, tx.Exec, dbtest.UpSection(readMigration(t, "0021_university_directions_content.sql")))
+	want := queryStrings(t, tx, rows)
+	if slices.Equal(got, want) {
+		return
+	}
+	extra, missing := diffSorted(got, want), diffSorted(want, got)
+	t.Fatalf("после всех миграций лишних строк %d, недостающих %d; например\nлишняя:   %v\nнедостаёт: %v",
+		len(extra), len(missing), first(extra), first(missing))
+}
+
+// diffSorted — строки a, которых нет в b (оба отсортированы, с повторами).
+func diffSorted(a, b []string) []string {
+	var out []string
+	i := 0
+	for _, x := range a {
+		for i < len(b) && b[i] < x {
+			i++
+		}
+		if i < len(b) && b[i] == x {
+			i++
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func first(xs []string) string {
+	if len(xs) == 0 {
+		return "—"
+	}
+	return xs[0]
 }

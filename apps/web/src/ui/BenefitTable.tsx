@@ -5,10 +5,11 @@
  * закрытый набор, его выбирает сервер (`benefit_columns`). Всё редкое — класс
  * диплома, другой предмет ЕГЭ — плашкой под строкой своего вуза, новых
  * столбцов не появляется. Жёлтым — только то, что не как в большинстве вузов.
- * Кто олимпиаду не учитывает — одной строкой под таблицей.
+ * Кто олимпиаду не учитывает — одной строкой под таблицей; кто даёт льготу
+ * только на другие направления — своей строкой.
  */
 
-import { BENEFIT_LABELS, type BenefitColumn, type BenefitGrant, type BenefitKind, type BenefitRow } from '@contract'
+import type { BenefitColumn, BenefitGrant, BenefitRow } from '@contract'
 import { outliers } from '@/lib/benefits'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
@@ -27,16 +28,6 @@ const GRANT_CLASS: Record<BenefitGrant['kind'], string> = {
   extra_points: 'benefit-extra',
 }
 
-const BVI: BenefitGrant = { kind: 'bvi', label: BENEFIT_LABELS.bvi }
-const SCORE100: BenefitGrant = { kind: 'score100', label: BENEFIT_LABELS.score100 }
-
-/** Что получат победитель и призёр при льготе на других направлениях. */
-const OTHER_GRANTS: Partial<Record<BenefitKind, [BenefitGrant, BenefitGrant | null]>> = {
-  bvi: [BVI, BVI],
-  bvi_winners: [BVI, null],
-  score100: [SCORE100, SCORE100],
-}
-
 export interface BenefitTableProps {
   rows: BenefitRow[]
   columns: BenefitColumn[]
@@ -46,12 +37,16 @@ export interface BenefitTableProps {
 export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
   const t = useVoice()
   const counted = rows.filter((row) => row.winner || row.prizer)
-  const notCounted = rows.filter((row) => !row.winner && !row.prizer)
+  // Без льготы на мои направления вуз может давать её на другие — тогда он
+  // не «не учитывает» олимпиаду, а говорит об этом отдельной строкой.
+  const uncounted = rows.filter((row) => !row.winner && !row.prizer)
+  const notCounted = uncounted.filter((row) => row.directions_count === 0)
+  const elsewhere = uncounted.filter((row) => row.directions_count > 0)
 
   const grantOf = (row: BenefitRow, column: BenefitColumn) => (column === 'prizer' ? row.prizer : row.winner)
   const ege = (row: BenefitRow) => {
     if (row.ege_min == null) return '—'
-    // Диапазон — тоже нижний порог, просто разный по направлениям: «от 75–90».
+    // Диапазон — тоже нижний порог, просто разный по программам: «от 75–90».
     const count = row.ege_max != null ? `${row.ege_min}–${row.ege_max}` : row.ege_min
     return t('benefits.egeFrom', { count })
   }
@@ -143,12 +138,11 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
                 </tr>
               )
               // Слабее льгота на других моих направлениях — подстрокой со своими столбцами.
-              const others = row.other_directions.flatMap((other) => {
-                const grants = OTHER_GRANTS[other.benefit]
-                if (!grants) return []
-                const [winner, prizer] = grants
+              const others = row.other_directions.flatMap((other, j) => {
+                const { winner, prizer } = other
+                if (!winner) return []
                 return [
-                  <tr key={`${row.university_id}-${other.benefit}`} className="benefit-table-sub">
+                  <tr key={`${row.university_id}-${j}`} className="benefit-table-sub">
                     <th scope="row">{other.directions.join(', ')}</th>
                     {columns.map((column) => {
                       const grant = column === 'winner' ? winner : column === 'prizer' ? prizer : null
@@ -180,6 +174,12 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
             })}
           </tbody>
         </table>
+      ) : null}
+
+      {elsewhere.length > 0 ? (
+        <p className="benefit-table-skip">
+          {t('benefits.otherDirectionsOnly', { names: elsewhere.map((row) => row.university_nick).join(', ') })}
+        </p>
       ) : null}
 
       {notCounted.length > 0 ? (

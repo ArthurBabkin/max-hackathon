@@ -436,30 +436,40 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if c.has("olympiad:" + oid) {
 		return nil
 	}
-	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock)
-	if err != nil {
-		return err
-	}
-	mine := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
-		return !slices.Contains(c.myCodes, x.SubjectCode)
+	// Профили — по предмету из вопроса, иначе по предметам ученика: про
+	// «Физтех» по физике льгота на направления нужна по физике, а не по
+	// информатике ученика.
+	ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+		return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
 	})
+	if len(ps) == 0 {
+		ps = slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+			return !slices.Contains(c.myCodes, x.SubjectCode)
+		})
+	}
 	// Направление в вопросе — льготы на него, а не на цель ученика.
 	var targets []string
+	var unverified []uniName
+	var onDirections []string
+	var err error
 	if asked := c.mentions.Directions; len(asked) > 0 {
-		// Профили — по предмету из вопроса, иначе по предметам ученика.
-		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
-			return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
-		})
-		if len(ps) == 0 {
-			ps = mine
-		}
 		if len(ps) == 0 {
 			ps = b.profiles[oid]
 		}
-		targets, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
+		targets, unverified, onDirections, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
 	} else {
-		targets, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+		targets, unverified, onDirections, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, ps)
 	}
+	if err != nil {
+		return err
+	}
+	covered := map[string]bool{}
+	for _, p := range ps {
+		for _, u := range onDirections {
+			covered[p.ID+"/"+u] = true
+		}
+	}
+	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock, covered)
 	if err != nil {
 		return err
 	}
@@ -480,15 +490,12 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if len(subjects) == 0 {
 		subjects = scope{subjects: c.mentions.Subjects}.subjectsOf(b.profiles[oid])
 	}
-	var unverified []uniName
 	for _, bn := range benefits {
 		if bn.Source != nil || (len(c.scope.universities) > 0 && !slices.Contains(c.scope.universities, bn.UniversityID)) ||
 			(len(subjects) > 0 && !slices.Contains(subjects, b.profile[bn.ProfileID].SubjectCode)) {
 			continue
 		}
-		if n := (uniName{pick.Nick(bn.UniversityID, bn.UniversityShort), bn.UniversityShort}); !slices.Contains(unverified, n) {
-			unverified = append(unverified, n)
-		}
+		unverified = appendNewUni(unverified, bn.UniversityID, bn.UniversityShort)
 	}
 	// Сайт олимпиады — первым: на нём даты и регистрация; дальше правила
 	// о льготах по этому профилю в вузах, о которых речь, и приказ о перечне.
@@ -642,7 +649,7 @@ func (c collected) prompt(v voice.Voice, t store.Trajectory, history []store.AiM
 		"Про льготу говори, что получит победитель и что призёр, и порог ЕГЭ, если он есть. " +
 		"Без Markdown и без ссылок в тексте. Обращайся " + address + ".\n")
 	b.WriteString("5. Называя даты этапов, всегда говори, какие они. «Даты фактические» — скажи, что даты фактические, с сайта олимпиады. " +
-		"«Даты примерные, по прошлому году» — скажи, что даты примерные, по прошлому году, и их стоит проверить на сайте олимпиады. " +
+		"«Даты примерные, сроки этого сезона ещё не опубликованы» — скажи, что даты примерные: организатор ещё не опубликовал сроки, их стоит проверить на сайте олимпиады. " +
 		"«Идёт сейчас» — этап открыт; «сейчас не идёт» — этап ещё не начался: не пиши, что он идёт, скажи, когда начнётся. " +
 		"«Регистрация закрыта» — в этом сезоне в олимпиаду уже не вступить: не советуй её на этот год, скажи, что можно готовиться к следующему. " +
 		"«Участие завершено» — не предлагай ученику следующие этапы этой олимпиады. " +

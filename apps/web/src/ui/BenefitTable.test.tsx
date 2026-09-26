@@ -87,12 +87,12 @@ it('отмечает только то, что не как в большинст
   expect(screen.getByText(/не как в большинстве твоих вузов/)).toBeInTheDocument()
 })
 
-// Диапазон — это нижний порог, разный по направлениям: «от 75–85», а не
+// Диапазон — это нижний порог, разный по программам: «от 75–85», а не
 // «75–85», иначе читается как «больше 85 нельзя». Пояснение — в той же ячейке.
 it('порог-диапазон объясняет себя прямо в ячейке', () => {
   setup()
-  expect(within(rowOf('ВШЭ')).getByText('зависит от направления')).toBeInTheDocument()
-  expect(within(rowOf('КФУ')).queryByText('зависит от направления')).not.toBeInTheDocument()
+  expect(within(rowOf('ВШЭ')).getByText('зависит от программы')).toBeInTheDocument()
+  expect(within(rowOf('КФУ')).queryByText('зависит от программы')).not.toBeInTheDocument()
   expect(screen.queryByText(/Диапазон/)).not.toBeInTheDocument()
 })
 
@@ -132,6 +132,29 @@ it('ни один вуз олимпиаду не учитывает — табл
   expect(screen.getByText('Не учитывает эту олимпиаду: СПбГУ')).toBeInTheDocument()
 })
 
+// Вуз засчитывает олимпиаду, но не на мои направления (ВсОШ по биологии в
+// КФУ) — это не «не учитывает»: сервер присылает, на скольких направлениях
+// вуза льгота есть.
+const elsewhere = (id: string, nick: string) => ({
+  ...notCounted(id, nick),
+  directions: ['Программная инженерия'],
+  directions_count: 8,
+  directions_total: 40,
+})
+
+it('льгота только на другие направления — отдельно от «не учитывает»', () => {
+  setup([row('hse', 'ВШЭ'), elsewhere('kfu', 'КФУ'), elsewhere('mipt', 'МФТИ'), notCounted('innopolis', 'Иннополис')])
+  expect(screen.getByText('Льгота есть, но не на твои направления: КФУ, МФТИ')).toBeInTheDocument()
+  expect(screen.getByText('Не учитывает эту олимпиаду: Иннополис')).toBeInTheDocument()
+})
+
+it('родителю — «не на направления» ребёнка по имени', () => {
+  renderApp(<BenefitTable rows={[elsewhere('kfu', 'КФУ')]} columns={['winner', 'prizer', 'ege']} onOpen={() => {}} />, {
+    session: makeSession({ role: 'parent' }),
+  })
+  expect(screen.getByText('Льгота есть, но не на направления Артёма: КФУ')).toBeInTheDocument()
+})
+
 it('родителю — голос родителя', () => {
   renderApp(<BenefitTable rows={ROWS} columns={['winner', 'prizer', 'ege']} onOpen={() => {}} />, {
     session: makeSession({ role: 'parent' }),
@@ -146,7 +169,15 @@ it('под вузом — мои направления, другая льгот
     [
       row('hse', 'ВШЭ', {
         directions: ['Прикладная математика и информатика'],
-        other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+        other_directions: [
+          {
+            benefit: 'score100',
+            benefit_label: '100 баллов',
+            directions: ['Программная инженерия'],
+            winner: SCORE100,
+            prizer: SCORE100,
+          },
+        ],
       }),
       row('kfu', 'КФУ', { directions: ['Программная инженерия'] }),
     ],
@@ -157,6 +188,31 @@ it('под вузом — мои направления, другая льгот
   const sub = screen.getByRole('rowheader', { name: 'Программная инженерия' }).closest('tr')!
   expect(within(sub).getAllByText('100 баллов')).toHaveLength(2)
   expect(screen.getByText('Льгота — на твои направления: отмеченные в карточке вуза или из цели.')).toBeInTheDocument()
+})
+
+// Что получит призёр на другом направлении — из ответа сервера, а не по
+// виду льготы: «БВИ победителям» бывает и со 100 баллами призёру (ИТМО, ПМИ).
+it('на другом направлении призёр — как в правилах вуза', () => {
+  setup(
+    [
+      row('itmo', 'ИТМО', {
+        directions: ['Программная инженерия'],
+        other_directions: [
+          {
+            benefit: 'bvi_winners',
+            benefit_label: 'БВИ победителям',
+            directions: ['Прикладная математика и информатика'],
+            winner: BVI,
+            prizer: SCORE100,
+          },
+        ],
+      }),
+    ],
+    ['winner', 'prizer'],
+  )
+  const sub = screen.getByRole('rowheader', { name: 'Прикладная математика и информатика' }).closest('tr')!
+  expect(within(sub).getByText('БВИ')).toBeInTheDocument()
+  expect(within(sub).getByText('100 баллов')).toBeInTheDocument()
 })
 
 it('льгота вуза целиком — без направлений и без пояснения о них', () => {

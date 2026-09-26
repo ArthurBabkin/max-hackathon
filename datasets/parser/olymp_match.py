@@ -25,13 +25,25 @@ ROMAN = re.compile(r"\b[IVXL]{1,6}\b")
 def norm(name: str) -> str:
     s = clean(name).lower().replace("ё", "е")
     s = ROMAN.sub(" ", s)
-    s = re.sub(r"[«»\"'`,.:;()\[\]–—\-]", " ", s)
+    s = re.sub(r"[«»“”„\"'`,.:;()\[\]–—\-]", " ", s)
     s = re.sub(r"\bим(ени)?\b", " ", s)
     s = re.sub(r"\b\d{1,3}\s*(я|ая|й|ый|е)?\b", " ", s)
     stripped = re.sub(r"\s+", " ", NOISE.sub("", s)).strip()
     # У родовых названий («Открытая олимпиада школьников») чистка съедает всё —
     # тогда нормализуем мягко, иначе олимпиада не находится вообще.
     return stripped if stripped else re.sub(r"\s+", " ", s).strip()
+
+
+# Слова, которые есть почти в каждом названии: по ним олимпиады не отличить.
+# Без них «экономическая олимпиада школьников имени Кондратьева» совпадала с
+# «Московской олимпиадой школьников» на 2 слова из 3.
+# Прилагательные вроде «межвузовская» или «отраслевая» — часть названия, их не трогаем.
+GENERIC = {"олимпиада", "олимпиады", "олимпиад", "школьников", "открытая", "всероссийская",
+           "межрегиональная", "международная", "для", "по", "на", "и", "в", "н", "д"}
+
+
+def _sig(text: str) -> set[str]:
+    return {t for t in text.split() if t not in GENERIC}
 
 
 # Готовим индекс: ключ -> номер. Один номер может иметь несколько написаний.
@@ -58,10 +70,10 @@ def match_number(name: str) -> int | None:
     for key, num in _norm_items:          # вхождение: вуз мог обрезать или дополнить название
         if len(key) >= 8 and (key in n or n in key):
             return num
-    tokens = set(n.split())
+    tokens = _sig(n)
     best, score = None, 0.0
     for key, num in _norm_items:          # запасной путь — перекрытие значимых слов
-        kt = set(key.split())
+        kt = _sig(key)
         if not kt:
             continue
         overlap = len(tokens & kt) / len(kt)
@@ -105,10 +117,10 @@ def match_number_for_profile(name: str, profile: str) -> int | None:
             if len(norm(_names[num])) >= 8 and (norm(_names[num]) in n or n in norm(_names[num]))]
     if len(hits) == 1:
         return hits[0]
-    tokens = set(n.split())
+    tokens = _sig(n)
     best, score = None, 0.0
     for num in candidates:
-        kt = set(norm(_names[num]).split())
+        kt = _sig(norm(_names[num]))
         if not kt:
             continue
         overlap = len(tokens & kt) / len(kt)
@@ -148,6 +160,18 @@ def vsosh_id(subject: str) -> str | None:
         return None
     slug = profile_slug(key)
     return f"vsosh-{slug}" if slug else None
+
+
+def cut_profile(num: int | None, profile: str) -> str | None:
+    """Профиль, который вуз оборвал («виртуальные миры: …, технологии
+    дополненной реальности» без «цифровые технологии в архитектуре»): полный
+    профиль той же олимпиады — если он по этому началу один."""
+    want = clean(profile).lower()
+    if num is None or len(want) < 20:
+        return None
+    hits = {row["profile"] for row in _index
+            if row["perechen_number_669"] == num and clean(row["profile"]).lower().startswith(want)}
+    return hits.pop() if len(hits) == 1 else None
 
 
 def level_in_perechen(num: int, profile: str) -> str | None:

@@ -246,6 +246,24 @@ func redact(raw string) string {
 	return u.Redacted()
 }
 
+// ToCheck на время теста добавляет вузу направление «льготы уточняются»:
+// статус to_check, одна программа, льгот по направлению нет — так сид кладёт
+// направление, программу которого документ вуза не называет. В сиде таких
+// пар сейчас нет, а ветку «уточняется» проверить надо.
+func ToCheck(t testing.TB, p *pgxpool.Pool, universityID, directionID, program string) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := p.Exec(ctx, `
+		INSERT INTO university_directions (university_id, direction_id, status, programs, program_names)
+		VALUES ($1, $2, 'to_check', 1, ARRAY[$3])`, universityID, directionID, program); err != nil {
+		t.Fatalf("направление «уточняется»: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = p.Exec(context.Background(), `DELETE FROM university_directions
+			WHERE university_id = $1 AND direction_id = $2`, universityID, directionID)
+	})
+}
+
 // Fictional накатывает вымышленные олимпиады вне перечня
 // (migrations-local/0001): в основной сид они не входят, а блок F16 без них
 // не проверить. Повторный вызов ничего не меняет — вставки с ON CONFLICT.

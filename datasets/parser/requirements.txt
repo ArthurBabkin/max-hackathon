@@ -1,0 +1,7 @@
+# Версия pdfplumber закреплена: с 0.11.5 текст PDF МГУ портится, у ВШЭ
+# пропадает 178 записей B.
+pdfplumber==0.11.10
+pypdf
+lxml
+pyyaml
+requests

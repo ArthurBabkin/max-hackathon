@@ -70,12 +70,12 @@ func TestCalendarExport(t *testing.T) {
 	got := icsEvents(t, file.raw)
 	want := []string{
 		"20261022 : Регистрация",
+		"20261023 ВсОШ по информатике: Школьный этап",
 		"20261023 : Первый (индивидуальный) этап",
-		"20261028 ВсОШ по информатике: Школьный этап",
-		"20261128 ВсОШ по информатике: Муниципальный этап",
 		"20261211 : Второй (командный) этап",
-		"20270123 ВсОШ по информатике: Региональный этап",
-		"20270409 ВсОШ по информатике: Заключительный этап",
+		"20261225 ВсОШ по информатике: Муниципальный этап",
+		"20270301 ВсОШ по информатике: Региональный этап",
+		"20270430 ВсОШ по информатике: Заключительный этап",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("события:\n%s", strings.Join(got, "\n"))
@@ -86,7 +86,7 @@ func TestCalendarExport(t *testing.T) {
 			t.Fatalf("событие %d: %q, ждали %q", i, got[i], want[i])
 		}
 	}
-	if !strings.Contains(strings.ReplaceAll(string(file.raw), "\r\n ", ""), "DESCRIPTION:Информатика. Срок: 28 октября.\r\n") {
+	if !strings.Contains(strings.ReplaceAll(string(file.raw), "\r\n ", ""), "DESCRIPTION:Информатика. Срок: 23 октября.\r\n") {
 		t.Fatalf("в описании — предмет и день срока:\n%s", file.raw)
 	}
 
@@ -114,7 +114,7 @@ func TestCalendarExport(t *testing.T) {
 	// Прошедшие сроки не выгружаются.
 	e.now = time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)
 	token = e.login(900000002, "Ольга") // прежняя сессия за месяц истекла
-	if got := icsEvents(t, e.do("GET", "/api/v1"+e.calendarLink(token), "", nil).raw); len(got) != 5 || !strings.HasPrefix(got[0], "20261028 ") {
+	if got := icsEvents(t, e.do("GET", "/api/v1"+e.calendarLink(token), "", nil).raw); len(got) != 4 || !strings.HasPrefix(got[0], "20261211 ") {
 		t.Fatalf("после 23 октября:\n%s", strings.Join(got, "\n"))
 	}
 }
