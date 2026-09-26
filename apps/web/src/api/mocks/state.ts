@@ -46,6 +46,8 @@ export interface DemoInvite {
   id: string
   token: string
   role: Role
+  /** Участник, создавший ссылку: отозвать её может он или создатель траектории. */
+  created_by: string
   created_at: string
 }
 

@@ -85,3 +85,44 @@ func TestFamily_InvitedParentLeaves(t *testing.T) {
 		t.Fatalf("после выхода — 401: %d", r.code)
 	}
 }
+
+// Отозвать неиспользованную ссылку может её автор или создатель траектории (ТЗ §16).
+func TestFamily_RevokeInvite(t *testing.T) {
+	e := newEnv(t)
+	e.withParent(e.kidCreator())
+	kid := e.login(900000001, "Артём")
+	parent := e.login(900000002, "Ольга")
+
+	mine := e.do("POST", "/api/v1/family/invites", parent, map[string]any{"role": "parent"}).body
+	creators := e.do("POST", "/api/v1/family/invites", kid, map[string]any{"role": "parent"}).body
+	if mine["can_revoke"] != true || creators["can_revoke"] != true {
+		t.Fatalf("автор ссылки может её отозвать: %v %v", mine, creators)
+	}
+	for _, inv := range list(t, e.do("GET", "/api/v1/family", parent, nil).body["invites"]) {
+		if want := inv["id"] == mine["id"]; inv["can_revoke"] != want {
+			t.Fatalf("приглашённый отзывает только свою ссылку: %v", inv)
+		}
+	}
+	for _, inv := range list(t, e.do("GET", "/api/v1/family", kid, nil).body["invites"]) {
+		if inv["can_revoke"] != true {
+			t.Fatalf("создатель отзывает любую: %v", inv)
+		}
+	}
+
+	if r := e.do("DELETE", "/api/v1/family/invites/"+creators["id"].(string), parent, nil); r.code != 404 {
+		t.Fatalf("чужую ссылку приглашённый не отзывает: %d %s", r.code, r.raw)
+	}
+	if r := e.do("DELETE", "/api/v1/family/invites/"+mine["id"].(string), kid, nil); r.code != 204 {
+		t.Fatalf("создатель отзывает ссылку приглашённого: %d %s", r.code, r.raw)
+	}
+	if r := e.do("DELETE", "/api/v1/family/invites/"+mine["id"].(string), parent, nil); r.code != 404 || r.errCode() != "NOT_FOUND" {
+		t.Fatalf("отозванную второй раз — 404: %d %s", r.code, r.raw)
+	}
+	if r := e.do("DELETE", "/api/v1/family/invites/nope", kid, nil); r.code != 404 {
+		t.Fatalf("не uuid — 404: %d", r.code)
+	}
+	invites := list(t, e.do("GET", "/api/v1/family", kid, nil).body["invites"])
+	if len(invites) != 1 || invites[0]["id"] != creators["id"] {
+		t.Fatalf("отозванная пропала из активных: %v", invites)
+	}
+}
