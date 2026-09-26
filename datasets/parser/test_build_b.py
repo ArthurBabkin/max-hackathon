@@ -990,5 +990,25 @@ class MiptGradesTest(MiptPlanMixin, unittest.TestCase):
         self.assertEqual(got, [("БВИ", "pobeditel", "ВШПИ", (10, 11)), ("БВИ", "pobeditel", "ФПМИ", (11,))])
 
 
+class MiptVsoshTest(unittest.TestCase):
+    """Приложение 2: у ВсОШ по информатике строки подпрофилей (ИИ, ИБ,
+    робототехника) дают БВИ шире базовой. В каталоге одна vsosh-informatika —
+    её условия в базовой строке «Информатика; …профиль "Программирование"»."""
+
+    def test_subprofile_rows_are_not_the_base_olympiad(self):
+        empty = [""] * 10
+        html = html_table(["Общеобразовательный предмет"] + SCHOOLS,
+                          ['Информатика; Информатика, профиль "Программирование"',
+                           '"Компьютерные технологии и вычислительная техника" Победителям и призерам'] + empty,
+                          ['Информатика, профиль "Информационная безопасность"',
+                           "Все конкурсные группы ФРКТ Победителям и призерам"] + empty)
+        got = [r["match"] for r in bb.mipt_vsosh_rows(html, URL)]
+        self.assertEqual(got, [{"school": "ФРКТ", "groups": ["Компьютерные технологии и вычислительная техника"]}])
+
+    def test_typo_in_subject_still_recognized(self):
+        # Прил. 1, № 50, ПИШ ФАЛТ: «…по тнформатике 80 баллов и выше»
+        self.assertEqual(bb._subject_from("ЕГЭ или ВИ по тнформатике 80 баллов и выше"), "Информатика")
+
+
 if __name__ == "__main__":
     unittest.main()
