@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
@@ -156,7 +157,7 @@ func TestUniversity_Directions(t *testing.T) {
 
 	b := e.do("GET", "/api/v1/universities/hse", token, nil).body
 	ds := list(t, b["offered_directions"])
-	if len(ds) != 19 || ds[0]["id"] != dirSE || ds[0]["is_goal"] != true || ds[0]["is_mine"] != false ||
+	if len(ds) != 18 || ds[0]["id"] != dirSE || ds[0]["is_goal"] != true || ds[0]["is_mine"] != false ||
 		ds[0]["code"] != "09.03.04" || ds[0]["status"] != "offered" || ds[0]["benefit_olympiads_count"].(float64) == 0 {
 		t.Fatalf("направления ВШЭ: %v", ds[:2])
 	}
@@ -170,7 +171,7 @@ func TestUniversity_Directions(t *testing.T) {
 		}
 	}
 	if virtual == nil || virtual["benefit"] != "bvi" || virtual["my_benefit"] != "bvi" ||
-		virtual["directions_count"].(float64) < 2 || virtual["directions_total"] != float64(19) {
+		virtual["directions_count"].(float64) < 2 || virtual["directions_total"] != float64(18) {
 		t.Fatalf("олимпиада в ВШЭ: %v", virtual)
 	}
 }
@@ -179,6 +180,7 @@ func TestUniversity_Directions(t *testing.T) {
 // вуза целиком с плашкой «уточняется».
 func TestOlympiad_BenefitUnverified(t *testing.T) {
 	e := newEnv(t)
+	dbtest.ToCheck(t, e.pool, "hse", "napr-40-03-01", "Юриспруденция")
 	f := e.kidCreator()
 	token := e.login(900000001, "Артём")
 	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"hse"}); err != nil {
@@ -319,6 +321,7 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 
 	// Льготы на выбранные в ВШЭ направления ещё уточняются: вести туда
 	// нечем — как и в карточке вуза на «На мои направления».
+	dbtest.ToCheck(t, e.pool, "hse", "napr-40-03-01", "Юриспруденция")
 	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{"hse"}); err != nil {
 		t.Fatal(err)
 	}
@@ -359,6 +362,7 @@ func TestUniversitiesCatalog_Direction(t *testing.T) {
 		}
 	}
 
+	dbtest.ToCheck(t, e.pool, "hse", "napr-40-03-01", "Юриспруденция")
 	items = list(t, get("?direction=napr-40-03-01").body["items"])
 	last := items[len(items)-1]
 	if m := last["direction_match"].(map[string]any); last["id"] != "hse" || m["status"] != "to_check" || m["olympiads_count"] != float64(0) {

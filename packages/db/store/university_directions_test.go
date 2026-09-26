@@ -179,7 +179,7 @@ func TestUniversityDirections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ds) != 19 || ds[0].ID != dirAMI || !ds[0].IsMine || ds[0].BenefitOlympiads == 0 {
+	if len(ds) != 18 || ds[0].ID != dirAMI || !ds[0].IsMine || ds[0].BenefitOlympiads == 0 {
 		t.Fatalf("выбранное — первым: %+v", ds[:2])
 	}
 	// За выбранными — покрывающие цель, дальше — по числу олимпиад.
@@ -329,7 +329,8 @@ func TestTargetsOf(t *testing.T) {
 // на выбор в вузе: «что даёт олимпиада на ИБ в ВШЭ?». В вузе без
 // направления льготы на него нет; непроверенное — строка вуза с пометкой.
 func TestBenefitsOn(t *testing.T) {
-	s := New(dbtest.Open(t))
+	pool := dbtest.Open(t)
+	s := New(pool)
 	ctx := context.Background()
 	f := seedTrajectory(t, s, 900000001, "kid") // цель ПИ
 	_ = s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirSE})
@@ -365,6 +366,7 @@ func TestBenefitsOn(t *testing.T) {
 		}
 	}
 
+	dbtest.ToCheck(t, pool, "hse", dirLaw, "Юриспруденция")
 	rows, err = s.BenefitsOn(ctx, []string{dirLaw}, []string{infosec}, []string{"hse"})
 	if err != nil {
 		t.Fatal(err)
@@ -374,7 +376,7 @@ func TestBenefitsOn(t *testing.T) {
 	}
 }
 
-// На скольких направлениях вуза олимпиада даёт льготу — «на 6 из 19».
+// На скольких направлениях вуза олимпиада даёт льготу — «на 6 из 18».
 func TestDirectionCoverage(t *testing.T) {
 	s := New(dbtest.Open(t))
 	ctx := context.Background()
@@ -382,7 +384,7 @@ func TestDirectionCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c := cov[virtual+"/hse"]; c.Count != 6 || c.Total != 19 {
+	if c := cov[virtual+"/hse"]; c.Count != 6 || c.Total != 18 {
 		t.Fatalf("ВШЭ: %+v", c)
 	}
 	if c := cov[virtual+"/innopolis"]; c.Count != 1 || c.Total != 1 {
@@ -393,7 +395,8 @@ func TestDirectionCoverage(t *testing.T) {
 // Каталог вузов по направлению (F67): вузы, где есть направление, покрывающее
 // искомое, и сколько олимпиад дают на нём льготу.
 func TestUniversitiesByDirection(t *testing.T) {
-	s := New(dbtest.Open(t))
+	pool := dbtest.Open(t)
+	s := New(pool)
 	ctx := context.Background()
 	f := seedTrajectory(t, s, 900000001, "kid") // вузы Иннополис, ВШЭ, КФУ
 
@@ -428,6 +431,7 @@ func TestUniversitiesByDirection(t *testing.T) {
 	}
 
 	// Льготы на юриспруденцию в ВШЭ ещё проверяются — вуз в конце, «уточняется».
+	dbtest.ToCheck(t, pool, "hse", dirLaw, "Юриспруденция")
 	us, m, _ = s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirLaw)
 	if x := m["hse"]; !x.Unverified || x.Olympiads != 0 || us[len(us)-1].ID != "hse" {
 		t.Fatalf("ВШЭ: %+v, последний %s", x, us[len(us)-1].ID)

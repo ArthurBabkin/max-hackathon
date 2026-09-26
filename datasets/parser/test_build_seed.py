@@ -361,6 +361,13 @@ class ProgramLabelTest(unittest.TestCase):
         ]:
             self.assertEqual(bs.program_title(raw), want)
 
+    def test_title_joins_letter_split_off_a_word(self):
+        self.assertEqual(bs.program_title("Дизайн и разработка информационны х продуктов"),
+                         "Дизайн и разработка информационных продуктов")
+        self.assertEqual(bs.program_title("Экономика и анализ данных"), "Экономика и анализ данных")
+        self.assertEqual(bs.program_title("Физика с углублённой математикой"),
+                         "Физика с углублённой математикой")
+
     def test_title_drops_trailing_semicolon(self):
         self.assertEqual(bs.program_title("Бухгалтерский учет, анализ и аудит; Финансы и кредит;"),
                          "Бухгалтерский учет, анализ и аудит; Финансы и кредит")
@@ -468,12 +475,13 @@ class UniversityDirectionsTest(unittest.TestCase):
             self.assertTrue(set(d["subject_codes"]) <= codes, d["id"])
 
     def test_pairs_and_statuses(self):
-        self.assertEqual(len(self.ud.pairs), 174)
+        self.assertEqual(len(self.ud.pairs), 173)
         to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
         # СПбГУ 06.03.01 получил свою ВсОШ (bac_spec_olymp_1), НГУ 01.03.01–03 —
-        # льготы заголовка «Математика и механика». У ВШЭ в A по 40.03.01 только
-        # «Юриспруденция: правовое регулирование бизнеса» — приложение её не называет.
-        self.assertEqual(to_check, [("hse", "napr-40-03-01")])
+        # льготы заголовка «Математика и механика». Пара ВШЭ — 40.03.01 держалась
+        # на очно-заочной программе, её в A больше нет (#79).
+        self.assertEqual(to_check, [])
+        self.assertNotIn(("hse", "napr-40-03-01"), self.pairs)
 
     def test_program_in_two_groups_is_counted_once(self):
         # В A программа повторяется на каждую профильную группу.
@@ -488,10 +496,11 @@ class UniversityDirectionsTest(unittest.TestCase):
         for code, places in (("01-03-02", 180), ("03-03-01", 517), ("09-03-01", 196), ("19-03-01", 66)):
             self.assertEqual(self.pairs[("mipt", "napr-" + code)]["budget_places"], places, code)
 
-    def test_programs_to_check_count_but_places_unknown_stay_null(self):
+    def test_places_unknown_stay_null(self):
         hse = self.pairs[("hse", "napr-38-03-01")]
-        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 11, None))
-        self.assertIn("Экономика и бизнес", hse["program_names"])
+        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 10, None))
+        # «Экономика и бизнес» в Нижнем — очно-заочная, в A её нет (#79).
+        self.assertNotIn("Экономика и бизнес", hse["program_names"])
 
     def test_branches_are_named_by_faculty(self):
         msu = self.pairs[("msu", "napr-01-03-02")]

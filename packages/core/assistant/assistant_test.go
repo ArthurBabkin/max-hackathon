@@ -284,6 +284,7 @@ func TestAsk_NotesModelSkipped(t *testing.T) {
 // «Юриспруденция»): ответ, который об этом молчит, получает оговорку, как у
 // демо-строк.
 func TestAsk_NoteUnverifiedDirections(t *testing.T) {
+	dbtest.ToCheck(t, dbtest.Open(t), "hse", "napr-40-03-01", "Юриспруденция")
 	st, tr := setup(t)
 	ctx := context.Background()
 	fam, err := st.FamilyMembers(ctx, tr.ID)

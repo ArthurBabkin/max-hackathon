@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
+	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
@@ -416,12 +417,13 @@ func contextAfter(t *testing.T, question string, prep func(ctx context.Context, 
 // олимпиад с льготой, «льготы уточняются»; направления ученика помечены, и
 // отдельной строкой — на что ему здесь считаются льготы.
 func TestKnowledge_UniversityCardDirections(t *testing.T) {
+	dbtest.ToCheck(t, dbtest.Open(t), "hse", "napr-40-03-01", "Юриспруденция")
 	c := cardIn(t, contextFor(t, "Можно ли поступить в ВШЭ по Высшей пробе?"), "university:hse")
 	for _, want := range []string{
 		"Направления вуза (19) — программ, олимпиад с льготой:",
-		`\n  09.03.04 Программная инженерия — 7 программ, 55 олимпиад с льготой; направление ученика (по цели)\n`,
-		`\n    программы: Дизайн и разработка информационны х продуктов; Компьютерные науки и технологии; `,
-		`\n  38.03.01 Экономика — 11 программ, `,
+		`\n  09.03.04 Программная инженерия — 6 программ, 55 олимпиад с льготой; направление ученика (по цели)\n`,
+		`\n    программы: Дизайн и разработка информационных продуктов; Компьютерные науки и технологии; `,
+		`\n  38.03.01 Экономика — 10 программ, `,
 		"Льготы ученику здесь считаются на направления: Программная инженерия (по цели)",
 	} {
 		if !strings.Contains(c, want) {
@@ -455,7 +457,7 @@ func TestKnowledge_UniversityCardFullOnStudentDirections(t *testing.T) {
 	if i := strings.Index(c, `\n  Высшая проба — `); i < mine || i > others {
 		t.Errorf("«Высшая проба» даёт льготу на ПИ:\n%s", c)
 	}
-	if !strings.Contains(c[others:], "ВсОШ по экономике (на 5 из 19 направлений)") || strings.Contains(c[:others], "ВсОШ по экономике") {
+	if !strings.Contains(c[others:], "ВсОШ по экономике (на 5 из 18 направлений)") || strings.Contains(c[:others], "ВсОШ по экономике") {
 		t.Errorf("ВсОШ по экономике — только на другие направления:\n%s", c)
 	}
 	if !strings.Contains(c, "Льготы по уровню олимпиады на направления ученика") {
@@ -491,6 +493,7 @@ func TestKnowledge_UniversityCardFullOnStudentDirections(t *testing.T) {
 // Льготы на выбранные направления ещё проверяются — так и сказано, а ниже
 // льготы вуза целиком с тем, на скольких направлениях они есть.
 func TestKnowledge_UniversityCardUnverifiedDirections(t *testing.T) {
+	dbtest.ToCheck(t, dbtest.Open(t), "hse", "napr-40-03-01", "Юриспруденция")
 	c := cardIn(t, contextAfter(t, "Какие олимпиады принимает ВШЭ?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
 		if err := st.SetUniversityDirections(ctx, tr.ID, "hse", m, []string{"napr-40-03-01"}); err != nil {
 			t.Fatal(err)
