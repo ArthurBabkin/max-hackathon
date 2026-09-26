@@ -51,8 +51,8 @@ function shortLabels(stages: TrackerStage[], t: Voice): string[] {
 }
 
 /** Когда этап: срок регистрации или день начала, иначе подпись словами. */
-function stageDate(s: TrackerStage): string {
-  if (s.deadline_at) return `до ${formatDay(s.deadline_at)}`
+function stageDate(s: TrackerStage, t: Voice): string {
+  if (s.deadline_at) return t('tracker.stageUntil', { date: formatDay(s.deadline_at) ?? '' })
   if (s.starts_at) return formatDay(s.starts_at) ?? ''
   return s.subtitle ?? ''
 }
@@ -70,14 +70,14 @@ function stripTone(s: TrackerStage): string {
 
 function stripCaption(s: TrackerStage, t: Voice): string {
   if (s.result) return t(`tracker.mark.${s.result}` as TextKey)
-  return stageDate(s) || (s.registered ? t('tracker.mark.registered') : '')
+  return stageDate(s, t) || (s.registered ? t('tracker.mark.registered') : '')
 }
 
 /** Полоска этапов со сроками — вариант B макета E1. */
 function StageStrip({ stages, labels }: { stages: TrackerStage[]; labels: string[] }) {
   const t = useVoice()
   return (
-    <ol className={`strip${stages.length > 3 ? ' strip-grid' : ''}`} aria-label="Этапы">
+    <ol className={`strip${stages.length > 3 ? ' strip-grid' : ''}`} aria-label={t('tracker.stagesLabel')}>
       {stages.map((s, i) => {
         const caption = stripCaption(s, t)
         const done = stripTone(s) === 'strip-done' || stripTone(s) === 'strip-gold'
@@ -242,7 +242,7 @@ function Subtitle({ item }: { item: TrackerItem }) {
   }
   const date = formatDay(item.deadline_at)
   if (item.status === 'open') {
-    if (item.kind === 'vsosh' && date) return <>{t('tracker.stageOn', { stage: item.next_stage_title ?? 'Этап', date })}</>
+    if (item.kind === 'vsosh' && date) return <>{t('tracker.stageOn', { stage: item.next_stage_title ?? t('tracker.stageFallback'), date })}</>
     return <>{date ? t('tracker.deadlineUntil', { date }) : (item.next_stage_title ?? '')}</>
   }
   if (!item.next_stage_title) return <>{t('tracker.waitNext')}</>

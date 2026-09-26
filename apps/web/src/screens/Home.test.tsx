@@ -27,3 +27,27 @@ it('два направления — оба целиком', () => {
   renderHome(['Программная инженерия', 'Экономика'])
   expect(screen.getByRole('heading', { name: 'Программная инженерия, Экономика' })).toBeInTheDocument()
 })
+
+// Слово после «из N» склоняется по N, а не по числителю (#77).
+it('«1 из 3 регистраций» и «1 из 1 регистрации»', () => {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+  const h = home()
+  const { unmount } = renderApp(<HomeScreen />, {
+    seed: (c) => c.setQueryData(keys.home, { ...h, tracker_count: 3, registered_count: 1 }),
+  })
+  expect(screen.getByText('1 из 3').parentElement).toHaveTextContent('1 из 3 регистраций')
+  unmount()
+
+  renderApp(<HomeScreen />, {
+    seed: (c) => c.setQueryData(keys.home, { ...h, tracker_count: 1, registered_count: 1 }),
+  })
+  expect(screen.getByText('1 из 1').parentElement).toHaveTextContent('1 из 1 регистрации')
+})
+
+it('следующий шаг — название олимпиады без падежа: «Регистрация: «…»»', () => {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+  const h = home()
+  const next_step = { ...h.next_step!, stage_title: 'Регистрация', stage_kind: 'registration' as const, olympiad_name: 'Высшая проба' }
+  renderApp(<HomeScreen />, { seed: (c) => c.setQueryData(keys.home, { ...h, next_step }) })
+  expect(screen.getByText('Регистрация: «Высшая проба»')).toBeInTheDocument()
+})

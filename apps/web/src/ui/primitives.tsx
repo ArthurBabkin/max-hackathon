@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { badgeColor, badgeShortName } from '@/lib/badge'
 import { daysLabel, daysLeft, deadlineTone } from '@/lib/deadline'
 import { Icon, type IconName } from './Icon'
+import { useVoice } from '@/voice/useVoice'
 
 // --- Плашка срока ------------------------------------------------------------
 
@@ -21,7 +22,8 @@ export interface PillProps {
 }
 
 /** Цвет и подпись срока. Пороги — ТЗ §7.3, считает lib/deadline. */
-export function Pill({ deadlineAt, registered = false, doneLabel = 'готово' }: PillProps) {
+export function Pill({ deadlineAt, registered = false, doneLabel }: PillProps) {
+  const t = useVoice()
   const days = daysLeft(deadlineAt)
   const tone = deadlineTone(days, registered)
   if (!tone) return null
@@ -30,12 +32,12 @@ export function Pill({ deadlineAt, registered = false, doneLabel = 'готово
     return (
       <span className="pill pill-done">
         <Icon name="check" size={11} strokeWidth={3} />
-        {doneLabel}
+        {doneLabel ?? t('pill.done')}
       </span>
     )
   }
 
-  const label = days === null ? '' : days < 0 ? 'срок прошёл' : days === 0 ? 'сегодня' : daysLabel(days)
+  const label = days === null ? '' : days < 0 ? t('pill.overdue') : days === 0 ? t('pill.today') : daysLabel(days)
   return <span className={`pill pill-${tone}`}>{label}</span>
 }
 
@@ -43,15 +45,10 @@ export function Pill({ deadlineAt, registered = false, doneLabel = 'готово
 
 export type SourceKind = 'fact' | 'recommendation' | 'demo'
 
-const SOURCE_LABELS: Record<SourceKind, string> = {
-  fact: 'Факт',
-  recommendation: 'Рекомендация',
-  demo: 'Демо-даты',
-}
-
 /** «Факт», «Рекомендация», «Демо-даты» — ТЗ §7.3. */
 export function SourceTag({ kind }: { kind: SourceKind }) {
-  return <span className={`tag tag-${kind}`}>{SOURCE_LABELS[kind]}</span>
+  const t = useVoice()
+  return <span className={`tag tag-${kind}`}>{t(`tag.${kind}`)}</span>
 }
 
 // --- Плитка ------------------------------------------------------------------
