@@ -929,19 +929,45 @@ def rows_itmo():
     out = []
     for f, benefit, cols in ITMO_LISTS:
         out += itmo_rows(itmo_merged_rows(_itmo_pages(SNAP / "itmo" / f, cols)),
-                         meta("itmo", f)["url"], benefit)
+                         meta("itmo", f)["url"], benefit, itmo_grades(load_pages("itmo", f)))
     return out
 
 
-def itmo_rows(rows, url: str, benefit: str) -> list[dict]:
+def itmo_grades(pages: list[dict]) -> list[int] | None:
+    """Заголовок приложения: «…дипломов …, полученных в 10-м или 11-м классе»."""
+    for pg in pages:
+        m = re.search(r"полученных\s+в\s+((?:\d+-м|или|и|,|\s)+?)\s*класс", pg.get("text") or "")
+        if m:
+            return _grades(m.group(1))
+    return None
+
+
+def _level_set(text: str) -> list[str]:
+    """Колонка уровня ИТМО — точное множество: «2 или 3» -> [II, III], «3» -> [III]."""
+    return [lv for d, lv in (("1", "I"), ("2", "II"), ("3", "III")) if re.search(rf"\b{d}\b", clean(text))]
+
+
+# Приложение 6 ИТМО: 100 баллов — по дипломам, «не дающие право поступления без
+# вступительных испытаний». Где тот же диплом даёт БВИ, 100 баллов не пишутся.
+HUNDRED_WITHOUT_BVI = {"itmo"}
+
+
+def drop_hundred_under_bvi(records: list[dict]) -> list[dict]:
+    bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == BVI}
+    return [r for r in records
+            if not (r["benefit_type"] == HUNDRED and (r["olympiad_id"], r["diploma_status"]) in bvi)]
+
+
+def itmo_rows(rows, url: str, benefit: str, grades: list[int] | None = None) -> list[dict]:
     """Два перечня: один даёт БВИ, другой — 100 баллов. Льгота адресована
     направлениям из первой колонки; «(только на направление 10.03.01)» в
-    профиле сужает блок."""
+    профиле сужает блок. Уровень — точное множество из колонки."""
     out = []
     for page_no, c in rows:
         direction, name, profile, subject, level, status = c
         codes = CODE_RE.findall(direction)
-        if not (codes and name and profile and _level(level) and _statuses(status) and "ыдаипмило" not in name):
+        levels = _level_set(level)
+        if not (codes and name and profile and levels and _statuses(status) and "ыдаипмило" not in name):
             continue
         only = re.search(r"\((?:учитывается )?(?:только )?на [^)]*\)?", profile)
         programs = None
@@ -960,10 +986,10 @@ def itmo_rows(rows, url: str, benefit: str) -> list[dict]:
         out.append({"match": {"codes": codes, "programs": programs},
                     "by_profile": by_profile,
                     "olympiad_name": None if by_profile else name,
-                    "profile": profile,
-                    "level": _level(level), "statuses": _statuses(status),
+                    "profile": profile, "level": levels[-1],
+                    **({"levels": levels} if by_profile else {}), "statuses": _statuses(status),
                     "benefit": benefit, "ege_subject": subject or profile,
-                    "ege_score": 75, "grades": None, "page": page_no, "url": url})
+                    "ege_score": 75, "grades": grades, "page": page_no, "url": url})
     return out
 
 
@@ -1937,6 +1963,8 @@ def main() -> int:
             continue
         emitted.add(x["program_id"])
         benefits = dedup_benefits(per_program.get(x["program_id"], []))
+        if x["vuz_id"] in HUNDRED_WITHOUT_BVI:
+            benefits = drop_hundred_under_bvi(benefits)
         benefits.sort(key=lambda b: (b["olympiad_id"], b["diploma_status"]))
         objects.append({
             "program_id": x["program_id"], "vuz_id": x["vuz_id"],
