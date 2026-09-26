@@ -8,7 +8,7 @@ import { shareLink } from '@/bridge'
 import { copyText } from '@/lib/clipboard'
 import { canRemoveMember } from '@/lib/permissions'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Hint, SourceLine } from '@/ui/primitives'
+import { CardSkeletons, SourceLine } from '@/ui/primitives'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
 
@@ -79,8 +79,6 @@ export function FamilyScreen() {
       {creator ? (
         <p className="family-subtitle">{t('family.subtitle', { creator: creator.name })}</p>
       ) : null}
-
-      <Hint>{t('family.remindNote')}</Hint>
 
       <section className="members">
         <h2 className="members-head">

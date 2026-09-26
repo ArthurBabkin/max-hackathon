@@ -86,7 +86,7 @@ func TestRecommendations_Composition(t *testing.T) {
 	if vsosh == nil || byProfile(items, "vsosh-matematika") == nil {
 		t.Fatalf("ВсОШ по предметам цели в подборе всегда: %s", r.raw)
 	}
-	if vsosh["reason"] != "Главная олимпиада страны, первый этап в школе" ||
+	if vsosh["reason"] != "Всероссийская олимпиада, первый этап в школе" ||
 		vsosh["benefits_summary"] != "ВШЭ, Иннополис: БВИ" || vsosh["next_stage_title"] != "Школьный этап" ||
 		vsosh["level"] != nil || vsosh["in_tracker"] != false || vsosh["proposal_status"] != nil {
 		t.Fatalf("карточка ВсОШ: %v", vsosh)
