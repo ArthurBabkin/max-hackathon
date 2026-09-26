@@ -67,8 +67,8 @@ export function Tile({ id, name, shortName, color, size = 'sm', filled = false }
   const label = badgeShortName(name, shortName)
   return (
     <span
-      className={`tile tile-${size}${filled ? ' tile-filled' : ''}${label.length >= 4 ? ' tile-long' : ''}`}
-      style={{ '--tile-hue': hue } as React.CSSProperties}
+      className={`tile tile-${size}${filled ? ' tile-filled' : ''}`}
+      style={{ '--tile-hue': hue, '--tile-chars': label.length } as React.CSSProperties}
       aria-hidden="true"
     >
       {label}
