@@ -443,6 +443,13 @@ class UniversityDirectionsTest(unittest.TestCase):
         self.assertEqual((kfu["programs"], kfu["budget_places"], kfu["program_names"]),
                          (2, 23, ["Бизнес-информатика", "Цифровое предприятие"]))
 
+    def test_places_of_competition_group_are_counted_once(self):
+        # МФТИ публикует места на конкурсную группу: у пяти программ ФПМИ на
+        # 01.03.02 одно число 180 — и это места всего направления (план
+        # приёма 2026, строка «01.03.02 … 180»), а не 5 × 180.
+        for code, places in (("01-03-02", 180), ("03-03-01", 517), ("09-03-01", 196), ("19-03-01", 66)):
+            self.assertEqual(self.pairs[("mipt", "napr-" + code)]["budget_places"], places, code)
+
     def test_programs_to_check_count_but_places_unknown_stay_null(self):
         hse = self.pairs[("hse", "napr-38-03-01")]
         self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 11, None))
