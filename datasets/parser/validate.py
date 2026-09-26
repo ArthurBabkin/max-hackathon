@@ -35,6 +35,17 @@ GOLDEN = [
     # МФТИ, приложение 2: ВсОШ по биологии на ФПМИ — только «ЕКН» и «ММТУ».
     ("mipt__prikladnaya-matematika-i-informatika", "vsosh-biologiya", set()),
     ("mipt__estestvennye-i-kompyuternye-nauki", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # МФТИ, 2026_olympiads: «100 баллов по физике/химии» — только где предмет
+    # среди ВИ (2026_rules): у ПМИ ВИ математика, информатика, русский; у ЛФИ
+    # химии нет; у Биотехнологии ФБМФ математика есть.
+    ("mipt__prikladnaya-matematika-i-informatika", "p669-54-fizika", set()),
+    ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-himiya", set()),
+    ("mipt__biotehnologiya-fbmf", "p669-54-matematika", {(POB, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # МФТИ: Всесиб по математике — БВИ группе «Системное программирование и
+    # прикладная математика»; программа «Математика» — в группе ПМИ, ей 100 баллов.
+    ("mipt__matematika", "p669-14-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("mipt__sistemnoe-programmirovanie-i-prikladnaya-matemat", "p669-14-matematika",
+     {(POB, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     # ИТМО, vsosh_2026.pdf стр. 2: физика — 03.03.02; «Инноватика» — в блоке химии и биологии.
     ("itmo__teoreticheskaya-i-eksperimentalnaya-fizika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("itmo__tehnologii-i-innovacii", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
