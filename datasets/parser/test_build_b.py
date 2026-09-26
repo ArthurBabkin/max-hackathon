@@ -916,5 +916,41 @@ class SechenovVsoshHundredTest(unittest.TestCase):
                                ("экономика", {"exams": ["Обществознание"]}, "100_ballov", ["pobeditel", "prizyor"])])
 
 
+class GradesClauseTest(unittest.TestCase):
+    """Классы диплома — из текста документа, а не пусто по умолчанию."""
+
+    def test_kfu_clause(self):
+        pages = [{"page": 1, "text": "3) победители и призеры олимпиад школьников за 10 и 11 класс, проводимых"}]
+        self.assertEqual(bb.kfu_grades(pages), [10, 11])
+
+    def test_kfu_clause_missing_means_unknown(self):
+        self.assertIsNone(bb.kfu_grades([{"page": 1, "text": "Право на прием"}]))
+
+
+class KazanGmuRightsTest(unittest.TestCase):
+    """КГМУ, таблица п. 6.5: профиль олимпиады -> предметы подтверждения и класс."""
+    PAGES = [{"page": 3, "tables": [[
+        ["Специальность\n(направление\nподготовки)", "Уровень\nолимпиады", "Профиль\nолимпиады",
+         "Общеобра-\nзовательные\nпредметы", "Класс\nобучения", "Основание"],
+        ["Лечебное дело\nПедиатрия", "Олимпиада\n1, 2, 3", "Химия", "Химия", "11", "Диплом"],
+        ["Лечебное дело", "Олимпиада\n1, 2, 3", "Медицина", "Химия /\nБиология", "11", "Диплом"],
+        ["Социальная работа", "Олимпиада\n1, 2, 3", "Обществозна\nние", "Обществозна\nние", "11", "Диплом"],
+    ]]}]
+
+    def test_rights_by_profile(self):
+        self.assertEqual(bb.kgmu_rights(self.PAGES), {
+            "химия": ("Химия", [11]),
+            "медицина": ("Химия или Биология", [11]),
+            "обществознание": ("Обществознание", [11]),
+        })
+
+    def test_rows_take_subject_and_grades_from_rights(self):
+        rows = [{"profile": "медицина", "ege_subject": "клиническая медицина, фармация", "grades": None},
+                {"profile": "физика", "ege_subject": "физика", "grades": None}]
+        got = bb.with_kgmu_rights(rows, bb.kgmu_rights(self.PAGES))
+        self.assertEqual([(r["ege_subject"], r["grades"]) for r in got],
+                         [("Химия или Биология", [11]), ("физика", None)])
+
+
 if __name__ == "__main__":
     unittest.main()
