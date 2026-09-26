@@ -90,6 +90,9 @@ GOLDEN = [
     ("kazan-gmu__stomatologiya", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("kazan-gmu__medicinskaya-biofizika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("kazan-gmu__medicinskaya-biofizika", "vsosh-himiya", set()),
+    # МФТИ, приложение 2: ВсОШ по информатике на ФРКТ — только группа «КТВТ»;
+    # «Все конкурсные группы ФРКТ» — у подпрофилей ИБ и робототехники.
+    ("mipt__radiotehnika-i-kompyuternye-tehnologii", "vsosh-informatika", set()),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
