@@ -217,7 +217,9 @@ class MiptMatrixTest(MiptPlanMixin, unittest.TestCase):
 
     def rows(self, *cells, hundred="100 баллов по биологии при наличии результата ЕГЭ или ВИ по биологии 75 баллов и выше",
              benefit="БВИ"):
-        html = html_table(self.HEAD, ["54", "Олимпиада школьников \"Физтех\"", "биология", "2", hundred]
+        # № не 54: у «Физтеха» классы победителя и призёра разные (MiptGradesTest),
+        # и строки делятся по статусам — здесь проверяется только привязка.
+        html = html_table(self.HEAD, ["56", "Олимпиада школьников \"Физтех\"", "биология", "2", hundred]
                           + (list(cells) or [""] * 11))
         return [r for r in bb.mipt_rows(html, URL) if r["benefit"] == benefit]
 
@@ -950,6 +952,42 @@ class KazanGmuRightsTest(unittest.TestCase):
         got = bb.with_kgmu_rights(rows, bb.kgmu_rights(self.PAGES))
         self.assertEqual([(r["ege_subject"], r["grades"]) for r in got],
                          [("Химия или Биология", [11]), ("физика", None)])
+
+
+class MiptGradesTest(MiptPlanMixin, unittest.TestCase):
+    """2026_olympiads, п. 4–6: РСОШ — только за 11 класс; победителям
+    «Физтеха» (№ 54) — и за 10; победителям олимпиады по ИИ (№ 7) за 10
+    класс — только на программах ВШПИ."""
+
+    def grades(self, num, cells, hundred=""):
+        html = html_table(MiptMatrixTest.HEAD, [num, "Олимпиада", "профиль", "1", hundred] + cells)
+        return sorted({(r["benefit"], s, r["match"].get("school") or "", tuple(r["grades"] or ()))
+                       for r in bb.mipt_rows(html, URL) for s in r["statuses"]})
+
+    def cells(self, **by_school):
+        out = [""] * 11
+        for i, name in enumerate(SCHOOLS):
+            out[i] = by_school.get(name.replace("/", "").replace(" ", ""), "")
+        return out
+
+    def test_perechen_only_for_11th_grade(self):
+        got = self.grades("56", self.cells(ФРКТ="Все конкурсные группы ФРКТ Победителям и призерам при наличии "
+                                                 "результата ЕГЭ или ВИ по информатике 80 баллов и выше"),
+                          hundred="100 баллов по информатике при наличии результата ЕГЭ или ВИ по информатике 75 баллов и выше")
+        self.assertEqual(got, [("100_ballov", "pobeditel", "", (11,)), ("100_ballov", "prizyor", "", (11,)),
+                               ("БВИ", "pobeditel", "ФРКТ", (11,)), ("БВИ", "prizyor", "ФРКТ", (11,))])
+
+    def test_phystech_winner_also_10th_grade(self):
+        got = self.grades("54", self.cells(ЛФИ="Все конкурсные группы ЛФИ Победителям и призерам при наличии "
+                                                "результата ЕГЭ или ВИ по физике 75 баллов и выше"),
+                          hundred="100 баллов по физике при наличии результата ЕГЭ или ВИ по физике 75 баллов и выше")
+        self.assertEqual(got, [("100_ballov", "pobeditel", "", (10, 11)), ("100_ballov", "prizyor", "", (11,)),
+                               ("БВИ", "pobeditel", "ЛФИ", (10, 11)), ("БВИ", "prizyor", "ЛФИ", (11,))])
+
+    def test_ai_olympiad_10th_grade_only_at_vshpi(self):
+        cell = "Все конкурсные группы {} Победителям при наличии результата ЕГЭ или ВИ по математике 85 баллов и выше"
+        got = self.grades("7", self.cells(ФПМИ=cell.format("ФПМИ"), ВШПИ=cell.format("ВШПИ")))
+        self.assertEqual(got, [("БВИ", "pobeditel", "ВШПИ", (10, 11)), ("БВИ", "pobeditel", "ФПМИ", (11,))])
 
 
 if __name__ == "__main__":

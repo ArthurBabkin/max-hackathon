@@ -105,6 +105,14 @@ GOLDEN_CONDITIONS = [
     ("kazan-gmu__lechebnoe-delo", "p669-59-medicina", "eligible_grades", [11]),
     ("kazan-gmu__lechebnoe-delo", "p669-59-medicina", "ege_confirm_subject", "Химия или Биология"),
     ("kazan-gmu__lechebnoe-delo", "p669-11-himiya", "eligible_grades", [11]),
+    # МФТИ, 2026_olympiads п. 4: «Результат олимпиады должен быть получен в
+    # олимпиаде за 11 класс»; п. 5 — победителям «Физтеха» и за 10 класс.
+    ("mipt__programmnaya-inzheneriya", "p669-50-informatika", "eligible_grades", [11]),
+    ("mipt__obschaya-i-prikladnaya-fizika", "vsosh-fizika", "eligible_grades", None),
+]
+GOLDEN_STATUS_GRADES = [
+    ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", POB, [10, 11]),
+    ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", PRIZ, [11]),
 ]
 
 # Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».
@@ -242,6 +250,10 @@ def main() -> int:
         got = [ben.get(field) for ben in fields[(pid, oid)]]
         if not got or any(g != want for g in got):
             err(f"эталон условий: {pid} ← {oid}: {field} ждали {want!r}, в B {got!r}")
+    for pid, oid, status, want in GOLDEN_STATUS_GRADES:
+        got = [ben["eligible_grades"] for ben in fields[(pid, oid)] if ben["diploma_status"] == status]
+        if not got or any(g != want for g in got):
+            err(f"эталон условий: {pid} ← {oid} ({status}): классы ждали {want}, в B {got}")
     # ВсОШ СПбГУ — только из документа по ВсОШ, не из перечня РСОШ.
     for x in b:
         if x["vuz_id"] == "spbu":
