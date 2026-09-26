@@ -1407,6 +1407,36 @@ class MiptVsoshTest(unittest.TestCase):
         got = [r["match"] for r in bb.mipt_vsosh_rows(html, URL)]
         self.assertEqual(got, [{"school": "ФРКТ", "groups": ["Компьютерные технологии и вычислительная техника"]}])
 
+class MiptVsoshHundredTest(MiptPlanMixin, unittest.TestCase):
+    """2026_olympiads, п. 8: «Лица, имеющие право поступления БВИ, могут
+    зачесть 100 баллов по соответствующему общеобразовательному предмету в
+    зависимости от профиля олимпиады в рамках соответствующей конкурсной
+    группы»; соответствие — таблицей («Астрономия» -> «Физика»)."""
+    PROFILES = html_table(["Профиль олимпиады", "Предмет ЕГЭ или ВИ"], ["Математика", "Математика"],
+                          ["Астрономия, физика и астрономия", "Физика"], ["Экономика", "Математика"])
+
+    def rows(self, subject, cell):
+        html = self.PROFILES + html_table(["Общеобразовательный предмет"] + SCHOOLS,
+                                          [subject, "", "", "", "", "", cell, "", "", "", "", ""])
+        return mipt_targets(bb.mipt_vsosh_rows(html, URL))
+
+    def test_hundred_in_bvi_groups_where_subject_is_exam(self):
+        got = self.rows("Астрономия", "Все конкурсные группы ФПМИ Победителям и призерам")
+        both = ("pobeditel", "prizyor")
+        self.assertEqual(got[("астрономия", "БВИ", both, "Астрономия", None)], ["ekn", "matem", "mmtu", "pmi", "sppm"])
+        # физика — ВИ только у СППМ и групп «информатика/физика»
+        self.assertEqual(got[("астрономия", "100_ballov", both, "Физика", None)], ["ekn", "mmtu", "sppm"])
+
+    def test_named_groups_only(self):
+        got = self.rows("Экономика", '"Естественные и компьютерные науки" Победителям и призерам')
+        self.assertEqual(got[("экономика", "100_ballov", ("pobeditel", "prizyor"), "Математика", None)], ["ekn"])
+
+    def test_no_correspondence_no_hundred(self):
+        got = self.rows("Химия", "Все конкурсные группы ФПМИ Победителям и призерам")
+        self.assertEqual([k[1] for k in got], ["БВИ"])
+
+
+class MiptSubjectTest(unittest.TestCase):
     def test_typo_in_subject_still_recognized(self):
         # Прил. 1, № 50, ПИШ ФАЛТ: «…по тнформатике 80 баллов и выше»
         self.assertEqual(bb._subject_from("ЕГЭ или ВИ по тнформатике 80 баллов и выше"), "Информатика")
