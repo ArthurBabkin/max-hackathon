@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badgeColor, badgeShortName } from './badge'
+import { badgeColor, badgeLogo, badgeShortName } from './badge'
 
 /**
  * Контракт разрешает `short_name` и `color` пустыми: в схеме БД таких колонок
@@ -51,5 +51,22 @@ describe('badgeColor', () => {
 
   it('всегда возвращает корректный hex', () => {
     expect(badgeColor('что угодно', null)).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+})
+
+describe('badgeLogo', () => {
+  it('находит логотип вуза и олимпиады по идентификатору', () => {
+    expect(badgeLogo('hse')).toBe('/logos/hse.png')
+    expect(badgeLogo('p669-62')).toBe('/logos/p669-62.svg')
+  })
+
+  it('у всех олимпиад ВсОШ один логотип', () => {
+    expect(badgeLogo('vsosh-fizika')).toBe('/logos/vsosh.png')
+    expect(badgeLogo('vsosh-himiya')).toBe('/logos/vsosh.png')
+  })
+
+  it('без логотипа возвращает null', () => {
+    expect(badgeLogo('kfu')).toBeNull()
+    expect(badgeLogo('other-tyk')).toBeNull()
   })
 })

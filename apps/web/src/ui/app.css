@@ -426,6 +426,17 @@
   background: var(--tile-hue);
 }
 
+/* Логотипы рисуются под светлый фон — белая подложка в обеих темах. */
+.tile-logo {
+  background: #fff;
+}
+
+.tile-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* Плашка срока */
 .pill {
   flex: 0 0 auto;
