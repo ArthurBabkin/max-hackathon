@@ -657,6 +657,20 @@ class NsuTest(unittest.TestCase):
                                       "Системное программирование)"), ["mcs-prog"])
 
 
+class SechenovTest(unittest.TestCase):
+    ROW = ["1.", "Олимпиада школьников «Физтех»", "физика", "Физика", "физика", "Право на 100 баллов"]
+
+    def test_grades_from_document_text(self):
+        # приложение 5, стр. 1: «Результаты победителя (призера) должны быть получены за 10 или 11 класс»
+        pages = [{"page": 1, "text": "Результаты победителя (призера) должны быть получены за 10 или 11 класс Особые права",
+                  "tables": [[self.ROW]]}]
+        self.assertEqual([(r["benefit"], r["grades"]) for r in bb.sechenov_rows(pages, URL)], [("100_ballov", [10, 11])])
+
+    def test_no_grade_clause(self):
+        pages = [{"page": 1, "text": "", "tables": [[self.ROW]]}]
+        self.assertEqual([r["grades"] for r in bb.sechenov_rows(pages, URL)], [None])
+
+
 class CanonSubjectTest(unittest.TestCase):
     """Предмет ЕГЭ для подтверждения — только из списка предметов ЕГЭ.
     Остальное — обрывки соседних колонок PDF, в примечание им нельзя."""
