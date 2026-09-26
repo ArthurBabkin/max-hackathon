@@ -104,7 +104,7 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
     несколько уровней или статусов («Математика, *: I — БВИ, II — 100 баллов»).
     pdfplumber кладёт текст в первую строку, у продолжений ячейки пустые, и без
     переноса вниз терялось 88 строк: химия II уровня на химфаке, призёры и т. п."""
-    out, faculty, napravlenie, above = [], None, None, None
+    out, faculty, napravlenie, above, prev = [], None, None, None, None
     for pg in pages:
         for table in pg["tables"]:
             for row in table:
@@ -122,7 +122,11 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
                 if c[1]:
                     above = c
                 elif above:
-                    c = [x or (above[i] if i in (1, 2, 3, 4, 5, 7) else x) for i, x in enumerate(c)]
+                    # уровень — своя объединённая ячейка внутри профиля: победитель
+                    # и призёр одного уровня, поэтому берётся у предыдущей строки
+                    c = [x or (prev[i] if i == 4 else above[i] if i in (1, 2, 3, 5, 7) else x)
+                         for i, x in enumerate(c)]
+                prev = c
                 benefit = _benefit(c[8])
                 if not benefit or not napravlenie:
                     continue
@@ -601,11 +605,12 @@ def rows_kfu_vsosh():
         if not profile_slug(subject.lower()) or d["vi"] in ("", "-"):
             continue
         targets = " ".join(d["targets"])
-        out.append({"match": kfu_match(targets or KFU_ALL, d["vi"]), "vsosh": True,
-                    "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
-                    "statuses": [POB, PRIZ], "benefit": BVI,
-                    "ege_subject": d["vi"], "ege_score": None,
-                    "grades": None, "page": d["page"], "url": url, "score_is_demo": True})
+        bvi = {"match": kfu_match(targets or KFU_ALL, d["vi"]), "vsosh": True,
+               "olympiad_name": None, "profile": subject.lower(), "level": "ВсОШ",
+               "statuses": [POB, PRIZ], "benefit": BVI,
+               "ege_subject": d["vi"], "ege_score": None,
+               "grades": None, "page": d["page"], "url": url, "score_is_demo": True}
+        out += [bvi, {**bvi, "benefit": HUNDRED, "match": {**bvi["match"], "hundred": True}}]
     return out
 
 
@@ -731,7 +736,15 @@ def itmo_merged_rows(pages) -> list[tuple[int, list[str]]]:
     merged = defaultdict(list)
     for i, g in enumerate(group):
         merged[g].append(parts[i][1])
-    return [(page_no, [clean(" ".join(merged[group[k]]))] + row[1:]) for page_no, row, k in rows]
+    out, name, last = [], "", None
+    for page_no, row, k in rows:
+        # Название — тоже объединённая ячейка: на следующей странице блока
+        # («Все из перечня олимпиад школьников») её текста нет.
+        if row[1] or group[k] != last:
+            name = row[1]
+        last = group[k]
+        out.append((page_no, [clean(" ".join(merged[group[k]])), name] + row[2:]))
+    return out
 
 
 def _itmo_pages(pdf_path, cols):
@@ -775,14 +788,21 @@ def itmo_rows(rows, url: str, benefit: str) -> list[dict]:
         codes = CODE_RE.findall(direction)
         if not (codes and name and profile and _level(level) and _statuses(status) and "ыдаипмило" not in name):
             continue
-        only = re.search(r"\((?:только|учитывается только) на[^)]*\)", profile)
+        only = re.search(r"\((?:учитывается )?(?:только )?на [^)]*\)?", profile)
+        programs = None
         if only:
-            codes = CODE_RE.findall(only.group(0)) or codes
-            profile = clean(profile.replace(only.group(0), ""))
+            clause = only.group(0)
+            codes = CODE_RE.findall(clause) or codes
+            if "программ" in clause:
+                # «(учитывается только на программе Робототехника и ИИ)»,
+                # «(… на программах «Робототехника и ИИ» и «Технологии защиты информации»)»
+                names = re.findall(r"«([^»]+)»", clause) or [re.sub(r".*программе\s+|\)$", "", clause)]
+                programs = [clean(re.sub(r"\bИИ\b", "искусственный интеллект", n)) for n in names]
+            profile = clean(profile.replace(clause, ""))
         # «Все из перечня олимпиад школьников» — не название, а правило:
         # подходит любая перечневая олимпиада этого профиля.
         by_profile = name.lower().startswith("все из перечня")
-        out.append({"match": {"codes": codes},
+        out.append({"match": {"codes": codes, "programs": programs},
                     "by_profile": by_profile,
                     "olympiad_name": None if by_profile else name,
                     "profile": profile,
@@ -986,13 +1006,14 @@ def rows_kfu():
                     continue
                 if not CODE_RE.search(targets) and "на все направления" not in targets.lower():
                     continue
-                out.append({
+                bvi = {
                     "match": kfu_match(targets, c[5] or c[3]),
                     "olympiad_name": name, "profile": profile, "level": level,
                     "statuses": [POB, PRIZ], "benefit": BVI,
                     "ege_subject": c[5] or c[3], "ege_score": 75,
                     "grades": None, "page": pg["page"], "url": url, "number": num,
-                })
+                }
+                out += [bvi, {**bvi, "benefit": HUNDRED, "match": {**bvi["match"], "hundred": True}}]
     return out
 
 
@@ -1060,6 +1081,14 @@ def kfu_match(targets: str, vi: str) -> dict:
 
 
 def kfu_link(m: dict, programs: list[dict]) -> list[dict]:
+    """Кому строка приложения 3 даёт БВИ, а с hundred — 100 баллов: «на
+    направления, не соответствующие профилю олимпиады», если предмет
+    олимпиады — среди ВИ программы (стр. 1–2, вне зависимости от уровня)."""
+    if m.get("hundred"):
+        bvi = {p["program_id"] for p in kfu_link({**m, "hundred": False}, programs)}
+        subjects = set(m["first_vi"])
+        return [p for p in programs if p["program_id"] not in bvi and (info := kfu_program(p))
+                and info["vi"] and subjects & set().union(*info["vi"])]
     out = []
     for p in programs:
         info = kfu_program(p)
@@ -1285,7 +1314,10 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
     if "codes" in m:                                # ИТМО: перечислены коды направлений
         if m.get("all"):
             return programs
-        return [p for p in programs if p["napravlenie_code"] in m["codes"]]
+        pool = [p for p in programs if p["napravlenie_code"] in m["codes"]]
+        if m.get("programs"):                       # «(учитывается только на программе …)»
+            pool = [p for p in pool if any(_same_program(p["program_name"], n) for n in m["programs"])]
+        return pool
     if "program" in m:                              # СПбГУ / НГУ: адресовано ОП
         target = _norm_prog(m["program"])
         if len(target) < 4:
@@ -1380,7 +1412,8 @@ def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, 
 
     Если точного профиля нет, вуз мог назвать часть составного профиля НТО
     («Аэрокосмические системы» — из «беспилотный транспорт: аэрокосмические
-    системы, …») или чуть иначе его записать («… финансовых технологий»)."""
+    системы, …»), чуть иначе его записать («… финансовых технологий») или
+    оборвать («виртуальные миры: …, технологии дополненной реальности»)."""
     want = re.sub(r"(\w)- (\w)", r"\1-\2", clean(profile).lower())   # перенос «бизнес- процессов»
     rank = {"I": 1, "II": 2, "III": 3}
     cap = rank.get(min_level or "III", 3)
@@ -1390,7 +1423,8 @@ def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, 
         if not loose:
             return have == want
         parts = [clean(x) for x in re.split(r"[:,]", have)]
-        return want in parts or SequenceMatcher(None, want, have).ratio() > 0.9
+        return (want in parts or SequenceMatcher(None, want, have).ratio() > 0.9
+                or (len(want) >= 20 and have.startswith(want)))   # профиль без хвоста
 
     for loose in (False, True):
         hits = [(row["olympiad_id"], row["name"], row["level"]) for row in _index
@@ -1407,8 +1441,10 @@ def expand_subject(subject: str, name: str | None = None) -> list[tuple[str, str
     num = match_number(name) if name else None
     if name and num is None:
         return []
+    # Профиль самой олимпиады — в скоупе 4 групп, как у C: иначе «любая,
+    # соответствующая математике» тянет лингвистику и основы государственности.
     return [(row["olympiad_id"], row["name"], row["level"]) for row in _index
-            if want & subject_keys(" ".join(row["subjects"]))
+            if want & subject_keys(" ".join(row["subjects"])) and profile_in_scope(row["profile"])
             and (num is None or row["perechen_number_669"] == num)]
 
 

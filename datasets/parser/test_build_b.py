@@ -112,6 +112,15 @@ class MsuTablesTest(unittest.TestCase):
             ("Геология", "Информатика", "Московская олимпиада школьников", "I", ["prizyor"], "100_ballov", "Информатика", [11]),
         ])
 
+    def test_level_carried_from_previous_row(self):
+        got = msu(self.FACULTY,
+                  ["Фундаментальная и прикладная химия", "Химия", "Химия", "*", "I", "11", "Победитель", "Химия", self.MAX_CELL],
+                  ["", "", "", "", "", "11", "Призер", "", self.MAX_CELL],
+                  ["", "", "", "", "II", "11", "Победитель", "", self.MAX_CELL],
+                  ["", "", "", "", "", "11", "Призер", "", self.MAX_CELL])
+        self.assertEqual([(lv, st) for _, _, _, lv, st, *_ in got],
+                         [("I", ["pobeditel"]), ("I", ["prizyor"]), ("II", ["pobeditel"]), ("II", ["prizyor"])])
+
     def test_no_carry_into_next_direction(self):
         got = msu(self.FACULTY,
                   ["Геология", "Математика", "Математика", "*", "I", "11", "Победитель, призер", "Математика", self.BVI_CELL],
@@ -286,12 +295,33 @@ class ItmoListsTest(unittest.TestCase):
             ("10.03.01 ИБ", "Олимпиада «Физтех»", "Победитель"),
         ])
 
+    def test_name_continues_on_next_page(self):
+        got = bb.itmo_merged_rows([
+            self.page(1, [["02.03.03 МОАИС,", "Все из перечня олимпиад школьников", "Информатика", "Информатика", "1", "Победитель"]],
+                      [100, 120], [100, 120]),
+            self.page(2, [["", "", "Виртуальные миры", "Информатика", "3", "Победитель"]], [100, 120], [100, 120]),
+        ])
+        self.assertEqual([c[1] for _, c in got], ["Все из перечня олимпиад школьников"] * 2)
+
     def test_only_on_direction(self):
         rows = bb.itmo_rows([(2, ["09.03.01 ИВТ, 10.03.01 ИБ", "Все из перечня олимпиад школьников",
                                   "Информационная безопасность (только на направление 10.03.01)",
                                   "Информатика", "1, 2 или 3", "Победитель или призер"])], URL, "100_ballov")
         self.assertEqual([(r["match"]["codes"], r["profile"]) for r in rows],
                          [(["10.03.01"], "Информационная безопасность")])
+
+
+    def test_only_on_programs(self):
+        progs = [prog("rob", "Робототехника и искусственный интеллект", "", "12.03.01"),
+                 prog("pribor", "Приборостроение", "", "12.03.01"),
+                 prog("tzi", "Технологии защиты информации", "", "10.03.01")]
+        rows = bb.itmo_rows([(6, ["10.03.01 ИБ, 12.03.01 Приборостроение", "Все из перечня олимпиад школьников", p,
+                                  "Информатика", "2 или 3", "Победитель или призер"]) for p in (
+            "Автономные транспортные системы (учитывается только на программе Робототехника и ИИ)",
+            "Летающая робототехника (учитывается на программах «Робототехника и ИИ» и «Технологии защиты информации» )")],
+            URL, "БВИ")
+        self.assertEqual([(r["profile"], sorted(p["program_id"] for p in bb.link("itmo", r, progs))) for r in rows],
+                         [("Автономные транспортные системы", ["rob"]), ("Летающая робототехника", ["rob", "tzi"])])
 
 
 class ExpandProfileTest(unittest.TestCase):
@@ -303,6 +333,12 @@ class ExpandProfileTest(unittest.TestCase):
     def test_hyphen_split_by_line_break(self):
         self.assertEqual([o for o, *_ in bb.expand_profile("Автоматизация бизнес- процессов", "II")],
                          ["p669-5-avtomatizaciya-biznes-processov"])
+
+    def test_composite_profile_without_tail(self):
+        got = [o for o, *_ in bb.expand_profile("Виртуальные миры: разработка компьютерных игр, технологии "
+                                                "виртуальной реальности, технологии дополненной реальности", "III")]
+        self.assertEqual(len(got), 1)
+        self.assertTrue(got[0].startswith("p669-5-virtualnye-miry"))
 
     def test_profile_missing_from_perechen(self):
         self.assertEqual(bb.expand_profile("Нанотехнологии", "I"), [])
@@ -370,6 +406,13 @@ class KfuTest(unittest.TestCase):
         got = self.targets("03.03.02 Физика 44.03.05 Педагогическое образование (с двумя профилями подготовки) "
                            "(профиль: Биология и английский язык; Биология и химия)", "физика")
         self.assertEqual(got, ["ped-bio", "phys"])
+
+    def test_hundred_points_where_subject_is_exam_but_not_first(self):
+        m = {**bb.kfu_match(self.ALL, "информатика и ИКТ"), "hundred": True}
+        self.assertEqual(sorted(p["program_id"] for p in bb.link("kfu", {"match": m}, KFU_PROGRAMS)),
+                         ["itis", "ped-math", "pi", "pmi"])
+        m = {**bb.kfu_match(self.ALL, "физика"), "hundred": True}
+        self.assertEqual([p["program_id"] for p in bb.link("kfu", {"match": m}, KFU_PROGRAMS)], ["pmi"])
 
     def test_listed_code_without_profile_needs_subject_among_exams(self):
         self.assertEqual(self.targets("44.03.05 Педагогическое образование (с двумя профилями подготовки)", "биология"),

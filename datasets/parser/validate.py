@@ -43,8 +43,9 @@ GOLDEN = [
     # КГМУ, стр. 1 и 3: Сеченовская по химии — первой секции, не «Медицинской биофизике».
     ("kazan-gmu__lechebnoe-delo", "p669-11-himiya", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("kazan-gmu__medicinskaya-biofizika", "p669-11-himiya", set()),
-    # КФУ, приложение 3 стр. 29: «Физтех» по физике — там, где физика — первое ВИ.
-    ("kfu__prikladnaya-matematika-i-informatika", "p669-54-fizika", set()),
+    # КФУ, приложение 3 стр. 29: «Физтех» по физике — БВИ там, где физика —
+    # первое ВИ; где физика — ВИ, но не первое, — 100 баллов (стр. 1–2).
+    ("kfu__prikladnaya-matematika-i-informatika", "p669-54-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("kfu__astrofizika-i-kosmologiya", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
 ]
 
