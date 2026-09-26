@@ -62,6 +62,11 @@ GOLDEN = [
     # «Победителям». В приложении нет колонки «Предмет зачета 100 баллов»,
     # статус читался из колонки классов и давал льготу и призёрам.
     ("hse__biznes-informatika-380305", "p669-8-finansovaya-gramotnost", {(POB, "БВИ")}),
+    # НГУ, olimpiady-privilege: льготы — на направление целиком. «Математика и
+    # механика» — это 01.03.01–03, «Физика» (03.03.02) — и «Физическая информатика».
+    ("nsu__prikladnaya-matematika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("nsu__prikladnaya-matematika", "vsosh-biologiya", set()),
+    ("nsu__fizicheskaya-informatika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
 ]
 
 # Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».
