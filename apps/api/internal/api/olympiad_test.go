@@ -70,13 +70,12 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	var names []string
 	for _, row := range benefits {
 		names = append(names, row["university_nick"].(string))
-		want := "bvi"
+		want, label := "bvi", "БВИ"
 		if row["university_id"] == "kfu" {
-			want = "score100"
+			want, label = "score100", "100 баллов"
 		}
-		if row["benefit"] != want || row["ege_min"] != float64(75) ||
-			grant(row["winner"]) != grant(map[string]any{"kind": want, "label": benefitLabels[want]}) ||
-			grant(row["prizer"]) != grant(row["winner"]) {
+		if row["benefit"] != want || row["benefit_label"] != label || row["ege_min"] != float64(75) ||
+			grant(row["winner"]) != want+" "+label || grant(row["prizer"]) != want+" "+label {
 			t.Fatalf("льгота в вузе ученика: %v", row)
 		}
 	}
