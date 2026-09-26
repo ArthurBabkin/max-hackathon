@@ -455,9 +455,9 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
     олимпиады — тоже объединённая ячейка на блок профилей; у блока на стыке
     страниц ячейка в таблице пуста, и перенос сверху подставлял название
     предыдущей олимпиады («Турнир городов» с информатикой и экономикой)."""
-    out = []
+    out, block = [], 0
     codes = name = profile = None
-    layout, who, ege = HSE_LAYOUT, "", ""
+    layout, who, ege, score = HSE_LAYOUT, "", "", None
     for page_no, rows in pages:
         for c, (program, olympiad) in rows:
             c = [clean(x) for x in c]
@@ -469,7 +469,7 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
             m = HSE_HEAD.match(c[0])
             if m:
                 # «Направления подготовки 01.03.01 Математика; 01.03.04 Прикладная математика»
-                codes, name, profile = CODE_RE.findall(m.group(1)), None, None
+                codes, name, profile, block = CODE_RE.findall(m.group(1)), None, None, block + 1
                 continue
             # В пермском приложении «право на …» со строчной буквы.
             j = next((i for i, x in enumerate(c) if x.lower().startswith("право на")), None)
@@ -486,7 +486,7 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
                 cell = olympiad
             new_name = cell or olympiad or name
             if new_name != name:
-                name, profile, who, ege = new_name, None, "", ""
+                name, profile, who, ege, score = new_name, None, "", "", None
             if j >= 4 and c[j - 4]:
                 profile = c[j - 4]
             if not name or not profile:
@@ -494,11 +494,12 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
 
             def col(off):
                 return c[j + off] if off is not None and 0 <= j + off < len(c) else ""
-            # «Кому» и предмет подтверждения — объединённые ячейки на несколько
+            # «Кому», предмет подтверждения и порог — объединённые ячейки на несколько
             # строк (БВИ за 10–11 класс и 100 баллов за 9–11 у одного профиля):
             # у продолжений они пусты и берутся сверху, а не «всем».
             who = col(layout["status"]) or who
             ege = col(layout["ege"]) or ege
+            score = _score(c[j - 1]) or score
             if not who:
                 WARNINGS.append(f"ВШЭ {campus}, стр. {page_no}: нет статуса у «{name}» / {profile}")
                 continue
@@ -508,11 +509,21 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
                 "statuses": _statuses(who),
                 "benefit": benefit,
                 "ege_subject": ege,
-                "ege_score": _score(c[j - 1]),
+                "ege_score": score,
                 "grades": _grades(col(layout["grades"])),
-                "page": page_no, "url": url,
+                "page": page_no, "url": url, "_block": block,
             })
-    return out
+    # ОП называется, только если в направлении их несколько. Строка такого
+    # блока, у которой имени нет (геометрия его не нашла), — не «все ОП
+    # направления», а неизвестная ОП.
+    named = {r["_block"] for r in out if r["match"]["program"]}
+    keep = []
+    for r in out:
+        if r.pop("_block") in named and not r["match"]["program"]:
+            WARNINGS.append(f"ВШЭ {campus}, стр. {r['page']}: не найдена ОП у «{r['olympiad_name']}» / {r['profile']}")
+            continue
+        keep.append(r)
+    return keep
 
 
 def hse_programs(top: float, bottom: float, edges: list[float], words: list[dict],

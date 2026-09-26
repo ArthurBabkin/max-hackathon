@@ -130,6 +130,15 @@ GOLDEN = [
     ("itmo__kompyuternye-sistemy-i-tehnologii", "p669-37-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("itmo__ai360-ml-native", "p669-50-informatika", {(POB, "БВИ"), (PRIZ, "100_ballov")}),
     ("itmo__fizika-nanostruktur", "p669-36-tehnika-i-tehnologii", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # ВШЭ, Москва: экономика на МП «Экономика и финансы» — строка олимпиады
+    # Кондратьева (её нет в перечне №669), а не Московской (стр. 94);
+    # «Физтех» в кавычках “ ” на «Физике» (стр. 26); ОММО (№41) — только 100 баллов
+    # победителю, БВИ шли от «Будущего Сибири» (стр. 27); строки «Юриспруденции»
+    # (стр. 110) — не ОП «Правовое регулирование бизнеса».
+    ("hse__mezhdunarodnaya-programma-po-ekonomike-i-finansa", "p669-37-ekonomika", set()),
+    ("hse__fizika", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("hse__fizika", "p669-41-fizika", {(POB, "100_ballov")}),
+    ("hse__yurisprudenciya-pravovoe-regulirovanie-biznesa-o", "p669-8-obschestvoznanie", set()),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
@@ -161,6 +170,8 @@ GOLDEN_CONDITIONS = [
     ("spbu__ai360-matematika-mashinnogo-obucheniya", "p669-81-matematika", "ege_confirm_min_score", 85),
     # ИТМО, заголовки приложений 5 и 6: дипломы, «полученные в 10-м или 11-м классе».
     ("itmo__ai360-ml-native", "p669-26-informatika", "eligible_grades", [10, 11]),
+    # ВШЭ, Москва, стр. 7: порог 90 — одна ячейка на строки БВИ и 100 баллов.
+    ("hse__prikladnaya-matematika-i-informatika", "p669-8-informatika", "ege_confirm_min_score", 90),
 ]
 GOLDEN_STATUS_GRADES = [
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", POB, [10, 11]),
