@@ -86,7 +86,23 @@ def _level(text: str) -> str | None:
 
 
 # =============================================================== парсеры вузов
-SPLIT_NAMES = re.compile(r",\s*(?=[А-ЯЁ«\"])")
+# Экономфак МГУ перечисляет олимпиады через «;», остальные — через запятую.
+SPLIT_NAMES = re.compile(r",\s*(?=[А-ЯЁ«\"])|;\s*")
+
+
+def _trim_name(name: str) -> str:
+    """Название из списка без пробелов и лишних кавычек, но с парными «»."""
+    n = clean(name).strip(' "')
+    if n.count("«") > n.count("»"):
+        n = n[1:] if n.startswith("«") else n + "»"
+    elif n.count("»") > n.count("«"):
+        n = n[:-1] if n.endswith("»") else "«" + n
+    return n
+
+
+def _roman_levels(text: str) -> list[str]:
+    """«I, III» -> [I, III]: МГУ перечисляет допустимые уровни, II пропущен нарочно."""
+    return _levels(text) or [lv for lv in ("I", "II", "III") if re.search(rf"(?<![IV]){lv}(?![IV])", clean(text))]
 
 
 def rows_msu():
@@ -129,6 +145,9 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
                     # и призёр одного уровня, поэтому берётся у предыдущей строки
                     c = [x or (prev[i] if i == 4 else above[i] if i in (1, 2, 3, 5, 7) else x)
                          for i, x in enumerate(c)]
+                if not c[8] and not c[0] and prev and c[6]:
+                    # льгота — тоже объединённая ячейка: БВИ победителю I и II уровня (ФиПФ)
+                    c = c[:8] + [prev[8]] + c[9:]
                 prev = c
                 benefit = _benefit(c[8])
                 if not benefit or not napravlenie:
@@ -142,10 +161,10 @@ def msu_rows(pages: list[dict], url: str) -> list[dict]:
                 }
                 listed = c[3]
                 if not listed or listed == "*":
-                    out.append({**common, "by_profile": True, "olympiad_name": None})
+                    out.append({**common, "by_profile": True, "olympiad_name": None, "levels": _roman_levels(c[4])})
                     continue
                 for name in SPLIT_NAMES.split(listed):
-                    name = clean(name).strip("«»\" ")
+                    name = _trim_name(name)
                     if len(name) > 5:
                         out.append({**common, "olympiad_name": name})
     return out
@@ -155,7 +174,59 @@ def rows_msu_vsosh():
     """olymp_disciplines.pdf: предметы ВсОШ, дающие льготу, по направлениям.
     Лежит в отдельном файле от перечневых олимпиад — легко потерять целиком."""
     f = "vsosh_list__olymp_disciplines.pdf"
-    return msu_vsosh_rows(load_pages("msu", f), meta("msu", f)["url"])
+    return (msu_vsosh_rows(load_pages("msu", f), meta("msu", f)["url"])
+            + msu_vsosh_hundred_rows(load_pages("msu", "kcp__kcp_bak.pdf"), meta("msu", "rules__rules.pdf")["url"]))
+
+
+def _msu_kcp_name(cell: str) -> str:
+    """Название программы в плане приёма — так же, как его берёт build_a.py."""
+    name = re.sub(r'^(Направление подготовки|Специальность)\s*', "", cell)
+    name = re.sub(r'\s*\((очная|заочная|очно).*$', "", name, flags=re.I)
+    name = re.sub(r'\s*\(образовательная программа\s*', " — ", name)
+    return name.strip('"«» ').replace('"', "") or cell
+
+
+def msu_program_exams(pages: list[dict]) -> dict[tuple[str, str, str], set[str]]:
+    """kcp_bak.pdf: (факультет, код, программа) -> предметы ВИ в форме ЕГЭ.
+    ДВИ МГУ сюда не входят: 100 баллов по ВсОШ — это результат ЕГЭ."""
+    out, faculty = {}, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if not any(c) or len(c) < 5:
+                    continue
+                if c[0] and not CODE_RE.fullmatch(c[0]) and not any(c[2:4]):
+                    if len(c[0]) > 5 and not c[0][0].isdigit():
+                        faculty = c[0]
+                    continue
+                if not CODE_RE.fullmatch(c[0]) or not faculty:
+                    continue
+                exams = {canon_subject(x) for x in re.findall(r"([а-яё ]+?)\s*\(егэ\)", c[4].lower())}
+                out[(_msu_faculty(faculty), c[0], _msu_kcp_name(c[1]))] = exams - {None}
+    return out
+
+
+def msu_vsosh_hundred_rows(kcp: list[dict], url: str) -> list[dict]:
+    """Правила, п. 26: победители и призёры ВсОШ — ещё и 100 баллов ЕГЭ по
+    соответствующему предмету при поступлении без БВИ, на любую программу, где
+    этот предмет — ВИ. Где тот же диплом даёт БВИ, 100 баллов не пишутся."""
+    return [{"match": {"msu_program": key}, "vsosh": True, "olympiad_name": None, "profile": subject.lower(),
+             "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": HUNDRED, "ege_subject": subject,
+             "ege_score": None, "grades": None, "page": 19, "url": url, "unless_bvi": True}
+            for key, exams in msu_program_exams(kcp).items() for subject in sorted(exams)]
+
+
+def drop_unless_bvi(records: list[dict]) -> list[dict]:
+    """Записи с пометкой «только без БВИ» — если тот же диплом на этой
+    программе даёт БВИ, они лишние. Пометка в B не выводится."""
+    bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == BVI}
+    out = []
+    for r in records:
+        if r.get("_unless_bvi") and (r["olympiad_id"], r["diploma_status"]) in bvi:
+            continue
+        out.append({k: v for k, v in r.items() if k != "_unless_bvi"})
+    return out
 
 
 def msu_vsosh_rows(pages: list[dict], url: str) -> list[dict]:
@@ -1654,15 +1725,32 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
         if m.get("code"):
             return [p for p in pool if p["napravlenie_code"] == m["code"]]
         return []
+    if "msu_program" in m:                          # МГУ, план приёма: программа точно
+        fac, code, name = m["msu_program"]
+        return [p for p in programs if (_msu_faculty(p["faculty"]), p["napravlenie_code"], p["program_name"])
+                == (fac, code, name)]
     if "faculty" in m:                              # МГУ: секция факультета + направление
-        want = clean(m.get("faculty") or "").lower()
-        pool = [p for p in programs if want and want == clean(p["faculty"] or "").lower()]
+        want = _msu_faculty(m.get("faculty"))
+        pool = [p for p in programs if want and want == _msu_faculty(p["faculty"])]
         napr = m.get("napravlenie", "") or ""
+        napr = MSU_ALIASES.get((want, napr.lower()), napr)
         code = CODE_RE.search(napr)
         if code:
             return [p for p in pool if p["napravlenie_code"] == code.group(1)]
         return [p for p in pool if msu_same_direction(napr, p)]
     return []
+
+
+def _msu_faculty(name: str | None) -> str:
+    """«ВЫСШАЯ ШКОЛА ГОСУДАРСТВЕННОГО АУДИТА (ФАКУЛЬТЕТ)» в документе — «Высшая
+    школа государственного аудита» в A."""
+    return re.sub(r"\s*\(факультет\)\s*$", "", clean(name or "").lower())
+
+
+# Направление в документе МГУ названо не так, как в A. Севастополь, стр. 60–61:
+# «Физика» — это 03.05.02 «Фундаментальная и прикладная физика» (kcp_bak стр. 30,
+# olymp_disciplines стр. 43), другой физики у филиала нет.
+MSU_ALIASES = {("филиал мгу в г. севастополе", "физика"): "Фундаментальная и прикладная физика"}
 
 
 def _msu_split(name: str) -> tuple[str, str | None]:
@@ -1952,6 +2040,7 @@ def main() -> int:
                         "source_url": row["url"],
                         "source_page": row.get("page"),
                         "source_date": fetched_date(row["url"]),
+                        **({"_unless_bvi": True} if row.get("unless_bvi") else {}),
                     })
         print(f"  {vuz_id:11s} строк привязано: {linked_rows:5d} | пропущено: {skipped[vuz_id]:5d}"
               )
@@ -1976,6 +2065,7 @@ def main() -> int:
         benefits = dedup_benefits(per_program.get(x["program_id"], []))
         if x["vuz_id"] in HUNDRED_WITHOUT_BVI:
             benefits = drop_hundred_under_bvi(benefits)
+        benefits = drop_unless_bvi(benefits)
         benefits.sort(key=lambda b: (b["olympiad_id"], b["diploma_status"]))
         objects.append({
             "program_id": x["program_id"], "vuz_id": x["vuz_id"],
