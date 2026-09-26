@@ -788,16 +788,16 @@
     "parent": "Регистрация пройдена"
   },
   "tracker.markedBy": {
-    "kid": "Отметил(а) {name}",
-    "parent": "Отметил(а) {name}"
+    "kid": "Отмечено: {name}",
+    "parent": "Отмечено: {name}"
   },
   "tracker.markedByInline": {
-    "kid": "отметил(а) {name}",
-    "parent": "отметил(а) {name}"
+    "kid": "отмечено: {name}",
+    "parent": "отмечено: {name}"
   },
   "tracker.addedBy": {
-    "kid": "Добавил(а) {name}",
-    "parent": "Добавил(а) {name}"
+    "kid": "Добавлено: {name}",
+    "parent": "Добавлено: {name}"
   },
   "tracker.addCta": {
     "kid": "Добавить олимпиаду",
