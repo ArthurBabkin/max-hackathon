@@ -787,6 +787,14 @@ class DedupBenefitsTest(unittest.TestCase):
     def test_stricter_score_kept(self):
         self.assertEqual([b["ege_confirm_min_score"] for b in bb.dedup_benefits([benefit([11], 75), benefit([11], 80)])], [80])
 
+    def test_confirm_subjects_of_both_rows_kept(self):
+        # СПбГУ, бизнес-информатика: одна олимпиада подходит и под ВИ
+        # «Обществознание», и под ВИ «Информатика» — подтвердить можно любым.
+        a, b = benefit([10, 11]), benefit([10, 11])
+        a["ege_confirm_subject"], b["ege_confirm_subject"] = "Обществознание", "Информатика"
+        got = bb.dedup_benefits([a, b, dict(b)])
+        self.assertEqual([x["ege_confirm_subject"] for x in got], ["Обществознание или Информатика"])
+
     def test_different_benefits_stay_separate(self):
         got = bb.dedup_benefits([benefit([10, 11]), benefit([9, 10, 11], kind="100_ballov")])
         self.assertEqual([(b["benefit_type"], b["eligible_grades"]) for b in got],
@@ -890,6 +898,65 @@ class SpbuTest(unittest.TestCase):
     def test_subject_expansion_keeps_exact_levels(self):
         got = {lv for *_, lv in bb.expand_subject("Математика")}
         self.assertEqual(got, {"I", "II", "III"})
+
+    def test_statuses_with_io_letter(self):
+        # В PDF СПбГУ «Призѐр» набран через «ѐ» (U+0450), NFKC её не трогает.
+        self.assertEqual(bb._statuses("Победитель, призѐр"), [bb.POB, bb.PRIZ])
+        self.assertEqual(bb._statuses("Призѐр"), [bb.PRIZ])
+
+    def test_subject_expansion_is_exact(self):
+        # Колонка — предмет или УГН перечня: «Математика» не значит УГН
+        # «математика и механика»; астрономию и УГН тоже надо находить.
+        math = {oid for oid, *_ in bb.expand_subject("Математика")}
+        self.assertIn("p669-50-matematika", math)
+        self.assertNotIn("p669-50-mehanika-i-matematicheskoe-modelirovanie", math)
+        self.assertNotIn("p669-8-inzhenernye-nauki", {oid for oid, *_ in bb.expand_subject("Информатика")})
+        self.assertIn("p669-37-astronomiya", {oid for oid, *_ in bb.expand_subject("Астрономия")})
+        self.assertIn("p669-5-yadernye-tehnologii",
+                      {oid for oid, *_ in bb.expand_subject("Управление в технических системах")})
+
+    VI_ROWS = [{"page": 5, "text": "Особые права предоставляются … (только при получении результатов за 10 или 11 "
+                                   "класс) – в течение 4 лет", "tables": [[
+        ["38.03.05 Бизнес-информатика", "Бизнес-информатика", "очная", "1", "Обществознание", "75",
+         "I–II", "—", "—", "Экономика", "Победитель", "Без вступительных испытаний"],
+        [None, None, None, None, None, None, "I–II", "—", "—", "Экономика", "Призѐр",
+         "100 баллов за ВИ по обществознанию"],
+        ["31.05.01 Лечебное дело", "Лечебное дело", "очная", "1", "Биология", "75",
+         "I–II", "—", "Медицина", "—", "Победитель, призѐр", "Без вступительных испытаний"],
+        [None, None, None, "2", "Химия", "80", "I", "—", "—", "Химия", "Победитель", "Без вступительных испытаний"],
+        [None, None, None, None, None, None, "II", "—", "—", "Химия", "Призѐр", "100 баллов за ВИ по химии"],
+    ]]}]
+
+    def test_ege_is_row_vi_carried_down_merged_cells(self):
+        # Предмет и порог — объединённые ячейки ВИ: действуют на все его строки.
+        got = [(r["ege_subject"], r["ege_score"]) for r in bb.spbu_rows(self.VI_ROWS, URL)]
+        self.assertEqual(got, [("Обществознание", 75), ("Обществознание", 75), ("Биология", 75),
+                               ("Химия", 80), ("Химия", 80)])
+
+    def test_grades_from_header_clause(self):
+        self.assertEqual({tuple(r["grades"]) for r in bb.spbu_rows(self.VI_ROWS, URL)}, {(10, 11)})
+
+    def test_vsosh_hundred_by_appendix_7(self):
+        # Правила п. 7.5 и приложение 7: ВсОШ — ещё и 100 баллов за ВИ,
+        # соответствующее предмету, на любой ОП с таким ВИ. Где по этой ВсОШ
+        # уже БВИ (приложение 4), 100 баллов ничего не добавляют.
+        rules = [{"page": 78, "text": "Приложение 7 к Правилам приема …", "tables": [[
+            ["Предмет всероссийской олимпиады школьников", "Предмет вступительных испытаний"],
+            ["Астрономия", "Физика"], ["Математика", "Математика"], ["Технология", "—"],
+        ]]}]
+        olymp = [{"page": 3, "tables": [[
+            ["09.03.04 Программная инженерия", "Программная инженерия", "очная", "1", "Математика", "75",
+             "I–II", "—", "—", "Математика", "Победитель", "Без вступительных испытаний"],
+            [None, None, None, "2", "Информатика", "75", "I–II", "—", "—", "Информатика", "Победитель",
+             "Без вступительных испытаний"],
+            ["03.05.01 Астрономия", "Астрономия", "очная", "1", "Физика", "75",
+             "I–III", "—", "—", "Физика", "Победитель, призѐр", "Без вступительных испытаний"],
+        ]]}]
+        bvi = [{"match": {"spbu": None, "code": "03.05.01"}, "profile": "астрономия"}]
+        got = [(r["profile"], r["match"], r["benefit"], r["statuses"])
+               for r in bb.spbu_vsosh_hundred_rows(rules, olymp, bvi, URL)]
+        self.assertEqual(got, [("математика", {"spbu": "Программная инженерия", "code": "09.03.04"},
+                                bb.HUNDRED, [bb.POB, bb.PRIZ])])
 
 
 class CatalogScopeTest(unittest.TestCase):

@@ -105,6 +105,25 @@ GOLDEN = [
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("innopolis__informatika-i-vychislitelnaya-tehnika", "vsosh-fizika",
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # СПбГУ, приложение 9 (bac_spec_olymp_2_2026.pdf): «Победитель, призѐр» — обоим
+    # статусам (стр. 1); колонка «предмет или УГН» точная: УГН «математика и
+    # механика» не «Математика» (стр. 5), «Астрономия» — своя строка (стр. 2).
+    ("spbu__prikladnaya-matematika-processy-upravleniya-i-is", "p669-50-matematika",
+     {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("spbu__matematika-s-dopolnitelnoy-kvalifikaciey-special", "p669-64-informatika",
+     {(POB, "БВИ"), (PRIZ, "100_ballov")}),
+    ("spbu__ekonomika", "p669-26-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("spbu__ekonomika", "p669-50-mehanika-i-matematicheskoe-modelirovanie", set()),
+    ("spbu__programmnaya-inzheneriya", "p669-8-inzhenernye-nauki", set()),
+    ("spbu__lechebnoe-delo", "p669-36-estestvennye-nauki", set()),
+    ("spbu__astronomiya", "p669-37-astronomiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("spbu__prikladnye-kompyuternye-tehnologii-i-iskusstvenn", "p669-5-yadernye-tehnologii",
+     {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("spbu__lechebnoe-delo", "p669-59-medicina", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # СПбГУ, Правила п. 7.5 и приложение 7 (стр. 19, 78): ВсОШ — 100 баллов за
+    # соответствующее ВИ и там, где БВИ по приложению 4 нет; где БВИ есть — только оно.
+    ("spbu__programmnaya-inzheneriya", "vsosh-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("spbu__fundamentalnaya-i-prikladnaya-fizika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
@@ -126,6 +145,14 @@ GOLDEN_CONDITIONS = [
     ("mipt__obschaya-i-prikladnaya-fizika", "vsosh-fizika", "eligible_grades", None),
     # НГУ, 15.03.06: сноска «обучавшихся в период участия в олимпиаде в 9-11 класс».
     ("nsu__deep-robotics", "p669-37-informatika", "eligible_grades", [9, 10, 11]),
+    # СПбГУ, приложение 9 стр. 1: «только при получении результатов за 10 или 11
+    # класс»; порог — объединённая ячейка ВИ, предмет — ВИ строки (стр. 4, 6).
+    ("spbu__lechebnoe-delo", "p669-62-himiya", "eligible_grades", [10, 11]),
+    ("spbu__lechebnoe-delo", "p669-62-himiya", "ege_confirm_min_score", 75),
+    ("spbu__lechebnoe-delo", "p669-59-medicina", "ege_confirm_subject", "Биология"),
+    ("spbu__biznes-informatika", "p669-8-finansovaya-gramotnost", "ege_confirm_subject", "Обществознание"),
+    ("spbu__biznes-informatika", "p669-8-finansovaya-gramotnost", "ege_confirm_min_score", 75),
+    ("spbu__ai360-matematika-mashinnogo-obucheniya", "p669-81-matematika", "ege_confirm_min_score", 85),
 ]
 GOLDEN_STATUS_GRADES = [
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-fizika", POB, [10, 11]),
@@ -271,11 +298,13 @@ def main() -> int:
         got = [ben["eligible_grades"] for ben in fields[(pid, oid)] if ben["diploma_status"] == status]
         if not got or any(g != want for g in got):
             err(f"эталон условий: {pid} ← {oid} ({status}): классы ждали {want}, в B {got}")
-    # ВсОШ СПбГУ — только из документа по ВсОШ, не из перечня РСОШ.
+    # ВсОШ СПбГУ — не из перечня РСОШ: БВИ из документа по ВсОШ, 100 баллов —
+    # из Правил (п. 7.5, приложение 7).
     for x in b:
         if x["vuz_id"] == "spbu":
             for ben in x["prinimaemye_olimpiady"]:
-                if ben["olympiad_id"].startswith("vsosh-") and "olymp_1" not in ben["source_url"]:
+                src = "olymp_1" if ben["benefit_type"] == "БВИ" else "pravila_priema"
+                if ben["olympiad_id"].startswith("vsosh-") and src not in ben["source_url"]:
                     err(f"СПбГУ: ВсОШ из перечня РСОШ ({x['program_id']} ← {ben['olympiad_id']})")
 
     # --- Сводка

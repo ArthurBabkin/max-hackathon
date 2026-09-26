@@ -39,9 +39,9 @@ def _benefit(text: str) -> str | None:
 
 def _statuses(text: str) -> list[str]:
     """«Победителям и призерам» -> оба статуса; «Победителям» -> только победитель."""
-    t = clean(text).lower()
+    t = clean(text).lower().replace("ё", "е").replace("ѐ", "е")   # СПбГУ: «Призѐр» с U+0450
     has_p = "побед" in t
-    has_z = "призер" in t or "призёр" in t
+    has_z = "призер" in t
     if has_p and has_z:
         return [POB, PRIZ]
     if has_z:
@@ -279,8 +279,14 @@ def spbu_rows(pages: list[dict], url: str) -> list[dict]:
     ЕГЭ отдельной колонкой. «—» вместо названия — любая олимпиада перечня
     этого уровня с указанным профилем, а если и профиль «—», то любая, чей
     профиль соответствует предмету. Это не ВсОШ: ВсОШ — в отдельном
-    документе (spbu_vsosh_rows)."""
-    out, prog, code = [], None, None
+    документе (spbu_vsosh_rows).
+
+    Предмет ВИ и минимальный балл — объединённые ячейки: действуют на все
+    строки льгот этого ВИ до следующего ВИ или следующей программы. Предмет
+    подтверждения и 100 баллов — это ВИ, а не колонка «предмет или УГН»
+    («Экономика» под ВИ «Обществознание»)."""
+    out, prog, code, vi, vi_score = [], None, None, None, None
+    grades = spbu_grades(pages)
     for pg in pages:
         for table in pg["tables"]:
             for row in table:
@@ -291,7 +297,9 @@ def spbu_rows(pages: list[dict], url: str) -> list[dict]:
                     m = CODE_RE.search(c[0])
                     code = m.group(1) if m else code
                 if c[1]:
-                    prog = c[1]
+                    prog, vi, vi_score = c[1], None, None
+                if c[4]:
+                    vi, vi_score = c[4], to_int(c[5])
                 benefit = _benefit(c[11])
                 levels = _levels(c[6])
                 if not benefit or not prog or not levels:
@@ -299,8 +307,8 @@ def spbu_rows(pages: list[dict], url: str) -> list[dict]:
                 name, profile = c[7], c[8]
                 base = {"match": {"spbu": prog, "code": code}, "levels": levels,
                         "level": levels[-1], "statuses": _statuses(c[10]), "benefit": benefit,
-                        "ege_subject": c[9], "ege_score": to_int(c[5]),
-                        "grades": None, "page": pg["page"], "url": url}
+                        "ege_subject": vi, "ege_score": vi_score,
+                        "grades": grades, "page": pg["page"], "url": url}
                 if name not in DASH and profile in DASH:
                     # любой профиль этой олимпиады, соответствующий предмету
                     out.append({**base, "by_subject": True, "olympiad_name": name, "profile": c[9]})
@@ -313,9 +321,74 @@ def spbu_rows(pages: list[dict], url: str) -> list[dict]:
     return out
 
 
+def spbu_grades(pages: list[dict]) -> list[int] | None:
+    """Шапка приложения 9: «(только при получении результатов за 10 или 11 класс)»."""
+    for pg in pages:
+        m = re.search(r"результатов\s+за\s+([\d\s,или–-]+?)\s*класс", pg.get("text") or "")
+        if m:
+            return _grades(m.group(1))
+    return None
+
+
+SPBU_OLYMP = "olymp_list__bac_spec_olymp_2_2026.pdf"
+SPBU_RULES = "rules__pravila_priema_2026.pdf"
+
+
 def rows_spbu_vsosh():
     f = "vsosh_list__bac_spec_olymp_1_2026.pdf"
-    return spbu_vsosh_rows(load_pages("spbu", f), meta("spbu", f)["url"])
+    bvi = spbu_vsosh_rows(load_pages("spbu", f), meta("spbu", f)["url"])
+    return bvi + spbu_vsosh_hundred_rows(load_pages("spbu", SPBU_RULES), load_pages("spbu", SPBU_OLYMP),
+                                         bvi, meta("spbu", SPBU_RULES)["url"])
+
+
+def spbu_program_exams(pages: list[dict]) -> dict[tuple[str, str], list[str]]:
+    """(код, ОП) -> предметы ВИ из приложения 9: у каждой ОП перечислены все
+    её ВИ, и те, по которым особых прав нет."""
+    out, prog, code = {}, None, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) < 12:
+                    continue
+                if c[0]:
+                    m = CODE_RE.search(c[0])
+                    code = m.group(1) if m else code
+                if c[1]:
+                    prog = c[1]
+                if prog and c[4]:
+                    out.setdefault((code, prog), []).append(c[4])
+    return out
+
+
+def spbu_vsosh_hundred_rows(rules: list[dict], olymp: list[dict], bvi: list[dict], url: str) -> list[dict]:
+    """Правила п. 7.5 и приложение 7: победителям и призёрам ВсОШ — ещё и
+    100 баллов за ВИ, соответствующее предмету олимпиады, на любой ОП, где
+    такое ВИ есть. Где по этой же ВсОШ дают БВИ, строка не нужна."""
+    pairs = []
+    for pg in rules:
+        if "Приложение 7 к Правилам" not in (pg.get("text") or ""):
+            continue
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) == 2 and c[1] not in DASH and profile_slug(c[0].split(",")[0].lower()):
+                    pairs.append((c[0].split(",")[0].lower(), {canon_subject(x) for x in c[1].split(",")}, pg["page"]))
+
+    def has_bvi(subject, code, prog):
+        return any(b["profile"] == subject and b["match"]["code"] == code
+                   and (b["match"]["spbu"] is None or _norm_prog(b["match"]["spbu"]) == _norm_prog(prog))
+                   for b in bvi)
+
+    out = []
+    for (code, prog), exams in spbu_program_exams(olymp).items():
+        for subject, vi, page in pairs:
+            hit = next((e for e in exams if canon_subject(e) in vi), None)
+            if hit and not has_bvi(subject, code, prog):
+                out.append({"match": {"spbu": prog, "code": code}, "vsosh": True, "olympiad_name": None,
+                            "profile": subject, "level": "ВсОШ", "statuses": [POB, PRIZ], "benefit": HUNDRED,
+                            "ege_subject": hit, "ege_score": None, "grades": None, "page": page, "url": url})
+    return out
 
 
 def spbu_vsosh_rows(pages: list[dict], url: str) -> list[dict]:
@@ -1657,17 +1730,25 @@ def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, 
     return []
 
 
+def _subject_cell(text: str) -> str:
+    """Предмет или УГН для точного сравнения: «информационно- библиотечное»
+    из PDF и «информационно-библиотечное» из перечня — одно и то же."""
+    return re.sub(r"[\s-]+", "", clean(text).lower().replace("ё", "е"))
+
+
 def expand_subject(subject: str, name: str | None = None) -> list[tuple[str, str, str]]:
-    """Любая олимпиада перечня (или профиль названной), профиль которой
-    соответствует предмету (графа «общеобразовательные предметы» перечня)."""
-    want = subject_keys(subject)
+    """Любая олимпиада перечня (или профиль названной), у которой в графе
+    «общеобразовательные предметы или УГН» перечня стоит именно этот предмет
+    или УГН. Сравнение точное: СПбГУ отличает «Математику» от УГН «математика
+    и механика» и «Информатику» от «информатики и вычислительной техники»."""
+    want = _subject_cell(subject)
     num = match_number(name) if name else None
     if name and num is None:
         return []
     # Только олимпиады каталога: иначе «любая, соответствующая математике»
     # тянет лингвистику и основы государственности.
     return [(row["olympiad_id"], row["name"], row["level"]) for row in _index
-            if want & subject_keys(" ".join(row["subjects"])) and in_catalog(row["olympiad_id"])
+            if want in {_subject_cell(s) for s in row["subjects"]} and in_catalog(row["olympiad_id"])
             and (num is None or row["perechen_number_669"] == num)]
 
 
@@ -1727,7 +1808,8 @@ def narrow_subject(subject: str | None, exams: set[str] | None) -> str | None:
 def dedup_benefits(records: list[dict]) -> list[dict]:
     """Одна (олимпиада, статус, льгота) из нескольких строк документа — БВИ за
     10 класс и за 11 отдельными строками: классы объединяются (None — без
-    ограничения — поглощает остальные), порог ЕГЭ берётся строже."""
+    ограничения — поглощает остальные), порог ЕГЭ берётся строже, предметы
+    подтверждения — любой из строк (олимпиада подошла под два ВИ)."""
     out: dict[tuple, dict] = {}
     for b in records:
         key = (b["olympiad_id"], b["diploma_status"], b["benefit_type"])
@@ -1740,6 +1822,9 @@ def dedup_benefits(records: list[dict]) -> list[dict]:
         sa, sb = a.get("ege_confirm_min_score"), b.get("ege_confirm_min_score")
         if sb is not None and (sa is None or sb > sa):
             a["ege_confirm_min_score"] = sb
+        ea, eb = a.get("ege_confirm_subject"), b.get("ege_confirm_subject")
+        if ea and eb:
+            a["ege_confirm_subject"] = " или ".join(dict.fromkeys(ea.split(" или ") + eb.split(" или ")))
     return list(out.values())
 
 
