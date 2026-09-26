@@ -260,6 +260,10 @@ class MiptMatrixTest(MiptPlanMixin, unittest.TestCase):
         got = self.hundred("100 баллов по русскому языку при наличии результата ЕГЭ или ВИ по русскому языку 75 баллов и выше")
         self.assertEqual({k[3]: len(v) for k, v in got.items()}, {"Русский язык": len(MIPT_PROGRAMS)})
 
+    def test_program_exams_from_rules(self):
+        pmi = next(p for p in MIPT_PROGRAMS if p["program_id"] == "pmi")
+        self.assertEqual(bb.program_exams("mipt", pmi), {"Математика", "Информатика", "Русский язык"})
+
     def test_hundred_points_subject_no_program_examines(self):
         got = self.hundred("100 баллов по иностранному языку при наличии результата ЕГЭ или ВИ по иностранному языку 75 баллов и выше")
         self.assertEqual(list(got.values()), [[]])
@@ -571,6 +575,113 @@ class HseTest(unittest.TestCase):
         r = bb.hse_rows([(1, [(["Направления подготовки 37.04.01 Психология"], ("", "")),
                                 (self.ROW, ("Психология в бизнесе", self.ROW[0]))])], URL, "Нижний Новгород")
         self.assertEqual([p["program_id"] for p in bb.link("hse", r[0], HSE_PROGRAMS)], ["nn-psy"])
+
+    TAIL = ["Количество баллов ЕГЭ или общеобразовательного вступительного испытания (не менее 75 баллов)**",
+            "Вид особого права: право на прием без вступительных испытаний* или зачет максимального балла по предмету"]
+    CONFIRM = ("Один или несколько предметов, по которым поступающим необходимы результаты ЕГЭ или "
+               "общеобразовательных вступительных испытаний для подтверждения особого права")
+    WHO = "Кому предоставляется особое право: победителям либо победителям и призерам олимпиады"
+    GRADES = "В каких классах должны быть получены результаты победителя/призера олимпиады"
+    HEAD_MSK = ["No п/п", "Наименование образовательной программы", "Полное наименование олимпиады из Перечня",
+                "Профиль олимпиады", "Предмет олимпиады", CONFIRM, *TAIL, "Предмет зачета 100 баллов", WHO, GRADES]
+    # В приложении Петербурга нет «Предмета зачета 100 баллов», зато есть «Предмет ЕГЭ, который подтверждает».
+    HEAD_SPB = ["No п/п", "Наименование образовательной программы", "Полное наименование олимпиады из Перечня",
+                "Профиль олимпиады", CONFIRM, "Предмет ЕГЭ, который подтверждает особое право", *TAIL, WHO, GRADES]
+
+    def table(self, head, campus, *rows):
+        return bb.hse_rows([(1, [(head, ("", "")), (["Направление подготовки 38.03.05 Бизнес-информатика"], ("", "")),
+                                 *[(c, ("", name)) for name, c in rows]])], URL, campus)
+
+    def test_petersburg_columns_by_header(self):
+        row = ["Турнир городов", "математика", "математика", "математика", "75 и более", "Право на прием БВИ",
+               "Победителям", "10, 11 класс"]
+        r = self.table(self.HEAD_SPB, "Санкт-Петербург", ("Турнир городов", row))
+        self.assertEqual((r[0]["statuses"], r[0]["grades"], r[0]["ege_subject"]), (["pobeditel"], [10, 11], "математика"))
+
+    def test_merged_status_cell_carried_down(self):
+        # Профиль даёт БВИ за 10–11 класс и 100 баллов за 9–11: «Кому» и предметы — одна ячейка на обе строки.
+        bvi = ["", "информационная безопасность", "компьютерные и информационные науки", "информатика", "75 и более",
+               "Право на прием БВИ", "информатика", "Победителям", "10, 11 класс"]
+        cont = ["", "", "", "", "75 и более", "Право на 100 баллов", "", "", "9, 10, 11 класс"]
+        r = self.table(self.HEAD_MSK, "Нижний Новгород", ("НТО", bvi), ("НТО", cont))
+        self.assertEqual([(x["benefit"], x["statuses"], x["grades"], x["ege_subject"]) for x in r],
+                         [("БВИ", ["pobeditel"], [10, 11], "информатика"),
+                          ("100_ballov", ["pobeditel"], [9, 10, 11], "информатика")])
+
+    def test_merged_status_not_carried_into_next_olympiad(self):
+        first = ["", "информатика", "информатика", "информатика", "75 и более", "Право на прием БВИ", "информатика",
+                 "Победителям", "11 класс"]
+        other = ["", "математика", "математика", "математика", "75 и более", "Право на 100 баллов", "математика", "",
+                 "11 класс"]
+        r = self.table(self.HEAD_MSK, "Москва", ("НТО", first), ("Турнир городов", other))
+        self.assertEqual([x["olympiad_name"] for x in r], ["НТО"])
+
+    def test_ege_subject_is_the_confirming_one_not_olympiad_subject(self):
+        row = ["", "интеллектуальные робототехнические системы", "компьютерные и информационные науки",
+               "физика / информатика", "75 и более", "Право на 100 баллов", "физика / информатика",
+               "Победителям и призерам", "11 класс"]
+        r = self.table(self.HEAD_MSK, "Москва", ("НТО", row))
+        self.assertEqual(r[0]["ege_subject"], "физика / информатика")
+
+
+class CanonSubjectTest(unittest.TestCase):
+    """Предмет ЕГЭ для подтверждения — только из списка предметов ЕГЭ.
+    Остальное — обрывки соседних колонок PDF, в примечание им нельзя."""
+
+    def test_cases(self):
+        for raw, want in {
+            "Обществоз нанию": "Обществознание",
+            "Информат ика и ИКТ": "Информатика",
+            "физика / информатика": "Физика или Информатика",
+            "Математике или … обществознанию - по выбору абитуриента": "Математика или Обществознание",
+            "английский язык": "Иностранный язык",
+            "Русский язык": "Русский язык",
+            "—": None, "-": None, "": None, None: None,
+            "технологии материалов, машиностроение, электроника, радиотехника и системы связи": None,
+            "клиническая медицина, фармация, фундаментальная медицина": None,
+        }.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(bb.canon_subject(raw), want)
+
+
+class NarrowSubjectTest(unittest.TestCase):
+    """Документ даёт предметы профиля («математика, обществознание»), а
+    подтверждать надо тот, что среди ВИ программы — если ВИ известны."""
+
+    def test_only_subjects_among_program_exams(self):
+        self.assertEqual(bb.narrow_subject("Математика или Обществознание", {"Обществознание", "История", "Русский язык"}),
+                         "Обществознание")
+
+    def test_exams_unknown(self):
+        self.assertEqual(bb.narrow_subject("Математика или Обществознание", None), "Математика или Обществознание")
+
+    def test_no_overlap_keeps_document(self):
+        self.assertEqual(bb.narrow_subject("Физика", {"Математика", "Русский язык"}), "Физика")
+
+
+def benefit(grades, score=75, status="pobeditel", kind="БВИ"):
+    return {"olympiad_id": "p669-8-matematika", "diploma_status": status, "benefit_type": kind,
+            "eligible_grades": grades, "ege_confirm_min_score": score}
+
+
+class DedupBenefitsTest(unittest.TestCase):
+    """Одна льгота из нескольких строк документа (БВИ за 10 класс и за 11)
+    не должна терять классы и порог второй строки."""
+
+    def test_grades_of_duplicate_rows_are_merged(self):
+        got = bb.dedup_benefits([benefit([11]), benefit([10])])
+        self.assertEqual([b["eligible_grades"] for b in got], [[10, 11]])
+
+    def test_no_grade_restriction_wins(self):
+        self.assertEqual([b["eligible_grades"] for b in bb.dedup_benefits([benefit([11]), benefit(None)])], [None])
+
+    def test_stricter_score_kept(self):
+        self.assertEqual([b["ege_confirm_min_score"] for b in bb.dedup_benefits([benefit([11], 75), benefit([11], 80)])], [80])
+
+    def test_different_benefits_stay_separate(self):
+        got = bb.dedup_benefits([benefit([10, 11]), benefit([9, 10, 11], kind="100_ballov")])
+        self.assertEqual([(b["benefit_type"], b["eligible_grades"]) for b in got],
+                         [("БВИ", [10, 11]), ("100_ballov", [9, 10, 11])])
 
 
 MSU_PROGRAMS = [

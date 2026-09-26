@@ -58,7 +58,15 @@ GOLDEN = [
     # первое ВИ; где физика — ВИ, но не первое, — 100 баллов (стр. 1–2).
     ("kfu__prikladnaya-matematika-i-informatika", "p669-54-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("kfu__astrofizika-i-kosmologiya", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # ВШЭ, Санкт-Петербург, стр. 16: «Финатлон» на «Бизнес-информатике» —
+    # «Победителям». В приложении нет колонки «Предмет зачета 100 баллов»,
+    # статус читался из колонки классов и давал льготу и призёрам.
+    ("hse__biznes-informatika-380305", "p669-8-finansovaya-gramotnost", {(POB, "БВИ")}),
 ]
+
+# Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».
+EGE_SUBJECTS = {"Математика", "Информатика", "Физика", "Химия", "Биология", "Обществознание", "История",
+                "Литература", "География", "Русский язык", "Иностранный язык"}
 
 
 def err(msg):
@@ -164,6 +172,9 @@ def main() -> int:
                 err(f"B: балл подтверждения не заполнен и не помечен is_demo ({oid})")
             if str(ben["source_url"]).lower().endswith(".pdf") and ben.get("source_page") is None:
                 warn(f"B: PDF-источник без source_page ({oid})")
+            subj = ben.get("ege_confirm_subject")
+            if subj is not None and not set(subj.split(" или ")) <= EGE_SUBJECTS:
+                err(f"B: предмет ЕГЭ не из списка ЕГЭ: «{subj[:60]}» ({x['program_id']} ← {oid})")
 
     # --- Эталонные факты
     have = defaultdict(set)
