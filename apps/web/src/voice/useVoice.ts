@@ -10,6 +10,7 @@
 import { useMemo } from 'react'
 import { useSession } from '@/api/queries'
 import { dative, genitive } from '@/lib/declension'
+import { pluralForm } from '@/lib/deadline'
 import { text, type TextKey, type TextVars } from './texts'
 
 export type Translate = (key: TextKey, vars?: TextVars) => string
@@ -28,6 +29,14 @@ export function useVoice(): Translate {
     }
     return (key, vars) => text(key, role, vars ? { ...base, ...vars } : base)
   }, [session])
+}
+
+/**
+ * Текст со словом, склонённым по числу: ключи `<base>.one`, `.few`, `.many`
+ * («1 олимпиада», «2 олимпиады», «5 олимпиад»). Число подставляется как `{count}`.
+ */
+export function countText(t: Translate, base: string, n: number, vars?: TextVars): string {
+  return t(`${base}.${pluralForm(n)}` as TextKey, { count: n, ...vars })
 }
 
 /** Роль смотрящего — когда нужен не текст, а ветка в разметке. */

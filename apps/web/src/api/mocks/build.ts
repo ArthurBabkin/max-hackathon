@@ -636,6 +636,7 @@ export function family(): Family {
     token: i.token,
     url: `https://max.ru/t356_hakaton_max_bot?start=inv_${i.token}`,
     role: i.role,
+    can_revoke: me.is_creator || i.created_by === me.id,
     created_at: i.created_at,
   }))
 

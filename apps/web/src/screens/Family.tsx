@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { Button } from '@maxhub/max-ui'
-import type { Role } from '@contract'
-import { useCreateInvite, useFamily, useLeaveTrajectory, useRemoveMember, useSession } from '@/api/queries'
+import type { Invite, Role } from '@contract'
+import {
+  useCreateInvite,
+  useFamily,
+  useLeaveTrajectory,
+  useRemoveMember,
+  useRevokeInvite,
+  useSession,
+} from '@/api/queries'
 import { shareLink } from '@/bridge'
 import { copyText } from '@/lib/clipboard'
 import { canRemoveMember } from '@/lib/permissions'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Hint, SourceLine } from '@/ui/primitives'
+import { CardSkeletons, SourceLine } from '@/ui/primitives'
 import { useRole, useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
 
@@ -19,12 +26,14 @@ export function FamilyScreen() {
   const family = useFamily()
   const createInvite = useCreateInvite()
   const removeMember = useRemoveMember()
+  const revokeInvite = useRevokeInvite()
   const leave = useLeaveTrajectory()
 
-  const [copied, setCopied] = useState(false)
+  // id ссылки, которую только что скопировали: кнопка на 2 секунды говорит «скопирована».
+  const [copied, setCopied] = useState<string | null>(null)
   const [left, setLeft] = useState(false)
   // Удаление и выход не отменить, поэтому срабатывают со второго нажатия.
-  // Здесь id участника или 'leave'; через 4 секунды без ответа кнопка
+  // Здесь id участника, id ссылки или 'leave'; через 4 секунды без ответа кнопка
   // возвращается в обычный вид.
   const [armed, setArmed] = useState<string | null>(null)
 
@@ -52,25 +61,22 @@ export function FamilyScreen() {
 
   const { members, invites } = family.data
   const creator = members.find((member) => member.is_creator)
-  const lastInvite = invites.at(-1)
   const hasKid = members.some((member) => member.role === 'kid')
 
   // Роль приглашённого выбирает тот, кто создаёт ссылку. Если ученик уже
   // подключён, вторую роль «ученик» выдать нельзя (ТЗ F42).
-  const inviteRole: Role = hasKid ? 'parent' : 'kid'
+  const inviteRoles: Role[] = hasKid ? ['parent'] : ['kid', 'parent']
 
-  const copy = async () => {
-    if (!lastInvite) return
-    if (!(await copyText(lastInvite.url))) return
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const copy = async (invite: Invite) => {
+    if (!(await copyText(invite.url))) return
+    setCopied(invite.id)
+    setTimeout(() => setCopied((id) => (id === invite.id ? null : id)), 2000)
   }
 
   // Не вышло поделиться — кладём ссылку в буфер. Открывать её самому нельзя:
   // приглашение одноразовое и досталось бы тому, кто его создал.
-  const share = async () => {
-    if (!lastInvite) return
-    if (!(await shareLink(lastInvite.url))) await copy()
+  const share = async (invite: Invite) => {
+    if (!(await shareLink(invite.url))) await copy(invite)
   }
 
   return (
@@ -79,8 +85,6 @@ export function FamilyScreen() {
       {creator ? (
         <p className="family-subtitle">{t('family.subtitle', { creator: creator.name })}</p>
       ) : null}
-
-      <Hint>{t('family.remindNote')}</Hint>
 
       <section className="members">
         <h2 className="members-head">
@@ -116,41 +120,59 @@ export function FamilyScreen() {
         ))}
       </section>
 
-      {/* Каждая ссылка срабатывает один раз — F39. */}
-      {lastInvite ? (
-        <section className="invite-box">
-          <p className="invite-title">{t('family.linkTitle')}</p>
+      {/* Каждая ссылка срабатывает один раз — F39. Неиспользованную можно
+          отозвать: автор ссылки или создатель траектории (ТЗ §16). Свежие сверху. */}
+      {invites.length > 0 ? (
+        <section className="invites">
+          <h2 className="members-head">
+            <Icon name="link" size={13} />
+            {t('family.linksWaiting', { count: invites.length })}
+          </h2>
           <p className="invite-text">{t('family.linkText')}</p>
-          <p className="invite-url">{lastInvite.url}</p>
-          <div className="invite-actions">
-            <Button stretched iconBefore={<Icon name="send" size={15} />} onClick={() => void share()}>
-              {t('family.linkShare')}
-            </Button>
-            <Button stretched variant="secondary" onClick={() => void copy()}>
-              {copied ? t('toast.inviteCopied') : t('family.linkCopy')}
-            </Button>
-          </div>
+          {[...invites].reverse().map((invite) => (
+            <div key={invite.id} className="invite-box">
+              <p className="invite-title">
+                {invite.role === 'kid' ? t('family.linkForKid') : t('family.linkForParent')}
+              </p>
+              <p className="invite-url">{invite.url}</p>
+              <div className="invite-actions">
+                <Button stretched iconBefore={<Icon name="send" size={15} />} onClick={() => void share(invite)}>
+                  {t('family.linkShare')}
+                </Button>
+                <Button stretched variant="secondary" onClick={() => void copy(invite)}>
+                  {copied === invite.id ? t('toast.inviteCopied') : t('family.linkCopy')}
+                </Button>
+                {invite.can_revoke ? (
+                  <button
+                    type="button"
+                    className={`member-remove invite-revoke${armed === invite.id ? ' member-remove-armed' : ''}`}
+                    disabled={revokeInvite.isPending}
+                    onClick={() => (armed === invite.id ? revokeInvite.mutate(invite.id) : setArmed(invite.id))}
+                  >
+                    {armed === invite.id ? t('family.linkRevokeConfirm') : t('family.linkRevoke')}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
         </section>
       ) : null}
 
-      {invites.length > 1 ? (
-        <p className="fine fine-center">{t('family.linksWaiting', { count: invites.length })}</p>
-      ) : null}
-
-      <Button
-        stretched
-        variant={invites.length > 0 ? 'secondary' : 'primary'}
-        loading={createInvite.isPending}
-        iconBefore={<Icon name="link" size={16} />}
-        data-tour="invite"
-        onClick={() => createInvite.mutate(inviteRole)}
-      >
-        {invites.length > 0
-          ? t('family.inviteMoreCta')
-          : hasKid
-            ? t('family.inviteParent')
-            : t('family.inviteKid')}
-      </Button>
+      <div className="invite-buttons" data-tour="invite">
+        {inviteRoles.map((inviteRole, i) => (
+          <Button
+            key={inviteRole}
+            stretched
+            variant={invites.length === 0 && i === 0 ? 'primary' : 'secondary'}
+            loading={createInvite.isPending && createInvite.variables === inviteRole}
+            disabled={createInvite.isPending}
+            iconBefore={<Icon name="link" size={16} />}
+            onClick={() => createInvite.mutate(inviteRole)}
+          >
+            {inviteRole === 'kid' ? t('family.inviteKid') : t('family.inviteParent')}
+          </Button>
+        ))}
+      </div>
 
       {/* Объяснение льгот простыми словами доступно родителю и здесь — F47. */}
       {role === 'parent' ? (

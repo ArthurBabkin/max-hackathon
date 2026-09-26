@@ -418,10 +418,19 @@ route('POST', '/family/invites', ({ body }) => {
     id: nextId('inv'),
     token: Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 8),
     role: inviteRole,
+    created_by: state.viewerId,
     created_at: new Date().toISOString(),
   }
   state.invites.push(invite)
   return build.family().invites.at(-1)
+})
+
+route('DELETE', '/family/invites/:id', ({ params }) => {
+  const index = state.invites.findIndex((i) => i.id === params.id)
+  const invite = state.invites[index]
+  if (!invite || (!viewer().is_creator && invite.created_by !== state.viewerId)) throw notFound()
+  state.invites.splice(index, 1)
+  return undefined
 })
 
 route('DELETE', '/family/members/:id', ({ params }) => {
@@ -687,7 +696,9 @@ export async function handleMock<T>(
     params[key] = decodeURIComponent(found[i + 1] ?? '')
   })
 
-  return match.handler({ params, query: new URLSearchParams(search), body }) as T
+  // Ответ без тела (204) — null, а не undefined: undefined значит «такой
+  // ручки в моках нет», и запрос ушёл бы на настоящий сервер.
+  return (match.handler({ params, query: new URLSearchParams(search), body }) ?? null) as T
 }
 
 export { inDays }

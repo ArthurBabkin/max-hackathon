@@ -301,7 +301,7 @@ export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack
               </div>
             ) : null}
             {pending ? (
-              <div className="ai-message ai-message-bot ai-dots" aria-label="Помощник печатает">
+              <div className="ai-message ai-message-bot ai-dots" aria-label={t('ai.typing')}>
                 <span />
                 <span />
                 <span />
@@ -344,7 +344,7 @@ export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack
               }}
             />
             <IconButton disabled={!draft.trim() || ask.isPending || active === undefined} onClick={() => send(draft)}>
-              <Icon name="send" size={16} title="Отправить" />
+              <Icon name="send" size={16} title={t('ai.send')} />
             </IconButton>
           </div>
         </>

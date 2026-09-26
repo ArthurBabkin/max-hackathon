@@ -379,6 +379,13 @@
   color: var(--mu);
 }
 
+/* Вторая строка под сроком: кто добавил олимпиаду в трекер (ТЗ §3.2). */
+.row-meta {
+  font-size: var(--t-small);
+  color: var(--mu);
+  overflow-wrap: anywhere;
+}
+
 /* Плитка олимпиады или вуза */
 .tile {
   flex: 0 0 auto;
@@ -2792,6 +2799,16 @@
 }
 
 .invite-actions {
+  display: grid;
+  gap: var(--gap-sm);
+}
+
+/* Отзыв — второстепенное действие: подпись под кнопками, а не третья кнопка. */
+.invite-revoke {
+  justify-self: center;
+}
+
+.invite-buttons {
   display: grid;
   gap: var(--gap-sm);
 }

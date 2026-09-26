@@ -74,6 +74,3 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
   return [...out.values()]
 }
 
-/** «из 1 направления», «из 8 направлений» — после «на N из». */
-export const ofDirections = (n: number) =>
-  `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'направления' : 'направлений'}`

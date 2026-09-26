@@ -11,8 +11,8 @@ import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
 import type { TextKey } from '@/voice/texts'
-import { useVoice } from '@/voice/useVoice'
-import { plural } from '@/lib/deadline'
+import { countText, useVoice, type Translate } from '@/voice/useVoice'
+import { levelLabel } from '@/lib/level'
 import { ErrorState } from '@/ui/ErrorState'
 import { DirectionPicker } from './DirectionPicker'
 
@@ -23,7 +23,6 @@ type Segment = 'olympiads' | 'universities'
  * справочники с сервера, сюда встанут они — разметка не изменится.
  */
 const SUBJECTS: { value: string; label: string }[] = [
-  { value: 'all', label: 'Все' },
   { value: 'inf', label: 'Информатика' },
   { value: 'math', label: 'Математика' },
   { value: 'phys', label: 'Физика' },
@@ -37,20 +36,14 @@ const GROUP_PREVIEW = 5
 
 const UNIVERSITY_CITIES = ['all', 'Казань', 'Иннополис', 'Москва', 'Санкт-Петербург', 'Долгопрудный']
 
-function levelLabel(level: string | null, kind: string, outside: string): string {
-  if (kind === 'vsosh') return 'ВсОШ'
-  if (kind === 'other') return outside
-  return level ? `${level} уровень` : 'уровень уточняется'
-}
-
 /** Мои вузы и сколько направлений в них учитываются: «ВШЭ, КФУ · 2 направления». */
-function mineSummary(profile: Profile): string {
+function mineSummary(profile: Profile, t: Translate): string {
   const names = profile.universities.map((u) => u.nick).join(', ')
   // Мои направления — цель и выбранные в вузах: что вуз покрывает цель
   // укрупнённым кодом (09.00.00), числа не меняет.
   const count = new Set([...profile.directions, ...profile.universities.flatMap((u) => u.chosen_directions)].map((d) => d.id))
     .size
-  return count > 0 ? `${names} · ${count} ${plural(count, 'направление', 'направления', 'направлений')}` : names
+  return count > 0 ? `${names} · ${countText(t, 'count.directions', count)}` : names
 }
 
 /** Льгота в моих вузах в строке каталога: метка сильнейшей, дальше — вузы. */
@@ -200,7 +193,7 @@ export function CatalogScreen() {
                   <span
                     className={`level${item.kind === 'vsosh' ? ' level-vsosh' : item.kind === 'other' ? ' level-outside' : ''}`}
                   >
-                    {levelLabel(item.primary_profile.level, item.kind, t('catalog.outsidePerechen'))}
+                    {levelLabel(item.kind, item.primary_profile.level, t)}
                   </span>
                 </button>
               ))}
@@ -242,20 +235,11 @@ export function CatalogScreen() {
               <span className="row-title">{item.name}</span>
               <span className="row-subtitle">
                 {item.city},{' '}
-                {!item.direction_match ? (
-                  <>
-                    {item.benefit_olympiads_count}{' '}
-                    {plural(item.benefit_olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')} с льготой
-                  </>
-                ) : item.direction_match.status === 'to_check' ? (
-                  t('catalog.directionToCheck')
-                ) : (
-                  <>
-                    {item.direction_match.olympiads_count}{' '}
-                    {plural(item.direction_match.olympiads_count, 'олимпиада', 'олимпиады', 'олимпиад')}{' '}
-                    {t('catalog.onDirection')}
-                  </>
-                )}
+                {!item.direction_match
+                  ? countText(t, 'catalog.withBenefit', item.benefit_olympiads_count)
+                  : item.direction_match.status === 'to_check'
+                    ? t('catalog.directionToCheck')
+                    : `${countText(t, 'count.olympiads', item.direction_match.olympiads_count)} ${t('catalog.onDirection')}`}
               </span>
             </span>
             {item.is_mine ? <span className="mine-badge">{t('catalog.mineBadge')}</span> : null}
@@ -336,7 +320,7 @@ export function CatalogScreen() {
           >
             <span className="mine-switch-text">
               <b>{t('catalog.mineTitle')}</b>
-              {profile.data && myUniversities.length > 0 ? <span>{mineSummary(profile.data)}</span> : null}
+              {profile.data && myUniversities.length > 0 ? <span>{mineSummary(profile.data, t)}</span> : null}
             </span>
             <span className="switch" aria-hidden />
           </button>
@@ -353,6 +337,9 @@ export function CatalogScreen() {
         <div className="filter-row" data-tour="catalog-subjects">
           <span className="filter-label">{t('catalog.filterSubject')}</span>
           <div className="chips">
+            <Chip active={subject === 'all'} onClick={() => setSubject('all')}>
+              {t('catalog.all')}
+            </Chip>
             {SUBJECTS.map((item) => (
               <Chip key={item.value} active={subject === item.value} onClick={() => setSubject(item.value)}>
                 {item.label}
@@ -367,7 +354,7 @@ export function CatalogScreen() {
           <span className="filter-label">{t('catalog.filterDirection')}</span>
           <div className="chips" role="group" aria-label={t('catalog.filterDirection')}>
             <Chip active={direction === ''} onClick={() => setDirection('')}>
-              Все
+              {t('catalog.all')}
             </Chip>
             {directionChips.map((d) => (
               <Chip key={d.id} active={direction === d.id} onClick={() => setDirection(d.id)}>
@@ -395,7 +382,7 @@ export function CatalogScreen() {
           <div className="chips">
             {UNIVERSITY_CITIES.map((value) => (
               <Chip key={value} active={city === value} onClick={() => setCity(value)}>
-                {value === 'all' ? 'Все' : value}
+                {value === 'all' ? t('catalog.all') : value}
               </Chip>
             ))}
           </div>
