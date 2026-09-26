@@ -46,3 +46,49 @@ export function badgeColor(id: string, provided: string | null | undefined): str
   }
   return PALETTE[hash % PALETTE.length]!
 }
+
+/**
+ * Логотипы из `public/logos`: значки с официальных сайтов вузов и олимпиад.
+ * У олимпиады — только её собственный знак, не логотип вуза-организатора;
+ * у кого своего нет или он слишком мелкий, остаётся плитка с аббревиатурой.
+ */
+const LOGOS: Record<string, string> = {
+  msu: 'msu.png',
+  spbu: 'spbu.png',
+  hse: 'hse.png',
+  mipt: 'mipt.png',
+  itmo: 'itmo.png',
+  kfu: 'kfu.png',
+  nsu: 'nsu.svg',
+  innopolis: 'innopolis.png',
+  sechenov: 'sechenov.png',
+  'kazan-gmu': 'kazan-gmu.png',
+  'p669-2': 'p669-2.png',
+  'p669-6': 'p669-6.png',
+  'p669-7': 'p669-7.png',
+  'p669-12': 'p669-12.png',
+  'p669-23': 'p669-23.png',
+  'p669-32': 'p669-32.png',
+  'p669-49': 'p669-49.png',
+  'p669-51': 'p669-51.png',
+  'p669-55': 'p669-55.png',
+  'p669-57': 'p669-57.png',
+  'p669-62': 'p669-62.svg',
+  'p669-64': 'p669-64.png',
+  'p669-66': 'p669-66.png',
+  'p669-82': 'p669-82.png',
+  'vsosh-astronomiya': 'vsosh-astronomiya.png',
+  'vsosh-biologiya': 'vsosh-biologiya.png',
+  'vsosh-ekonomika': 'vsosh-ekonomika.png',
+  'vsosh-fizika': 'vsosh-fizika.png',
+  'vsosh-himiya': 'vsosh-himiya.png',
+  'vsosh-informatika': 'vsosh-informatika.png',
+  'vsosh-matematika': 'vsosh-matematika.png',
+  'vsosh-obschestvoznanie': 'vsosh-obschestvoznanie.png',
+}
+
+export function badgeLogo(id: string): string | null {
+  // У ВсОШ по предмету свой знак, для предмета без него — общий.
+  const file = LOGOS[id] ?? (id.startsWith('vsosh-') ? 'vsosh.png' : undefined)
+  return file ? `${import.meta.env.BASE_URL}logos/${file}` : null
+}

@@ -7,8 +7,8 @@
  * чем описать.
  */
 
-import type { ReactNode } from 'react'
-import { badgeColor, badgeShortName } from '@/lib/badge'
+import { useState, type ReactNode } from 'react'
+import { badgeColor, badgeLogo, badgeShortName } from '@/lib/badge'
 import { daysLabel, daysLeft, deadlineTone } from '@/lib/deadline'
 import { Icon, type IconName } from './Icon'
 import { useVoice } from '@/voice/useVoice'
@@ -65,13 +65,16 @@ export interface TileProps {
 export function Tile({ id, name, shortName, color, size = 'sm', filled = false }: TileProps) {
   const hue = badgeColor(id, color)
   const label = badgeShortName(name, shortName)
+  const logo = badgeLogo(id)
+  const [logoFailed, setLogoFailed] = useState(false)
+  const showLogo = logo && !logoFailed
   return (
     <span
-      className={`tile tile-${size}${filled ? ' tile-filled' : ''}${label.length >= 4 ? ' tile-long' : ''}`}
-      style={{ '--tile-hue': hue } as React.CSSProperties}
+      className={`tile tile-${size}${filled ? ' tile-filled' : ''}${showLogo ? ' tile-logo' : ''}`}
+      style={{ '--tile-hue': hue, '--tile-chars': label.length } as React.CSSProperties}
       aria-hidden="true"
     >
-      {label}
+      {showLogo ? <img src={logo} alt="" loading="lazy" onError={() => setLogoFailed(true)} /> : label}
     </span>
   )
 }

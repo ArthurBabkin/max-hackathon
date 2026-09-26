@@ -388,14 +388,21 @@
 
 /* Плитка олимпиады или вуза */
 .tile {
+  --tile-size: 38px;
+  --tile-font: var(--t-small);
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  overflow: hidden;
+  width: var(--tile-size);
+  height: var(--tile-size);
   border-radius: 12px;
   font-weight: 800;
-  font-size: var(--t-small);
+  /* «СПбГУ» кеглем «КФУ» вылезает за плитку: заглавная жирная буква шириной
+     около 0,7 кегля, поэтому кегль ужимается под ширину плитки и число букв. */
+  font-size: min(var(--tile-font), calc((var(--tile-size) - 6px) / var(--tile-chars, 1) / 0.7));
+  letter-spacing: -0.2px;
+  white-space: nowrap;
   color: var(--tile-hue);
   /* color-mix — с iOS 16.2; на iOS 15 без запасного цвета плитка была бы прозрачной. */
   background: var(--surface-2);
@@ -403,22 +410,31 @@
 }
 
 .tile-md {
-  width: 46px;
-  height: 46px;
+  --tile-size: 46px;
+  --tile-font: var(--t-base);
   border-radius: 14px;
-  font-size: var(--t-base);
 }
 
 .tile-lg {
-  width: 54px;
-  height: 54px;
+  --tile-size: 54px;
+  --tile-font: var(--t-strong);
   border-radius: 16px;
-  font-size: var(--t-strong);
 }
 
 .tile-filled {
   color: #fff;
   background: var(--tile-hue);
+}
+
+/* Логотипы рисуются под светлый фон — белая подложка в обеих темах. */
+.tile-logo {
+  background: #fff;
+}
+
+.tile-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Плашка срока */
@@ -1202,10 +1218,9 @@
 }
 
 .benefit-main .tile {
-  width: 32px;
-  height: 32px;
+  --tile-size: 32px;
+  --tile-font: 11px;
   border-radius: 10px;
-  font-size: 11px;
 }
 
 .benefit-text {
@@ -1369,15 +1384,9 @@
 }
 
 .benefit-table .tile {
-  width: 28px;
-  height: 28px;
+  --tile-size: 28px;
+  --tile-font: 10px;
   border-radius: 9px;
-  font-size: 10px;
-}
-
-.benefit-table .tile-long {
-  font-size: 8px;
-  letter-spacing: -0.2px;
 }
 
 .benefit-table td {
