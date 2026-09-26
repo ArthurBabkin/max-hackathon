@@ -57,7 +57,7 @@ func TestOlympiad_BenefitOnMyDirections(t *testing.T) {
 
 	benefits := list(t, e.do("GET", "/api/v1/olympiads/"+virtualProfile, token, nil).body["benefits"])
 	hse := rowOf(t, benefits, "hse")
-	if hse["benefit"] != "score100" || !slices.Equal(strs(hse["directions"]), []string{"Программная инженерия"}) ||
+	if hse["benefit"] != "bvi" || !slices.Equal(strs(hse["directions"]), []string{"Программная инженерия"}) ||
 		hse["unverified"] != false || hse["varies"] != true {
 		t.Fatalf("ВШЭ на ПИ: %v", hse)
 	}
@@ -70,9 +70,10 @@ func TestOlympiad_BenefitOnMyDirections(t *testing.T) {
 
 	// «Где ещё даёт льготу» — на скольких направлениях вуза.
 	body := e.do("GET", "/api/v1/olympiads/"+virtualProfile, token, nil).body
-	if itmo := rowOf(t, list(t, body["benefit_universities"]), "itmo"); itmo["directions_count"] != float64(18) ||
+	// ИТМО: «учитывается только на 11.03.02» (перечень БВИ, стр. 6).
+	if itmo := rowOf(t, list(t, body["benefit_universities"]), "itmo"); itmo["directions_count"] != float64(1) ||
 		itmo["directions_total"] != float64(24) {
-		t.Fatalf("ИТМО: на 18 из 24 направлений: %v", itmo)
+		t.Fatalf("ИТМО: на 1 из 24 направлений: %v", itmo)
 	}
 
 	r := e.do("PUT", "/api/v1/profile/universities/hse/directions", token, map[string]any{"direction_ids": []string{dirIS}})
@@ -146,7 +147,7 @@ func TestUniversity_Directions(t *testing.T) {
 			virtual = o
 		}
 	}
-	if virtual == nil || virtual["benefit"] != "bvi" || virtual["my_benefit"] != "score100" ||
+	if virtual == nil || virtual["benefit"] != "bvi" || virtual["my_benefit"] != "bvi" ||
 		virtual["directions_count"].(float64) < 2 || virtual["directions_total"] != float64(19) {
 		t.Fatalf("олимпиада в ВШЭ: %v", virtual)
 	}
@@ -271,9 +272,11 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	targetRows, _ = e.st.TargetBenefits(ctx, f.trajectoryID, ids, unis)
+	// По профилю строки (основному по предмету), а не по олимпиаде целиком:
+	// у «Высшей пробы» от программы зависит математика, а не информатика.
 	varies := map[string]bool{}
 	for _, b := range targetRows {
-		varies[olympiadOf[b.ProfileID]] = varies[olympiadOf[b.ProfileID]] || b.Varies
+		varies[b.ProfileID] = varies[b.ProfileID] || (b.Varies && !b.Unverified)
 	}
 	marked := 0
 	for _, it := range list(t, e.do("GET", "/api/v1/olympiads?mine=true&subject=inf", token, nil).body["items"]) {
@@ -282,8 +285,9 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 			if len(partial) > 0 {
 				marked++
 			}
-			if varies[it["olympiad_id"].(string)] != slices.Equal(partial, []string{"ВШЭ"}) {
-				t.Fatalf("%s: зависит от программы — %v, в ответе %v", it["olympiad_id"], varies[it["olympiad_id"].(string)], g)
+			pid := it["primary_profile"].(map[string]any)["olympiad_profile_id"].(string)
+			if varies[pid] != slices.Equal(partial, []string{"ВШЭ"}) {
+				t.Fatalf("%s: зависит от программы — %v, в ответе %v", pid, varies[pid], g)
 			}
 		}
 	}
