@@ -928,10 +928,14 @@ def sechenov_rows(pages: list[dict], url: str) -> list[dict]:
                        "benefit": benefit, "page": pg["page"]}
                 out.append(rec)
                 last.append(rec)
+    # Стр. 1: «Результаты победителя (призера) должны быть получены за 10 или 11 класс».
+    clause = next((m for pg in pages for m in [re.search(r"получены\s+за\s+([\d\s,иили-]+?)\s*класс",
+                                                           clean(pg.get("text") or ""))] if m), None)
+    grades = _grades(clause.group(1)) if clause else None
     return [{"match": {"exams": sorted(subject_keys(r["exam"]))}, "olympiad_name": r["name"],
              "profile": r["profile"], "level": None, "statuses": [POB, PRIZ],
              "benefit": r["benefit"], "ege_subject": r["subject"], "ege_score": 75,
-             "grades": None, "page": r["page"], "url": url} for r in out]
+             "grades": grades, "page": r["page"], "url": url} for r in out]
 
 
 def sechenov_exams(pages: list[dict]) -> dict[str, set[str]]:
