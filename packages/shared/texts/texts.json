@@ -403,6 +403,10 @@
     "kid": "Не учитывают эту олимпиаду: {names}",
     "parent": "Не учитывают эту олимпиаду: {names}"
   },
+  "benefits.otherDirectionsOnly": {
+    "kid": "Льгота есть, но не на твои направления: {names}",
+    "parent": "Льгота есть, но не на направления {student_gen}: {names}"
+  },
   "benefits.differs": {
     "kid": "не как в большинстве",
     "parent": "не как в большинстве"

@@ -210,13 +210,13 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	for _, u := range cs.Universities {
 		own[u.ID] = true
 	}
-	var others []string
+	// Покрытие — и у вузов ученика: без льготы на его направления вуз может
+	// давать её на другие, и тогда он не «не учитывает» олимпиаду.
+	var unis []string
 	for _, b := range all {
-		if !own[b.UniversityID] {
-			others = append(others, b.UniversityID)
-		}
+		unis = append(unis, b.UniversityID)
 	}
-	cov, err := s.store.DirectionCoverage(ctx, []string{p.ID}, others)
+	cov, err := s.store.DirectionCoverage(ctx, []string{p.ID}, unis)
 	if err != nil {
 		return err
 	}
@@ -257,10 +257,12 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 			out.Benefits = append(out.Benefits, row)
 			continue
 		}
+		c := cov[p.ID+"/"+u.ID]
 		out.Benefits = append(out.Benefits, benefitRow{
 			UniversityID: u.ID, UniversityName: u.Name, UniversityShortName: u.ShortName, City: u.City,
 			UniversityNick: nick(u.ID, u.ShortName),
 			Directions:     orEmpty(cs.Targets[u.ID].DirectionNames), OtherDirections: []directionBenefitDTO{},
+			DirectionsCount: c.Count, DirectionsTotal: c.Total,
 		})
 	}
 	if out.Benefits == nil {
@@ -549,12 +551,18 @@ func (cs cardSet) why(p store.Profile, r match.Result, mine, all []store.Benefit
 	case best != "":
 		parts = append(parts, v.T("why.benefit", voice.Vars{
 			"title": upperFirst(benefitLabels[best]), "names": nicksWith(mine, best)}))
-	case len(all) > 0:
+	default:
+		// Другие — вузы вне цели: в своём вузе льгота может быть только на
+		// чужие направления, «другим» он от этого не становится.
 		var nicks []string
-		for _, b := range all[:min(3, len(all))] {
-			nicks = append(nicks, nick(b.UniversityID, b.UniversityShort))
+		for _, b := range all {
+			if len(nicks) < 3 && !slices.ContainsFunc(cs.Universities, func(u store.University) bool { return u.ID == b.UniversityID }) {
+				nicks = append(nicks, nick(b.UniversityID, b.UniversityShort))
+			}
 		}
-		parts = append(parts, v.T("why.benefitElsewhere", voice.Vars{"names": strings.Join(nicks, ", ")}))
+		if len(nicks) > 0 {
+			parts = append(parts, v.T("why.benefitElsewhere", voice.Vars{"names": strings.Join(nicks, ", ")}))
+		}
 	}
 	if r.Online {
 		parts = append(parts, v.T("why.online", nil))

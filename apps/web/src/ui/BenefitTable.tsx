@@ -5,7 +5,8 @@
  * закрытый набор, его выбирает сервер (`benefit_columns`). Всё редкое — класс
  * диплома, другой предмет ЕГЭ — плашкой под строкой своего вуза, новых
  * столбцов не появляется. Жёлтым — только то, что не как в большинстве вузов.
- * Кто олимпиаду не учитывает — одной строкой под таблицей.
+ * Кто олимпиаду не учитывает — одной строкой под таблицей; кто даёт льготу
+ * только на другие направления — своей строкой.
  */
 
 import type { BenefitColumn, BenefitGrant, BenefitRow } from '@contract'
@@ -36,7 +37,11 @@ export interface BenefitTableProps {
 export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
   const t = useVoice()
   const counted = rows.filter((row) => row.winner || row.prizer)
-  const notCounted = rows.filter((row) => !row.winner && !row.prizer)
+  // Без льготы на мои направления вуз может давать её на другие — тогда он
+  // не «не учитывает» олимпиаду, а говорит об этом отдельной строкой.
+  const uncounted = rows.filter((row) => !row.winner && !row.prizer)
+  const notCounted = uncounted.filter((row) => row.directions_count === 0)
+  const elsewhere = uncounted.filter((row) => row.directions_count > 0)
 
   const grantOf = (row: BenefitRow, column: BenefitColumn) => (column === 'prizer' ? row.prizer : row.winner)
   const ege = (row: BenefitRow) => {
@@ -169,6 +174,12 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
             })}
           </tbody>
         </table>
+      ) : null}
+
+      {elsewhere.length > 0 ? (
+        <p className="benefit-table-skip">
+          {t('benefits.otherDirectionsOnly', { names: elsewhere.map((row) => row.university_nick).join(', ') })}
+        </p>
       ) : null}
 
       {notCounted.length > 0 ? (

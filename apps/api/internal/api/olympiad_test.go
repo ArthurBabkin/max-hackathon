@@ -261,6 +261,44 @@ func TestOlympiad_BenefitsSourceWhenEveryRowIsSourced(t *testing.T) {
 	}
 }
 
+// «В твоих вузах льготы нет, но она есть в других» — другие это вузы вне
+// цели. Вуз ученика, где олимпиада даёт льготу только на чужие направления
+// (ВсОШ по биологии в КФУ), «другим» не называется — как и в «Где ещё
+// даёт льготу».
+func TestOlympiad_WhyElsewhereNamesOnlyOtherUniversities(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator() // вузы Иннополис, ВШЭ, КФУ; направления — ИТ
+	b := e.do("GET", "/api/v1/olympiads/vsosh-biologiya", e.login(900000001, "Артём"), nil).body
+	why, _ := b["why"].(string)
+	i := strings.Index(why, "но она есть в других: ")
+	if i < 0 {
+		t.Fatalf("льгота есть в других вузах: %q", why)
+	}
+	others := why[i:]
+	if strings.Contains(others, "КФУ") || !strings.Contains(others, "ИТМО") {
+		t.Fatalf("в других — только вузы вне цели: %q", why)
+	}
+}
+
+// Вуз ученика без льготы на его направления — ещё не «не учитывает»:
+// ВсОШ по биологии КФУ и ВШЭ засчитывают на других направлениях.
+// Строка несёт, на скольких, чтобы экран не писал «не учитывает» неправду;
+// Иннополис олимпиаду не учитывает совсем — у него ноль.
+func TestOlympiad_NotCountedRowKnowsOtherDirections(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	rows := list(t, e.do("GET", "/api/v1/olympiads/vsosh-biologiya", e.login(900000001, "Артём"), nil).body["benefits"])
+	for _, uni := range []string{"kfu", "hse"} {
+		row := rowOf(t, rows, uni)
+		if row["winner"] != nil || row["directions_count"].(float64) == 0 {
+			t.Fatalf("%s: льготы на мои направления нет, на другие — есть: %v", uni, row)
+		}
+	}
+	if row := rowOf(t, rows, "innopolis"); row["directions_count"].(float64) != 0 {
+		t.Fatalf("Иннополис олимпиаду не учитывает: %v", row)
+	}
+}
+
 func TestOlympiad_VsoshCardAndParentVoice(t *testing.T) {
 	e := newEnv(t)
 	// ВсОШ по информатике: в КФУ — 100 баллов (информатика не первое ВИ),
