@@ -187,6 +187,10 @@ GOLDEN = [
     ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-13-inzhenernye-nauki",
      {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-69-inzhenernoe-delo", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # Стр. 8, НТО: «инфохимия | информатика и вычислительная техника, химическая
+    # технология, химия | III | информатика» — графа 3 в три строки.
+    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-5-infohimiya",
+     {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
