@@ -142,7 +142,7 @@ func TestTracker_StageMarkFlow(t *testing.T) {
 // «регистрация пройдена» — она была и до этого.
 func TestTracker_StageUnmarkIsNotAnnounced(t *testing.T) {
 	e := newEnv(t)
-	e.now = time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	e.now = time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC) // школьный этап на «Сириусе» — 19–23.10
 	f := e.withParent(e.kidCreator())
 	kid := e.login(artemMax, "Артём")
 	id := e.track(f, "vsosh-informatika", false)
