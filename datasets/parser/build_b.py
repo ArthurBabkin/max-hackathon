@@ -557,19 +557,35 @@ def mipt_rows(html: str, url: str) -> list[dict]:
         # этот предмет — вступительное испытание. В ячейке бывает два предмета.
         for clause in filter(None, map(str.strip, clean(c[4]).split(";"))):
             subject = _subject_from(clause)
-            out.append({"match": {"mipt_exam": subject}, "olympiad_name": name, "profile": profile,
-                        "level": level, "statuses": _statuses(clause), "benefit": HUNDRED,
-                        "ege_subject": subject, "ege_score": _score(clause),
-                        "grades": None, "page": None, "url": url, "number": num})
+            out += _by_grades({"match": {"mipt_exam": subject}, "olympiad_name": name, "profile": profile,
+                               "level": level, "statuses": _statuses(clause), "benefit": HUNDRED,
+                               "ege_subject": subject, "ege_score": _score(clause),
+                               "page": None, "url": url, "number": num}, num)
         if not cols:
             continue
         first, schools = cols
         for school, cell in zip(schools, c[first:first + len(schools)]):
             for cl in _mipt_clauses(school, cell):
-                out.append({**cl, "olympiad_name": name, "profile": profile, "level": level,
-                            "benefit": BVI, "grades": None, "page": None, "url": url,
-                            "number": num})
+                out += _by_grades({**cl, "olympiad_name": name, "profile": profile, "level": level,
+                                   "benefit": BVI, "page": None, "url": url, "number": num}, num, school)
     return out
+
+
+def mipt_grades(num: int, status: str, school: str = "") -> list[int]:
+    """П. 4–6 «Порядка»: результат — за 11 класс; победителям «Физтеха»
+    (№ 54) — и за 10; победителям олимпиады по ИИ (№ 7) за 10 класс — только
+    на программах ВШПИ."""
+    if status == POB and (num == 54 or (num == 7 and "ВШПИ" in school)):
+        return [10, 11]
+    return [11]
+
+
+def _by_grades(row: dict, num: int, school: str = "") -> list[dict]:
+    """Строка на каждую группу статусов с одинаковыми классами."""
+    groups: dict[tuple, list[str]] = {}
+    for st in row["statuses"]:
+        groups.setdefault(tuple(mipt_grades(num, st, school)), []).append(st)
+    return [{**row, "statuses": sts, "grades": list(g)} for g, sts in groups.items()]
 
 
 def _subject_from(text: str) -> str | None:
