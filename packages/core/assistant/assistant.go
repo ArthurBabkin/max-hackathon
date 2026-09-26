@@ -445,6 +445,7 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	})
 	// Направление в вопросе — льготы на него, а не на цель ученика.
 	var targets []string
+	var unverified []uniName
 	if asked := c.mentions.Directions; len(asked) > 0 {
 		// Профили — по предмету из вопроса, иначе по предметам ученика.
 		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
@@ -456,9 +457,9 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 		if len(ps) == 0 {
 			ps = b.profiles[oid]
 		}
-		targets, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
+		targets, unverified, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
 	} else {
-		targets, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+		targets, unverified, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
 	}
 	if err != nil {
 		return err
@@ -480,15 +481,12 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if len(subjects) == 0 {
 		subjects = scope{subjects: c.mentions.Subjects}.subjectsOf(b.profiles[oid])
 	}
-	var unverified []uniName
 	for _, bn := range benefits {
 		if bn.Source != nil || (len(c.scope.universities) > 0 && !slices.Contains(c.scope.universities, bn.UniversityID)) ||
 			(len(subjects) > 0 && !slices.Contains(subjects, b.profile[bn.ProfileID].SubjectCode)) {
 			continue
 		}
-		if n := (uniName{pick.Nick(bn.UniversityID, bn.UniversityShort), bn.UniversityShort}); !slices.Contains(unverified, n) {
-			unverified = append(unverified, n)
-		}
+		unverified = appendNewUni(unverified, bn.UniversityID, bn.UniversityShort)
 	}
 	// Сайт олимпиады — первым: на нём даты и регистрация; дальше правила
 	// о льготах по этому профилю в вузах, о которых речь, и приказ о перечне.

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 )
 
@@ -80,6 +81,15 @@ func withNotes(text string, used []card) string {
 		notes = append(notes, strings.Join(unverified, ", ")+": условия льгот ещё уточняются — точные в правилах приёма вузов.")
 	}
 	return strings.Join(append([]string{text}, notes...), " ")
+}
+
+// appendNewUni — вуз в оговорку «уточняется», без повторов.
+func appendNewUni(xs []uniName, id, short string) []uniName {
+	n := uniName{pick.Nick(id, short), short}
+	if slices.Contains(xs, n) {
+		return xs
+	}
+	return append(xs, n)
 }
 
 func appendNew(xs []string, x string) []string {

@@ -280,6 +280,29 @@ func TestAsk_NotesModelSkipped(t *testing.T) {
 	}
 }
 
+// Льготы на выбранное в вузе направление ещё проверяются (ВШЭ,
+// «Юриспруденция»): ответ, который об этом молчит, получает оговорку, как у
+// демо-строк.
+func TestAsk_NoteUnverifiedDirections(t *testing.T) {
+	st, tr := setup(t)
+	ctx := context.Background()
+	fam, err := st.FamilyMembers(ctx, tr.ID)
+	if err != nil || len(fam) == 0 {
+		t.Fatal(err)
+	}
+	if err := st.SetUniversityDirections(ctx, tr.ID, "hse", fam[0].ID, []string{"napr-40-03-01"}); err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeLLM{reply: `{"answer": "В ВШЭ победителю и призёру — БВИ.", "card_ids": ["olympiad:p669-8"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f}).Ask(ctx, kid, tr, nil, "Что даёт «Высшая проба» по информатике в ВШЭ?")
+	if err != nil || ans.Refused {
+		t.Fatalf("%+v %v", ans, err)
+	}
+	if want := "В ВШЭ победителю и призёру — БВИ. ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; ans.Text != want {
+		t.Fatalf("%q", ans.Text)
+	}
+}
+
 // Даты из трекера разные: у одних олимпиад фактические, у других примерные —
 // оговорка называет, у каких примерные.
 func TestAsk_NotesForMixedTrackerDates(t *testing.T) {
