@@ -271,6 +271,39 @@ func TestTargetBenefits(t *testing.T) {
 	}
 }
 
+// Одна льгота на нескольких направлениях — одна строка, но оговорки каждого
+// направления в ней остаются. «Виртуальные миры» в ВШЭ — БВИ и на ИБ (за
+// диплом 11 класса), и на ПИ (за 10–11 класс, не на всех программах).
+func TestTargetBenefits_SameBenefitOnSeveralDirections(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	f := seedTrajectory(t, s, 900000001, "kid")
+	if err := s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirIS, dirSE}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := s.TargetBenefits(ctx, f.trajectoryID, []string{virtual}, []string{"hse"})
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("%+v (err=%v)", rows, err)
+	}
+	b := rows[0]
+	if b.Benefit != "bvi" || !slices.Equal(b.DirectionNames, []string{"Информационная безопасность", "Программная инженерия"}) {
+		t.Fatalf("БВИ на ИБ и ПИ: %+v", b)
+	}
+	// Классы — всех направлений: десятикласснику БВИ на ПИ есть.
+	if !slices.Equal(b.DiplomaGrades, []int32{10, 11}) {
+		t.Fatalf("классы: %v", b.DiplomaGrades)
+	}
+	// «Зависит от программы» — с названием своего направления, а не
+	// флаг без объяснения.
+	want := "Зависит от программы (Программная инженерия): льгота только на «Компьютерные науки и технологии»"
+	if !b.Varies || b.Note == nil || !strings.Contains(*b.Note, want) {
+		t.Fatalf("оговорка ПИ: %v %+v", b.Varies, b)
+	}
+	if n := strings.Count(*b.Note, "Подтвердить ЕГЭ"); n != 1 {
+		t.Fatalf("предмет ЕГЭ — одним предложением: %s", *b.Note)
+	}
+}
+
 func TestTargetsOf(t *testing.T) {
 	s := New(dbtest.Open(t))
 	ctx := context.Background()

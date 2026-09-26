@@ -440,10 +440,11 @@ func (s *Store) directionBenefits(ctx context.Context, profileIDs, unis, dirs []
 			return slices.Index(order, xs[i].dir) < slices.Index(order, xs[j].dir)
 		})
 		d := directionBest{row: xs[0].row}
+		var same []BenefitRow
 		for _, x := range xs {
 			if x.row.Benefit == d.row.Benefit {
 				d.names = append(d.names, names[x.dir])
-				d.row.Varies = d.row.Varies || x.row.Varies
+				same = append(same, x.row)
 				continue
 			}
 			if n := len(d.others); n == 0 || d.others[n-1].Benefit != x.row.Benefit {
@@ -451,6 +452,9 @@ func (s *Store) directionBenefits(ctx context.Context, profileIDs, unis, dirs []
 			}
 			last := &d.others[len(d.others)-1]
 			last.Names = append(last.Names, names[x.dir])
+		}
+		if len(same) > 1 {
+			d.row = mergeDirections(same, d.names)
 		}
 		out[key] = d
 	}
