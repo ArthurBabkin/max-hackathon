@@ -6,7 +6,7 @@
 ## Запуск
 
 ```bash
-pip3 install 'pdfplumber==0.11.10' pypdf lxml pyyaml requests  # 0.11.5 портит текст PDF МГУ
+pip3 install -r parser/requirements.txt  # pdfplumber 0.11.10: 0.11.5 портит текст PDF МГУ
 python3 parser/rsr_index.py     # перечень №669 -> общие справочники
 python3 parser/fetch.py         # 73 документа -> snapshots/ (+ sha256)
 python3 parser/extract_pdf.py   # PDF/DOCX -> extracted/*.pages.jsonl
