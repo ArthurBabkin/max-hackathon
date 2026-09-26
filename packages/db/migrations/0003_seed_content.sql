@@ -5,7 +5,7 @@
 -- поменяйте датасет или генератор и перегенерируйте.
 --
 -- Строк: предметы 9, направления 16, вузы 10,
--- источники 197, олимпиады 72, профили 192, этапы 559, льготы 1462.
+-- источники 198, олимпиады 72, профили 192, этапы 559, льготы 1462.
 --
 -- Демонстрационные данные помечены в самих строках: stages.is_demo, льготы и
 -- этапы без source_id, источники без verified_at. API по ним отдаёт
@@ -154,6 +154,7 @@ INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-62e30c04be77', 'rules', 'МГУ: особые права победителей и призёров олимпиад, 2026', 'https://cpk.msu.ru/files/2026/olymp_benefits.pdf#page=59', '2026-09-21'::date),
   ('src-62fb123894ff', 'rules', 'КФУ: особые права победителей и призёров олимпиад, 2026', 'https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf#page=10', '2026-09-21'::date),
   ('src-64fc98e6c2ad', 'rules', 'КФУ: особые права победителей и призёров олимпиад, 2026', 'https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf#page=12', '2026-09-21'::date),
+  ('src-66359262cb41', 'site', 'Московская олимпиада школьников — сроки этапов', 'https://mos.olimpiada.ru/schedule', '2026-09-26'::date),
   ('src-67de008cbf06', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170734747', '2026-09-21'::date),
   ('src-68647b7b0cb5', 'rules', 'ИТМО: особые права победителей и призёров олимпиад, 2026', 'https://abit.itmo.ru/file_storage/file/pages/82/rsosh_100_2026.pdf#page=2', '2026-09-21'::date),
   ('src-696e6b2fd62b', 'rules', 'КФУ: особые права победителей и призёров олимпиад, 2026', 'https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf#page=23', '2026-09-21'::date),
@@ -686,9 +687,9 @@ INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, de
   ('p669-37-himiya:registration:1', 'p669-37-himiya', 'registration', 'Регистрация', '2026-10-06 00:00:00+03'::timestamptz, '2026-10-26 23:59:59+03'::timestamptz, '2026-10-26 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-37-himiya:qualifying:1', 'p669-37-himiya', 'qualifying', 'Отборочный этап', '2026-11-02 00:00:00+03'::timestamptz, '2026-11-15 23:59:59+03'::timestamptz, '2026-11-15 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-37-himiya:final:1', 'p669-37-himiya', 'final', 'Заключительный этап', '2026-12-15 00:00:00+03'::timestamptz, '2026-12-17 23:59:59+03'::timestamptz, '2026-12-15 00:00:00+03'::timestamptz, false, true, NULL),
-  ('p669-37-informatika:registration:1', 'p669-37-informatika', 'registration', 'Регистрация', '2026-10-10 00:00:00+03'::timestamptz, '2026-10-30 23:59:59+03'::timestamptz, '2026-10-30 23:59:59+03'::timestamptz, true, true, NULL),
-  ('p669-37-informatika:qualifying:1', 'p669-37-informatika', 'qualifying', 'Отборочный этап', '2026-11-06 00:00:00+03'::timestamptz, '2026-11-19 23:59:59+03'::timestamptz, '2026-11-19 23:59:59+03'::timestamptz, true, true, NULL),
-  ('p669-37-informatika:final:1', 'p669-37-informatika', 'final', 'Заключительный этап', '2026-12-19 00:00:00+03'::timestamptz, '2026-12-21 23:59:59+03'::timestamptz, '2026-12-19 00:00:00+03'::timestamptz, false, true, NULL),
+  ('p669-37-informatika:qualifying:1', 'p669-37-informatika', 'qualifying', 'Отборочный этап, 1 тур (10–11 классы)', '2027-02-14 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, false, false, 'src-66359262cb41'),
+  ('p669-37-informatika:qualifying:2', 'p669-37-informatika', 'qualifying', 'Отборочный этап, 2 тур (10–11 классы)', '2027-02-28 00:00:00+03'::timestamptz, '2027-02-28 23:59:59+03'::timestamptz, '2027-02-28 23:59:59+03'::timestamptz, false, false, 'src-66359262cb41'),
+  ('p669-37-informatika:final:1', 'p669-37-informatika', 'final', 'Заключительный этап', '2027-03-30 00:00:00+03'::timestamptz, '2027-04-01 23:59:59+03'::timestamptz, '2027-03-30 00:00:00+03'::timestamptz, false, true, NULL),
   ('p669-37-matematika:registration:1', 'p669-37-matematika', 'registration', 'Регистрация', '2026-11-02 00:00:00+03'::timestamptz, '2026-11-22 23:59:59+03'::timestamptz, '2026-11-22 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-37-matematika:qualifying:1', 'p669-37-matematika', 'qualifying', 'Отборочный этап', '2026-11-29 00:00:00+03'::timestamptz, '2026-12-12 23:59:59+03'::timestamptz, '2026-12-12 23:59:59+03'::timestamptz, true, true, NULL),
   ('p669-37-matematika:final:1', 'p669-37-matematika', 'final', 'Заключительный этап', '2027-01-11 00:00:00+03'::timestamptz, '2027-01-13 23:59:59+03'::timestamptz, '2027-01-11 00:00:00+03'::timestamptz, false, true, NULL),

@@ -1,19 +1,25 @@
--- Сроки ВсОШ 2026/27 вместо придуманных: в сиде даты этапов ВсОШ получались
--- хешем от профиля и помечались демо. Теперь:
--- • школьный этап по астрономии, физике, биологии, химии, математике и
---   информатике — окно по графику «Сириус.Курсов» на 2026/27
---   (siriusolymp.ru/school2026/about): регионы пишут тур в разные дни окна;
--- • остальные этапы и школьный этап прочих предметов — крайние сроки из
---   Порядка проведения ВсОШ (vserosolimp.edsoo.ru): школьный — до 1 ноября,
---   муниципальный — до 25 декабря, региональный — до 1 марта, заключительный —
---   до конца апреля. Точный день в регионе задаёт региональный орган, поэтому
---   это срок, а не дата начала.
--- Сверено 26.09.2026. В сиде 0003 это уже есть (build_seed.py, vsosh_stages) —
--- здесь то же самое для накатанных баз. Триггер 0006 запишет события
--- изменения сроков: кто следит за ВсОШ, получит уведомление, что даты стали
--- настоящими.
+-- Сроки 2026/27 вместо придуманных.
 --
--- Этапы: удаляется 0, добавляется или меняется 36. Источников новых 2.
+-- ВсОШ: в сиде даты этапов получались хешем от профиля и помечались демо.
+-- Теперь школьный этап по астрономии, физике, биологии, химии, математике и
+-- информатике — окно по графику «Сириус.Курсов» на 2026/27
+-- (siriusolymp.ru/school2026/about): регионы пишут тур в разные дни окна.
+-- Остальные этапы и школьный этап прочих предметов — крайние сроки из
+-- Порядка проведения ВсОШ (vserosolimp.edsoo.ru): школьный — до 1 ноября,
+-- муниципальный — до 25 декабря, региональный — до 1 марта, заключительный —
+-- до конца апреля. Точный день в регионе задаёт региональный орган, поэтому
+-- это срок, а не дата начала.
+--
+-- Московская олимпиада по информатике: отборочные туры 10–11 классов 14 и
+-- 28 февраля 2027 (расписание mos.olimpiada.ru); заключительный этап не
+-- объявлен и остаётся демо, демо-регистрация, которой в расписании нет,
+-- уходит (так же, как в 0015).
+--
+-- Сверено 26.09.2026. В сиде 0003 это уже есть — здесь то же самое для
+-- накатанных баз. Триггер 0006 запишет события изменения сроков: кто следит
+-- за этими олимпиадами, получит уведомление, что даты стали настоящими.
+--
+-- Этапы: удаляется 1, добавляется или меняется 39. Источников новых 3.
 --
 -- Сгенерировано datasets/parser/diff_seed.py --tables stages.
 
@@ -21,6 +27,7 @@
 
 INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-0be9bd40dfeb', 'site', 'ВсОШ: сроки этапов по Порядку проведения', 'https://vserosolimp.edsoo.ru/', '2026-09-26'::date),
+  ('src-66359262cb41', 'site', 'Московская олимпиада школьников — сроки этапов', 'https://mos.olimpiada.ru/schedule', '2026-09-26'::date),
   ('src-848dc7264ddc', 'site', 'ВсОШ: график школьного этапа на «Сириус.Курсах», 2026/27', 'https://siriusolymp.ru/school2026/about', '2026-09-26'::date)
 ON CONFLICT (id) DO UPDATE SET
   kind = EXCLUDED.kind,
@@ -28,7 +35,14 @@ ON CONFLICT (id) DO UPDATE SET
   url = EXCLUDED.url,
   verified_at = EXCLUDED.verified_at;
 
+DELETE FROM stages WHERE id IN (
+  'p669-37-informatika:registration:1'
+);
+
 INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
+  ('p669-37-informatika:qualifying:1', 'p669-37-informatika', 'qualifying', 'Отборочный этап, 1 тур (10–11 классы)', '2027-02-14 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, false, false, 'src-66359262cb41'),
+  ('p669-37-informatika:qualifying:2', 'p669-37-informatika', 'qualifying', 'Отборочный этап, 2 тур (10–11 классы)', '2027-02-28 00:00:00+03'::timestamptz, '2027-02-28 23:59:59+03'::timestamptz, '2027-02-28 23:59:59+03'::timestamptz, false, false, 'src-66359262cb41'),
+  ('p669-37-informatika:final:1', 'p669-37-informatika', 'final', 'Заключительный этап', '2027-03-30 00:00:00+03'::timestamptz, '2027-04-01 23:59:59+03'::timestamptz, '2027-03-30 00:00:00+03'::timestamptz, false, true, NULL),
   ('vsosh-astronomiya:school:1', 'vsosh-astronomiya', 'school', 'Школьный этап', '2026-09-22 00:00:00+03'::timestamptz, '2026-09-25 23:59:59+03'::timestamptz, '2026-09-25 23:59:59+03'::timestamptz, true, false, 'src-848dc7264ddc'),
   ('vsosh-astronomiya:municipal:1', 'vsosh-astronomiya', 'municipal', 'Муниципальный этап', NULL, '2026-12-25 23:59:59+03'::timestamptz, '2026-12-25 23:59:59+03'::timestamptz, false, false, 'src-0be9bd40dfeb'),
   ('vsosh-astronomiya:regional:1', 'vsosh-astronomiya', 'regional', 'Региональный этап', NULL, '2027-03-01 23:59:59+03'::timestamptz, '2027-03-01 23:59:59+03'::timestamptz, false, false, 'src-0be9bd40dfeb'),
@@ -78,7 +92,14 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- +goose Down
 
+DELETE FROM stages WHERE id IN (
+  'p669-37-informatika:qualifying:2'
+);
+
 INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
+  ('p669-37-informatika:registration:1', 'p669-37-informatika', 'registration', 'Регистрация', '2026-10-10 00:00:00+03'::timestamptz, '2026-10-30 23:59:59+03'::timestamptz, '2026-10-30 23:59:59+03'::timestamptz, true, true, NULL),
+  ('p669-37-informatika:qualifying:1', 'p669-37-informatika', 'qualifying', 'Отборочный этап', '2026-11-06 00:00:00+03'::timestamptz, '2026-11-19 23:59:59+03'::timestamptz, '2026-11-19 23:59:59+03'::timestamptz, true, true, NULL),
+  ('p669-37-informatika:final:1', 'p669-37-informatika', 'final', 'Заключительный этап', '2026-12-19 00:00:00+03'::timestamptz, '2026-12-21 23:59:59+03'::timestamptz, '2026-12-19 00:00:00+03'::timestamptz, false, true, NULL),
   ('vsosh-astronomiya:school:1', 'vsosh-astronomiya', 'school', 'Школьный этап', '2026-09-23 00:00:00+03'::timestamptz, '2026-10-28 23:59:59+03'::timestamptz, '2026-10-28 23:59:59+03'::timestamptz, false, true, NULL),
   ('vsosh-astronomiya:municipal:1', 'vsosh-astronomiya', 'municipal', 'Муниципальный этап', '2026-11-27 00:00:00+03'::timestamptz, '2026-11-27 23:59:59+03'::timestamptz, '2026-11-27 00:00:00+03'::timestamptz, false, true, NULL),
   ('vsosh-astronomiya:regional:1', 'vsosh-astronomiya', 'regional', 'Региональный этап', '2027-01-22 00:00:00+03'::timestamptz, '2027-01-23 23:59:59+03'::timestamptz, '2027-01-22 00:00:00+03'::timestamptz, false, true, NULL),
@@ -128,6 +149,7 @@ ON CONFLICT (id) DO UPDATE SET
 
 DELETE FROM sources s WHERE s.id IN (
   'src-0be9bd40dfeb',
+  'src-66359262cb41',
   'src-848dc7264ddc')
   AND NOT EXISTS (SELECT 1 FROM benefits b WHERE b.source_id = s.id)
   AND NOT EXISTS (SELECT 1 FROM direction_benefits d WHERE d.source_id = s.id)

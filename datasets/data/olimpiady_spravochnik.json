@@ -4351,16 +4351,32 @@
       "description_origin": "composed_from_perechen",
       "grades_eligible": null,
       "cost": null,
-      "etapy": [],
-      "etapy_season": null,
-      "etapy_status": "not_checked",
-      "etapy_source_url": null,
+      "etapy": [
+        {
+          "stage_name": "Отборочный этап, 1 тур (10–11 классы)",
+          "type": "qualifying",
+          "start_date": "2027-02-14",
+          "end_date": "2027-02-14",
+          "format": "offline"
+        },
+        {
+          "stage_name": "Отборочный этап, 2 тур (10–11 классы)",
+          "type": "qualifying",
+          "start_date": "2027-02-28",
+          "end_date": "2027-02-28",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "partial_2026_27",
+      "etapy_source_url": "https://mos.olimpiada.ru/schedule",
       "etapy_source_page": null,
-      "etapy_note": null,
+      "etapy_note": "Расписание сезона 2026/27 на сайте олимпиады: у 6–9 классов отборочные туры 19 декабря 2026 и 6 января 2027, у 10–11 — 14 и 28 февраля 2027. Заключительный этап пока не объявлен: в приложении он демо.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": true
+      "is_demo": true,
+      "etapy_checked_at": "2026-09-26"
     },
     {
       "olympiad_id": "p669-37-matematika",

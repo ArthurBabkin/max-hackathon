@@ -245,7 +245,8 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(all(by_profile[p] == 4 for p in vsosh))
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 112)
+        # +1 к 23.09 — Московская олимпиада по информатике (26.09).
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 113)
         self.assertEqual(self.seed.stats["stages_profiles_none"], 12)
 
     def test_stage_ids_unique_and_windows_ordered(self):
@@ -254,6 +255,16 @@ class BuildTest(unittest.TestCase):
         for s in self.seed.stages:
             if s["starts_at"]:
                 self.assertLessEqual(s["starts_at"], s["ends_at"], s["id"])
+
+    def test_moscow_olympiad_informatics_tours_of_10_11_grades(self):
+        # mos.olimpiada.ru/schedule, 26.09.2026: туры 10–11 классов — 14 и 28
+        # февраля; финала в расписании нет — демо; регистрации в нём нет.
+        by_id = {s["id"]: s for s in self.seed.stages}
+        tours = [by_id[f"p669-37-informatika:qualifying:{n}"] for n in (1, 2)]
+        self.assertEqual([t["starts_at"][:10] for t in tours], ["2027-02-14", "2027-02-28"])
+        self.assertFalse(any(t["is_demo"] or t["is_online"] for t in tours))
+        self.assertTrue(by_id["p669-37-informatika:final:1"]["is_demo"])
+        self.assertNotIn("p669-37-informatika:registration:1", by_id)
 
     def test_calendars_found_on_2026_09_23(self):
         by_id = {s["id"]: s for s in self.seed.stages}
