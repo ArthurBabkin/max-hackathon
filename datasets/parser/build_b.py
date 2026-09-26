@@ -1519,7 +1519,7 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
             continue
         for table in pg["tables"]:
             name_col = None
-            for row in table:
+            for idx, row in enumerate(table):
                 c = [clean(x) for x in row]
                 if page == 4:
                     if len(c) < 3 or not c[1] or not profile_slug(c[1].lower()):
@@ -1535,23 +1535,41 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
                 lv = next((i for i, x in enumerate(c) if x in ("I", "II", "III", "1", "2", "3")), None)
                 cells = [(i, x) for i, x in enumerate(c[:lv]) if x]
                 if lv is None:
-                    if name and len(cells) == 1 and cells[0][0] == name_col:
+                    if name and name[0] and len(cells) == 1 and cells[0][0] == name_col:
                         name[0] += " " + cells[0][1]
                     continue
                 if len(cells) >= 3 and len(cells[0][1]) > 6:
-                    name_col, name = cells[0][0], [cells[0][1]]
-                    cells = cells[1:]
+                    if name and name[0] is None:            # ячейка, начатая внизу прошлой страницы
+                        name[0] = cells[0][1]
+                    else:
+                        name = [cells[0][1]]
+                    name_col, cells = cells[0][0], cells[1:]
+                elif row and row[0] == "" and idx > 0:
+                    # '' не в первой строке — новая объединённая ячейка названия, её
+                    # текст напечатан ниже, на следующей странице («Газпром», стр. 13–14);
+                    # None и '' в первой строке страницы — продолжение прошлой.
+                    name, name_col = [None], 0
                 if not (name and cells):
                     continue
                 profile = cells[0][1]
                 exam = next((x for x in c[lv + 1:] if x), None)      # графа 5
-                bvi = {"match": None, "profile": profile, "level": _level(c[lv]),
+                items = {clean(x).lower() for x in ", ".join(x for _, x in cells[1:]).split(",") if clean(x)}
+                # П. 61 а): БВИ — на направления, сопоставленные профилю (графа 3).
+                # Там предметы — подходят все направления, как раньше; только УГСН —
+                # направления этих УГСН.
+                subjects = any((canon_subject(x) or "").lower() == x for x in items)
+                bvi = {"match": None if subjects or not items else {"ugn": sorted(items)},
+                       "profile": profile, "level": _level(c[lv]),
                        "statuses": [POB, PRIZ], "benefit": BVI,
                        "ege_subject": exam or profile,
                        "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}
                 # П. 57–62 Правил: кроме БВИ — 100 баллов по предмету графы 5.
-                out += [(name, bvi)] + ([(name, {**bvi, "benefit": HUNDRED})] if exam else [])
+                out += [(name, bvi)] + ([(name, {**bvi, "match": None, "benefit": HUNDRED})] if exam else [])
     return [dict(r, olympiad_name=n[0]) if n else r for n, r in out]
+
+
+# УГСН направлений Иннополиса — как их пишет графа 3 приложения 3.
+INNOPOLIS_UGN = {"09": "информатика и вычислительная техника", "15": "машиностроение"}
 
 
 PARSERS = {"msu": rows_msu, "msu_vsosh": rows_msu_vsosh, "hse_vsosh": rows_hse_vsosh, "spbu": rows_spbu, "hse": rows_hse, "mipt": rows_mipt,
@@ -1681,6 +1699,8 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
             return pool
         return [p for p in pool if _norm_prog(p["program_name"]) == _norm_prog(m["spbu"])
                 or _same_program(p["program_name"], m["spbu"])]
+    if "ugn" in m:                                  # Иннополис: УГСН из графы 3
+        return [p for p in programs if INNOPOLIS_UGN.get(p["napravlenie_code"][:2]) in m["ugn"]]
     if "exams" in m:                                # Сеченов: предмет — среди ВИ программы
         return sechenov_link(m["exams"], programs)
     if "names" in m:                                # КГМУ: секция перечисляет специальности

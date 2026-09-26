@@ -153,6 +153,13 @@ GOLDEN = [
     # программу, где он ВИ (kcp_bak стр. 2: у ФИИТ физика — ЕГЭ); где БВИ — только оно.
     ("msu__fundamentalnaya-informatika-i-informacionnye-teh", "vsosh-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("msu__prikladnaya-matematika-i-informatika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # Иннополис, Правила п. 61 а) и приложение 3: БВИ — на направления графы 3.
+    # «Юниор», инженерные науки (стр. 11) — УГСН без ИВТ: только 100 баллов по
+    # физике. Стр. 13–14: «инженерное дело | физика | III» — «Газпром» (№69),
+    # название в объединённой ячейке на следующей странице; графа 5 пуста.
+    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-13-inzhenernye-nauki",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-69-inzhenernoe-delo", {(POB, "БВИ"), (PRIZ, "БВИ")}),
 ]
 
 # Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
