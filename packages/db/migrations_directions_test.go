@@ -66,7 +66,7 @@ func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 
 var wantUniversityDirections = map[string]int{
 	"directions": 72, "onboarding": 16, "no_groups": 0,
-	"pairs": 174, "to_check": 1,
+	"pairs": 173, "to_check": 0,
 	"benefits": 12769, "varies": 1631,
 	"user_choices": 0,
 }
@@ -76,14 +76,10 @@ func TestMigration_UniversityDirections_Content(t *testing.T) {
 	if got := universityDirectionCounts(t, pool); !maps.Equal(got, wantUniversityDirections) {
 		t.Fatalf("контент 0021:\n%v\nожидали:\n%v", got, wantUniversityDirections)
 	}
-	// Все программы этих пар в датасете B ждут проверки, хотя в A они есть:
-	// у ВШЭ в A по 40.03.01 только «Юриспруденция: правовое регулирование
-	// бизнеса», а приложение Москвы (стр. 110–112) её не называет.
-	toCheck := queryStrings(t, pool, `SELECT university_id || ' ' || direction_id
-		FROM university_directions WHERE status = 'to_check'`)
-	want := []string{"hse napr-40-03-01"}
-	if !slices.Equal(toCheck, want) {
-		t.Fatalf("to_check: %v, ожидали %v", toCheck, want)
+	// Пар «льготы уточняются» в сиде нет: ВШЭ — 40.03.01 держалась на
+	// очно-заочной программе, её в A больше нет (#79).
+	if n := queryInt(t, pool, `SELECT count(*) FROM university_directions WHERE status = 'to_check'`); n != 0 {
+		t.Fatalf("to_check: %d, ожидали 0", n)
 	}
 	// Иннополис принимает на укрупнённую группу — её покрывает targets.Covers.
 	var status string
@@ -315,11 +311,26 @@ func TestMigration_BenefitLinking(t *testing.T) {
 	if n := queryInt(t, tx, bioOnPmi); n != 1 {
 		t.Fatalf("до 0022 ВсОШ по биологии на ПМИ МГУ: %d строк, ожидали 1", n)
 	}
+	// Ученик выбрал в ВШЭ «Юриспруденцию» — пару, которая держалась на
+	// очно-заочной программе (#79).
+	const tid = "00000000-0000-4000-8000-00000000f022"
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, goal_status) VALUES
+		('`+tid+`', 'Артём', 10, '16', 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_directions (trajectory_id, direction_id, position) VALUES ('`+tid+`', 'napr-40-03-01', 0)`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_universities (trajectory_id, university_id) VALUES ('`+tid+`', 'hse')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_university_directions (trajectory_id, university_id, direction_id) VALUES
+		('`+tid+`', 'hse', 'napr-40-03-01')`)
 	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
 
 	mustExec(t, tx.Exec, dbtest.UpSection(raw))
 	if n := queryInt(t, tx, bioOnPmi); n != 0 {
 		t.Fatalf("после 0022 ВсОШ по биологии на ПМИ МГУ: %d строк", n)
+	}
+	// Пары больше нет — её выбор снят каскадом (user_choices ниже — 0), а
+	// направление и вуз в цели ученика остались.
+	if n := queryInt(t, tx, `SELECT count(*) FROM trajectory_directions WHERE trajectory_id = '`+tid+`'`) +
+		queryInt(t, tx, `SELECT count(*) FROM trajectory_universities WHERE trajectory_id = '`+tid+`'`); n != 2 {
+		t.Fatalf("цель ученика после 0022: направлений и вузов %d, ожидали 2", n)
 	}
 	if got := universityDirectionCounts(t, tx); !maps.Equal(got, wantUniversityDirections) {
 		t.Fatalf("после 0022:\n%v\nожидали:\n%v", got, wantUniversityDirections)

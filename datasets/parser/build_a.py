@@ -94,28 +94,48 @@ def parse_hse():
     """
     out = []
     for fname, campus in HSE_CAMPUS.items():
-        code = napr = None
-        for pg in load_pages("hse", fname):
-            for table in pg["tables"]:
-                for row in table:
-                    cells = [clean(c) for c in row]
-                    joined = " ".join(cells)
-                    m = re.search(r"(?:Направлени\w*\s+подготовки|Специальност\w*)\s+(\d{2}\.\d{2}\.\d{2})\s*(.*)", joined)
-                    if m:
-                        code = m.group(1)
-                        napr = clean(re.split(r"\s{2,}", m.group(2))[0])
-                        continue
-                    if not code or not cells or not cells[0].isdigit():
-                        continue
-                    name = next((c for c in cells[1:6] if len(c) > 4 and not c.isdigit()), "")
-                    if not name:
-                        continue
-                    out.append({
-                        "program_name": name, "faculty": f"НИУ ВШЭ — {campus}",
-                        "napravlenie_code": code, "napravlenie_name": napr or name,
-                        "education_level": LEVEL_BY_CODE(code), "budget_places_2026": None,
-                        "budget_is_demo": True, "campus": campus, **_src("hse", fname, pg["page"]),
-                    })
+        for code, napr, name, page in hse_rows(load_pages("hse", fname)):
+            out.append({
+                "program_name": name, "faculty": f"НИУ ВШЭ — {campus}",
+                "napravlenie_code": code, "napravlenie_name": napr or name,
+                "education_level": LEVEL_BY_CODE(code), "budget_places_2026": None,
+                "budget_is_demo": True, "campus": campus, **_src("hse", fname, page),
+            })
+    return out
+
+
+def hse_rows(pages: list[dict]) -> list[tuple[str, str | None, str, int]]:
+    """Программы приложения ВШЭ: (код, направление, программа, страница).
+
+    Название — ячейка с заглавной буквы: строчные рядом — предметы ВИ. Если
+    у строки с номером названия нет, оно перенесено на строку ниже, бывает —
+    на следующую страницу (Пермь, 38.03.05). Раздел «ОЧНО-ЗАОЧНАЯ ФОРМА
+    ОБУЧЕНИЯ» не читается: там платные места и приём после колледжа,
+    олимпиадных льгот нет.
+    """
+    out, code, napr, pending = [], None, None, None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                cells = [clean(c) for c in row]
+                joined = " ".join(cells)
+                if "ЗАОЧНАЯ ФОРМА ОБУЧЕНИЯ" in joined.upper():
+                    return out
+                m = re.search(r"(?:Направлени\w*\s+подготовки|Специальност\w*)\s+(\d{2}\.\d{2}\.\d{2})\s*(.*)", joined)
+                if m:
+                    code, pending = m.group(1), None
+                    napr = clean(re.split(r"\s{2,}", m.group(2))[0])
+                    continue
+                if not code or not cells:
+                    continue
+                name = next((c for c in cells[1:6] if len(c) > 4 and not c.isdigit() and c[0].isupper()), "")
+                if cells[0].isdigit():
+                    pending = None if name else (code, napr, pg["page"])
+                    if name:
+                        out.append((code, napr, name, pg["page"]))
+                elif pending and name:
+                    out.append((*pending[:2], name, pending[2]))
+                    pending = None
     return out
 
 
