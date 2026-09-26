@@ -382,7 +382,12 @@ func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	}
 	grade := int32(cs.Trajectory.Grade)
 	if len(b.DiplomaGrades) > 0 && !slices.Contains(b.DiplomaGrades, grade) {
-		out = append(out, v.T("cond.gradeMiss", voice.Vars{"grades": gradesLabel(b.DiplomaGrades), "grade": grade}))
+		// За другой класс вуз может дать не льготу строки, а 100 баллов (#78).
+		if s, weaker := pick.Score100Grades(b.Note); slices.Contains(weaker, grade) {
+			out = append(out, s)
+		} else {
+			out = append(out, v.T("cond.gradeMiss", voice.Vars{"grades": gradesLabel(b.DiplomaGrades), "grade": grade}))
+		}
 	}
 	// Льгота на мои направления (F65): не на всех программах — как в
 	// правилах вуза; ещё проверяется — показана льгота вуза целиком.

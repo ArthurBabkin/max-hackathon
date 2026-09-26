@@ -159,21 +159,21 @@ func TestOlympiad_BenefitUnverified(t *testing.T) {
 	e := newEnv(t)
 	f := e.kidCreator()
 	token := e.login(900000001, "Артём")
-	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"nsu"}); err != nil {
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"hse"}); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.do("PUT", "/api/v1/profile/universities/nsu/directions", token, map[string]any{"direction_ids": []string{"napr-01-03-02"}}); r.code != 200 {
+	if r := e.do("PUT", "/api/v1/profile/universities/hse/directions", token, map[string]any{"direction_ids": []string{"napr-40-03-01"}}); r.code != 200 {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	var row map[string]any
 	for _, b := range list(t, e.do("GET", "/api/v1/olympiads/p669-8-informatika", token, nil).body["benefits"]) {
-		if b["university_id"] == "nsu" {
+		if b["university_id"] == "hse" {
 			row = b
 		}
 	}
 	if row == nil || row["unverified"] != true || !slices.Contains(strs(row["conditions"]),
-		"Льгота на «Прикладная математика и информатика» ещё уточняется — пока показана льгота вуза целиком") {
-		t.Fatalf("НГУ: %v", row)
+		"Льгота на «Юриспруденция» ещё уточняется — пока показана льгота вуза целиком") {
+		t.Fatalf("ВШЭ: %v", row)
 	}
 }
 
@@ -295,12 +295,12 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 		t.Fatal("в сиде на ПИ в ВШЭ льготы зависят от программы — пометка должна быть")
 	}
 
-	// Льготы на выбранные в НГУ направления ещё уточняются: вести туда
+	// Льготы на выбранные в ВШЭ направления ещё уточняются: вести туда
 	// нечем — как и в карточке вуза на «На мои направления».
-	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{"nsu"}); err != nil {
+	if err := e.st.ReplaceUniversities(ctx, f.trajectoryID, []string{"hse"}); err != nil {
 		t.Fatal(err)
 	}
-	if r := e.do("PUT", "/api/v1/profile/universities/nsu/directions", token, map[string]any{"direction_ids": []string{"napr-01-03-02"}}); r.code != 200 {
+	if r := e.do("PUT", "/api/v1/profile/universities/hse/directions", token, map[string]any{"direction_ids": []string{"napr-40-03-01"}}); r.code != 200 {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	if items := list(t, e.do("GET", "/api/v1/olympiads?mine=true&subject=math", token, nil).body["items"]); len(items) != 0 {
@@ -337,10 +337,10 @@ func TestUniversitiesCatalog_Direction(t *testing.T) {
 		}
 	}
 
-	items = list(t, get("?direction=napr-01-03-02").body["items"])
+	items = list(t, get("?direction=napr-40-03-01").body["items"])
 	last := items[len(items)-1]
-	if m := last["direction_match"].(map[string]any); last["id"] != "nsu" || m["status"] != "to_check" || m["olympiads_count"] != float64(0) {
-		t.Fatalf("НГУ по ПМИ — льготы уточняются, в конце: %v", last)
+	if m := last["direction_match"].(map[string]any); last["id"] != "hse" || m["status"] != "to_check" || m["olympiads_count"] != float64(0) {
+		t.Fatalf("ВШЭ по юриспруденции — льготы уточняются, в конце: %v", last)
 	}
 
 	for _, u := range list(t, get("").body["items"]) {

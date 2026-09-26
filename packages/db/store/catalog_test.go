@@ -83,8 +83,14 @@ func TestBenefits_LatestYearAndBestBenefitPerUniversity(t *testing.T) {
 	if vp.Benefit != "bvi" || vp.Source == nil || vp.UniversityShort != "УИ" {
 		t.Fatalf("«Высшая проба» в Иннополисе — БВИ с источником: %+v", vp)
 	}
-	if got["vsosh-informatika/innopolis"].Source != nil {
-		t.Fatal("демо-запись не должна получать источник")
+	// ВсОШ — приложение 2 приказа; ЕГЭ для неё не подтверждают, угадывать нечего.
+	if got["vsosh-informatika/innopolis"].Source == nil {
+		t.Fatal("ВсОШ в Иннополисе — по приказу, с источником")
+	}
+	// У КГМУ вид льготы по перечню документом не подтверждён — демо.
+	demo, err := s.Benefits(ctx, []string{"p669-11-himiya"}, []string{"kazan-gmu"})
+	if err != nil || len(demo) != 1 || demo[0].Source != nil {
+		t.Fatalf("демо-запись не должна получать источник: %+v (err=%v)", demo, err)
 	}
 
 	// Контент тесты не чистят, поэтому лишние строки — внутри транзакции с откатом.

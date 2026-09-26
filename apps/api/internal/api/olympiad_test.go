@@ -83,10 +83,15 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	if strings.Join(names, ",") != "ВШЭ,Иннополис,КФУ" {
 		t.Fatalf("по строке на каждый вуз ученика: %v", names)
 	}
-	// У ВШЭ в ключе есть демо-запись: строка без источника, и весь блок
-	// честно помечается «данные уточняются».
-	if benefits[0]["source"] != nil || b["benefits_source"] != nil {
-		t.Fatalf("демо-строка снимает метку «Факт»: %v", b["benefits_source"])
+	// Все три вуза — по своим правилам приёма: у строк источник, у блока —
+	// метка «Факт» (демо-строки остались только у КГМУ).
+	for _, row := range benefits {
+		if row["source"] == nil {
+			t.Fatalf("строка без источника: %v", row)
+		}
+	}
+	if src, _ := b["benefits_source"].(map[string]any); src == nil {
+		t.Fatal("все строки с источником — блок с меткой «Факт»")
 	}
 
 	// У ВШЭ порог зависит от программы — он в столбце «Порог ЕГЭ», а не в
@@ -97,11 +102,16 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 	}
 	// Столбцы показали всё: на Программной инженерии ВШЭ льгота есть на всех
 	// программах, в том числе в Перми (стр. 3) и Петербурге (стр. 9), —
-	// своих условий у вузов нет (F65).
+	// «зависит от программы» нет ни у ВШЭ, ни у Иннополиса (F65). Класс
+	// диплома — своё условие, столбца для него нет: БВИ ВШЭ даёт за 10–11
+	// класс, а девятикласснику — 100 баллов (Нижний Новгород, #78); КФУ за 9
+	// класс не даёт ничего (приложение 3, стр. 1: «за 10 и 11 класс»).
+	var own []string
 	for _, row := range benefits {
-		if row["conditions"] != nil {
-			t.Fatalf("свои условия вуза: %v", row)
-		}
+		own = append(own, fmt.Sprintf("%s: %s", row["university_nick"], rowConditions(t, row)))
+	}
+	if want := "ВШЭ: За диплом 9 класса — 100 баллов|Иннополис: |КФУ: Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт"; strings.Join(own, "|") != want {
+		t.Fatalf("свои условия вузов: %v", own)
 	}
 	if fmt.Sprint(b["benefit_columns"]) != "[winner prizer ege]" {
 		t.Fatalf("пороги разные — столбец ЕГЭ есть: %v", b["benefit_columns"])
@@ -174,9 +184,10 @@ func rowConditions(t *testing.T, row map[string]any) string {
 
 // У МГУ и МФТИ по «Высшей пробе» свои правила: у МГУ призёру — 100 баллов и
 // засчитывается только диплом 11 класса. МФТИ на Программную инженерию (цель
-// Артёма, ВШПИ) даёт БВИ победителю с порогом 80, призёру — 100 баллов. КФУ —
-// 100 баллов: информатика там не первое ВИ. В МГУ этого направления нет —
-// там льгота вуза.
+// Артёма, ВШПИ) даёт БВИ победителю с порогом 80, призёру — 100 баллов, и
+// только за 11 класс (п. 4 «Порядка»). КФУ — 100 баллов: информатика там не
+// первое ВИ, диплом — за 10 или 11 класс (приложение 3, стр. 1). В МГУ этого
+// направления нет — там льгота вуза.
 func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	e := newEnv(t)
 	f := e.kidCreator()
@@ -194,8 +205,8 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	}
 	want := []string{
 		"МГУ: bvi БВИ / score100 100 баллов / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"МФТИ: bvi БВИ / score100 100 баллов / 75–80 / ",
-		"КФУ: score100 100 баллов / score100 100 баллов / 75–<nil> / ",
+		"МФТИ: bvi БВИ / score100 100 баллов / 75–80 / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
+		"КФУ: score100 100 баллов / score100 100 баллов / 75–<nil> / Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("строки таблицы:\n%s", strings.Join(got, "\n"))
@@ -213,8 +224,8 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 func TestOlympiad_ConditionsFromAllUniversities(t *testing.T) {
 	e := newEnv(t)
 	f := e.kidCreator()
-	// Казанский ГМУ информатику не учитывает (СПбГУ «Высшую пробу» по
-	// информатике I уровня учитывает — строка «—» перечня РСОШ).
+	// Казанский ГМУ информатику не учитывает. СПбГУ призёру на части программ
+	// даёт БВИ (приложение 9), поэтому в «призёру — 100 баллов» его нет.
 	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"kazan-gmu"}); err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +236,7 @@ func TestOlympiad_ConditionsFromAllUniversities(t *testing.T) {
 		"Нужен диплом победителя или призёра",
 		"ЕГЭ по предмету «Информатика» не ниже 75",
 		"На некоторых программах порог выше, проверь правила вуза",
-		"МГУ, МФТИ, СПбГУ: победителю — БВИ, призёру — 100 баллов",
+		"МГУ, МФТИ: победителю — БВИ, призёру — 100 баллов",
 		"БВИ можно использовать только в одном вузе",
 	}
 	if fmt.Sprint(conds) != fmt.Sprint(want) {
@@ -268,8 +279,9 @@ func TestOlympiad_VsoshDemoBenefitsAndParentVoice(t *testing.T) {
 	if b["stages_are_demo"] != true || len(list(t, b["stages"])) != 4 {
 		t.Fatalf("у ВсОШ четыре демо-этапа: %s", r.raw)
 	}
-	if b["benefits_source"] != nil {
-		t.Fatalf("льготы из демо-записей — без метки «Факт»: %v", b["benefits_source"])
+	// ВсОШ ЕГЭ не подтверждают — угадывать нечего, льгота ВШЭ по её правилам.
+	if src, _ := b["benefits_source"].(map[string]any); src == nil || !strings.Contains(src["title"].(string), "ВШЭ") {
+		t.Fatalf("льготы ВсОШ — по правилам вуза, с меткой «Факт»: %v", b["benefits_source"])
 	}
 	rows := list(t, b["benefits"])
 	kgmu := rows[len(rows)-1]

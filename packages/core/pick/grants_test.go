@@ -1,6 +1,7 @@
 package pick
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
@@ -43,6 +44,26 @@ func TestNoteSentences(t *testing.T) {
 	got = NoteSentences(&s)
 	if len(got) != 2 || got[0] != "Зависит от программы: льгота только на «Экономика» (Филиал МГУ в г. Севастополе)" {
 		t.Fatalf("%q", got)
+	}
+}
+
+// Сид (#78): классы строки — у лучшей льготы, классы со 100 баллами — в
+// примечании «За диплом 9 класса — 100 баллов».
+func TestScore100Grades(t *testing.T) {
+	for note, want := range map[string]string{
+		"Подтвердить ЕГЭ: Информатика. За диплом 9 класса — 100 баллов":                    "За диплом 9 класса — 100 баллов [9]",
+		"За диплом 9–10 класса — 100 баллов. Порог ЕГЭ зависит от программы: 75–85 баллов": "За диплом 9–10 класса — 100 баллов [9 10]",
+		"За диплом 9, 11 класса — 100 баллов":                                              "За диплом 9, 11 класса — 100 баллов [9 11]",
+		"Подтвердить ЕГЭ: Информатика":                                                     " []",
+		"За диплом какого-то класса — 100 баллов":                                          " []",
+	} {
+		s, grades := Score100Grades(&note)
+		if got := fmt.Sprintf("%s %v", s, grades); got != want {
+			t.Errorf("%q: %q, ждали %q", note, got, want)
+		}
+	}
+	if s, g := Score100Grades(nil); s != "" || g != nil {
+		t.Fatal("нет примечания — нет оговорки")
 	}
 }
 
