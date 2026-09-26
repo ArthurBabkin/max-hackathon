@@ -2894,5 +2894,213 @@
   "tutorial.9.text": {
     "kid": "Спроси про льготы и сроки. Отвечает только по базе, со ссылкой на источник.",
     "parent": "Спросите про льготы и сроки. Отвечает только по базе, со ссылкой на источник."
+  },
+  "home.statTracker.one": {
+    "kid": "олимпиада в трекере",
+    "parent": "олимпиада в трекере"
+  },
+  "home.statTracker.few": {
+    "kid": "олимпиады в трекере",
+    "parent": "олимпиады в трекере"
+  },
+  "home.statTracker.many": {
+    "kid": "олимпиад в трекере",
+    "parent": "олимпиад в трекере"
+  },
+  "home.statRegisteredOf": {
+    "kid": "{count} из {total}",
+    "parent": "{count} из {total}"
+  },
+  "home.statRegistered.one": {
+    "kid": "регистрации",
+    "parent": "регистрации"
+  },
+  "home.statRegistered.few": {
+    "kid": "регистраций",
+    "parent": "регистраций"
+  },
+  "home.statRegistered.many": {
+    "kid": "регистраций",
+    "parent": "регистраций"
+  },
+  "home.statUniversities.one": {
+    "kid": "вуз в цели",
+    "parent": "вуз в цели"
+  },
+  "home.statUniversities.few": {
+    "kid": "вуза в цели",
+    "parent": "вуза в цели"
+  },
+  "home.statUniversities.many": {
+    "kid": "вузов в цели",
+    "parent": "вузов в цели"
+  },
+  "home.nextStepLabelDays": {
+    "kid": "Следующий шаг, осталось {days}",
+    "parent": "Следующий шаг, осталось {days}"
+  },
+  "home.nextStepTitle": {
+    "kid": "{stage}: «{olympiad}»",
+    "parent": "{stage}: «{olympiad}»"
+  },
+  "level.vsosh": {
+    "kid": "ВсОШ",
+    "parent": "ВсОШ"
+  },
+  "level.numbered": {
+    "kid": "{level} уровень",
+    "parent": "{level} уровень"
+  },
+  "level.unknown": {
+    "kid": "уровень уточняется",
+    "parent": "уровень уточняется"
+  },
+  "count.olympiads.one": {
+    "kid": "{count} олимпиада",
+    "parent": "{count} олимпиада"
+  },
+  "count.olympiads.few": {
+    "kid": "{count} олимпиады",
+    "parent": "{count} олимпиады"
+  },
+  "count.olympiads.many": {
+    "kid": "{count} олимпиад",
+    "parent": "{count} олимпиад"
+  },
+  "count.directions.one": {
+    "kid": "{count} направление",
+    "parent": "{count} направление"
+  },
+  "count.directions.few": {
+    "kid": "{count} направления",
+    "parent": "{count} направления"
+  },
+  "count.directions.many": {
+    "kid": "{count} направлений",
+    "parent": "{count} направлений"
+  },
+  "count.directionsGen.one": {
+    "kid": "{count} направления",
+    "parent": "{count} направления"
+  },
+  "count.directionsGen.few": {
+    "kid": "{count} направлений",
+    "parent": "{count} направлений"
+  },
+  "count.directionsGen.many": {
+    "kid": "{count} направлений",
+    "parent": "{count} направлений"
+  },
+  "count.programs.one": {
+    "kid": "{count} программа",
+    "parent": "{count} программа"
+  },
+  "count.programs.few": {
+    "kid": "{count} программы",
+    "parent": "{count} программы"
+  },
+  "count.programs.many": {
+    "kid": "{count} программ",
+    "parent": "{count} программ"
+  },
+  "catalog.all": {
+    "kid": "Все",
+    "parent": "Все"
+  },
+  "catalog.withBenefit.one": {
+    "kid": "{count} олимпиада с льготой",
+    "parent": "{count} олимпиада с льготой"
+  },
+  "catalog.withBenefit.few": {
+    "kid": "{count} олимпиады с льготой",
+    "parent": "{count} олимпиады с льготой"
+  },
+  "catalog.withBenefit.many": {
+    "kid": "{count} олимпиад с льготой",
+    "parent": "{count} олимпиад с льготой"
+  },
+  "profile.nameInvalid": {
+    "kid": "Имя от 1 до 40 символов",
+    "parent": "Имя от 1 до 40 символов"
+  },
+  "profile.district": {
+    "kid": "{region} округ",
+    "parent": "{region} округ"
+  },
+  "sheet.back": {
+    "kid": "Назад",
+    "parent": "Назад"
+  },
+  "sheet.close": {
+    "kid": "Закрыть",
+    "parent": "Закрыть"
+  },
+  "sheet.olympiad": {
+    "kid": "Карточка олимпиады",
+    "parent": "Карточка олимпиады"
+  },
+  "sheet.university": {
+    "kid": "Карточка вуза",
+    "parent": "Карточка вуза"
+  },
+  "ai.typing": {
+    "kid": "Помощник печатает",
+    "parent": "Помощник печатает"
+  },
+  "ai.send": {
+    "kid": "Отправить",
+    "parent": "Отправить"
+  },
+  "calendar.prevMonth": {
+    "kid": "Предыдущий месяц",
+    "parent": "Предыдущий месяц"
+  },
+  "calendar.nextMonth": {
+    "kid": "Следующий месяц",
+    "parent": "Следующий месяц"
+  },
+  "app.toHome": {
+    "kid": "На главную",
+    "parent": "На главную"
+  },
+  "nav.sectionsLabel": {
+    "kid": "Разделы приложения",
+    "parent": "Разделы приложения"
+  },
+  "nav.attention": {
+    "kid": ", требуют внимания: {count}",
+    "parent": ", требуют внимания: {count}"
+  },
+  "match.filtersLabel": {
+    "kid": "Фильтры подбора",
+    "parent": "Фильтры подбора"
+  },
+  "pill.overdue": {
+    "kid": "срок прошёл",
+    "parent": "срок прошёл"
+  },
+  "pill.today": {
+    "kid": "сегодня",
+    "parent": "сегодня"
+  },
+  "tracker.stagesLabel": {
+    "kid": "Этапы",
+    "parent": "Этапы"
+  },
+  "tracker.stageUntil": {
+    "kid": "до {date}",
+    "parent": "до {date}"
+  },
+  "tracker.stageFallback": {
+    "kid": "Этап",
+    "parent": "Этап"
+  },
+  "olympiad.sourceVerified": {
+    "kid": "{title}. Проверено {date}",
+    "parent": "{title}. Проверено {date}"
+  },
+  "home.goalGrade": {
+    "kid": "Моя цель, {grade} класс",
+    "parent": "Цель {student_gen}, {grade} класс"
   }
 }

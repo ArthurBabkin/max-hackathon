@@ -32,7 +32,7 @@ export function Tabbar({ trackerCount }: { trackerCount: number }) {
   const t = useVoice()
 
   return (
-    <nav className="tabbar" aria-label="Разделы приложения">
+    <nav className="tabbar" aria-label={t('nav.sectionsLabel')}>
       {TABS.map((tab) => (
         <NavLink
           key={tab.to}
@@ -51,7 +51,7 @@ export function Tabbar({ trackerCount }: { trackerCount: number }) {
           </span>
           <span className="tab-label">{t(tab.labelKey)}</span>
           {tab.to === '/tracker' && trackerCount > 0 ? (
-            <span className="sr-only">, требуют внимания: {trackerCount}</span>
+            <span className="sr-only">{t('nav.attention', { count: trackerCount })}</span>
           ) : null}
         </NavLink>
       ))}
