@@ -58,6 +58,7 @@ const LOGOS: Record<string, string> = {
   hse: 'hse.png',
   mipt: 'mipt.png',
   itmo: 'itmo.png',
+  kfu: 'kfu.png',
   nsu: 'nsu.svg',
   innopolis: 'innopolis.png',
   sechenov: 'sechenov.png',
@@ -76,9 +77,18 @@ const LOGOS: Record<string, string> = {
   'p669-64': 'p669-64.png',
   'p669-66': 'p669-66.png',
   'p669-82': 'p669-82.png',
+  'vsosh-astronomiya': 'vsosh-astronomiya.png',
+  'vsosh-biologiya': 'vsosh-biologiya.png',
+  'vsosh-ekonomika': 'vsosh-ekonomika.png',
+  'vsosh-fizika': 'vsosh-fizika.png',
+  'vsosh-himiya': 'vsosh-himiya.png',
+  'vsosh-informatika': 'vsosh-informatika.png',
+  'vsosh-matematika': 'vsosh-matematika.png',
+  'vsosh-obschestvoznanie': 'vsosh-obschestvoznanie.png',
 }
 
 export function badgeLogo(id: string): string | null {
-  const file = id.startsWith('vsosh-') ? 'vsosh.png' : LOGOS[id]
+  // У ВсОШ по предмету свой знак, для предмета без него — общий.
+  const file = LOGOS[id] ?? (id.startsWith('vsosh-') ? 'vsosh.png' : undefined)
   return file ? `${import.meta.env.BASE_URL}logos/${file}` : null
 }

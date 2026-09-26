@@ -60,13 +60,17 @@ describe('badgeLogo', () => {
     expect(badgeLogo('p669-62')).toBe('/logos/p669-62.svg')
   })
 
-  it('у всех олимпиад ВсОШ один логотип', () => {
-    expect(badgeLogo('vsosh-fizika')).toBe('/logos/vsosh.png')
-    expect(badgeLogo('vsosh-himiya')).toBe('/logos/vsosh.png')
+  it('у ВсОШ по каждому предмету свой знак', () => {
+    expect(badgeLogo('vsosh-fizika')).toBe('/logos/vsosh-fizika.png')
+    expect(badgeLogo('vsosh-himiya')).toBe('/logos/vsosh-himiya.png')
+  })
+
+  it('ВсОШ без предметного знака получает общий', () => {
+    expect(badgeLogo('vsosh-ekologiya')).toBe('/logos/vsosh.png')
   })
 
   it('без логотипа возвращает null', () => {
-    expect(badgeLogo('kfu')).toBeNull()
+    expect(badgeLogo('unknown-uni')).toBeNull()
     expect(badgeLogo('other-tyk')).toBeNull()
   })
 })

@@ -24,9 +24,9 @@ it('показывает логотип вместо подписи, если о
 })
 
 it('без логотипа показывает подпись', () => {
-  const { container } = render(<Tile id="kfu" name="КФУ" shortName="КФУ" />)
+  const { container } = render(<Tile id="other-tyk" name="Турнир юных программистов" shortName="ТЮП" />)
   expect(container.querySelector('img')).toBeNull()
-  expect(container.querySelector('.tile')).toHaveTextContent('КФУ')
+  expect(container.querySelector('.tile')).toHaveTextContent('ТЮП')
 })
 
 it('если логотип не загрузился, возвращает подпись', () => {
