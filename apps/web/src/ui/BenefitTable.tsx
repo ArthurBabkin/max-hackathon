@@ -41,7 +41,7 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
   const grantOf = (row: BenefitRow, column: BenefitColumn) => (column === 'prizer' ? row.prizer : row.winner)
   const ege = (row: BenefitRow) => {
     if (row.ege_min == null) return '—'
-    // Диапазон — тоже нижний порог, просто разный по направлениям: «от 75–90».
+    // Диапазон — тоже нижний порог, просто разный по программам: «от 75–90».
     const count = row.ege_max != null ? `${row.ege_min}–${row.ege_max}` : row.ege_min
     return t('benefits.egeFrom', { count })
   }

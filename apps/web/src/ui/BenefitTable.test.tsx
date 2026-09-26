@@ -87,12 +87,12 @@ it('отмечает только то, что не как в большинст
   expect(screen.getByText(/не как в большинстве твоих вузов/)).toBeInTheDocument()
 })
 
-// Диапазон — это нижний порог, разный по направлениям: «от 75–85», а не
+// Диапазон — это нижний порог, разный по программам: «от 75–85», а не
 // «75–85», иначе читается как «больше 85 нельзя». Пояснение — в той же ячейке.
 it('порог-диапазон объясняет себя прямо в ячейке', () => {
   setup()
-  expect(within(rowOf('ВШЭ')).getByText('зависит от направления')).toBeInTheDocument()
-  expect(within(rowOf('КФУ')).queryByText('зависит от направления')).not.toBeInTheDocument()
+  expect(within(rowOf('ВШЭ')).getByText('зависит от программы')).toBeInTheDocument()
+  expect(within(rowOf('КФУ')).queryByText('зависит от программы')).not.toBeInTheDocument()
   expect(screen.queryByText(/Диапазон/)).not.toBeInTheDocument()
 })
 
