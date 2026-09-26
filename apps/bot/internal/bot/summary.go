@@ -89,7 +89,7 @@ func (b *Bot) draftProfile(t *turn, dr store.Draft) (profile, error) {
 	return p, nil
 }
 
-// summaryPrompt — «Артём, сформировали твой профиль»: профиль списком и
+// summaryPrompt — «Артём, собрали твой профиль»: профиль списком и
 // «Изменить» / «Готово»; в меню правки — поля и «Назад».
 func (b *Bot) summaryPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
 	p, err := b.draftProfile(t, d.Draft)
