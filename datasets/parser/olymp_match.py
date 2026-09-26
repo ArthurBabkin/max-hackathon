@@ -162,6 +162,18 @@ def vsosh_id(subject: str) -> str | None:
     return f"vsosh-{slug}" if slug else None
 
 
+def cut_profile(num: int | None, profile: str) -> str | None:
+    """Профиль, который вуз оборвал («виртуальные миры: …, технологии
+    дополненной реальности» без «цифровые технологии в архитектуре»): полный
+    профиль той же олимпиады — если он по этому началу один."""
+    want = clean(profile).lower()
+    if num is None or len(want) < 20:
+        return None
+    hits = {row["profile"] for row in _index
+            if row["perechen_number_669"] == num and clean(row["profile"]).lower().startswith(want)}
+    return hits.pop() if len(hits) == 1 else None
+
+
 def level_in_perechen(num: int, profile: str) -> str | None:
     return _profiles.get(num, {}).get(norm(profile))
 
