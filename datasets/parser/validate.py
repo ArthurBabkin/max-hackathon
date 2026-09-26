@@ -92,6 +92,21 @@ GOLDEN = [
     ("kazan-gmu__medicinskaya-biofizika", "vsosh-himiya", set()),
 ]
 
+# Эталонные условия: у всех записей пары (программа, олимпиада) поле равно
+# ожидаемому. Классы и предмет подтверждения — то, что видит ученик в карточке.
+GOLDEN_CONDITIONS = [
+    # КФУ, приложение 3 стр. 1: «победители и призеры олимпиад школьников за 10 и 11 класс».
+    ("kfu__biologiya", "p669-8-biologiya", "eligible_grades", [10, 11]),
+    ("kfu__biologiya", "vsosh-biologiya", "eligible_grades", None),
+    # Сеченов, приложение 5 стр. 1: «должны быть получены за 10 или 11 класс».
+    ("sechenov__lechebnoe-delo", "p669-11-biologiya", "eligible_grades", [10, 11]),
+    # КГМУ, «Информация о предоставлении особых прав» стр. 3–4, таблица п. 6.5:
+    # «Класс обучения» — 11; профиль «Медицина» — «Химия / Биология».
+    ("kazan-gmu__lechebnoe-delo", "p669-59-medicina", "eligible_grades", [11]),
+    ("kazan-gmu__lechebnoe-delo", "p669-59-medicina", "ege_confirm_subject", "Химия или Биология"),
+    ("kazan-gmu__lechebnoe-delo", "p669-11-himiya", "eligible_grades", [11]),
+]
+
 # Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».
 EGE_SUBJECTS = {"Математика", "Информатика", "Физика", "Химия", "Биология", "Обществознание", "История",
                 "Литература", "География", "Русский язык", "Иностранный язык"}
@@ -219,6 +234,14 @@ def main() -> int:
             err(f"эталон: программы {pid} нет в A")
         elif have[(pid, oid)] != want:
             err(f"эталон: {pid} ← {oid}: ждали {sorted(want)}, в B {sorted(have[(pid, oid)])}")
+    fields = defaultdict(list)
+    for x in b:
+        for ben in x["prinimaemye_olimpiady"]:
+            fields[(x["program_id"], ben["olympiad_id"])].append(ben)
+    for pid, oid, field, want in GOLDEN_CONDITIONS:
+        got = [ben.get(field) for ben in fields[(pid, oid)]]
+        if not got or any(g != want for g in got):
+            err(f"эталон условий: {pid} ← {oid}: {field} ждали {want!r}, в B {got!r}")
     # ВсОШ СПбГУ — только из документа по ВсОШ, не из перечня РСОШ.
     for x in b:
         if x["vuz_id"] == "spbu":

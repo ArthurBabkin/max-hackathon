@@ -1030,7 +1030,31 @@ def rows_kazan_gmu_vsosh():
 
 def rows_kazan_gmu():
     f = "olymp_list__download"
-    return kazan_gmu_rows(load_pages("kazan-gmu", f), meta("kazan-gmu", f)["url"])
+    return with_kgmu_rights(kazan_gmu_rows(load_pages("kazan-gmu", f), meta("kazan-gmu", f)["url"]),
+                            kgmu_rights(load_pages("kazan-gmu", KGMU_RIGHTS)))
+
+
+def kgmu_rights(pages: list[dict]) -> dict[str, tuple]:
+    """Таблица п. 6.5 «Информации о предоставлении особых прав»: профиль
+    олимпиады -> (предметы подтверждения, классы). В перечне олимпиад у
+    профиля «медицина» вместо предмета — список укрупнённых групп."""
+    out = {}
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x or "") for x in row]
+                if len(c) < 6 or not c[2] or not re.fullmatch(r"\d{1,2}", c[4]):
+                    continue
+                out[(canon_subject(c[2]) or c[2]).lower()] = (canon_subject(c[3]), _grades(c[4]))
+    return out
+
+
+def with_kgmu_rights(rows: list[dict], rights: dict[str, tuple]) -> list[dict]:
+    out = []
+    for r in rows:
+        hit = rights.get((canon_subject(r["profile"]) or r["profile"]).lower())
+        out.append({**r, "ege_subject": hit[0], "grades": hit[1]} if hit else r)
+    return out
 
 
 def kazan_gmu_rows(pages: list[dict], url: str) -> list[dict]:
@@ -1112,8 +1136,10 @@ def rows_kfu():
     своей нумерацией, номер из них указал бы на другую олимпиаду №669."""
     out = []
     url = meta("kfu", KFU_OLYMP)["url"]
+    pages = load_pages("kfu", KFU_OLYMP)
+    grades = kfu_grades(pages)
     num = name = None
-    for pg in load_pages("kfu", KFU_OLYMP):
+    for pg in pages:
         if not 7 <= pg["page"] <= 38:
             continue
         for table in pg["tables"]:
@@ -1133,10 +1159,19 @@ def rows_kfu():
                     "olympiad_name": name, "profile": profile, "level": level,
                     "statuses": [POB, PRIZ], "benefit": BVI,
                     "ege_subject": c[5] or c[3], "ege_score": 75,
-                    "grades": None, "page": pg["page"], "url": url, "number": num,
+                    "grades": grades, "page": pg["page"], "url": url, "number": num,
                 }
                 out += [bvi, {**bvi, "benefit": HUNDRED, "match": {**bvi["match"], "hundred": True}}]
     return out
+
+
+def kfu_grades(pages: list[dict]) -> list[int] | None:
+    """Стр. 1: «победители и призеры олимпиад школьников за 10 и 11 класс»."""
+    for pg in pages:
+        m = re.search(r"олимпиад\s+школьников\s+за\s+([\d\s,иили-]+?)\s*класс", clean(pg.get("text") or ""))
+        if m:
+            return _grades(m.group(1))
+    return None
 
 
 KFU_ALL = "На все направления"
