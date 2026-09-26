@@ -307,7 +307,8 @@ func (c clock) dated(st []stages.Stage) string {
 	case len(st) == 0:
 		return "этапов нет"
 	case approximate(st):
-		return "даты примерные, по прошлому году: " + c.schedule(st)
+		// Демо-даты — прошлого сезона или придуманные: верно про все одно.
+		return "даты примерные, сроки этого сезона ещё не опубликованы: " + c.schedule(st)
 	}
 	return "даты фактические: " + c.schedule(st)
 }
