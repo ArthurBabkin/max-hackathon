@@ -741,16 +741,27 @@ def direction_id(code: str) -> str:
     return "napr-" + code.replace(".", "-")
 
 
+HYPHEN_PREFIXES = {"бизнес"}  # у них дефис свой, а не перенос строки
+
+
+def _join_wrapped(m: re.Match) -> str:
+    head, tail = m.group(1), m.group(2)
+    return f"{head}-{tail}" if head.lower() in HYPHEN_PREFIXES else head + tail
+
+
 def program_title(name: str) -> str:
-    """Название программы для людей: без лишних пробелов и непарной скобки.
+    """Название программы для людей: без лишних пробелов, непарной скобки,
+    переносов строки и хвостовой «;».
 
     В выгрузке МГУ хвост с профилем теряет открывающую скобку:
-    «Менеджмент — Менеджмент в культуре)».
+    «Менеджмент — Менеджмент в культуре)». В таблицах ВШЭ слово
+    переносится по слогам: «Информацион- ная безопасность».
     """
     name = re.sub(r"\s+\)", ")", " ".join(name.split()))
     if name.endswith(")") and name.count(")") > name.count("("):
         name = name[:-1].rstrip()
-    return name
+    name = re.sub(r"(\w+)- (?!(?:и|или)\b)(\w)", _join_wrapped, name)
+    return name.rstrip(" ;")
 
 
 def program_labels(programs: list[dict]) -> dict[str, tuple[str, str | None]]:
