@@ -2803,6 +2803,16 @@
   gap: var(--gap-sm);
 }
 
+/* Отзыв — второстепенное действие: подпись под кнопками, а не третья кнопка. */
+.invite-revoke {
+  justify-self: center;
+}
+
+.invite-buttons {
+  display: grid;
+  gap: var(--gap-sm);
+}
+
 /* Выход не отменить — розовая подпись, как в прототипе. */
 .leave-button.leave-button {
   margin-top: var(--gap-md);

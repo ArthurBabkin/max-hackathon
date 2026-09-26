@@ -1079,14 +1079,6 @@
     "kid": "Точно удалить?",
     "parent": "Точно удалить?"
   },
-  "family.inviteCta": {
-    "kid": "Пригласить участника",
-    "parent": "Пригласить участника"
-  },
-  "family.inviteMoreCta": {
-    "kid": "Пригласить ещё одного человека",
-    "parent": "Пригласить ещё одного человека"
-  },
   "family.inviteKid": {
     "kid": "Пригласить ученика",
     "parent": "Пригласить ученика"
@@ -1094,10 +1086,6 @@
   "family.inviteParent": {
     "kid": "Пригласить родителя",
     "parent": "Пригласить родителя"
-  },
-  "family.linkTitle": {
-    "kid": "Ссылка создана",
-    "parent": "Ссылка создана"
   },
   "family.linkText": {
     "kid": "Сработает для одного человека. Для следующего создай новую ссылку.",
@@ -3102,5 +3090,21 @@
   "home.goalGrade": {
     "kid": "Моя цель, {grade} класс",
     "parent": "Цель {student_gen}, {grade} класс"
+  },
+  "family.linkForKid": {
+    "kid": "Ссылка для ученика",
+    "parent": "Ссылка для ученика"
+  },
+  "family.linkForParent": {
+    "kid": "Ссылка для родителя",
+    "parent": "Ссылка для родителя"
+  },
+  "family.linkRevoke": {
+    "kid": "Отозвать",
+    "parent": "Отозвать"
+  },
+  "family.linkRevokeConfirm": {
+    "kid": "Точно отозвать?",
+    "parent": "Точно отозвать?"
   }
 }

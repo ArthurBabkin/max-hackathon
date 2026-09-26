@@ -190,6 +190,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /proposals/{id}/decline", s.authed(s.resolveProposal(false)))
 	s.mux.HandleFunc("GET /family", s.authed(s.family))
 	s.mux.HandleFunc("POST /family/invites", s.authed(s.createInvite))
+	s.mux.HandleFunc("DELETE /family/invites/{id}", s.authed(s.revokeInvite))
 	s.mux.HandleFunc("DELETE /family/members/{id}", s.authed(s.removeMember))
 	s.mux.HandleFunc("POST /family/leave", s.authed(s.leave))
 	s.mux.HandleFunc("GET /ai/chats", s.authed(s.aiChats))

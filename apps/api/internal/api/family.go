@@ -24,6 +24,7 @@ type inviteDTO struct {
 	Token     string    `json:"token"`
 	URL       string    `json:"url"`
 	Role      string    `json:"role"`
+	CanRevoke bool      `json:"can_revoke"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -33,9 +34,11 @@ type familyResponse struct {
 	Invites    []inviteDTO       `json:"invites"`
 }
 
-func (s *Server) inviteOf(i store.Invite) inviteDTO {
+// inviteOf — ссылка глазами участника m: отозвать её может автор или
+// создатель траектории (ТЗ §16).
+func (s *Server) inviteOf(i store.Invite, m store.Member) inviteDTO {
 	return inviteDTO{ID: i.ID, Token: i.Token, URL: notify.InviteURL(s.cfg.MaxBotName, i.Token), Role: i.Role,
-		CreatedAt: i.CreatedAt.UTC()}
+		CanRevoke: m.IsCreator || i.CreatedBy == m.MemberID, CreatedAt: i.CreatedAt.UTC()}
 }
 
 // family — GET /family (F38, F43).
@@ -64,7 +67,7 @@ func (s *Server) family(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for i, inv := range invites {
-		out.Invites[i] = s.inviteOf(inv)
+		out.Invites[i] = s.inviteOf(inv, m)
 	}
 	writeJSON(w, http.StatusOK, out)
 	return nil
@@ -97,7 +100,28 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusCreated, s.inviteOf(inv))
+	writeJSON(w, http.StatusCreated, s.inviteOf(inv, m))
+	return nil
+}
+
+var errNoInvite = notFound("Такой ссылки нет: её уже использовали или отозвали.")
+
+// revokeInvite — DELETE /family/invites/{id} (ТЗ §16): неиспользованную
+// ссылку отзывает её автор или создатель траектории.
+func (s *Server) revokeInvite(w http.ResponseWriter, r *http.Request) error {
+	ctx, m := r.Context(), me(r)
+	id := r.PathValue("id")
+	if !uuidRe.MatchString(id) {
+		return errNoInvite
+	}
+	err := s.store.RevokeInvite(ctx, m.TrajectoryID, id, m.MemberID, m.IsCreator)
+	if errors.Is(err, store.ErrNotFound) {
+		return errNoInvite
+	}
+	if err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
