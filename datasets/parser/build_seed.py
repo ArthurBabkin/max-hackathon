@@ -494,6 +494,13 @@ def level_ok(profile_level, required, is_vsosh: bool) -> bool:
     return LEVEL_RANK[profile_level] <= LEVEL_RANK[required]
 
 
+def grades_text(grades: list[int]) -> str:
+    """9, 9–10, 9, 11."""
+    if len(grades) > 1 and grades[-1] - grades[0] == len(grades) - 1:
+        return f"{grades[0]}–{grades[-1]}"
+    return ", ".join(map(str, grades))
+
+
 def aggregate_key(records: list[dict]) -> dict:
     """Свернуть записи вуза по одному профилю и году в строку benefits."""
     by_status = defaultdict(set)
@@ -516,18 +523,30 @@ def aggregate_key(records: list[dict]) -> dict:
         if not pri:
             notes.append("100 баллов только победителю")
 
+    # Классы — у записей лучшей льготы: строка БВИ не обещает её за диплом
+    # класса, которому дают только 100 баллов; такие классы — в заметке (#78).
+    best = [r for r in records if r["benefit_type"] == "БВИ"
+            and (benefit != "bvi_winners" or r["diploma_status"] == "pobeditel")] or records
+    grade_lists = [r["eligible_grades"] for r in best]
+    diploma_grades = (sorted({g for gl in grade_lists for g in gl})
+                      if all(grade_lists) else None)
+    taken = {id(r) for r in best}
+    rest = [r["eligible_grades"] for r in records if id(r) not in taken]
+    if diploma_grades and rest and all(rest):
+        extra = sorted({g for gl in rest for g in gl} - set(diploma_grades))
+        if extra:
+            notes.append(f"За диплом {grades_text(extra)} класса — 100 баллов")
+
     scores = sorted({r["ege_confirm_min_score"] for r in records
                      if r["ege_confirm_min_score"] is not None})
     ege_min = scores[0] if scores else None
     if len(scores) > 1:
         notes.append(f"Порог ЕГЭ зависит от программы: {scores[0]}–{scores[-1]} баллов")
-    subjects = sorted({r["ege_confirm_subject"] for r in records if r["ege_confirm_subject"]})
+    # Предмет записи бывает составным: «Математика или Обществознание».
+    subjects = sorted({s for r in records if r["ege_confirm_subject"]
+                       for s in r["ege_confirm_subject"].split(" или ")})
     if subjects:
         notes.append("Подтвердить ЕГЭ: " + " или ".join(subjects))
-
-    grade_lists = [r["eligible_grades"] for r in records]
-    diploma_grades = (sorted({g for gl in grade_lists for g in gl})
-                      if all(grade_lists) else None)
 
     demo = any(r["is_demo"] for r in records)
     src_counter = Counter((r["source_url"], r["source_page"]) for r in records)

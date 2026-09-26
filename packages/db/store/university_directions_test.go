@@ -12,7 +12,7 @@ import (
 )
 
 // Направления из сида: ПИ — цель Артёма, ПМИ и ИБ — рядом, 09.00.00 —
-// укрупнённая группа Иннополиса.
+// укрупнённая группа Иннополиса, 40.03.01 у ВШЭ — льготы уточняются.
 const (
 	dirSE   = "napr-09-03-04"
 	dirAMI  = "napr-01-03-02"
@@ -20,6 +20,7 @@ const (
 	dirIVT  = "napr-09-00-00"
 	dirCS   = "napr-09-03-01"
 	dirBio  = "napr-06-03-01"
+	dirLaw  = "napr-40-03-01"
 	virtual = "p669-5-virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture"
 	infosec = "p669-22-informacionnaya-bezopasnost"
 )
@@ -331,12 +332,12 @@ func TestBenefitsOn(t *testing.T) {
 		}
 	}
 
-	rows, err = s.BenefitsOn(ctx, []string{dirAMI}, []string{infosec}, []string{"nsu"})
+	rows, err = s.BenefitsOn(ctx, []string{dirLaw}, []string{infosec}, []string{"hse"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || !rows[0].Unverified || !slices.Equal(rows[0].DirectionNames, []string{"Прикладная математика и информатика"}) {
-		t.Fatalf("ПМИ в НГУ уточняется: %+v", rows)
+	if len(rows) != 1 || !rows[0].Unverified || !slices.Equal(rows[0].DirectionNames, []string{"Юриспруденция"}) {
+		t.Fatalf("Юриспруденция в ВШЭ уточняется: %+v", rows)
 	}
 }
 
@@ -393,10 +394,10 @@ func TestUniversitiesByDirection(t *testing.T) {
 		}
 	}
 
-	// Льготы на ПМИ в НГУ ещё проверяются — вуз в конце, «уточняется».
-	us, m, _ = s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirAMI)
-	if x := m["nsu"]; !x.Unverified || x.Olympiads != 0 || us[len(us)-1].ID != "nsu" {
-		t.Fatalf("НГУ: %+v, последний %s", x, us[len(us)-1].ID)
+	// Льготы на юриспруденцию в ВШЭ ещё проверяются — вуз в конце, «уточняется».
+	us, m, _ = s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirLaw)
+	if x := m["hse"]; !x.Unverified || x.Olympiads != 0 || us[len(us)-1].ID != "hse" {
+		t.Fatalf("ВШЭ: %+v, последний %s", x, us[len(us)-1].ID)
 	}
 
 	// Поиск и город — вместе с направлением.

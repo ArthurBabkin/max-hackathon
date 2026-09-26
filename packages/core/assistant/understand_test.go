@@ -408,19 +408,20 @@ func TestAsk_TrackerQuestionSourcesAreOlympiadSites(t *testing.T) {
 	}
 }
 
-// Предмет из вопроса, которого у олимпиады нет (Jev ошибся: «а в ВШЭ?» после
-// Технокубка — биология), не отсекает оговорку об условиях вуза.
+// Предмет из вопроса, которого у олимпиады нет (Jev ошибся: «а в КГМУ?» после
+// Сеченовской — информатика), не отсекает оговорку об условиях вуза. У КГМУ
+// вид льготы по перечню документом не подтверждён — строки демо.
 func TestAsk_NoteIgnoresSubjectOlympiadLacks(t *testing.T) {
 	st, tr := setup(t)
-	j := &fakeJev{probs: map[string]map[string]float64{"intent": {"benefit": 1}, "olympiad": {"p669-57": 0.9, none: 0.1},
-		"university": {"hse": 0.9, none: 0.1}, "subject": {"bio": 1}}}
-	f := &fakeLLM{reply: `{"answer": "ВШЭ даёт БВИ победителям и призёрам ТехноКубка.", "card_ids": ["olympiad:p669-57"], "no_data": false}`}
-	ans, err := (&Assistant{Store: st, LLM: f, Classifier: j}).Ask(context.Background(), kid, tr, nil, "а в ВШЭ?")
+	j := &fakeJev{probs: map[string]map[string]float64{"intent": {"benefit": 1}, "olympiad": {"p669-11": 0.9, none: 0.1},
+		"university": {"kazan-gmu": 0.9, none: 0.1}, "subject": {"inf": 1}}}
+	f := &fakeLLM{reply: `{"answer": "КГМУ даёт 100 баллов победителям и призёрам Сеченовской олимпиады.", "card_ids": ["olympiad:p669-11"], "no_data": false}`}
+	ans, err := (&Assistant{Store: st, LLM: f, Classifier: j}).Ask(context.Background(), kid, tr, nil, "а в КГМУ?")
 	if err != nil || ans.Refused {
 		t.Fatalf("%+v %v", ans, err)
 	}
-	if want := "ВШЭ: условия льготы ещё уточняются — точные в правилах приёма вуза."; !strings.HasSuffix(ans.Text, want) {
-		t.Fatalf("оговорка об условиях ВШЭ: %q", ans.Text)
+	if want := "КГМУ: условия льготы ещё уточняются — точные в правилах приёма вуза."; !strings.HasSuffix(ans.Text, want) {
+		t.Fatalf("оговорка об условиях КГМУ: %q", ans.Text)
 	}
 }
 

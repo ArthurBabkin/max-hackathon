@@ -66,8 +66,8 @@ func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 
 var wantUniversityDirections = map[string]int{
 	"directions": 72, "onboarding": 16, "no_groups": 0,
-	"pairs": 174, "to_check": 3,
-	"benefits": 11676, "varies": 1537,
+	"pairs": 174, "to_check": 1,
+	"benefits": 12769, "varies": 1631,
 	"user_choices": 0,
 }
 
@@ -76,10 +76,12 @@ func TestMigration_UniversityDirections_Content(t *testing.T) {
 	if got := universityDirectionCounts(t, pool); !maps.Equal(got, wantUniversityDirections) {
 		t.Fatalf("контент 0021:\n%v\nожидали:\n%v", got, wantUniversityDirections)
 	}
-	// Все программы этих пар в датасете B ждут проверки, хотя в A они есть.
+	// Все программы этих пар в датасете B ждут проверки, хотя в A они есть:
+	// у ВШЭ в A по 40.03.01 только «Юриспруденция: правовое регулирование
+	// бизнеса», а приложение Москвы (стр. 110–112) её не называет.
 	toCheck := queryStrings(t, pool, `SELECT university_id || ' ' || direction_id
 		FROM university_directions WHERE status = 'to_check'`)
-	want := []string{"nsu napr-01-03-01", "nsu napr-01-03-02", "nsu napr-01-03-03"}
+	want := []string{"hse napr-40-03-01"}
 	if !slices.Equal(toCheck, want) {
 		t.Fatalf("to_check: %v, ожидали %v", toCheck, want)
 	}
@@ -327,8 +329,8 @@ func TestMigration_BenefitLinking(t *testing.T) {
 	}
 	changed := queryInt(t, tx, `SELECT count(DISTINCT entity_id) FROM content_changes WHERE entity = 'benefit'`)
 	other := queryInt(t, tx, `SELECT count(*) FROM content_changes WHERE entity <> 'benefit'`)
-	if changed != 288 || other != 0 {
-		t.Fatalf("события 0022: льгот %d (ожидали 288), других %d", changed, other)
+	if changed != 1126 || other != 0 {
+		t.Fatalf("события 0022: льгот %d (ожидали 1126), других %d", changed, other)
 	}
 
 	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
@@ -336,4 +338,56 @@ func TestMigration_BenefitLinking(t *testing.T) {
 	if n := queryInt(t, tx, `SELECT count(*) FROM content_changes`); n != 0 {
 		t.Fatalf("повторный прогон 0022 породил %d событий", n)
 	}
+}
+
+// На чистой базе 0017 и 0018 перезаписывают строки нового сида 0003, а 0022
+// обязана вернуть их к сиду: после всех миграций льготы — ровно 0003 и 0021,
+// без устаревших строк.
+func TestMigration_BenefitLinkingMatchesSeed(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const rows = `SELECT 'benefits ' || b::text FROM benefits b
+		UNION ALL SELECT 'direction_benefits ' || d::text FROM direction_benefits d
+		UNION ALL SELECT 'university_directions ' || u::text FROM university_directions u`
+	got := queryStrings(t, tx, rows)
+	mustExec(t, tx.Exec, `DELETE FROM direction_benefits; DELETE FROM benefits`)
+	mustExec(t, tx.Exec, dbtest.UpSection(readMigration(t, "0003_seed_content.sql")))
+	mustExec(t, tx.Exec, dbtest.UpSection(readMigration(t, "0021_university_directions_content.sql")))
+	want := queryStrings(t, tx, rows)
+	if slices.Equal(got, want) {
+		return
+	}
+	extra, missing := diffSorted(got, want), diffSorted(want, got)
+	t.Fatalf("после всех миграций лишних строк %d, недостающих %d; например\nлишняя:   %v\nнедостаёт: %v",
+		len(extra), len(missing), first(extra), first(missing))
+}
+
+// diffSorted — строки a, которых нет в b (оба отсортированы, с повторами).
+func diffSorted(a, b []string) []string {
+	var out []string
+	i := 0
+	for _, x := range a {
+		for i < len(b) && b[i] < x {
+			i++
+		}
+		if i < len(b) && b[i] == x {
+			i++
+			continue
+		}
+		out = append(out, x)
+	}
+	return out
+}
+
+func first(xs []string) string {
+	if len(xs) == 0 {
+		return "—"
+	}
+	return xs[0]
 }

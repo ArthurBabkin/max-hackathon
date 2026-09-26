@@ -417,10 +417,10 @@ func TestKnowledge_UniversityCardDirections(t *testing.T) {
 		t.Errorf("старая строка направлений без кодов и льгот:\n%s", c)
 	}
 
-	nsu := cardIn(t, contextFor(t, "Можно ли поступить в НГУ по Высшей пробе?"), "university:nsu")
-	if !strings.Contains(nsu, `\n  01.03.02 Прикладная математика и информатика — 10 программ, льготы уточняются`) {
-		t.Errorf("непроверенные льготы на направлении:\n%s", nsu)
+	if !strings.Contains(c, `\n  40.03.01 Юриспруденция — 1 программа, льготы уточняются`) {
+		t.Errorf("непроверенные льготы на направлении:\n%s", c)
 	}
+	nsu := cardIn(t, contextFor(t, "Можно ли поступить в НГУ по Высшей пробе?"), "university:nsu")
 	if !strings.Contains(nsu, "Ни выбранных в вузе, ни из цели ученика направлений здесь нет — льготы указаны по вузу целиком") {
 		t.Errorf("цели ученика в вузе нет:\n%s", nsu)
 	}
@@ -476,15 +476,15 @@ func TestKnowledge_UniversityCardFullOnStudentDirections(t *testing.T) {
 // Льготы на выбранные направления ещё проверяются — так и сказано, а ниже
 // льготы вуза целиком с тем, на скольких направлениях они есть.
 func TestKnowledge_UniversityCardUnverifiedDirections(t *testing.T) {
-	c := cardIn(t, contextAfter(t, "Какие олимпиады принимает НГУ?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
-		if err := st.SetUniversityDirections(ctx, tr.ID, "nsu", m, []string{"napr-01-03-02"}); err != nil {
+	c := cardIn(t, contextAfter(t, "Какие олимпиады принимает ВШЭ?", func(ctx context.Context, st *store.Store, tr store.Trajectory, m string) {
+		if err := st.SetUniversityDirections(ctx, tr.ID, "hse", m, []string{"napr-40-03-01"}); err != nil {
 			t.Fatal(err)
 		}
-	}), "university:nsu")
+	}), "university:hse")
 	for _, want := range []string{
-		"Льготы ученику здесь считаются на направления: Прикладная математика и информатика (выбрано в вузе) — льготы на них ещё уточняются",
+		"Льготы ученику здесь считаются на направления: Юриспруденция (выбрано в вузе) — льготы на них ещё уточняются",
 		"Олимпиады с льготами или баллами в вузе целиком",
-		" из 15 направлений)",
+		" из 19 направлений)",
 	} {
 		if !strings.Contains(c, want) {
 			t.Errorf("нет %q:\n%s", want, c)
@@ -503,7 +503,7 @@ func TestKnowledge_DirectionCard(t *testing.T) {
 		"Направление 01.03.02 Прикладная математика и информатика (сокращённо: ПМИ, ПМиИ)",
 		"Вузы базы с этим направлением (7), олимпиад с льготой на нём:",
 		`\n  ВШЭ, Москва — 59 олимпиад с льготой; вуз ученика`,
-		`\n  НГУ, Новосибирск — льготы уточняются`,
+		`\n  НГУ, Новосибирск — 41 олимпиада с льготой`,
 		"Этого направления нет: ",
 	} {
 		if !strings.Contains(c, want) {
@@ -556,10 +556,11 @@ func TestKnowledge_OlympiadCardOnQuestionDirection(t *testing.T) {
 	}
 
 	// На ПИ в ВШЭ «Высшая проба» по информатике — БВИ на всех программах
-	// (в том числе Пермь и Петербург), по анализу данных — не на всех.
+	// (в том числе Пермь и Петербург), по анализу данных — не на всех. БВИ —
+	// за диплом 10–11 класса, за 9 класс — 100 баллов (Нижний Новгород, #78).
 	pi := cardIn(t, contextFor(t, "Что даёт Высшая проба по информатике на ПИ в ВШЭ?"), "olympiad:p669-8")
 	varies := regexp.MustCompile(`Анализ данных:\\n    ВШЭ: победителю и призёру — БВИ[^\\]*\(зависит от программы\)`)
-	everywhere := regexp.MustCompile(`Информатика:\\n    ВШЭ: победителю и призёру — БВИ, ЕГЭ от 75\\n`)
+	everywhere := regexp.MustCompile(`Информатика:\\n    ВШЭ: победителю и призёру — БВИ, ЕГЭ от 75, диплом за 10–11 класс; за диплом 9 класса — 100 баллов\\n`)
 	if sec := pi[strings.Index(pi, "Льгота на направление из вопроса"):]; !varies.MatchString(sec) || !everywhere.MatchString(sec) {
 		t.Errorf("зависит от программы:\n%s", sec)
 	}
