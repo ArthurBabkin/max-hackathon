@@ -975,6 +975,59 @@ def sechenov_link(exams: list[str], programs: list[dict]) -> list[dict]:
     return [p for p in programs if _SECHENOV_EXAMS.get(_squash(p["program_name"]), set()) & set(exams)]
 
 
+SECHENOV_RULES = "rules__Pravila-priema_2026_2027_BS-s-izmeneniyami-_1_-_2_3.pdf"
+KGMU_RIGHTS = "olymp_list__Informaciya_20o_20predostavlenii_20osobyh_20prav_20i_20osobo"
+
+
+def vsosh_code_rows(pages: list[dict], url: str) -> list[dict]:
+    """Таблица «код — специальность — профили ВсОШ» (Сеченов п. 5.1, КГМУ
+    п. 6.4): победителям и призёрам — БВИ на направление целиком. Пустая
+    ячейка профилей — объединённая, это профили строки выше."""
+    out, profiles = [], None
+    for pg in pages:
+        for table in pg["tables"]:
+            for row in table:
+                c = [clean(x) for x in row]
+                if len(c) < 3 or not re.fullmatch(r"\d{2}\.\d{2}\.\d{2}", c[0]):
+                    continue
+                profiles = [x.strip().lower() for x in c[2].split(",") if x.strip()] if c[2] else profiles
+                for prof in profiles or []:
+                    out.append({"vsosh": True, "olympiad_name": None, "profile": prof, "level": "ВсОШ",
+                                "match": {"codes": [c[0]]}, "statuses": [POB, PRIZ], "benefit": BVI,
+                                "ege_subject": None, "ege_score": None, "grades": None,
+                                "page": pg["page"], "url": url})
+    return out
+
+
+def sechenov_vsosh_hundred_rows(pages: list[dict], url: str) -> list[dict]:
+    """П. 5.3: особое преимущество ВсОШ — 100 баллов за ВИ, совпадающее с
+    профилем (экономика — за обществознание), там, где это ВИ есть."""
+    out = []
+    for pg in pages:
+        for table in pg["tables"]:
+            if not table or not clean(table[0][0] or "").startswith("Профиль заключительного этапа"):
+                continue
+            for row in table[1:]:
+                prof, exam = (clean(x or "").lower() for x in row[:2])
+                if prof and exam:
+                    out.append({"vsosh": True, "olympiad_name": None, "profile": prof, "level": "ВсОШ",
+                                "match": {"exams": sorted(subject_keys(exam))},
+                                "statuses": [POB, PRIZ], "benefit": HUNDRED,
+                                "ege_subject": None, "ege_score": None, "grades": None,
+                                "page": pg["page"], "url": url})
+    return out
+
+
+def rows_sechenov_vsosh():
+    pages = load_pages("sechenov", SECHENOV_RULES)
+    url = meta("sechenov", SECHENOV_RULES)["url"]
+    return vsosh_code_rows(pages, url) + sechenov_vsosh_hundred_rows(pages, url)
+
+
+def rows_kazan_gmu_vsosh():
+    return vsosh_code_rows(load_pages("kazan-gmu", KGMU_RIGHTS), meta("kazan-gmu", KGMU_RIGHTS)["url"])
+
+
 def rows_kazan_gmu():
     f = "olymp_list__download"
     return kazan_gmu_rows(load_pages("kazan-gmu", f), meta("kazan-gmu", f)["url"])
@@ -1239,7 +1292,8 @@ PARSERS = {"msu": rows_msu, "msu_vsosh": rows_msu_vsosh, "hse_vsosh": rows_hse_v
            "itmo": rows_itmo, "nsu": rows_nsu, "kfu": rows_kfu,
            "innopolis": rows_innopolis, "sechenov": rows_sechenov, "kazan-gmu": rows_kazan_gmu,
            "mipt_vsosh": rows_mipt_vsosh, "kfu_vsosh": rows_kfu_vsosh,
-           "itmo_vsosh": rows_itmo_vsosh, "spbu_vsosh": rows_spbu_vsosh}
+           "itmo_vsosh": rows_itmo_vsosh, "spbu_vsosh": rows_spbu_vsosh,
+           "sechenov_vsosh": rows_sechenov_vsosh, "kazan-gmu_vsosh": rows_kazan_gmu_vsosh}
 
 
 # =============================================================== линковка и сборка
