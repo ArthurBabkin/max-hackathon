@@ -1477,18 +1477,18 @@ def kfu_link(m: dict, programs: list[dict]) -> list[dict]:
         subjects = set(m["first_vi"])
         return [p for p in programs if p["program_id"] not in bvi and (info := kfu_program(p))
                 and info["vi"] and subjects & set().union(*info["vi"])]
-    out = []
+    out, codes = [], {p["napravlenie_code"] for p in programs}
     for p in programs:
         info = kfu_program(p)
         if m["entries"]:
-            # Код без профиля покрывает все программы направления, но не ту,
-            # где предмета олимпиады нет даже среди ВИ: 44.03.05 указан у
-            # биологии целиком, а «Математику и информатику» биология не касается.
+            # Код без профиля покрывает все программы направления: где КФУ
+            # сужает, он пишет «(профиль: …)» (44.03.05 у истории, но не у
+            # биологии), ВИ документ не проверяет. Кода, которого у КФУ нет,
+            # — опечатка, если профиль дословно равен программе (стр. 24:
+            # «15.03.01 … (профиль: Компьютерные технологии в мехатронике…)»).
             name = _norm_prog(p["program_name"])
-            exams = set().union(*info["vi"]) if info and info["vi"] else None
-            ok = any(code == p["napravlenie_code"] and
-                     (any(x == name or x in name or name in x for x in profs) if profs
-                      else exams is None or bool(exams & set(m["first_vi"])))
+            ok = any((any(x == name or x in name or name in x for x in profs) if profs else True)
+                     if code == p["napravlenie_code"] else code not in codes and name in profs
                      for code, profs in m["entries"])
         else:
             ok = bool(m["all"] and info and info["vi"] and info["vi"][0] & set(m["first_vi"]))

@@ -645,9 +645,26 @@ class KfuTest(unittest.TestCase):
         m = {**bb.kfu_match(self.ALL, "физика"), "hundred": True}
         self.assertEqual([p["program_id"] for p in bb.link("kfu", {"match": m}, KFU_PROGRAMS)], ["pmi"])
 
-    def test_listed_code_without_profile_needs_subject_among_exams(self):
+    def test_listed_code_without_profile_covers_every_program(self):
+        # Стр. 4: у биологии «44.03.05 Педагогическое образование (с двумя
+        # профилями подготовки)» — без профиля, а где КФУ сужает, он пишет
+        # «(профиль: …)», как у истории или русского языка. ВИ не проверяются.
         self.assertEqual(self.targets("44.03.05 Педагогическое образование (с двумя профилями подготовки)", "биология"),
-                         ["ped-bio"])
+                         ["ped-bio", "ped-math"])
+
+    def test_code_typo_resolved_by_exact_profile(self):
+        # Стр. 24: «15.03.01 Мехатроника и робототехника (профиль: Компьютерные
+        # технологии в мехатронике и робототехнике)» — у КФУ нет 15.03.01, а на
+        # стр. 5 тот же профиль записан с кодом 15.03.06.
+        programs = KFU_PROGRAMS + [prog("mech", "Компьютерные технологии в мехатронике и робототехнике", "", "15.03.06")]
+        m = bb.kfu_match("15.03.01 Мехатроника и робототехника (профиль: Компьютерные технологии в мехатронике "
+                         "и робототехнике)", "информатика и ИКТ")
+        self.assertEqual([p["program_id"] for p in bb.link("kfu", {"match": m}, programs)], ["mech"])
+
+    def test_code_present_at_vuz_is_not_second_guessed(self):
+        programs = KFU_PROGRAMS + [prog("mech", "Физика", "", "15.03.06")]
+        m = bb.kfu_match("03.03.02 Физика (профиль: Физика)", "физика")
+        self.assertEqual([p["program_id"] for p in bb.link("kfu", {"match": m}, programs)], ["phys"])
 
 
 HSE_PROGRAMS = [
