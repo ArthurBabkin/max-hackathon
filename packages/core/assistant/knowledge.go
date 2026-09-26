@@ -732,7 +732,7 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 					}
 					if len(r.DiplomaGrades) > 0 {
 						line += ", диплом за " + gradesList(r.DiplomaGrades) + " класс"
-						if s, _ := pick.Score100Grades(r.Note); s != "" {
+						if s, _ := store.Score100Grades(r.Note); s != "" {
 							line += "; " + strings.ToLower(s)
 						}
 					}
