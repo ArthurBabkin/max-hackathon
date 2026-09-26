@@ -379,6 +379,13 @@
   color: var(--mu);
 }
 
+/* Вторая строка под сроком: кто добавил олимпиаду в трекер (ТЗ §3.2). */
+.row-meta {
+  font-size: var(--t-small);
+  color: var(--mu);
+  overflow-wrap: anywhere;
+}
+
 /* Плитка олимпиады или вуза */
 .tile {
   flex: 0 0 auto;
