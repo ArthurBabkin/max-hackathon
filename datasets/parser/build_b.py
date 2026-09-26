@@ -1296,25 +1296,20 @@ def canon_subject(subject: str) -> str | None:
     return " или ".join(dict.fromkeys(name for _, name in found)) or None
 
 
-# Профили олимпиад, пересекающиеся со скоупом проекта. Датасет C по п.4 спеки
-# собирается только по ним, поэтому и B обязан держаться той же границы:
-# иначе join B->C даёт пропуски не из-за ошибки, а из-за разной ширины скоупа.
-SCOPE_PROFILE_WORDS = {
-    "ИТ": ("информатик", "программирован", "вычислительн", "компьютерн", "кибернетик",
-           "искусственный интеллект", "данны", "информационн", "робототехник",
-           "инфокоммуникац", "математик"),
-    "Физика": ("физик", "астроном", "ядерн", "нанотехнолог", "фотоник", "техник",
-               "инженерн", "механик", "высокие технологии", "наносистем", "математик"),
-    "Биомед": ("биолог", "хими", "медицин", "генетик", "инфохими", "естественные науки",
-               "экологи", "агро"),
-    "Экономика": ("эконом", "финанс", "обществознан", "бизнес", "менеджм",
-                  "предпринимат", "математик"),
-}
+# Граница B — каталог продукта: олимпиады датасета C и missing_in_C (их сид
+# добавляет сам). Других сид не знает, а у олимпиад каталога льготы терять
+# нельзя: раньше границу держали слова в профиле, и «вероятность и
+# статистика» или «Физтех» научно-технический выпадали, хотя в C они есть.
+_CATALOG: set[str] | None = None
 
 
-def profile_in_scope(profile: str) -> bool:
-    t = clean(profile or "").lower()
-    return any(w in t for ws in SCOPE_PROFILE_WORDS.values() for w in ws)
+def in_catalog(oid: str) -> bool:
+    global _CATALOG
+    if _CATALOG is None:
+        c = json.loads((DATA / "olimpiady_spravochnik.json").read_text(encoding="utf-8"))["olimpiady"]
+        m = json.loads((DATA / "missing_in_C.json").read_text(encoding="utf-8"))["missing_in_C"]
+        _CATALOG = {x["olympiad_id"] for x in c + m}
+    return oid in _CATALOG
 
 
 def subject_fits(subject: str, profile_group: str) -> bool:
@@ -1530,10 +1525,10 @@ def expand_subject(subject: str, name: str | None = None) -> list[tuple[str, str
     num = match_number(name) if name else None
     if name and num is None:
         return []
-    # Профиль самой олимпиады — в скоупе 4 групп, как у C: иначе «любая,
-    # соответствующая математике» тянет лингвистику и основы государственности.
+    # Только олимпиады каталога: иначе «любая, соответствующая математике»
+    # тянет лингвистику и основы государственности.
     return [(row["olympiad_id"], row["name"], row["level"]) for row in _index
-            if want & subject_keys(" ".join(row["subjects"])) and profile_in_scope(row["profile"])
+            if want & subject_keys(" ".join(row["subjects"])) and in_catalog(row["olympiad_id"])
             and (num is None or row["perechen_number_669"] == num)]
 
 
@@ -1645,14 +1640,10 @@ def main() -> int:
                     reasons[vuz_id][why or "?"] += 1
                     continue
                 variants = [(oid, disp, row.get("level"))]
-            # У строк ВсОШ профиль помечен прочерком (он к ВсОШ неприменим),
-            # предмет лежит в отдельной колонке — проверять надо его.
-            probe = next((clean(row.get(k) or "") for k in
-                          ("profile", "vsosh_subject", "ege_subject")
-                          if clean(row.get(k) or "") not in ("", "—", "-", "–")), "")
-            if not profile_in_scope(probe):
+            variants = [v for v in variants if in_catalog(v[0])]
+            if not variants:
                 skipped[vuz_id] += 1
-                reasons[vuz_id]["профиль олимпиады вне скоупа 4 групп (как и в датасете C)"] += 1
+                reasons[vuz_id]["олимпиады нет в каталоге (C и missing_in_C)"] += 1
                 continue
             targets = link(vuz_id, row, programs)
             # КФУ проверяет «первое ВИ» по плану приёма — точнее, чем группа.
