@@ -1051,6 +1051,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/family/invites/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Отозвать неиспользованную ссылку
+         * @description Отзывает автор ссылки или создатель траектории (ТЗ §16). Чужая,
+         *     уже использованная или отозванная ссылка — 404.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ссылка отозвана */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/family/members/{id}": {
         parameters: {
             query?: never;
@@ -2169,6 +2211,8 @@ export interface components {
              */
             url: string;
             role: components["schemas"]["Role"];
+            /** @description Смотрящий может отозвать ссылку — он её автор или создатель траектории (ТЗ §16). */
+            can_revoke: boolean;
             /** Format: date-time */
             created_at: string;
         };

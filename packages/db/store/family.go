@@ -39,15 +39,17 @@ func (s *Store) FamilyMembers(ctx context.Context, trajectoryID string) ([]Famil
 
 // Invite — неиспользованная и неотозванная ссылка-приглашение.
 type Invite struct {
-	ID        string
-	Token     string
-	Role      string
+	ID    string
+	Token string
+	Role  string
+	// CreatedBy — участник, создавший ссылку; пусто, если его удалили.
+	CreatedBy string
 	CreatedAt time.Time
 }
 
 func (s *Store) ActiveInvites(ctx context.Context, trajectoryID string) ([]Invite, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT id::text, token, role, created_at FROM invites
+		SELECT id::text, token, role, COALESCE(created_by_member_id::text, ''), created_at FROM invites
 		WHERE trajectory_id = $1 AND used_at IS NULL AND revoked_at IS NULL
 		ORDER BY created_at`, trajectoryID)
 	if err != nil {
@@ -55,7 +57,26 @@ func (s *Store) ActiveInvites(ctx context.Context, trajectoryID string) ([]Invit
 	}
 	return collect(rows, func(r rowScanner) (Invite, error) {
 		var i Invite
-		return i, r.Scan(&i.ID, &i.Token, &i.Role, &i.CreatedAt)
+		return i, r.Scan(&i.ID, &i.Token, &i.Role, &i.CreatedBy, &i.CreatedAt)
+	})
+}
+
+// RevokeInvite — отозвать неиспользованную ссылку (ТЗ §16). Отзывает автор
+// ссылки или создатель траектории (byCreator). Чужая ссылка, ссылка из другой
+// траектории, уже использованная или отозванная — ErrNotFound.
+func (s *Store) RevokeInvite(ctx context.Context, trajectoryID, inviteID, byMemberID string, byCreator bool) error {
+	return s.Tx(ctx, func(tx *Store) error {
+		tag, err := tx.db.Exec(ctx, `
+			UPDATE invites SET revoked_at = now()
+			WHERE id = $1 AND trajectory_id = $2 AND used_at IS NULL AND revoked_at IS NULL
+			  AND ($3 OR created_by_member_id = $4)`, inviteID, trajectoryID, byCreator, byMemberID)
+		if err != nil {
+			return wrap(err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+		return tx.Audit(ctx, byMemberID, "revoke", "invite", inviteID)
 	})
 }
 
@@ -77,8 +98,8 @@ func (s *Store) CreateInvite(ctx context.Context, trajectoryID, memberID, role, 
 		}
 		if err := tx.db.QueryRow(ctx, `
 			INSERT INTO invites (trajectory_id, token, role, created_by_member_id) VALUES ($1, $2, $3, $4)
-			RETURNING id::text, token, role, created_at`, trajectoryID, token, role, memberID).Scan(
-			&inv.ID, &inv.Token, &inv.Role, &inv.CreatedAt); err != nil {
+			RETURNING id::text, token, role, created_by_member_id::text, created_at`, trajectoryID, token, role, memberID).Scan(
+			&inv.ID, &inv.Token, &inv.Role, &inv.CreatedBy, &inv.CreatedAt); err != nil {
 			return wrap(err)
 		}
 		return tx.Audit(ctx, memberID, "create", "invite", inv.ID)

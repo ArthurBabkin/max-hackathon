@@ -608,6 +608,24 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /family/invites/{id}:
+    delete:
+      tags: [family]
+      summary: Отозвать неиспользованную ссылку
+      description: |
+        Отзывает автор ссылки или создатель траектории (ТЗ §16). Чужая,
+        уже использованная или отозванная ссылка — 404.
+      x-tz: "F39"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: Ссылка отозвана }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /family/members/{id}:
     delete:
       tags: [family]
@@ -1959,7 +1977,7 @@ components:
 
     Invite:
       type: object
-      required: [id, token, url, role, created_at]
+      required: [id, token, url, role, can_revoke, created_at]
       properties:
         id: { type: string, format: uuid }
         token: { type: string, minLength: 12, pattern: '^[A-Za-z0-9_-]+$' }
@@ -1968,6 +1986,9 @@ components:
           format: uri
           description: Готовая ссылка `https://max.ru/<bot>?start=inv_<token>` (F39).
         role: { $ref: "#/components/schemas/Role" }
+        can_revoke:
+          type: boolean
+          description: Смотрящий может отозвать ссылку — он её автор или создатель траектории (ТЗ §16).
         created_at: { type: string, format: date-time }
 
     Family:
