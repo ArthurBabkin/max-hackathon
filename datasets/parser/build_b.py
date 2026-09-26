@@ -356,6 +356,22 @@ def rows_hse():
 
 
 HSE_HEAD = re.compile(r"(?:Направлени[ея] подготовки|Специальность)\s+(\d{2}\.\d{2}\.\d{2}.*)")
+# Смещения колонок от «Вида особого права», если заголовка таблицы не видно:
+# так устроены приложения Москвы, Нижнего Новгорода и Перми.
+HSE_LAYOUT = {"status": 2, "grades": 3, "ege": -2}
+
+
+def _hse_layout(head: list[str]) -> dict:
+    """Смещения колонок от «Вида особого права» — по заголовку. В приложении
+    Петербурга нет «Предмета зачета 100 баллов»: статус и классы стоят на
+    колонку левее, чем у остальных кампусов."""
+    low = [x.lower() for x in head]
+    h = next(i for i, x in enumerate(low) if x.startswith("вид особого права"))
+
+    def off(*prefixes):
+        return next((i - h for p in prefixes for i, x in enumerate(low) if x.startswith(p)), None)
+    return {"status": off("кому предоставляется"), "grades": off("в каких классах"),
+            "ege": off("предмет егэ, который подтверждает", "один или несколько предметов")}
 
 
 def hse_rows(pages, url: str, campus: str) -> list[dict]:
@@ -365,10 +381,14 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
     предыдущей олимпиады («Турнир городов» с информатикой и экономикой)."""
     out = []
     codes = name = profile = None
+    layout, who, ege = HSE_LAYOUT, "", ""
     for page_no, rows in pages:
         for c, (program, olympiad) in rows:
             c = [clean(x) for x in c]
             if not c:
+                continue
+            if any(x.lower().startswith("вид особого права") for x in c):
+                layout = _hse_layout(c)
                 continue
             m = HSE_HEAD.match(c[0])
             if m:
@@ -390,23 +410,30 @@ def hse_rows(pages, url: str, campus: str) -> list[dict]:
                 cell = olympiad
             new_name = cell or olympiad or name
             if new_name != name:
-                name, profile = new_name, None
+                name, profile, who, ege = new_name, None, "", ""
             if j >= 4 and c[j - 4]:
                 profile = c[j - 4]
             if not name or not profile:
                 continue
+
+            def col(off):
+                return c[j + off] if off is not None and 0 <= j + off < len(c) else ""
+            # «Кому» и предмет подтверждения — объединённые ячейки на несколько
+            # строк (БВИ за 10–11 класс и 100 баллов за 9–11 у одного профиля):
+            # у продолжений они пусты и берутся сверху, а не «всем».
+            who = col(layout["status"]) or who
+            ege = col(layout["ege"]) or ege
+            if not who:
+                WARNINGS.append(f"ВШЭ {campus}, стр. {page_no}: нет статуса у «{name}» / {profile}")
+                continue
             out.append({
                 "match": {"codes": codes, "campus": campus, "program": program or None},
                 "olympiad_name": name, "profile": profile, "level": None,
-                "statuses": _statuses(c[j + 2] if len(c) > j + 2 else ""),
+                "statuses": _statuses(who),
                 "benefit": benefit,
-                # Колонки справа от якоря есть не во всех строках
-                # (узкие строки теряют хвост), слева смещение стабильно:
-                # j-3 — предмет олимпиады, j-2 — предметы ВИ.
-                "ege_subject": (c[j - 3] if j >= 3 and c[j - 3]
-                                else (c[j - 2] if j >= 2 else "")),
+                "ege_subject": ege,
                 "ege_score": _score(c[j - 1]),
-                "grades": _grades(c[j + 3] if len(c) > j + 3 else ""),
+                "grades": _grades(col(layout["grades"])),
                 "page": page_no, "url": url,
             })
     return out
@@ -1237,21 +1264,24 @@ SUBJECT_GROUPS = {
 }
 
 
-CANON_SUBJECTS = ("Информатика и ИКТ", "Информатика", "Математика", "Физика", "Химия",
-                  "Биология", "Обществознание", "Экономика", "Русский язык",
-                  "Иностранный язык", "История", "География", "Литература")
+EGE_STEMS = (("информат", "Информатика"), ("математ", "Математика"), ("физик", "Физика"),
+             ("хими", "Химия"), ("биолог", "Биология"), ("обществозн", "Обществознание"),
+             ("истори", "История"), ("литератур", "Литература"), ("географ", "География"),
+             ("русск", "Русский язык"), ("иностран", "Иностранный язык"),
+             ("английск", "Иностранный язык"), ("немецк", "Иностранный язык"),
+             ("французск", "Иностранный язык"), ("испанск", "Иностранный язык"),
+             ("китайск", "Иностранный язык"))
 
 
 def canon_subject(subject: str) -> str | None:
-    """«Информат ика» -> «Информатика»: экстракция рвёт слово на границе колонки."""
-    t = clean(subject or "")
-    if not t:
-        return None
-    flat = re.sub(r"[\s,]+", "", t).lower()
-    for good in CANON_SUBJECTS:
-        if re.sub(r"\s+", "", good).lower() in flat:
-            return good
-    return t
+    """Предметы ЕГЭ из ячейки, в порядке упоминания, через «или»:
+    «физика / информатика» -> «Физика или Информатика». Экстракция рвёт
+    слово на границе колонки («Обществоз нанию»), поэтому ищем по основам в
+    тексте без пробелов. Не предмет ЕГЭ (обрывок соседней колонки,
+    «клиническая медицина…», «—») -> None: в примечание мусор не идёт."""
+    flat = re.sub(r"\s+", "", clean(subject or "").lower().replace("ё", "е"))
+    found = sorted((flat.find(stem), name) for stem, name in EGE_STEMS if stem in flat)
+    return " или ".join(dict.fromkeys(name for _, name in found)) or None
 
 
 # Профили олимпиад, пересекающиеся со скоупом проекта. Датасет C по п.4 спеки
@@ -1520,6 +1550,53 @@ def resolve_olympiad(row: dict) -> tuple[str | None, str | None, str | None]:
     return f"p669-{num}-{slug}", name, None
 
 
+WARNINGS: list[str] = []
+
+
+def program_exams(vuz_id: str, p: dict) -> set[str] | None:
+    """Предметы ВИ программы — где вуз их публикует и они разобраны."""
+    if vuz_id == "mipt":
+        return (_mipt_program(p) or {}).get("exams") or None
+    if vuz_id == "kfu":
+        plan = kfu_program(p)
+        return set().union(*plan["vi"]) if plan and plan["vi"] else None
+    if vuz_id == "sechenov":
+        global _SECHENOV_EXAMS
+        if _SECHENOV_EXAMS is None:
+            _SECHENOV_EXAMS = sechenov_exams(load_pages("sechenov", SECHENOV_EXAMS))
+        return _SECHENOV_EXAMS.get(_squash(p["program_name"])) or None
+    return None
+
+
+def narrow_subject(subject: str | None, exams: set[str] | None) -> str | None:
+    """Документ называет предметы профиля («математика, обществознание»), а
+    подтверждать надо тот, что среди ВИ программы. Нет пересечения или ВИ
+    неизвестны — как в документе."""
+    if not subject or not exams:
+        return subject
+    keep = [s for s in subject.split(" или ") if s in exams]
+    return " или ".join(keep) if keep else subject
+
+
+def dedup_benefits(records: list[dict]) -> list[dict]:
+    """Одна (олимпиада, статус, льгота) из нескольких строк документа — БВИ за
+    10 класс и за 11 отдельными строками: классы объединяются (None — без
+    ограничения — поглощает остальные), порог ЕГЭ берётся строже."""
+    out: dict[tuple, dict] = {}
+    for b in records:
+        key = (b["olympiad_id"], b["diploma_status"], b["benefit_type"])
+        a = out.get(key)
+        if a is None:
+            out[key] = dict(b)
+            continue
+        ga, gb = a.get("eligible_grades"), b.get("eligible_grades")
+        a["eligible_grades"] = None if ga is None or gb is None else sorted(set(ga) | set(gb))
+        sa, sb = a.get("ege_confirm_min_score"), b.get("ege_confirm_min_score")
+        if sb is not None and (sa is None or sb > sa):
+            a["ege_confirm_min_score"] = sb
+    return list(out.values())
+
+
 def main() -> int:
     a_rows = json.loads((DATA / "vuz_napravleniya.json").read_text(encoding="utf-8"))["vuz_napravleniya"]
     offered = [x for x in a_rows if x["status"] == "offered"]
@@ -1591,7 +1668,8 @@ def main() -> int:
                         "diploma_status": status,
                         "benefit_type": row["benefit"],
                         "eligible_grades": row.get("grades"),
-                        "ege_confirm_subject": canon_subject(row.get("ege_subject")),
+                        "ege_confirm_subject": narrow_subject(canon_subject(row.get("ege_subject")),
+                                                              program_exams(vuz_id, prog)),
                         "ege_confirm_min_score": row.get("ege_score"),
                         "source_url": row["url"],
                         "source_page": row.get("page"),
@@ -1619,13 +1697,7 @@ def main() -> int:
         if x["program_id"] in emitted:
             continue
         emitted.add(x["program_id"])
-        benefits, seen = [], set()
-        for b in per_program.get(x["program_id"], []):
-            key = (b["olympiad_id"], b["diploma_status"], b["benefit_type"])
-            if key in seen:
-                continue
-            seen.add(key)
-            benefits.append(b)
+        benefits = dedup_benefits(per_program.get(x["program_id"], []))
         benefits.sort(key=lambda b: (b["olympiad_id"], b["diploma_status"]))
         objects.append({
             "program_id": x["program_id"], "vuz_id": x["vuz_id"],
@@ -1638,6 +1710,8 @@ def main() -> int:
             "prinimaemye_olimpiady": benefits,
         })
 
+    for w in WARNINGS:
+        print("  ! " + w)
     total = sum(len(o["prinimaemye_olimpiady"]) for o in objects)
     empty = sum(1 for o in objects if o["status"] == "to_check")
     print(f"\nпрограмм: {len(objects)}, записей о льготах: {total}, без льгот (to_check): {empty}")
