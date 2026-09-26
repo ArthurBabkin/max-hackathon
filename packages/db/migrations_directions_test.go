@@ -48,7 +48,8 @@ func queryStrings(t *testing.T, q rowQuerier, sql string) []string {
 	return out
 }
 
-// Счётчики контента 0021 — числа из датасетов на 21.09.2026.
+// Счётчики контента 0021 — числа из датасетов на 21.09.2026 с исправленной
+// привязкой льгот к программам (0022).
 func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 	t.Helper()
 	return map[string]int{
@@ -65,8 +66,8 @@ func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 
 var wantUniversityDirections = map[string]int{
 	"directions": 72, "onboarding": 16, "no_groups": 0,
-	"pairs": 174, "to_check": 4,
-	"benefits": 9466, "varies": 1146,
+	"pairs": 174, "to_check": 3,
+	"benefits": 11676, "varies": 1537,
 	"user_choices": 0,
 }
 
@@ -78,7 +79,7 @@ func TestMigration_UniversityDirections_Content(t *testing.T) {
 	// Все программы этих пар в датасете B ждут проверки, хотя в A они есть.
 	toCheck := queryStrings(t, pool, `SELECT university_id || ' ' || direction_id
 		FROM university_directions WHERE status = 'to_check'`)
-	want := []string{"nsu napr-01-03-01", "nsu napr-01-03-02", "nsu napr-01-03-03", "spbu napr-06-03-01"}
+	want := []string{"nsu napr-01-03-01", "nsu napr-01-03-02", "nsu napr-01-03-03"}
 	if !slices.Equal(toCheck, want) {
 		t.Fatalf("to_check: %v, ожидали %v", toCheck, want)
 	}
@@ -285,5 +286,54 @@ func TestMigration_UniversityDirections_ChoiceGoesWithUniversity(t *testing.T) {
 	mustExec(t, tx.Exec, `DELETE FROM trajectory_universities WHERE trajectory_id = '`+tid+`' AND university_id = 'msu'`)
 	if n := queryInt(t, tx, `SELECT count(*) FROM trajectory_university_directions WHERE trajectory_id = '`+tid+`'`); n != 0 {
 		t.Fatalf("выбор направлений пережил вуз: %d", n)
+	}
+}
+
+// 0022: льготы, которые парсер приписывал чужим программам (#68). До миграции
+// ВсОШ по биологии давала льготу направлению ПМИ МГУ (через филиал в
+// Севастополе), после — нет; контент совпадает со свежим сидом, события
+// «изменились льготы» — только по парам профиль@вуз, где льгота правда
+// поменялась, а повторный прогон ничего не меняет.
+func TestMigration_BenefitLinking(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw := readMigration(t, "0022_benefit_linking.sql")
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const bioOnPmi = `SELECT count(*) FROM direction_benefits WHERE olympiad_profile_id = 'vsosh-biologiya'
+		AND university_id = 'msu' AND direction_id = 'napr-01-03-02'`
+	benefits := queryInt(t, tx, `SELECT count(*) FROM benefits`)
+
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, dbtest.DownSection(raw))
+	if n := queryInt(t, tx, bioOnPmi); n != 1 {
+		t.Fatalf("до 0022 ВсОШ по биологии на ПМИ МГУ: %d строк, ожидали 1", n)
+	}
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, bioOnPmi); n != 0 {
+		t.Fatalf("после 0022 ВсОШ по биологии на ПМИ МГУ: %d строк", n)
+	}
+	if got := universityDirectionCounts(t, tx); !maps.Equal(got, wantUniversityDirections) {
+		t.Fatalf("после 0022:\n%v\nожидали:\n%v", got, wantUniversityDirections)
+	}
+	if n := queryInt(t, tx, `SELECT count(*) FROM benefits`); n != benefits {
+		t.Fatalf("льгот вузов после 0022: %d, в сиде %d", n, benefits)
+	}
+	changed := queryInt(t, tx, `SELECT count(DISTINCT entity_id) FROM content_changes WHERE entity = 'benefit'`)
+	other := queryInt(t, tx, `SELECT count(*) FROM content_changes WHERE entity <> 'benefit'`)
+	if changed != 288 || other != 0 {
+		t.Fatalf("события 0022: льгот %d (ожидали 288), других %d", changed, other)
+	}
+
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, `SELECT count(*) FROM content_changes`); n != 0 {
+		t.Fatalf("повторный прогон 0022 породил %d событий", n)
 	}
 }

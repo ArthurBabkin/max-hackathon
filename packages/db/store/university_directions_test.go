@@ -18,6 +18,7 @@ const (
 	dirAMI  = "napr-01-03-02"
 	dirIS   = "napr-10-03-01"
 	dirIVT  = "napr-09-00-00"
+	dirCS   = "napr-09-03-01"
 	dirBio  = "napr-06-03-01"
 	virtual = "p669-5-virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture"
 	infosec = "p669-22-informacionnaya-bezopasnost"
@@ -222,8 +223,9 @@ func TestTargetBenefits(t *testing.T) {
 	}
 	got := byPair(rows)
 
-	// ВШЭ целиком даёт БВИ, но на ПИ — только 100 баллов и не на всех программах.
-	if b := got[virtual+"/hse"]; b.Benefit != "score100" || !slices.Equal(b.DirectionNames, []string{"Программная инженерия"}) ||
+	// На ПИ в ВШЭ БВИ дают не все программы: только «Компьютерные науки и
+	// технологии» и ТИДИ в Нижнем Новгороде (стр. 13 и 26 приложения).
+	if b := got[virtual+"/hse"]; b.Benefit != "bvi" || !slices.Equal(b.DirectionNames, []string{"Программная инженерия"}) ||
 		!b.Varies || b.Basis != "goal" {
 		t.Fatalf("ВШЭ на ПИ: %+v", b)
 	}
@@ -231,9 +233,11 @@ func TestTargetBenefits(t *testing.T) {
 	if b := got[virtual+"/innopolis"]; b.Benefit != "bvi" || b.Basis != "goal" {
 		t.Fatalf("Иннополис: %+v", b)
 	}
-	// ИБ в ВШЭ даёт БВИ, но не на ПИ — строки нет.
-	if b, ok := got[infosec+"/hse"]; ok {
-		t.Fatalf("на ПИ в ВШЭ льготы нет: %+v", b)
+	// Innopolis Open по ИБ на ПИ в ВШЭ — БВИ только в Нижнем Новгороде
+	// (стр. 21 и 34 приложения), в Москве на ПИ льготы нет.
+	if b := got[infosec+"/hse"]; b.Benefit != "bvi" || !b.Varies ||
+		!slices.Equal(b.DirectionNames, []string{"Программная инженерия"}) {
+		t.Fatalf("ИБ-профиль на ПИ в ВШЭ: %+v", b)
 	}
 
 	// Выбор в вузе важнее цели: ИБ в ВШЭ — БВИ.
@@ -247,13 +251,14 @@ func TestTargetBenefits(t *testing.T) {
 
 	// Льгота на выбранных направлениях разная: лучшая — в строке, прочие —
 	// отдельно, от сильной к слабой.
-	_ = s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirSE, dirIS})
+	// «Виртуальные миры»: на ИБ — БВИ, на ИВТ — 100 баллов (Москва, стр. 59 и 40).
+	_ = s.SetUniversityDirections(ctx, f.trajectoryID, "hse", f.creatorMember, []string{dirCS, dirIS})
 	rows, _ = s.TargetBenefits(ctx, f.trajectoryID, []string{virtual}, unis)
 	got = byPair(rows)
 	if b := got[virtual+"/hse"]; b.Benefit != "bvi" || !slices.Equal(b.DirectionNames, []string{"Информационная безопасность"}) ||
 		len(b.OtherDirections) != 1 || b.OtherDirections[0].Benefit != "score100" ||
-		!slices.Equal(b.OtherDirections[0].Names, []string{"Программная инженерия"}) {
-		t.Fatalf("ВШЭ на ПИ и ИБ: %+v", b)
+		!slices.Equal(b.OtherDirections[0].Names, []string{"Информатика и вычислительная техника"}) {
+		t.Fatalf("ВШЭ на ИВТ и ИБ: %+v", b)
 	}
 
 	// Цели нет — льгота вуза целиком, как раньше.
@@ -335,7 +340,7 @@ func TestBenefitsOn(t *testing.T) {
 	}
 }
 
-// На скольких направлениях вуза олимпиада даёт льготу — «на 5 из 19».
+// На скольких направлениях вуза олимпиада даёт льготу — «на 6 из 19».
 func TestDirectionCoverage(t *testing.T) {
 	s := New(dbtest.Open(t))
 	ctx := context.Background()
@@ -343,7 +348,7 @@ func TestDirectionCoverage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c := cov[virtual+"/hse"]; c.Count != 5 || c.Total != 19 {
+	if c := cov[virtual+"/hse"]; c.Count != 6 || c.Total != 19 {
 		t.Fatalf("ВШЭ: %+v", c)
 	}
 	if c := cov[virtual+"/innopolis"]; c.Count != 1 || c.Total != 1 {

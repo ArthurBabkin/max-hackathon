@@ -152,10 +152,14 @@ class BuildTest(unittest.TestCase):
         cls.demo = bs.build_demo()
 
     def test_benefit_keys_match_dataset(self):
-        # 1149 + 34 льготы Иннополиса со стр. 8, 9, 11, 16 его приказа
-        # + 9 МГУ из строк-продолжений объединённых ячеек.
-        self.assertEqual(self.seed.stats["benefit_keys"], 1192)
-        self.assertEqual(self.seed.stats["benefit_level_filtered"], 91)
+        # После исправления привязки льгот к программам (#68): ушли льготы,
+        # приписанные чужим программам и взятые из перечней прошлых лет КФУ,
+        # добавились ВсОШ СПбГУ, льготы ВШЭ в Перми и правила «любая олимпиада
+        # уровня» СПбГУ. Уровень строже профиля — только Всесибирская по
+        # информатике (II) на «Экономике» МГУ, где нужен I. КФУ даёт 100 баллов
+        # там, где предмет олимпиады — ВИ, но не первое (приложение 3, стр. 1–2).
+        self.assertEqual(self.seed.stats["benefit_keys"], 1374)
+        self.assertEqual(self.seed.stats["benefit_level_filtered"], 2)
         self.assertEqual(self.seed.stats["benefit_unknown_profile"], 0)
 
     def test_programs_to_check_add_no_keys(self):
@@ -394,8 +398,9 @@ class UniversityDirectionsTest(unittest.TestCase):
     def test_pairs_and_statuses(self):
         self.assertEqual(len(self.ud.pairs), 174)
         to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
+        # СПбГУ 06.03.01 получил свою ВсОШ (bac_spec_olymp_1).
         self.assertEqual(to_check, [("nsu", "napr-01-03-01"), ("nsu", "napr-01-03-02"),
-                                    ("nsu", "napr-01-03-03"), ("spbu", "napr-06-03-01")])
+                                    ("nsu", "napr-01-03-03")])
 
     def test_program_in_two_groups_is_counted_once(self):
         # В A программа повторяется на каждую профильную группу.
@@ -415,7 +420,7 @@ class UniversityDirectionsTest(unittest.TestCase):
                       msu["program_names"])
 
     def test_direction_benefits_refine_university_benefits(self):
-        self.assertEqual(len(self.ud.benefits), 9466)
+        self.assertEqual(len(self.ud.benefits), 11676)
         keys = {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
                 for b in self.ud.benefits}
         self.assertEqual(keys, {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
@@ -428,19 +433,19 @@ class UniversityDirectionsTest(unittest.TestCase):
 
     def test_varies_rows_explain_themselves(self):
         varies = [b for b in self.ud.benefits if b["varies"]]
-        self.assertEqual(len(varies), 1146)
+        self.assertEqual(len(varies), 1537)
         for b in self.ud.benefits:
             self.assertEqual(b["varies"], (b["note"] or "").startswith("Зависит от программы: "),
                              (b["olympiad_profile_id"], b["university_id"], b["direction_id"]))
-        # ВШЭ, 01.03.01: «Высшая проба» по физике — 100 баллов победителю
-        # только на «Математике».
+        # ВШЭ, 01.03.01: Всесибирская по физике — БВИ на «Фундаментальной и
+        # прикладной математике» (Нижний Новгород, стр. 8) и 100 баллов
+        # победителю на «Математике» (Москва, стр. 1).
         b = next(b for b in self.ud.benefits if (b["olympiad_profile_id"], b["university_id"],
                                                   b["direction_id"]) ==
                  ("p669-14-fizika", "hse", "napr-01-03-01"))
-        self.assertEqual(b["benefit"], "score100")
+        self.assertEqual(b["benefit"], "bvi")
         self.assertTrue(b["note"].startswith(
-            "Зависит от программы: на «Фундаментальная и прикладная математика» льготы нет. "
-            "100 баллов только победителю"), b["note"])
+            "Зависит от программы: на «Математика» — 100 баллов только победителю"), b["note"])
 
     def test_down_removes_only_sources_of_its_own(self):
         own = {k for k in self.ud.sources if k not in self.seed.sources}
