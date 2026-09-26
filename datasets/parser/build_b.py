@@ -788,7 +788,7 @@ def rows_mipt_vsosh():
 def mipt_vsosh_rows(html: str, url: str) -> list[dict]:
     """Приложение 2 на той же странице: предмет ВсОШ x физтех-школы.
     Лежит отдельной таблицей от перечневых олимпиад — легко пропустить."""
-    out, cols = [], None
+    out, cols, profiles = [], None, mipt_profile_subjects(html)
     for c in html_rows(html):
         if c and c[0] == "Общеобразовательный предмет":
             cols = _mipt_schools(c)
@@ -804,12 +804,37 @@ def mipt_vsosh_rows(html: str, url: str) -> list[dict]:
         if not profile_slug(subject.lower()):
             continue
         first, schools = cols
+        exam = profiles.get(subject.lower())
         for school, cell in zip(schools, c[first:first + len(schools)]):
             for cl in _mipt_clauses(school, cell):
-                out.append({**cl, "vsosh": True, "olympiad_name": None,
-                            "profile": subject.lower(), "level": "ВсОШ", "benefit": BVI,
-                            "ege_subject": subject, "ege_score": None, "grades": None,
-                            "page": None, "url": url, "score_is_demo": True})
+                row = {**cl, "vsosh": True, "olympiad_name": None,
+                       "profile": subject.lower(), "level": "ВсОШ", "benefit": BVI,
+                       "ege_subject": subject, "ege_score": None, "grades": None,
+                       "page": None, "url": url, "score_is_demo": True}
+                out.append(row)
+                # П. 8: обладатель БВИ может зачесть 100 баллов по предмету
+                # профиля в той же конкурсной группе — где предмет среди ВИ.
+                if exam:
+                    out.append({**row, "match": {**row["match"], "exam": exam}, "benefit": HUNDRED,
+                                "ege_subject": exam})
+    return out
+
+
+def mipt_profile_subjects(html: str) -> dict[str, str]:
+    """П. 8: таблица «Соответствие профиля олимпиады предмету ЕГЭ или ВИ» —
+    «Астрономия, физика и астрономия» -> Физика, «Экономика» -> Математика."""
+    out, on = {}, False
+    for c in html_rows(html):
+        if c[:2] == ["Профиль олимпиады", "Предмет ЕГЭ или ВИ"] and len(c) == 2:
+            on = True
+            continue
+        if not on:
+            continue
+        if len(c) != 2:
+            break
+        subject = sorted(subject_keys(c[1]))
+        if len(subject) == 1:
+            out.update({clean(x).lower(): subject[0] for x in c[0].split(",")})
     return out
 
 
@@ -1714,7 +1739,9 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
         return [p for p in programs
                 if m["mipt_exam"] in (_mipt_program(p) or {}).get("exams", set())]
     if "school" in m:                               # МФТИ: льгота адресована физтех-школе
-        return mipt_link(m["school"], m.get("groups"), programs)
+        out = mipt_link(m["school"], m.get("groups"), programs)
+        # 100 баллов обладателю БВИ (п. 8) — где предмет среди ВИ программы
+        return [p for p in out if m["exam"] in (_mipt_program(p) or {}).get("exams", set())] if "exam" in m else out
     if m.get("kfu"):                                # КФУ: коды, профили, «первое ВИ», «кроме»
         return kfu_link(m, programs)
     if m.get("campus"):                             # ВШЭ: направление внутри кампуса
