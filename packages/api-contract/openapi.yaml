@@ -1452,13 +1452,23 @@ components:
 
     DirectionBenefit:
       type: object
-      required: [benefit, benefit_label, directions]
+      required: [benefit, benefit_label, directions, winner, prizer]
       properties:
         benefit: { $ref: "#/components/schemas/BenefitKind" }
         benefit_label: { type: string }
         directions:
           type: array
           items: { type: string }
+        winner:
+          description: Что получит победитель на этих направлениях.
+          oneOf:
+            - $ref: "#/components/schemas/BenefitGrant"
+            - type: "null"
+        prizer:
+          description: Что получит призёр; `null` — призёру льготы нет.
+          oneOf:
+            - $ref: "#/components/schemas/BenefitGrant"
+            - type: "null"
 
     Stage:
       type: object

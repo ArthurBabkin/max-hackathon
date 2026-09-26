@@ -114,7 +114,12 @@ function myBenefitRow(university: DemoUniversity, olympiadId: string): BenefitRo
   const row: BenefitRow = {
     ...(tb.benefit === null ? noBenefit(university) : benefitRow(university, olympiadId, tb.benefit)),
     directions: tb.names,
-    other_directions: tb.others.map((o) => ({ benefit: o.benefit, benefit_label: BENEFIT_LABELS[o.benefit], directions: o.names })),
+    other_directions: tb.others.map((o) => ({
+      benefit: o.benefit,
+      benefit_label: BENEFIT_LABELS[o.benefit],
+      directions: o.names,
+      ...grants(university, olympiadId, o.benefit),
+    })),
     unverified: tb.unverified,
     varies: tb.varies,
   }

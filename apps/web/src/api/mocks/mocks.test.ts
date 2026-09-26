@@ -276,7 +276,15 @@ describe('карточка олимпиады', () => {
     expect(await row()).toMatchObject({
       benefit: 'bvi',
       directions: ['Прикладная математика и информатика'],
-      other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+      other_directions: [
+        {
+          benefit: 'score100',
+          benefit_label: '100 баллов',
+          directions: ['Программная инженерия'],
+          winner: { kind: 'score100', label: '100 баллов' },
+          prizer: { kind: 'score100', label: '100 баллов' },
+        },
+      ],
     })
 
     const uni = (await handleMock('GET', '/universities/hse')) as UniversityDetail

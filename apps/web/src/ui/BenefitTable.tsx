@@ -8,7 +8,7 @@
  * Кто олимпиаду не учитывает — одной строкой под таблицей.
  */
 
-import { BENEFIT_LABELS, type BenefitColumn, type BenefitGrant, type BenefitKind, type BenefitRow } from '@contract'
+import type { BenefitColumn, BenefitGrant, BenefitRow } from '@contract'
 import { outliers } from '@/lib/benefits'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
@@ -25,16 +25,6 @@ const GRANT_CLASS: Record<BenefitGrant['kind'], string> = {
   bvi: 'benefit-bvi',
   score100: 'benefit-score',
   extra_points: 'benefit-extra',
-}
-
-const BVI: BenefitGrant = { kind: 'bvi', label: BENEFIT_LABELS.bvi }
-const SCORE100: BenefitGrant = { kind: 'score100', label: BENEFIT_LABELS.score100 }
-
-/** Что получат победитель и призёр при льготе на других направлениях. */
-const OTHER_GRANTS: Partial<Record<BenefitKind, [BenefitGrant, BenefitGrant | null]>> = {
-  bvi: [BVI, BVI],
-  bvi_winners: [BVI, null],
-  score100: [SCORE100, SCORE100],
 }
 
 export interface BenefitTableProps {
@@ -143,12 +133,11 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
                 </tr>
               )
               // Слабее льгота на других моих направлениях — подстрокой со своими столбцами.
-              const others = row.other_directions.flatMap((other) => {
-                const grants = OTHER_GRANTS[other.benefit]
-                if (!grants) return []
-                const [winner, prizer] = grants
+              const others = row.other_directions.flatMap((other, j) => {
+                const { winner, prizer } = other
+                if (!winner) return []
                 return [
-                  <tr key={`${row.university_id}-${other.benefit}`} className="benefit-table-sub">
+                  <tr key={`${row.university_id}-${j}`} className="benefit-table-sub">
                     <th scope="row">{other.directions.join(', ')}</th>
                     {columns.map((column) => {
                       const grant = column === 'winner' ? winner : column === 'prizer' ? prizer : null
