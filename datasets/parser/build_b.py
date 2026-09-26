@@ -460,10 +460,35 @@ def _hse_pages(pdf_path, merged: int = 1):
 
 
 MIPT_URL = "https://pk.mipt.ru/bachelor/2026_olympiads/"
+MIPT_RULES = "rules__2026_rules"
 
 
 def rows_mipt():
     return mipt_rows(load_html("mipt", "olymp_list__2026_olympiads"), MIPT_URL)
+
+
+def mipt_plan(html: str) -> dict[tuple[str, str], dict]:
+    """Правила приёма МФТИ: (код направления, программа) -> конкурсная группа
+    и предметы ВИ. Одна программа бывает в двух направлениях (ВШБИ — 03.03.01
+    и 19.03.01) с разными группами и ВИ, поэтому ключ — с кодом."""
+    out, code = {}, None
+    for c in html_rows(html):
+        m = re.match(r"Направление\s+(\d{2}\.\d{2}\.\d{2})", c[0]) if c else None
+        if m:
+            code = m.group(1)
+        elif len(c) == 3 and code and c[0] and c[0] != "Образовательные программы":
+            out[(code, _squash(c[0]))] = {"group": c[1], "exams": subject_keys(c[2])}
+    return out
+
+
+_MIPT_PLAN = None
+
+
+def _mipt_program(p: dict) -> dict | None:
+    global _MIPT_PLAN
+    if _MIPT_PLAN is None:
+        _MIPT_PLAN = mipt_plan(load_html("mipt", MIPT_RULES))
+    return _MIPT_PLAN.get((p["napravlenie_code"], _squash(p["program_name"])))
 
 
 def _mipt_schools(header: list[str]) -> tuple[int, list[str]] | None:
@@ -501,10 +526,13 @@ def mipt_rows(html: str, url: str) -> list[dict]:
         if not (c and c[0].isdigit() and len(c) >= 6):
             continue
         num, name, profile, level = int(c[0]), c[1], c[2], _level(c[3])
-        if c[4]:                                    # общая колонка «100 баллов»
-            out.append({"match": None, "olympiad_name": name, "profile": profile,
-                        "level": level, "statuses": _statuses(c[4]), "benefit": HUNDRED,
-                        "ege_subject": _subject_from(c[4]), "ege_score": _score(c[4]),
+        # Общая колонка «100 баллов по <предмету>»: только программам, где
+        # этот предмет — вступительное испытание. В ячейке бывает два предмета.
+        for clause in filter(None, map(str.strip, clean(c[4]).split(";"))):
+            subject = _subject_from(clause)
+            out.append({"match": {"mipt_exam": subject}, "olympiad_name": name, "profile": profile,
+                        "level": level, "statuses": _statuses(clause), "benefit": HUNDRED,
+                        "ege_subject": subject, "ege_score": _score(clause),
                         "grades": None, "page": None, "url": url, "number": num})
         if not cols:
             continue
@@ -519,11 +547,13 @@ def mipt_rows(html: str, url: str) -> list[dict]:
 
 def _subject_from(text: str) -> str | None:
     t = clean(text).lower()
-    for s in ("информатик", "математик", "физик", "хими", "биолог", "обществознани", "экономик"):
+    for s in ("информатик", "математик", "физик", "хими", "биолог", "обществознани", "экономик",
+              "русск", "иностранн"):
         if s in t:
             return {"информатик": "Информатика", "математик": "Математика", "физик": "Физика",
                     "хими": "Химия", "биолог": "Биология", "обществознани": "Обществознание",
-                    "экономик": "Экономика"}[s]
+                    "экономик": "Экономика", "русск": "Русский язык",
+                    "иностранн": "Иностранный язык"}[s]
     return None
 
 
@@ -1298,6 +1328,9 @@ def link(vuz_id: str, row: dict, programs: list[dict]) -> list[dict]:
         return sechenov_link(m["exams"], programs)
     if "names" in m:                                # КГМУ: секция перечисляет специальности
         return [p for p in programs if any(_same_program(p["program_name"], n) for n in m["names"])]
+    if "mipt_exam" in m:                            # МФТИ, 100 баллов: предмет — среди ВИ программы
+        return [p for p in programs
+                if m["mipt_exam"] in (_mipt_program(p) or {}).get("exams", set())]
     if "school" in m:                               # МФТИ: льгота адресована физтех-школе
         return mipt_link(m["school"], m.get("groups"), programs)
     if m.get("kfu"):                                # КФУ: коды, профили, «первое ВИ», «кроме»
@@ -1385,8 +1418,11 @@ def _school_tags(text: str) -> set[str]:
 def mipt_link(school: str, groups: list[str] | None, programs: list[dict]) -> list[dict]:
     """Программы физтех-школы. У ФБМФ и ВШБИ факультет в A общий, а школа —
     в скобках названия: «Все конкурсные группы ФБМФ» ВШБИ не касается.
-    Названные конкурсные группы сужают школу; группа может объединять две
-    программы («Авиационные технологии и беспилотные авиационные системы»)."""
+    Названные конкурсные группы сужают школу. Группа — это колонка
+    «Конкурсная группа» правил приёма или название самой программы, точно:
+    подстрокой «Системное программирование и прикладная математика» ловила
+    программу «Математика» из группы ПМИ. Ячейка может назвать две программы
+    через «и» («Авиационные технологии и беспилотные авиационные системы»)."""
     want = _school_tags(school)
     pool = []
     for p in programs:
@@ -1398,11 +1434,22 @@ def mipt_link(school: str, groups: list[str] | None, programs: list[dict]) -> li
         pool.append(p)
     if groups is None:
         return pool
-    names = [_norm_prog(g) for g in groups]
-    return [p for p in pool if any(
-        _norm_prog(p["program_name"]) in g or g in _norm_prog(p["program_name"])
-        or SequenceMatcher(None, g, _norm_prog(p["program_name"])).ratio() > 0.9
-        for g in names)]
+    def fits(p, g):
+        own = {_norm_prog(p["program_name"]), _norm_prog((_mipt_program(p) or {}).get("group", ""))} - {""}
+        return any(g == o or SequenceMatcher(None, g, o).ratio() > 0.9 for o in own)
+
+    out = []
+    for g in map(_norm_prog, groups):
+        hit = [p for p in pool if fits(p, g)]
+        parts = g.split(" и ")
+        for i in range(1, len(parts)):
+            if hit:
+                break
+            a = [p for p in pool if fits(p, " и ".join(parts[:i]))]
+            b = [p for p in pool if fits(p, " и ".join(parts[i:]))]
+            hit = a + b if a and b else []
+        out += [p for p in hit if p not in out]
+    return out
 
 
 def expand_profile(profile: str, min_level: str | None) -> list[tuple[str, str, str]]:
