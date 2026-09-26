@@ -830,5 +830,21 @@ class SpbuTest(unittest.TestCase):
         self.assertEqual(got, {"I", "II", "III"})
 
 
+class CatalogScopeTest(unittest.TestCase):
+    """Граница B — олимпиады каталога (C и missing_in_C): сид не знает других,
+    а у тех, что в каталоге есть, льготы терять нельзя."""
+
+    def test_subject_expansion_follows_catalog(self):
+        got = {oid for oid, *_ in bb.expand_subject("Математика")}
+        self.assertIn("p669-37-veroyatnost-i-statistika", got)   # в C, в профиле нет «математик»
+        self.assertNotIn("p669-82-lingvistika", got)              # в каталоге нет
+
+    def test_catalog_membership(self):
+        self.assertTrue(bb.in_catalog("p669-54-nauchno-tehnicheskiy"))   # C
+        self.assertTrue(bb.in_catalog("p669-59-medicina"))              # missing_in_C
+        self.assertFalse(bb.in_catalog("p669-82-lingvistika"))
+        self.assertFalse(bb.in_catalog("vsosh-russkiy-yazyk"))
+
+
 if __name__ == "__main__":
     unittest.main()

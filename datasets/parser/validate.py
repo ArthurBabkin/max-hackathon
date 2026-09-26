@@ -67,6 +67,15 @@ GOLDEN = [
     ("nsu__prikladnaya-matematika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("nsu__prikladnaya-matematika", "vsosh-biologiya", set()),
     ("nsu__fizicheskaya-informatika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    # Граница B — каталог продукта (C и missing_in_C), а не слова в профиле:
+    # Сеченов, приложение 5 стр. 7: «29. Московская олимпиада школьников
+    # вероятность и статистика математика математика право на 100 баллов»;
+    # МФТИ, 2026_olympiads: «Физтех» научно-технический — ЛФИ БВИ победителям,
+    # 100 баллов по физике победителям и призёрам.
+    ("sechenov__mehanika-i-matematicheskoe-modelirovanie", "p669-37-veroyatnost-i-statistika",
+     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-nauchno-tehnicheskiy",
+     {(POB, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
 ]
 
 # Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».
