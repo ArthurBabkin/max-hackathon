@@ -76,6 +76,20 @@ GOLDEN = [
      {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-nauchno-tehnicheskiy",
      {(POB, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # Сеченов, Правила стр. 13 (п. 5.1): ВсОШ — БВИ по таблице «код — профили»:
+    # «31.05.01 Лечебное дело Химия, Биология», «38.03.02 Менеджмент Математика,
+    # Обществознание, Экономика». Стр. 14 (п. 5.3): 100 баллов за ВИ по профилю —
+    # физика у Биотехнологии среди ВИ, обществознания у Менеджмента нет.
+    ("sechenov__lechebnoe-delo", "vsosh-biologiya",
+     {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    ("sechenov__menedzhment", "vsosh-ekonomika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("sechenov__biotehnologiya", "vsosh-fizika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # КГМУ, «Информация о предоставлении особых прав» стр. 2 (п. 6.4):
+    # 30.05.01–34.03.01 — «Химия, биология, русский язык»; «30.05.02 Медицинская
+    # биофизика — Физика, математика, биология, русский язык», химии нет.
+    ("kazan-gmu__stomatologiya", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("kazan-gmu__medicinskaya-biofizika", "vsosh-fizika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("kazan-gmu__medicinskaya-biofizika", "vsosh-himiya", set()),
 ]
 
 # Предметы ЕГЭ: ege_confirm_subject — один из них или несколько через «или».

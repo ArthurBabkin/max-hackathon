@@ -869,5 +869,52 @@ class ConditionsTest(unittest.TestCase):
         self.assertTrue(bb.conditions("p669-54-fizika", row, "itmo", {})["is_demo"])
 
 
+class VsoshCodeTableTest(unittest.TestCase):
+    """Сеченов п. 5.1 и КГМУ п. 6.4: таблица «код — специальность — профили
+    ВсОШ». Пустая ячейка профилей — объединённая: профили строки выше."""
+    PAGES = [{"page": 13, "tables": [[
+        ["", "профилю заключительного этапа всероссийской", "международных олимпиад школьников"],
+        ["30.05.02", "Медицинская биофизика", "Физика, Математика, Биология"],
+        ["31.05.01", "Лечебное дело", "Химия, Биология"],
+        ["31.05.02", "Педиатрия", None],
+    ]]}]
+
+    def test_bvi_by_code_with_merged_cells(self):
+        got = [(r["profile"], r["match"]) for r in bb.vsosh_code_rows(self.PAGES, URL)]
+        self.assertEqual(got, [
+            ("физика", {"codes": ["30.05.02"]}), ("математика", {"codes": ["30.05.02"]}),
+            ("биология", {"codes": ["30.05.02"]}),
+            ("химия", {"codes": ["31.05.01"]}), ("биология", {"codes": ["31.05.01"]}),
+            ("химия", {"codes": ["31.05.02"]}), ("биология", {"codes": ["31.05.02"]}),
+        ])
+
+    def test_rows_are_vsosh_bvi_to_winners_and_prizers(self):
+        r = bb.vsosh_code_rows(self.PAGES, URL)[0]
+        self.assertEqual((r["vsosh"], r["level"], r["benefit"], r["statuses"], r["page"], r["grades"]),
+                         (True, "ВсОШ", "БВИ", ["pobeditel", "prizyor"], 13, None))
+
+    def test_links_by_code(self):
+        progs = [{"program_name": "Педиатрия", "napravlenie_code": "31.05.02"},
+                 {"program_name": "Лечебное дело", "napravlenie_code": "31.05.01"}]
+        rows = bb.vsosh_code_rows(self.PAGES, URL)
+        self.assertEqual([p["program_name"] for p in bb.link("kazan-gmu", rows[-1], progs)], ["Педиатрия"])
+
+
+class SechenovVsoshHundredTest(unittest.TestCase):
+    """Сеченов п. 5.3: особое преимущество ВсОШ — 100 баллов за ВИ,
+    совпадающее с профилем; экономика засчитывается как обществознание."""
+    PAGES = [{"page": 14, "tables": [[
+        ["Профиль заключительного этапа всероссийской\nолимпиады школьников", "Предмет общеобразовательного вступительного\nиспытания"],
+        ["физика", "физика"],
+        ["экономика", "обществознание"],
+    ]]}]
+
+    def test_hundred_by_exam(self):
+        got = [(r["profile"], r["match"], r["benefit"], r["statuses"])
+               for r in bb.sechenov_vsosh_hundred_rows(self.PAGES, URL)]
+        self.assertEqual(got, [("физика", {"exams": ["Физика"]}, "100_ballov", ["pobeditel", "prizyor"]),
+                               ("экономика", {"exams": ["Обществознание"]}, "100_ballov", ["pobeditel", "prizyor"])])
+
+
 if __name__ == "__main__":
     unittest.main()
