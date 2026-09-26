@@ -143,9 +143,11 @@ type BenefitRow struct {
 }
 
 // DirectionBenefit — льгота и направления вуза, на которые она даётся.
+// Note — примечание первого из них: по нему видно, что получит призёр.
 type DirectionBenefit struct {
 	Benefit string
 	Names   []string
+	Note    *string
 }
 
 // Benefits — по одной строке на пару (профиль, вуз): последний год приёма и

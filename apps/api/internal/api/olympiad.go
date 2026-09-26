@@ -86,9 +86,11 @@ type benefitRow struct {
 }
 
 type directionBenefitDTO struct {
-	Benefit      string   `json:"benefit"`
-	BenefitLabel string   `json:"benefit_label"`
-	Directions   []string `json:"directions"`
+	Benefit      string        `json:"benefit"`
+	BenefitLabel string        `json:"benefit_label"`
+	Directions   []string      `json:"directions"`
+	Winner       *benefitGrant `json:"winner"`
+	Prizer       *benefitGrant `json:"prizer"`
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
@@ -103,8 +105,10 @@ func benefitRowOf(b store.BenefitRow) benefitRow {
 		Unverified: b.Unverified, Varies: b.Varies,
 	}
 	for _, o := range b.OtherDirections {
+		winner, prizer := grants(store.BenefitRow{Benefit: o.Benefit, Note: o.Note})
 		row.OtherDirections = append(row.OtherDirections, directionBenefitDTO{
-			Benefit: o.Benefit, BenefitLabel: benefitLabels[o.Benefit], Directions: o.Names})
+			Benefit: o.Benefit, BenefitLabel: benefitLabels[o.Benefit], Directions: o.Names,
+			Winner: winner, Prizer: prizer})
 	}
 	if _, to, ok := egeRange(b.Note); ok {
 		if n, err := strconv.Atoi(to); err == nil {

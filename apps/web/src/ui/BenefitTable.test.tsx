@@ -146,7 +146,15 @@ it('под вузом — мои направления, другая льгот
     [
       row('hse', 'ВШЭ', {
         directions: ['Прикладная математика и информатика'],
-        other_directions: [{ benefit: 'score100', benefit_label: '100 баллов', directions: ['Программная инженерия'] }],
+        other_directions: [
+          {
+            benefit: 'score100',
+            benefit_label: '100 баллов',
+            directions: ['Программная инженерия'],
+            winner: SCORE100,
+            prizer: SCORE100,
+          },
+        ],
       }),
       row('kfu', 'КФУ', { directions: ['Программная инженерия'] }),
     ],
@@ -157,6 +165,31 @@ it('под вузом — мои направления, другая льгот
   const sub = screen.getByRole('rowheader', { name: 'Программная инженерия' }).closest('tr')!
   expect(within(sub).getAllByText('100 баллов')).toHaveLength(2)
   expect(screen.getByText('Льгота — на твои направления: отмеченные в карточке вуза или из цели.')).toBeInTheDocument()
+})
+
+// Что получит призёр на другом направлении — из ответа сервера, а не по
+// виду льготы: «БВИ победителям» бывает и со 100 баллами призёру (ИТМО, ПМИ).
+it('на другом направлении призёр — как в правилах вуза', () => {
+  setup(
+    [
+      row('itmo', 'ИТМО', {
+        directions: ['Программная инженерия'],
+        other_directions: [
+          {
+            benefit: 'bvi_winners',
+            benefit_label: 'БВИ победителям',
+            directions: ['Прикладная математика и информатика'],
+            winner: BVI,
+            prizer: SCORE100,
+          },
+        ],
+      }),
+    ],
+    ['winner', 'prizer'],
+  )
+  const sub = screen.getByRole('rowheader', { name: 'Прикладная математика и информатика' }).closest('tr')!
+  expect(within(sub).getByText('БВИ')).toBeInTheDocument()
+  expect(within(sub).getByText('100 баллов')).toBeInTheDocument()
 })
 
 it('льгота вуза целиком — без направлений и без пояснения о них', () => {

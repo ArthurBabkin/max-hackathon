@@ -42,6 +42,19 @@ var (
 	egeRangeRe = regexp.MustCompile(`^Порог ЕГЭ зависит от программы: (\d+)–(\d+) баллов$`)
 )
 
+// grantNotes — оговорки сида о том, что получат победитель и призёр.
+var grantNotes = []string{"Победителю — БВИ, призёру — 100 баллов", "БВИ только победителю", "100 баллов только победителю"}
+
+// grantNote — какая из них в примечании; "" — никакой.
+func grantNote(note *string) string {
+	for _, s := range NoteSentences(note) {
+		if slices.Contains(grantNotes, s) {
+			return s
+		}
+	}
+	return ""
+}
+
 // Score100Grades — оговорка «За диплом 9 класса — 100 баллов» из примечания
 // и её классы.
 func Score100Grades(note *string) (string, []int32) {

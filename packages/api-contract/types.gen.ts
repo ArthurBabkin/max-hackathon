@@ -1894,6 +1894,10 @@ export interface components {
             benefit: components["schemas"]["BenefitKind"];
             benefit_label: string;
             directions: string[];
+            /** @description Что получит победитель на этих направлениях. */
+            winner: components["schemas"]["BenefitGrant"] | null;
+            /** @description Что получит призёр; `null` — призёру льготы нет. */
+            prizer: components["schemas"]["BenefitGrant"] | null;
         };
         Stage: {
             id: string;

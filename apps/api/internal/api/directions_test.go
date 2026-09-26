@@ -9,8 +9,8 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/db/store"
 )
 
-// Сид: «Виртуальные миры» НТО. ВШЭ целиком даёт БВИ, но на Программную
-// инженерию — 100 баллов и не на всех программах; на ИБ — БВИ.
+// Сид: «Виртуальные миры» НТО. ВШЭ на Программную инженерию даёт БВИ не на
+// всех программах, на ИБ — БВИ.
 const (
 	virtualProfile = "p669-5-virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture"
 	dirSE          = "napr-09-03-04"
@@ -27,6 +27,28 @@ func rowOf(t *testing.T, rows []map[string]any, uni string) map[string]any {
 	}
 	t.Fatalf("нет строки вуза %s: %v", uni, rows)
 	return nil
+}
+
+// Слабее льгота на другом моём направлении — со своими победителем и
+// призёром. «Высшая проба» по математике в ИТМО: на ПИ — БВИ всем, на ПМИ —
+// БВИ победителю, призёру 100 баллов (а не «ничего»).
+func TestOlympiad_OtherDirectionGrants(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	token := e.login(900000001, "Артём")
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"itmo"}); err != nil {
+		t.Fatal(err)
+	}
+	if r := e.do("PUT", "/api/v1/profile/universities/itmo/directions", token,
+		map[string]any{"direction_ids": []string{dirSE, "napr-01-03-02"}}); r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	itmo := rowOf(t, list(t, e.do("GET", "/api/v1/olympiads/p669-2-matematika", token, nil).body["benefits"]), "itmo")
+	others := list(t, itmo["other_directions"])
+	if itmo["benefit"] != "bvi" || len(others) != 1 || others[0]["benefit"] != "bvi_winners" ||
+		grant(others[0]["winner"]) != "bvi БВИ" || grant(others[0]["prizer"]) != "score100 100 баллов" {
+		t.Fatalf("ИТМО на ПИ и ПМИ: %v", itmo)
+	}
 }
 
 func TestDirections_AllWithPopular(t *testing.T) {
