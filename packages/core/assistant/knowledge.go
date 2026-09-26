@@ -126,8 +126,10 @@ func (s scope) subjectsOf(ps []store.Profile) []string {
 // olympiadText — карточка олимпиады, как её лист в приложении, только сразу
 // по всем профилям и всем вузам базы. s — охват: условия только вузов из
 // вопроса (остальные вузы с льготами — списком) и только по предметам
-// ученика.
-func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scope, c clock) (string, []store.BenefitRow, dates, error) {
+// ученика. covered — пары «профиль/вуз», условия которых карточка даёт на
+// направления: в сводке по вузу целиком их нет, иначе модель берёт
+// вузовские порог и предмет ЕГЭ вместо условий направления.
+func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scope, c clock, covered map[string]bool) (string, []store.BenefitRow, dates, error) {
 	ps := slices.Clone(b.profiles[oid])
 	slices.SortStableFunc(ps, func(x, y store.Profile) int { return strings.Compare(profileTitle(x), profileTitle(y)) })
 	ids := make([]string, len(ps))
@@ -210,6 +212,7 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 	for _, bn := range benefits {
 		year = max(year, bn.AdmissionYear)
 	}
+	summary := len(lines)
 	switch {
 	case len(benefits) == 0 && p.Kind != "other":
 		lines = append(lines, "Льготы при поступлении: ни один вуз из базы льготу не даёт.")
@@ -231,7 +234,7 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 		lines = append(lines, "Показаны условия по предметам ученика: "+strings.Join(titles, ", ")+".")
 	}
 	byUni := map[string][]grouped{}
-	var nicks, others []string
+	var nicks, others, onDirections []string
 	for _, x := range ps {
 		if len(subjects) > 0 && !slices.Contains(subjects, x.SubjectCode) {
 			continue
@@ -245,6 +248,10 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 				if !slices.Contains(others, nick) {
 					others = append(others, nick)
 				}
+				continue
+			}
+			if covered[bn.ProfileID+"/"+bn.UniversityID] {
+				onDirections = append(onDirections, nick)
 				continue
 			}
 			if _, ok := byUni[nick]; !ok {
@@ -264,9 +271,15 @@ func (a *Assistant) olympiadText(ctx context.Context, b base, oid string, s scop
 			nothing = " — по этим предметам ничего не даёт"
 		}
 		for _, id := range s.universities {
-			if u, ok := b.uni[id]; ok && !slices.Contains(nicks, pick.Nick(id, u.ShortName)) {
+			if u, ok := b.uni[id]; ok && !slices.Contains(nicks, pick.Nick(id, u.ShortName)) &&
+				!slices.Contains(onDirections, pick.Nick(id, u.ShortName)) {
 				lines = append(lines, "  "+pick.Nick(id, u.ShortName)+nothing)
 			}
+		}
+		// Все условия — на направления ученика: у сводки не остаётся строк,
+		// и её заголовок не нужен.
+		if len(onDirections) > 0 && !slices.ContainsFunc(lines[summary:], func(l string) bool { return strings.HasPrefix(l, "  ") }) {
+			lines = slices.Delete(lines, summary, summary+1)
 		}
 	}
 	if len(others) > 0 {
@@ -684,7 +697,7 @@ func (b base) directionNames(ids []string) []string {
 // вопроса без направления — списком.
 // Второе значение — вузы, где льготы на направление уточняются или взяты
 // без источника: оговорку о них допишет withNotes.
-func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string, ps []store.Profile) ([]string, []uniName, error) {
+func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string, ps []store.Profile) ([]string, []uniName, []string, error) {
 	unis := named
 	if len(unis) == 0 {
 		for _, u := range b.unis {
@@ -693,7 +706,7 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 	}
 	tg, err := a.Store.TargetsOn(ctx, asked, unis)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var offered, without []string
 	var unverified []uniName
@@ -712,7 +725,7 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 		}
 		rows, err := a.Store.BenefitsOn(ctx, asked, ids, offered)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		byPair := map[string]store.BenefitRow{}
 		for _, r := range rows {
@@ -746,6 +759,13 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 							line += "; " + strings.ToLower(s)
 						}
 					}
+					// Порог и предмет ЕГЭ — направления: у вуза целиком они
+					// бывают другими, и без них модель берёт вузовские.
+					for _, s := range pick.NoteSentences(r.Note) {
+						if strings.HasPrefix(s, "Порог ЕГЭ") || strings.HasPrefix(s, "Подтвердить ЕГЭ") {
+							line += "; " + strings.ToLower(s[:len("П")]) + s[len("П"):]
+						}
+					}
 					if n := strings.TrimPrefix(directionNotes(r, false), "; "); n != "" {
 						line += " (" + n + ")"
 					}
@@ -757,7 +777,7 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 	if len(named) > 0 && len(without) > 0 {
 		lines = append(lines, "  Нет этого направления: "+strings.Join(without, ", "))
 	}
-	return lines, unverified, nil
+	return lines, unverified, offered, nil
 }
 
 // directionText — карточка направления: в каких вузах базы оно есть (с
@@ -1119,17 +1139,17 @@ var basisText = map[string]string{"chosen": "выбрано в вузе", "goal"
 // targetText — льгота профилей ученика в его вузах на его направления
 // (core/targets): она главнее льготы вуза целиком из списка выше. Вузы, где
 // направлений ученика не нашлось, не показываются — там верна льгота вуза.
-func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string, myUnis []string, ps []store.Profile) ([]string, []uniName, error) {
+func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string, myUnis []string, ps []store.Profile) ([]string, []uniName, []string, error) {
 	if trajectoryID == "" || len(myUnis) == 0 || len(ps) == 0 {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	tg, err := a.Store.TargetsOf(ctx, trajectoryID, myUnis)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	unis := slices.DeleteFunc(slices.Clone(myUnis), func(u string) bool { return tg[u].Basis == "university" })
 	if len(unis) == 0 {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	ids := make([]string, len(ps))
 	for i, p := range ps {
@@ -1137,7 +1157,7 @@ func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string,
 	}
 	rows, err := a.Store.TargetBenefits(ctx, trajectoryID, ids, unis)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	byPair := map[string]store.BenefitRow{}
 	for _, r := range rows {
@@ -1179,7 +1199,7 @@ func (a *Assistant) targetText(ctx context.Context, b base, trajectoryID string,
 			lines = append(lines, "  "+x)
 		}
 	}
-	return lines, unverified, nil
+	return lines, unverified, unis, nil
 }
 
 func (a *Assistant) studentCard(ctx context.Context, b base, t store.Trajectory, c *collected) error {

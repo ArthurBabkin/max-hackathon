@@ -436,31 +436,40 @@ func (a *Assistant) olympiadCard(ctx context.Context, b base, c *collected, oid 
 	if c.has("olympiad:" + oid) {
 		return nil
 	}
-	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock)
-	if err != nil {
-		return err
-	}
-	mine := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
-		return !slices.Contains(c.myCodes, x.SubjectCode)
+	// Профили — по предмету из вопроса, иначе по предметам ученика: про
+	// «Физтех» по физике льгота на направления нужна по физике, а не по
+	// информатике ученика.
+	ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+		return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
 	})
+	if len(ps) == 0 {
+		ps = slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
+			return !slices.Contains(c.myCodes, x.SubjectCode)
+		})
+	}
 	// Направление в вопросе — льготы на него, а не на цель ученика.
 	var targets []string
 	var unverified []uniName
+	var onDirections []string
+	var err error
 	if asked := c.mentions.Directions; len(asked) > 0 {
-		// Профили — по предмету из вопроса, иначе по предметам ученика.
-		ps := slices.DeleteFunc(slices.Clone(b.profiles[oid]), func(x store.Profile) bool {
-			return !slices.Contains(c.mentions.Subjects, x.SubjectCode)
-		})
-		if len(ps) == 0 {
-			ps = mine
-		}
 		if len(ps) == 0 {
 			ps = b.profiles[oid]
 		}
-		targets, unverified, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
+		targets, unverified, onDirections, err = a.askedText(ctx, b, asked, c.scope.universities, ps)
 	} else {
-		targets, unverified, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, mine)
+		targets, unverified, onDirections, err = a.targetText(ctx, b, c.trajectoryID, c.myUnis, ps)
 	}
+	if err != nil {
+		return err
+	}
+	covered := map[string]bool{}
+	for _, p := range ps {
+		for _, u := range onDirections {
+			covered[p.ID+"/"+u] = true
+		}
+	}
+	text, benefits, d, err := a.olympiadText(ctx, b, oid, c.scope, c.clock, covered)
 	if err != nil {
 		return err
 	}

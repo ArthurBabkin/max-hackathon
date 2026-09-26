@@ -349,7 +349,8 @@ func TestAsk_UniversitiesByStudentName(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := cardIn(t, f.calls[0][0].Content, "olympiad:p669-8")
-	if !strings.Contains(c, `\n  ВШЭ — `) || !strings.Contains(c, `\n  Иннополис — `) || strings.Contains(c, `\n  МФТИ — `) {
+	if !strings.Contains(c, "ВШЭ (направления ученика") || !strings.Contains(c, "Иннополис (направления ученика") ||
+		strings.Contains(c, "МФТИ (направления ученика") || strings.Contains(c, `\n  МФТИ — `) {
 		t.Fatalf("условия — только вузов ученика:\n%s", c)
 	}
 }
