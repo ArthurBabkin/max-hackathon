@@ -168,10 +168,30 @@ class StagesTest(unittest.TestCase):
         self.assertEqual(final["starts_at"], "2026-12-30 00:00:00+03")
         self.assertEqual(final["ends_at"], "2027-01-01 23:59:59+03")
 
-    def test_vsosh_has_four_stages_in_order(self):
-        st = bs.vsosh_stages("vsosh-fizika")
+    def test_vsosh_school_stage_from_sirius_schedule(self):
+        # «Сириус.Курсы», график школьного этапа 2026/27: математика 7–11 класс —
+        # 13–16 октября в зависимости от группы регионов, онлайн.
+        seed = bs.Seed()
+        st = bs.vsosh_stages(seed, "vsosh-matematika")
         self.assertEqual([s["kind"] for s in st], ["school", "municipal", "regional", "final"])
-        self.assertEqual(sorted(s["starts_at"] for s in st), [s["starts_at"] for s in st])
+        school = st[0]
+        self.assertEqual((school["starts_at"], school["ends_at"], school["is_online"], school["is_demo"]),
+                         ("2026-10-13 00:00:00+03", "2026-10-16 23:59:59+03", True, False))
+        self.assertEqual(seed.sources[school["source_id"]]["url"], "https://siriusolymp.ru/school2026/about")
+
+    def test_vsosh_other_stages_are_deadlines_of_the_order(self):
+        # Порядок проведения ВсОШ (vserosolimp.edsoo.ru): школьный этап — не
+        # позднее 1 ноября, муниципальный — 25 декабря, региональный — 1 марта,
+        # заключительный — до конца апреля. Экологии на «Сириусе» нет.
+        seed = bs.Seed()
+        st = {s["kind"]: s for s in bs.vsosh_stages(seed, "vsosh-ekologiya")}
+        self.assertEqual({k: (s["starts_at"], s["deadline_at"]) for k, s in st.items()}, {
+            "school": (None, "2026-11-01 23:59:59+03"),
+            "municipal": (None, "2026-12-25 23:59:59+03"),
+            "regional": (None, "2027-03-01 23:59:59+03"),
+            "final": (None, "2027-04-30 23:59:59+03"),
+        })
+        self.assertTrue(all(not s["is_demo"] and s["source_id"] for s in st.values()))
 
 
 class BuildTest(unittest.TestCase):

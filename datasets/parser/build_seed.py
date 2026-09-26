@@ -20,8 +20,9 @@
 * `is_demo` — признак, а не фильтр: если хоть одна запись ключа демо, у льготы
   нет источника, и API честно отдаёт «данные уточняются».
 * Даты этапов: опубликованные — как есть, а если опубликованы только ранние
-  этапы, финал — демо; ВсОШ и остальные профили — демо, с пометкой is_demo,
-  чтобы работали трекер, календарь и напоминания.
+  этапы, финал — демо. ВсОШ — по графику «Сириуса» и предельным срокам
+  Порядка проведения (vsosh_stages). Остальные профили — демо, с пометкой
+  is_demo, чтобы работали трекер, календарь и напоминания.
 
 Вторым файлом генератор пишет 0021_university_directions_content.sql —
 направления вузов и льготы по направлениям (схема — 0020). Правила — у
@@ -408,18 +409,39 @@ def published_stages(seed: Seed, p: dict) -> list[dict]:
     return out
 
 
-def vsosh_stages(pid: str) -> list[dict]:
-    """Форма календаря ВсОШ — факт (четыре этапа), конкретные даты — демо."""
-    s = fnv32(pid)
-    school = date(2026, 9, 20) + timedelta(days=s % 7)
-    municipal = date(2026, 11, 10) + timedelta(days=s % 20)
-    regional = date(2027, 1, 15) + timedelta(days=s % 25)
-    final = date(2027, 3, 22) + timedelta(days=s % 20)
+# ВсОШ 2026/27. Школьный этап по шести предметам — на «Сириус.Курсах»: день
+# зависит от группы регионов, здесь — окно от первой группы до последней
+# (7–11 класс). По остальным предметам и дальше — предельные сроки Порядка
+# проведения: день назначает регион, а заключительный этап — Минпросвещения.
+VSOSH_SIRIUS = {
+    "vsosh-astronomiya": ("2026-09-22", "2026-09-25"),
+    "vsosh-fizika": ("2026-09-29", "2026-10-02"),
+    "vsosh-biologiya": ("2026-10-06", "2026-10-09"),
+    "vsosh-himiya": ("2026-10-12", "2026-10-16"),
+    "vsosh-matematika": ("2026-10-13", "2026-10-16"),
+    "vsosh-informatika": ("2026-10-19", "2026-10-23"),
+}
+VSOSH_CHECKED = "2026-09-26"
+
+
+def vsosh_stages(seed: Seed, pid: str) -> list[dict]:
+    """Четыре этапа ВсОШ: школьный — по графику «Сириуса» или «не позднее
+    1 ноября», муниципальный — до 25 декабря, региональный — до 1 марта,
+    заключительный — до конца апреля (Порядок проведения)."""
+    order = add_source(seed, "https://vserosolimp.edsoo.ru/", None, "site",
+                       "ВсОШ: сроки этапов по Порядку проведения", VSOSH_CHECKED)
+    if pid in VSOSH_SIRIUS:
+        start, end = VSOSH_SIRIUS[pid]
+        sirius = add_source(seed, "https://siriusolymp.ru/school2026/about", None, "site",
+                            "ВсОШ: график школьного этапа на «Сириус.Курсах», 2026/27", VSOSH_CHECKED)
+        school = stage(pid, "school", 1, start, end, True, False, sirius)
+    else:
+        school = stage(pid, "school", 1, None, "2026-11-01", False, False, order)
     return [
-        stage(pid, "school", 1, school, school + timedelta(days=35), False, True),
-        stage(pid, "municipal", 1, municipal, municipal, False, True),
-        stage(pid, "regional", 1, regional, regional + timedelta(days=1), False, True),
-        stage(pid, "final", 1, final, final + timedelta(days=6), False, True),
+        school,
+        stage(pid, "municipal", 1, None, "2026-12-25", False, False, order),
+        stage(pid, "regional", 1, None, "2027-03-01", False, False, order),
+        stage(pid, "final", 1, None, "2027-04-30", False, False, order),
     ]
 
 
@@ -448,7 +470,7 @@ def build_stages(seed: Seed):
         p = seed.profiles[pid]
         c = p["_c"]
         if pid.startswith("vsosh-"):
-            rows, tier = vsosh_stages(pid), "vsosh"
+            rows, tier = vsosh_stages(seed, pid), "vsosh"
         elif c and c["etapy"]:
             rows, tier = published_stages(seed, p), "published"
         elif c:

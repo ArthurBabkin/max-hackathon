@@ -9,6 +9,8 @@
                   packages/db/migrations/0018_msu_merged_cells.sql \\
         -o packages/db/migrations/0022_benefit_linking.sql
 
+`--tables stages` — сроки этапов своей миграцией (0023).
+
 `--touched` — миграции между сидом и этой, что сами правят льготы: на чистой
 базе они идут поверх новой 0003, поэтому их строки приводятся к сиду всегда.
 Down возвращает состояние `--base`. Эквивалентность проверяет make test-db.
@@ -24,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SEEDS = ["packages/db/migrations/0003_seed_content.sql",
          "packages/db/migrations/0021_university_directions_content.sql"]
 # Таблица -> сколько первых колонок составляют ключ.
-KEYS = {"sources": 1, "benefits": 1, "university_directions": 2, "direction_benefits": 4}
+KEYS = {"sources": 1, "benefits": 1, "university_directions": 2, "direction_benefits": 4, "stages": 1}
 
 
 def up_section(sql: str) -> str:
@@ -169,7 +171,13 @@ def render(old: list[str], new: list[str], note: str, touched: dict) -> str:
     n = {t: _merged(new, t) for t in KEYS}
     d = {t: diff(o[t].rows, n[t].rows, touched.get(t, set())) for t in KEYS}
     back = {t: diff(n[t].rows, o[t].rows, touched.get(t, set())) for t in KEYS}
-    new_sources = [k for k in n["sources"].rows if k not in o["sources"].rows]
+    # Источники, на которые ссылаются только этапы, — дело миграции сроков
+    # (render_stages).
+    stages_only = _source_refs(n["stages"].rows) - _source_refs(
+        {**n["benefits"].rows, **{str(k): v for k, v in n["direction_benefits"].rows.items()}})
+    d["sources"].upsert = {k: v for k, v in d["sources"].upsert.items()
+                           if k not in stages_only or k in o["sources"].rows}
+    new_sources = [k for k in d["sources"].upsert if k not in o["sources"].rows]
     gone_sources = sorted(k for k in o["sources"].rows if k not in n["sources"].rows)
 
     def count(t):
@@ -191,6 +199,35 @@ def render(old: list[str], new: list[str], note: str, touched: dict) -> str:
             + _insert(o["sources"], back["sources"].upsert)]
     for t in ("direction_benefits", "university_directions", "benefits"):
         down += [_delete(t, o[t].cols or n[t].cols, back[t].removed), _insert(o[t], back[t].upsert)]
+    if new_sources:
+        down.append(_drop_unused_sources(new_sources))
+    body = lambda parts: "\n".join(p for p in parts if p)  # noqa: E731
+    return f"{head}\n-- +goose Up\n\n{body(up)}\n-- +goose Down\n\n{body(down)}"
+
+
+def _source_refs(rows_: dict) -> set:
+    """Источники, на которые ссылаются строки: source_id — последняя колонка."""
+    return {_unquote(fields(r)[-1]) for r in rows_.values()} - {"NULL"}
+
+
+def render_stages(old: list[str], new: list[str], note: str) -> str:
+    """Сроки этапов — своей миграцией: разница stages и источники, на которые
+    ссылаются изменённые этапы. Этапы только обновляются: на них ссылаются
+    отметки трекера, удалять их молча нельзя."""
+    o, n = _merged(old, "stages"), _merged(new, "stages")
+    so, sn = _merged(old, "sources"), _merged(new, "sources")
+    d, back = diff(o.rows, n.rows), diff(n.rows, o.rows)
+    if d.removed:
+        print("! в новом сиде нет этапов: " + ", ".join(d.removed), file=sys.stderr)
+    refs = _source_refs(d.upsert)
+    src = {k: v for k, v in sn.rows.items() if k in refs and so.rows.get(k) != v}
+    new_sources = [k for k in src if k not in so.rows]
+    head = (f"{note.rstrip()}\n--\n"
+            f"-- Этапы: удаляется {len(d.removed)}, добавляется или меняется {len(d.upsert)}."
+            f" Источников новых {len(new_sources)}.\n"
+            f"--\n-- Сгенерировано datasets/parser/diff_seed.py --tables stages.\n")
+    up = [_insert(sn, src), _delete("stages", n.cols or o.cols, d.removed), _insert(n, d.upsert)]
+    down = [_delete("stages", o.cols or n.cols, back.removed), _insert(o, back.upsert)]
     if new_sources:
         down.append(_drop_unused_sources(new_sources))
     body = lambda parts: "\n".join(p for p in parts if p)  # noqa: E731
@@ -223,6 +260,8 @@ def main() -> int:
     ap.add_argument("--base", default="origin/master")
     ap.add_argument("--note", required=True, help="файл с комментарием-шапкой миграции (строки «-- …»)")
     ap.add_argument("--touched", nargs="*", default=[])
+    ap.add_argument("--tables", choices=["benefits", "stages"], default="benefits",
+                    help="benefits — льготы и направления (0022), stages — сроки этапов")
     ap.add_argument("-o", "--out", required=True)
     a = ap.parse_args()
     old = [subprocess.run(["git", "show", f"{a.base}:{p}"], cwd=ROOT, check=True,
@@ -233,7 +272,8 @@ def main() -> int:
     touched = {"benefits": set()}
     for p in a.touched:
         touched["benefits"] |= touched_keys((ROOT / p).read_text(encoding="utf-8"), "benefits")
-    sql = render(old, new, Path(a.note).read_text(encoding="utf-8"), touched)
+    note = Path(a.note).read_text(encoding="utf-8")
+    sql = render_stages(old, new, note) if a.tables == "stages" else render(old, new, note, touched)
     (ROOT / a.out).write_text(sql, encoding="utf-8")
     print(sql.split("\n\n-- +goose Up")[0].split("--\n", 1)[-1], file=sys.stderr)
     return 0

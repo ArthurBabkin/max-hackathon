@@ -261,7 +261,7 @@ func TestOlympiad_BenefitsSourceWhenEveryRowIsSourced(t *testing.T) {
 	}
 }
 
-func TestOlympiad_VsoshDemoBenefitsAndParentVoice(t *testing.T) {
+func TestOlympiad_VsoshCardAndParentVoice(t *testing.T) {
 	e := newEnv(t)
 	// ВсОШ по информатике: в КФУ — 100 баллов (информатика не первое ВИ),
 	// Казанский ГМУ её не учитывает.
@@ -275,8 +275,9 @@ func TestOlympiad_VsoshDemoBenefitsAndParentVoice(t *testing.T) {
 		t.Fatalf("%d %s", r.code, r.raw)
 	}
 	b := r.body
-	if b["stages_are_demo"] != true || len(list(t, b["stages"])) != 4 {
-		t.Fatalf("у ВсОШ четыре демо-этапа: %s", r.raw)
+	// Сроки — по графику «Сириуса» и предельным срокам Порядка, не демо.
+	if b["stages_are_demo"] != false || len(list(t, b["stages"])) != 4 {
+		t.Fatalf("у ВсОШ четыре этапа с источником: %s", r.raw)
 	}
 	// ВсОШ ЕГЭ не подтверждают — угадывать нечего, льгота ВШЭ по её правилам.
 	if src, _ := b["benefits_source"].(map[string]any); src == nil || !strings.Contains(src["title"].(string), "ВШЭ") {

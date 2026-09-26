@@ -126,5 +126,50 @@ class RenderTest(unittest.TestCase):
         self.assertIn("-- Льготы по направлениям: удаляется 1, добавляется или меняется 0.", self.sql)
 
 
+STAGES_OLD = """INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
+  ('v:school:1', 'v', 'school', 'Школьный этап', '2026-09-20 00:00:00+03'::timestamptz, '2026-10-25 23:59:59+03'::timestamptz, '2026-09-20 00:00:00+03'::timestamptz, false, true, NULL),
+  ('p:final:1', 'p', 'final', 'Финал', NULL, '2027-03-01 23:59:59+03'::timestamptz, '2027-03-01 23:59:59+03'::timestamptz, false, false, 'src-a')
+ON CONFLICT (id) DO UPDATE SET
+  is_demo = EXCLUDED.is_demo,
+  source_id = EXCLUDED.source_id;
+"""
+
+STAGES_NEW = STAGES_OLD.replace(
+    "'2026-09-20 00:00:00+03'::timestamptz, '2026-10-25 23:59:59+03'::timestamptz, '2026-09-20 00:00:00+03'::timestamptz, false, true, NULL",
+    "'2026-10-13 00:00:00+03'::timestamptz, '2026-10-16 23:59:59+03'::timestamptz, '2026-10-13 00:00:00+03'::timestamptz, true, false, 'src-d'")
+
+SRC_D = "  ('src-d', 'site', 'Г', 'https://d', '2026-09-26'::date),\n"
+
+
+class StagesTest(unittest.TestCase):
+    """Сроки этапов — своей миграцией: этапы и источники, на которые они ссылаются."""
+
+    def setUp(self):
+        new_seed = NEW.replace("  ('src-c',", SRC_D + "  ('src-c',")
+        old_seed = OLD.replace("-- +goose Down", STAGES_OLD + "\n-- +goose Down")
+        self.sql = ds.render_stages(old=[old_seed], new=[new_seed + STAGES_NEW], note="-- Сроки.")
+        self.up, self.down = self.sql.split("-- +goose Down")
+
+    def test_up_changes_stage_and_adds_its_source(self):
+        self.assertIn("('v:school:1', 'v', 'school', 'Школьный этап', '2026-10-13", self.up)
+        self.assertNotIn("'p:final:1'", self.up)
+        self.assertIn("('src-d', 'site'", self.up)
+        # Источники льгот — дело миграции льгот.
+        self.assertNotIn("'src-c'", self.up)
+
+    def test_down_restores_stage_and_drops_new_source(self):
+        self.assertIn("'2026-09-20 00:00:00+03'::timestamptz, '2026-10-25 23:59:59+03'::timestamptz", self.down)
+        self.assertIn("'src-d'", self.down.split("DELETE FROM sources")[1])
+
+    def test_counts_in_header(self):
+        self.assertIn("-- Этапы: удаляется 0, добавляется или меняется 1. Источников новых 1.", self.sql)
+
+    def test_benefit_migration_skips_sources_of_stages_only(self):
+        new_seed = NEW.replace("  ('src-c',", SRC_D + "  ('src-c',")
+        old_seed = OLD.replace("-- +goose Down", STAGES_OLD + "\n-- +goose Down")
+        sql = ds.render(old=[old_seed, DIR_OLD], new=[new_seed + STAGES_NEW, DIR_NEW], note="-- Проба.", touched={})
+        self.assertNotIn("'src-d'", sql)
+
+
 if __name__ == "__main__":
     unittest.main()
