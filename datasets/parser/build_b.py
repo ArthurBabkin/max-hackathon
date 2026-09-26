@@ -1542,7 +1542,7 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
     после — предмет вступительного испытания. Название, разорванное на две
     строки, склеивается: у всех строк олимпиады оно общее."""
     out = []  # (название, строка): название — [текст], продолжение дописывается
-    name = None
+    name, last = None, None     # last: (колонка профиля, колонка уровня, куски графы 3)
     for pg in pages:
         page = pg["page"]
         if page not in range(4, 17):
@@ -1567,6 +1567,8 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
                 if lv is None:
                     if name and name[0] and len(cells) == 1 and cells[0][0] == name_col:
                         name[0] += " " + cells[0][1]
+                    elif last:              # хвост графы 3 («…вычислительная / техника, …»)
+                        last[2].extend(x for i, x in cells if last[0] < i < last[1])
                     continue
                 if len(cells) >= 3 and len(cells[0][1]) > 6:
                     if name and name[0] is None:            # ячейка, начатая внизу прошлой страницы
@@ -1583,19 +1585,27 @@ def innopolis_rows(pages: list[dict], url: str) -> list[dict]:
                     continue
                 profile = cells[0][1]
                 exam = next((x for x in c[lv + 1:] if x), None)      # графа 5
-                items = {clean(x).lower() for x in ", ".join(x for _, x in cells[1:]).split(",") if clean(x)}
-                # П. 61 а): БВИ — на направления, сопоставленные профилю (графа 3).
-                # Там предметы — подходят все направления, как раньше; только УГСН —
-                # направления этих УГСН.
-                subjects = any((canon_subject(x) or "").lower() == x for x in items)
-                bvi = {"match": None if subjects or not items else {"ugn": sorted(items)},
-                       "profile": profile, "level": _level(c[lv]),
+                col3 = [", ".join(x for _, x in cells[1:])]
+                last = (cells[0][0], lv, col3)
+                bvi = {"profile": profile, "level": _level(c[lv]),
                        "statuses": [POB, PRIZ], "benefit": BVI,
                        "ege_subject": exam or profile,
                        "ege_score": 75, "grades": [9, 10, 11], "page": page, "url": url}
                 # П. 57–62 Правил: кроме БВИ — 100 баллов по предмету графы 5.
-                out += [(name, bvi)] + ([(name, {**bvi, "match": None, "benefit": HUNDRED})] if exam else [])
-    return [dict(r, olympiad_name=n[0]) if n else r for n, r in out]
+                out += [(name, {**bvi, "col3": col3})] + ([(name, {**bvi, "match": None, "benefit": HUNDRED})]
+                                                          if exam else [])
+    return [dict(r, **({"olympiad_name": n[0]} if n else {}),
+                 **({"match": _innopolis_match(" ".join(r.pop("col3")))} if "col3" in r else {}))
+            for n, r in out]
+
+
+def _innopolis_match(col3: str) -> dict | None:
+    """П. 61 а): БВИ — на направления, сопоставленные профилю (графа 3). Там
+    предметы — подходят все направления, как раньше; только УГСН — направления
+    этих УГСН."""
+    items = {clean(x).lower() for x in col3.split(",") if clean(x)}
+    subjects = any((canon_subject(x) or "").lower() == x for x in items)
+    return None if subjects or not items else {"ugn": sorted(items)}
 
 
 # УГСН направлений Иннополиса — как их пишет графа 3 приложения 3.

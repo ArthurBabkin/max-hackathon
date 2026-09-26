@@ -49,6 +49,16 @@ class InnopolisBenefitsTest(unittest.TestCase):
         self.assertEqual(got, [("«Формула Еди", "100_ballov"), ("«Формула Еди", "БВИ"), ("Всероссийски", "100_ballov"),
                                ("Олимпиада шк", "100_ballov"), ("Олимпиада шк", "БВИ")])
 
+    def test_column_3_continues_on_next_lines(self):
+        # Стр. 8, НТО: «инфохимия | информатика и вычислительная / техника,
+        # химическая технология, / химия» — хвост графы 3 в строках без уровня.
+        rows = bb.innopolis_rows([page(8, *HEADER,
+            ["Национальная технологическая олимпиада", "инфохимия", "информатика и вычислительная", "III", "информатика"],
+            [None, None, "техника, химическая технология,", None, None],
+            [None, None, "химия", None, None])], URL)
+        ivt = [prog("ivt", "Информатика и вычислительная техника", "", "09.03.01")]
+        self.assertEqual(sorted(r["benefit"] for r in rows if bb.link("innopolis", r, ivt)), ["100_ballov", "БВИ"])
+
     def test_merged_name_cell_starting_at_page_bottom(self):
         # Стр. 13–14: '' внизу страницы — начало новой объединённой ячейки
         # («Газпром»), её текст напечатан на следующей странице; None — продолжение.
