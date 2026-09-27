@@ -8,7 +8,7 @@
 ```bash
 pip3 install -r parser/requirements.txt  # pdfplumber 0.11.10: 0.11.5 портит текст PDF МГУ
 python3 parser/rsr_index.py     # перечень №669 -> общие справочники
-python3 parser/fetch.py         # 73 документа -> snapshots/ (+ sha256)
+python3 parser/fetch.py         # 67 документов -> snapshots/ (+ sha256)
 python3 parser/extract_pdf.py   # PDF/DOCX -> extracted/*.pages.jsonl
 python3 parser/build_a.py       # -> data/vuz_napravleniya.json
 python3 parser/build_b.py       # -> data/vuz_napravlenie_olimpiady.json
@@ -21,7 +21,7 @@ python3 parser/validate.py      # чек-лист раздела 5 спеки; �
 
 | файл | назначение |
 |---|---|
-| `sources.yaml` | реестр источников: 10 вузов, 73 документа, роли `rules`/`olymp_list`/`vsosh_list`/`programs`/`kcp` |
+| `sources.yaml` | реестр источников: 10 вузов, 67 документов (только головные вузы), роли `rules`/`olymp_list`/`vsosh_list`/`programs`/`kcp` |
 | `fetch.py` | скачивание со снапшотами и хешами; обходит кириллические URL, Nextcloud, битый SSL Сеченова, протухающий `buildId` ИТМО |
 | `extract_pdf.py` | постраничный текст и таблицы; отдельно проверяет качество извлечения (доля кириллицы, наличие цифр) |
 | `rsr_index.py` | перечень №669 с rsr-olymp.ru -> `olympiad_index_669.json`, `subject_slugs.json` |
@@ -84,7 +84,7 @@ python3 parser/validate.py      # чек-лист раздела 5 спеки; �
   перечни олимпиад ИТМО лежат отдельными файлами и разобраны нормально.
 - ВсОШ разобрана у 8 вузов из 10; у Сеченова и Казанского ГМУ отдельного
   документа соотнесения предметов ВсОШ направлениям не найдено.
-- `budget_places_2026` заполнен у 168 программ из 359; остальные помечены `is_demo`.
+- `budget_places_2026` заполнен у 136 программ из 275; остальные помечены `is_demo`.
   У МФТИ КЦП публикуются на направление целиком, а не на программу внутри него,
   поэтому они тоже помечены `is_demo`.
-- 31 программа в B имеет статус `to_check`: строку льгот у вуза найти не удалось.
+- Программ со статусом `to_check` в B нет: у каждой найдена строка льгот.
