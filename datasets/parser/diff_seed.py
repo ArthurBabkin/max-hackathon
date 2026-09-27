@@ -223,6 +223,15 @@ def render(old: list[str], new: list[str], note: str, touched: dict) -> str:
     new_sources = [k for k in d["sources"].upsert if k not in o["sources"].rows]
     gone_sources = sorted(k for k in o["sources"].rows if k not in n["sources"].rows)
 
+    # Сид в накатанной базе мог лечь старой версией, где источника ещё не было:
+    # вставляемые льготы тянут за собой свои источники (вставка идемпотентна).
+    def with_refs(src: dict, seed: Block, changed: dict) -> dict:
+        refs = _source_refs({**changed["benefits"].upsert,
+                             **{str(k): v for k, v in changed["direction_benefits"].upsert.items()}})
+        return {**src, **{k: seed.rows[k] for k in sorted(refs) if k in seed.rows and k not in src}}
+    d["sources"].upsert = with_refs(d["sources"].upsert, n["sources"], d)
+    back["sources"].upsert = with_refs(back["sources"].upsert, o["sources"], back)
+
     def count(t):
         return f"удаляется {len(d[t].removed)}, добавляется или меняется {len(d[t].upsert)}"
 

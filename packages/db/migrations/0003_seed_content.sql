@@ -5,7 +5,7 @@
 -- поменяйте датасет или генератор и перегенерируйте.
 --
 -- Строк: предметы 9, направления 16, вузы 10,
--- источники 271, олимпиады 72, профили 192, этапы 559, льготы 1420.
+-- источники 267, олимпиады 72, профили 192, этапы 559, льготы 1420.
 --
 -- Демонстрационные данные помечены в самих строках: stages.is_demo, льготы и
 -- этапы без source_id, источники без verified_at. API по ним отдаёт
@@ -309,7 +309,6 @@ INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-e389c3fed32d', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170753498', '2026-09-21'::date),
   ('src-e44728ff3e2b', 'site', 'Олимпиада школьников «Шаг в будущее» — сроки этапов', 'https://olymp.bmstu.ru/ru/physics-olymp', '2026-09-23'::date),
   ('src-e4f37610da38', 'rules', 'УИ: особые права победителей и призёров олимпиад, 2026', 'https://innopolis.university/upload/iblock/af0/5zbznxu6eam9wuz7zi2s6xeegtv512ln/%D0%9E%D0%BB%D0%B8%D0%BC%D0%BF%D0%B8%D0%B0%D0%B4%D1%8B_2026.pdf#page=13', '2026-09-21'::date),
-  ('src-e5f8c74c35ca', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1133957386', '2026-09-21'::date),
   ('src-e8e3045b84bb', 'site', 'Всероссийская олимпиада школьников — официальный сайт', 'https://vserosolimp.edsoo.ru/zakluchit_way', '2026-09-21'::date),
   ('src-e90e80961f1b', 'rules', 'МГУ: особые права победителей и призёров олимпиад, 2026', 'https://cpk.msu.ru/files/2026/olymp_benefits.pdf#page=37', '2026-09-21'::date),
   ('src-eacb5f28f16b', 'rules', 'КФУ: особые права победителей и призёров олимпиад, 2026', 'https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf#page=27', '2026-09-21'::date),
@@ -320,10 +319,8 @@ INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-edfc268764b3', 'rules', 'СПбГУ: особые права победителей и призёров олимпиад, 2026', 'https://abiturient.spbu.ru/medialibrary/ru/2026/bac/bac_spec_olymp_2_2026.pdf#page=2', '2026-09-21'::date),
   ('src-efc798c06e84', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170734747', '2026-09-21'::date),
   ('src-f0ad47f9222c', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1120660311', '2026-09-21'::date),
-  ('src-f105402a53ec', 'rules', 'МГУ: особые права победителей и призёров олимпиад, 2026', 'https://cpk.msu.ru/files/2026/olymp_disciplines.pdf#page=3', '2026-09-21'::date),
   ('src-f12b88ff5aed', 'rules', 'ПМГМУ: особые права победителей и призёров олимпиад, 2026', 'https://priem.sechenov.ru/undergraduate/pravila-priema/Pravila-priema_2026_2027_BS_pril5_Perechen-olimpiad.pdf#page=1', '2026-09-21'::date),
   ('src-f38120471b40', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170734747', '2026-09-21'::date),
-  ('src-f42eb0a94d3e', 'rules', 'МГУ: особые права победителей и призёров олимпиад, 2026', 'https://cpk.msu.ru/files/2026/olymp_benefits.pdf#page=41', '2026-09-21'::date),
   ('src-f684e268c61a', 'rules', 'КГМУ: особые права победителей и призёров олимпиад, 2026', 'https://kazangmu.ru/images/priemcom/Informaciya%20o%20predostavlenii%20osobyh%20prav%20i%20osobogo%20preimushchestva%20po%20programmam%20bakalavriata%20i%20programmam%20specialiteta2026.pdf#page=2', '2026-09-21'::date),
   ('src-f69822f1cab8', 'rules', 'КФУ: особые права победителей и призёров олимпиад, 2026', 'https://admissions.kpfu.ru/wp-content/uploads/2026/01/prilozhenie_3_pp2026_1-ot-27.01-poslednyaya.pdf#page=24', '2026-09-21'::date),
   ('src-f7099558ea9a', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1133957386', '2026-09-21'::date),
@@ -337,7 +334,6 @@ INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-fbaa9f7ef421', 'rules', 'УИ: особые права победителей и призёров олимпиад, 2026', 'https://innopolis.university/upload/iblock/af0/5zbznxu6eam9wuz7zi2s6xeegtv512ln/%D0%9E%D0%BB%D0%B8%D0%BC%D0%BF%D0%B8%D0%B0%D0%B4%D1%8B_2026.pdf#page=7', '2026-09-21'::date),
   ('src-fbaf4b267b11', 'rules', 'ПМГМУ: особые права победителей и призёров олимпиад, 2026', 'https://priem.sechenov.ru/undergraduate/pravila-priema/Pravila-priema_2026_2027_BS_pril5_Perechen-olimpiad.pdf#page=15', '2026-09-21'::date),
   ('src-fc441ad72220', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170753498', '2026-09-21'::date),
-  ('src-fe62f772511a', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1133957386', '2026-09-21'::date),
   ('src-ff31f8d062e5', 'rules', 'ВШЭ: особые права победителей и призёров олимпиад, 2026', 'https://ba.hse.ru/mirror/pubs/share/1170753498', '2026-09-21'::date)
 ON CONFLICT (id) DO UPDATE SET
   kind = EXCLUDED.kind,

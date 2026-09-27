@@ -111,6 +111,14 @@ class RenderTest(unittest.TestCase):
         # источник, которого в прежнем сиде не было, убирается, если на него не ссылаются
         self.assertIn("'src-c'", self.down.split("DELETE FROM sources")[1])
 
+    def test_every_referenced_source_is_upserted(self):
+        # Сид в накатанной базе мог лечь старой версией, где источника ещё не
+        # было: миграция вставляет каждый источник, на который ссылается.
+        src = self.up.split("INSERT INTO sources")[1].split(";")[0]
+        self.assertIn("('src-a', 'rules'", src)
+        self.assertIn("('src-c', 'rules'", src)
+        self.assertIn("('src-a', 'rules'", self.down.split("INSERT INTO sources")[1].split(";")[0])
+
     def test_down_restores_parents_before_children(self):
         # Льгота по направлению вставляется, только если её пара есть: если
         # Down вернёт строки раньше пар, условие молча их пропустит.

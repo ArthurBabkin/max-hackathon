@@ -15,7 +15,7 @@
 -- Откат удаляет этот контент, а каскадом — и выбор пользователей по нему: все
 -- строки trajectory_university_directions и строки trajectory_directions с новыми
 -- направлениями (устаревшее trajectories.direction_id с ними обнуляется).
--- Из источников удаляются только 30 своих, которых нет в 0003, и лишь если
+-- Из источников удаляются только 34 своих, которых нет в 0003, и лишь если
 -- на них больше ничто не ссылается.
 
 -- +goose Up
@@ -11926,7 +11926,8 @@ DELETE FROM sources s WHERE s.id IN (
   'src-2b9543b832fd', 'src-3682890df355', 'src-560efab4918c', 'src-599b1643d931', 'src-5e3856b33d82', 'src-6a1682f37716',
   'src-7382f9de44c9', 'src-766c6b912060', 'src-7bc3229de607', 'src-816f37a6eedd', 'src-84612f13744e', 'src-84e959cd48fe',
   'src-88dfd7d0348c', 'src-8ec7ff9b3899', 'src-947c0a814ba5', 'src-d301cf82831e', 'src-d65589a2cad5', 'src-d69a29f5f199',
-  'src-d84e32827d3f', 'src-d97ac1bf541e', 'src-dad1628ea299', 'src-dbfb2b391b65', 'src-e889466b164a', 'src-f1ea90357c3c')
+  'src-d84e32827d3f', 'src-d97ac1bf541e', 'src-dad1628ea299', 'src-dbfb2b391b65', 'src-e5f8c74c35ca', 'src-e889466b164a',
+  'src-f105402a53ec', 'src-f1ea90357c3c', 'src-f42eb0a94d3e', 'src-fe62f772511a')
   AND NOT EXISTS (SELECT 1 FROM benefits b WHERE b.source_id = s.id)
   AND NOT EXISTS (SELECT 1 FROM stages st WHERE st.source_id = s.id)
   AND NOT EXISTS (SELECT 1 FROM olympiad_profiles p WHERE p.source_id = s.id);
