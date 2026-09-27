@@ -16,6 +16,9 @@ BENEFITS = {"БВИ", "100_ballov", "dop_bally"}
 STATUSES = {"pobeditel", "prizyor"}
 LEVELS = {"I", "II", "III", "ВсОШ", None}
 OID_RE = re.compile(r"^(p669-\d+|vsosh)-[a-z0-9-]+$")
+# Филиал — отдельный вуз со своим приёмом: «Филиал МГУ в г. Грозном», «Елабужский
+# институт (филиал) ФГАОУ ВО …», кампусы ВШЭ вне Москвы. В каталоге — только головные вузы.
+BRANCH_RE = re.compile(r"филиал|ФГАОУ|НИУ ВШЭ — (?!Москва)", re.I)
 
 errors, warnings = [], []
 
@@ -25,10 +28,6 @@ errors, warnings = [], []
 # чужим программам (задача #68). Структурные проверки их не ловят.
 POB, PRIZ = "pobeditel", "prizyor"
 GOLDEN = [
-    # МГУ, olymp_disciplines.pdf стр. 43: в Севастополе биология — только «Психология».
-    ("msu__prikladnaya-matematika-i-informatika-filial-mgu-v-g-sev", "vsosh-biologiya", set()),
-    ("msu__prikladnaya-matematika-i-informatika-filial-mgu-v-g-sev", "vsosh-matematika",
-     {(POB, "БВИ"), (PRIZ, "БВИ")}),
     # МФТИ, 2026_olympiads: «Физтех» по биологии — ФБМФ/ВШБИ и ФБВТ, не ЛФИ.
     ("mipt__obschaya-i-prikladnaya-fizika", "p669-54-biologiya", set()),
     ("mipt__biofizika-i-bioinformatika-fbmf", "p669-54-biologiya", {(POB, "БВИ")}),
@@ -61,15 +60,8 @@ GOLDEN = [
     # КФУ, приложение 3 стр. 4–5: ВсОШ по биологии — «44.03.05 Педагогическое
     # образование (с двумя профилями подготовки)» без профиля, по химии —
     # «27.03.05 Инноватика» целиком: все программы кода, ВИ не проверяются.
-    # Стр. 24: «15.03.01 Мехатроника и робототехника (профиль: Компьютерные
-    # технологии в мехатронике и робототехнике)» — у КФУ это 15.03.06 (стр. 5).
     ("kfu__matematika-informatika-i-informacionnye-tehnolog", "vsosh-biologiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     ("kfu__innovatika-i-specialnaya-robototehnika", "vsosh-himiya", {(POB, "БВИ"), (PRIZ, "БВИ")}),
-    ("kfu__kompyuternye-tehnologii-v-mehatronike-i-robotote", "p669-37-robototehnika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
-    # ВШЭ, Санкт-Петербург, стр. 16: «Финатлон» на «Бизнес-информатике» —
-    # «Победителям». В приложении нет колонки «Предмет зачета 100 баллов»,
-    # статус читался из колонки классов и давал льготу и призёрам.
-    ("hse__biznes-informatika-380305", "p669-8-finansovaya-gramotnost", {(POB, "БВИ")}),
     # НГУ, olimpiady-privilege: льготы — на направление целиком. «Математика и
     # механика» — это 01.03.01–03, «Физика» (03.03.02) — и «Физическая информатика».
     ("nsu__prikladnaya-matematika", "vsosh-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
@@ -165,12 +157,10 @@ GOLDEN = [
     ("hse__fizika", "p669-54-fizika", {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("hse__fizika", "p669-41-fizika", {(POB, "100_ballov")}),
     # МГУ, olymp_benefits.pdf: секции высших школ «… (ФАКУЛЬТЕТ)» (стр. 37);
-    # Севастополь, «Физика» — 03.05.02 (стр. 61); ФиПФ — БВИ победителю и II
+    # ФиПФ — БВИ победителю и II
     # уровня, объединённая ячейка (стр. 5); экономфак — олимпиады через «;»
     # (стр. 20); МШЭ — «*» уровня II, уровень I назван только у Вернадского.
     ("msu__biznes-informatika-cifrovaya-transformaciya-bizn", "p669-50-matematika", {(POB, "БВИ"), (PRIZ, "БВИ")}),
-    ("msu__fundamentalnaya-i-prikladnaya-fizika-030502", "p669-54-fizika",
-     {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("msu__fundamentalnaya-i-prikladnaya-fizika", "p669-8-fizika", {(POB, "БВИ"), (PRIZ, "100_ballov")}),
     ("msu__ekonomika", "p669-54-matematika", {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
     ("msu__ekonomika-380301", "p669-8-ekonomika", set()),
@@ -271,6 +261,10 @@ def main() -> int:
                 err(f"A: пустой program_id при offered ({x['vuz_id']})")
             if not x.get("faculty"):
                 err(f"A: пустой faculty при offered ({x.get('program_id')})")
+            elif BRANCH_RE.search(x["faculty"]):
+                err(f"A: программа филиала {x['program_id']} ({x['faculty']})")
+            if "иностранных граждан" in (x.get("program_name") or ""):
+                err(f"A: конкурсная группа для иностранцев {x['program_id']}")
             if x.get("match_type") not in ("exact", "adjacent"):
                 err(f"A: не проставлен match_type у {x.get('program_id')}")
             if x.get("match_type") == "adjacent" and not x.get("matched_reason"):
