@@ -155,12 +155,6 @@ paths:
             БВИ победителям или 100 баллами в вузах ученика — на его
             направления по правилу целей (выбранные в вузе, иначе из цели,
             иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
-        - name: sort
-          in: query
-          schema: { type: string, enum: [name, deadline_asc], default: name }
-          description: |
-            `name` — по алфавиту (по умолчанию). `deadline_asc` — по ближайшему
-            сроку основного профиля, без срока — в конце, дальше по алфавиту.
       responses:
         "200":
           description: OK
@@ -1283,17 +1277,7 @@ components:
         - $ref: "#/components/schemas/Badge"
         - type: object
           description: Строка каталога — одна на олимпиаду, а не на профиль.
-          required:
-            [
-              olympiad_id,
-              name,
-              kind,
-              primary_profile,
-              registration_closed,
-              deadline_at,
-              next_stage_title,
-              my_benefits,
-            ]
+          required: [olympiad_id, name, kind, primary_profile, registration_closed, my_benefits]
           properties:
             olympiad_id: { type: string }
             name: { type: string }
@@ -1313,13 +1297,6 @@ components:
             registration_closed:
               type: boolean
               description: По основному профилю — срок первого этапа прошёл.
-            deadline_at:
-              type: [string, "null"]
-              format: date-time
-              description: Срок ближайшего непройденного этапа основного профиля — как в OlympiadCard.
-            next_stage_title:
-              type: [string, "null"]
-              examples: ["Регистрация", "Школьный этап"]
             my_benefits:
               type: array
               description: |

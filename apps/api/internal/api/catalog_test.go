@@ -85,30 +85,6 @@ func TestOlympiadsCatalog(t *testing.T) {
 	if r := e.do("GET", "/api/v1/olympiads?q="+strings.Repeat("я", 101), token, nil); r.code != 400 {
 		t.Fatalf("запрос длиннее 100 символов — 400: %d", r.code)
 	}
-
-	if _, ok := hse["deadline_at"]; !ok {
-		t.Fatal("поле дедлайна есть, пусть и null")
-	}
-
-	byDeadline := list(t, get("?sort=deadline_asc").body["items"])
-	if len(byDeadline) != len(all) {
-		t.Fatalf("сортировка не теряет строки: %d вместо %d", len(byDeadline), len(all))
-	}
-	lastDated := -1
-	for i, it := range byDeadline {
-		if it["deadline_at"] == nil {
-			continue
-		}
-		if lastDated >= 0 && it["deadline_at"].(string) < byDeadline[lastDated]["deadline_at"].(string) {
-			t.Fatalf("deadline_asc не по возрастанию: %v после %v", it, byDeadline[lastDated])
-		}
-		lastDated = i
-	}
-	for i := lastDated + 1; i < len(byDeadline); i++ {
-		if byDeadline[i]["deadline_at"] != nil {
-			t.Fatalf("строки без срока должны быть в конце: %v", byDeadline[i])
-		}
-	}
 }
 
 func TestUniversitiesCatalogAndCard(t *testing.T) {

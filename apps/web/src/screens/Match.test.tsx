@@ -132,20 +132,3 @@ it('подходящих нет — предлагает найти вузы', a
   expect(await screen.findByText('Подходящих олимпиад пока нет')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Найти вузы' })).toBeInTheDocument()
 })
-
-// «Добавить» показывает результат сразу, а карточка уходит из подбора
-// с анимацией, а не мгновенно (даже стейт кнопки раньше не менялся).
-it('добавление в трекер — кнопка меняется сразу, карточка уходит с анимацией', async () => {
-  const card = olympiadCard('lomo:inf')!
-  renderState(recs({ items: [card] }))
-  const cta = await screen.findByRole('button', { name: 'Добавить в трекер' })
-
-  fireEvent.click(cta)
-
-  // Сразу после клика: кнопка уже показывает результат, а не мгновенно
-  // пропавшую карточку без обратной связи.
-  expect(screen.queryByRole('button', { name: 'Добавить в трекер' })).toBeNull()
-  const title = screen.getByText(card.name)
-  expect(screen.getByLabelText('В трекере')).toBeInTheDocument()
-  expect(title.closest('.match-card-wrap')).toHaveClass('match-card-leaving')
-})

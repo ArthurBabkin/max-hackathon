@@ -3,7 +3,7 @@
  * фильтры, «Показать ещё» и блок «Вне перечня». Когда добавлено всё — C7.
  */
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
 import { useNavigate } from 'react-router-dom'
 import { MATCH_FILTERS, type MatchFilter, type OlympiadCard as CardData } from '@contract'
@@ -26,10 +26,6 @@ const FILTER_LABELS: Record<MatchFilter, TextKey> = {
   online: 'match.filterOnline',
 }
 
-// Длительность ухода карточки — должна совпадать с transition в app.css
-// (.match-card-leaving).
-const CARD_LEAVE_MS = 260
-
 export function MatchScreen() {
   const t = useVoice()
   const navigate = useNavigate()
@@ -46,35 +42,12 @@ export function MatchScreen() {
   const action = session ? trackerAction(session) : 'add'
   const busy = add.isPending || propose.isPending
 
-  // Карточка уходит из подбора с анимацией, а не мгновенно: кнопка сразу
-  // показывает результат (F26 доработка), а сама карточка — ещё
-  // CARD_LEAVE_MS, пока сервер её уже убрал из ответа.
-  const [leaving, setLeaving] = useState<Set<string>>(new Set())
-  const leavingCards = useRef<Map<string, CardData>>(new Map())
-
+  // Добавленная карточка уходит из подбора, её место занимает следующая —
+  // подтверждение говорит, куда она делась.
   const onTrack = (card: CardData) => {
-    const id = card.olympiad_profile_id
-    leavingCards.current.set(id, card)
-    setLeaving((prev) => new Set(prev).add(id))
-    setTimeout(() => {
-      leavingCards.current.delete(id)
-      setLeaving((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }, CARD_LEAVE_MS)
     if (action === 'propose')
-      propose.mutate(id, { onSuccess: () => showInfoToast(t('toast.proposalSent')) })
-    else add.mutate(id, { onSuccess: () => showInfoToast(t('toast.trackAdded')) })
-  }
-
-  // withLeaving — держит карточку в списке, пока идёт анимация ухода, даже
-  // если сервер её уже не прислал среди items/more/outside.
-  const withLeaving = (list: CardData[]): CardData[] => {
-    const ids = new Set(list.map((c) => c.olympiad_profile_id))
-    const extra = [...leavingCards.current.values()].filter((c) => !ids.has(c.olympiad_profile_id))
-    return [...list, ...extra]
+      propose.mutate(card.olympiad_profile_id, { onSuccess: () => showInfoToast(t('toast.proposalSent')) })
+    else add.mutate(card.olympiad_profile_id, { onSuccess: () => showInfoToast(t('toast.trackAdded')) })
   }
 
   const openOlympiad = (id: string) => sheets.open({ kind: 'oly', id })
@@ -166,7 +139,7 @@ export function MatchScreen() {
       </div>
     ) : null
 
-  if (items.length === 0 && leaving.size === 0) {
+  if (items.length === 0) {
     let block
     if (state === 'all_tracked') {
       block = (
@@ -247,24 +220,16 @@ export function MatchScreen() {
       {hidden}
 
       <div className="match-list" data-tour="match-list">
-        {withLeaving(shown).map((card) => {
-          const isLeaving = leaving.has(card.olympiad_profile_id)
-          return (
-            <div
-              key={card.olympiad_profile_id}
-              className={`match-card-wrap${isLeaving ? ' match-card-leaving' : ''}`}
-            >
-              <OlympiadCard
-                card={card}
-                action={action}
-                busy={busy}
-                justAdded={isLeaving}
-                onOpen={openOlympiad}
-                onTrack={onTrack}
-              />
-            </div>
-          )
-        })}
+        {shown.map((card) => (
+          <OlympiadCard
+            key={card.olympiad_profile_id}
+            card={card}
+            action={action}
+            busy={busy}
+            onOpen={openOlympiad}
+            onTrack={onTrack}
+          />
+        ))}
       </div>
       {!showMore && more.length > 0 ? (
         <button type="button" className="match-more" onClick={() => setShowMore(true)}>
@@ -277,24 +242,16 @@ export function MatchScreen() {
         <>
           <Section title={t('match.outsideTitle')} />
           <p className="info-line info-line-plain">{t('match.outsideNote')}</p>
-          {withLeaving(outside).map((card) => {
-            const isLeaving = leaving.has(card.olympiad_profile_id)
-            return (
-              <div
-                key={card.olympiad_profile_id}
-                className={`match-card-wrap${isLeaving ? ' match-card-leaving' : ''}`}
-              >
-                <OlympiadCard
-                  card={card}
-                  action={action}
-                  busy={busy}
-                  justAdded={isLeaving}
-                  onOpen={openOlympiad}
-                  onTrack={onTrack}
-                />
-              </div>
-            )
-          })}
+          {outside.map((card) => (
+            <OlympiadCard
+              key={card.olympiad_profile_id}
+              card={card}
+              action={action}
+              busy={busy}
+              onOpen={openOlympiad}
+              onTrack={onTrack}
+            />
+          ))}
         </>
       ) : null}
     </div>
