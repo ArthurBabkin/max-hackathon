@@ -16,6 +16,8 @@ export interface OlympiadCardProps {
   card: OlympiadCardData
   action: 'add' | 'propose'
   busy?: boolean
+  /** Только что нажали «добавить» — кнопка уже показывает результат, пока карточка уходит из списка. */
+  justAdded?: boolean
   onOpen: (olympiadProfileId: string) => void
   onTrack: (card: OlympiadCardData) => void
 }
@@ -27,13 +29,13 @@ function levelChip(card: OlympiadCardData, t: Translate): { label: string; class
   return { label, className: 'level' }
 }
 
-export function OlympiadCard({ card, action, busy = false, onOpen, onTrack }: OlympiadCardProps) {
+export function OlympiadCard({ card, action, busy = false, justAdded = false, onOpen, onTrack }: OlympiadCardProps) {
   const t = useVoice()
   const chip = levelChip(card, t)
   const pending = card.proposal_status === 'pending'
 
   const trackButton = () => {
-    if (card.in_tracker) {
+    if (card.in_tracker || justAdded) {
       return (
         <span className="track-button track-button-on" aria-label={t('olympiad.inTracker')}>
           <Icon name="check" size={16} strokeWidth={2.6} />

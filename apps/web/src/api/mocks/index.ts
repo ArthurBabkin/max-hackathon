@@ -154,6 +154,7 @@ route('GET', '/olympiads', ({ query }) => {
   const subject = query.get('subject')
   const city = query.get('city')
   const mine = query.get('mine') === 'true'
+  const sort = query.get('sort')
 
   const items = (wantsEmpty() ? [] : OLYMPIADS)
     .filter((o) => !q || matches(o.name, q) || matches(o.organizer, q))
@@ -162,6 +163,15 @@ route('GET', '/olympiads', ({ query }) => {
     .map((o) => build.olympiadListItem(o, mine))
     .filter((i): i is NonNullable<typeof i> => i !== null)
     .filter((i) => !mine || i.my_benefits.length > 0)
+
+  if (sort === 'deadline_asc') {
+    items.sort((a, b) => {
+      if ((a.deadline_at === null) !== (b.deadline_at === null)) return a.deadline_at === null ? 1 : -1
+      return (a.deadline_at ?? '').localeCompare(b.deadline_at ?? '') || a.name.localeCompare(b.name)
+    })
+  } else {
+    items.sort((a, b) => a.name.localeCompare(b.name))
+  }
 
   return { items }
 })

@@ -172,6 +172,11 @@ export interface paths {
                      *     иначе вуз целиком). Без вузов список пуст. С `subject` и `q` — «и».
                      */
                     mine?: boolean;
+                    /**
+                     * @description `name` — по алфавиту (по умолчанию). `deadline_asc` — по ближайшему
+                     *     сроку основного профиля, без срока — в конце, дальше по алфавиту.
+                     */
+                    sort?: "name" | "deadline_asc";
                 };
                 header?: never;
                 path?: never;
@@ -1796,6 +1801,16 @@ export interface components {
             profiles_count?: number;
             /** @description По основному профилю — срок первого этапа прошёл. */
             registration_closed: boolean;
+            /**
+             * Format: date-time
+             * @description Срок ближайшего непройденного этапа основного профиля — как в OlympiadCard.
+             */
+            deadline_at: string | null;
+            /**
+             * @example Регистрация
+             * @example Школьный этап
+             */
+            next_stage_title: string | null;
             /**
              * @description С `mine=true` — льгота основного профиля в моих вузах на мои
              *     направления, от сильной к слабой. Без фильтра — пустой массив.

@@ -379,6 +379,8 @@ export function olympiadListItem(o: DemoOlympiad, withMine = false): OlympiadLis
     },
     profiles_count: o.profiles.length,
     registration_closed: o.deadlineIn < 0,
+    deadline_at: deadlineOf(o),
+    next_stage_title: nextStageTitle(o),
     my_benefits: withMine ? myBenefits(o.id) : [],
   }
 }

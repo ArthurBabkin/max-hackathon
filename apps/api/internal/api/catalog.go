@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/names"
@@ -44,6 +45,10 @@ type olympiadListItem struct {
 	ProfilesCount  int            `json:"profiles_count"`
 	// RegistrationClosed — по основному профилю: вступить в этом сезоне нельзя.
 	RegistrationClosed bool `json:"registration_closed"`
+	// DeadlineAt/NextStageTitle — срок и название ближайшего непройденного
+	// этапа основного профиля, как в OlympiadCard.
+	DeadlineAt     *time.Time `json:"deadline_at"`
+	NextStageTitle *string    `json:"next_stage_title"`
 	// MyBenefits — с mine=true: сильная льгота основного профиля в моих вузах
 	// на мои направления, от сильной к слабой. Без фильтра пусто.
 	MyBenefits []myBenefit `json:"my_benefits"`
@@ -138,12 +143,61 @@ func (s *Server) olympiads(w http.ResponseWriter, r *http.Request) error {
 	now := s.now()
 	for i, p := range primaries {
 		out.Items[i].RegistrationClosed = !stages.Joinable(st[p.ID], now)
+		if next := nextStage(st[p.ID], now); next != nil {
+			out.Items[i].DeadlineAt = next.DeadlineAt
+			out.Items[i].NextStageTitle = &next.Title
+		}
 	}
-	// По алфавиту того названия, что видно в списке, а не официального:
-	// иначе «Высшая проба» стояла бы среди «Всероссийских…».
-	sort.SliceStable(out.Items, func(i, j int) bool { return names.Key(out.Items[i].Name) < names.Key(out.Items[j].Name) })
+	sortItems(out.Items, sortOf(r))
 	writeJSON(w, http.StatusOK, out)
 	return nil
+}
+
+// nextStage — ближайший непройденный этап: срок которого ещё не прошёл.
+// Этап без срока считается непройденным всегда. Профиль без этапов — nil.
+func nextStage(st []stages.Stage, now time.Time) *stages.Stage {
+	if len(st) == 0 {
+		return nil
+	}
+	sorted := append([]stages.Stage(nil), st...)
+	stages.Sort(sorted)
+	for i := range sorted {
+		if sorted[i].DeadlineAt == nil || sorted[i].DeadlineAt.After(now) {
+			return &sorted[i]
+		}
+	}
+	return nil
+}
+
+// sortOf — режим сортировки каталога из query (F27): по умолчанию — по
+// алфавиту того названия, что видно в списке, а не официального (иначе
+// «Высшая проба» стояла бы среди «Всероссийских…»); deadline_asc — по
+// ближайшему сроку, без срока — в конце.
+func sortOf(r *http.Request) string {
+	switch v := r.URL.Query().Get("sort"); v {
+	case "deadline_asc":
+		return v
+	default:
+		return "name"
+	}
+}
+
+func sortItems(items []olympiadListItem, mode string) {
+	switch mode {
+	case "deadline_asc":
+		sort.SliceStable(items, func(i, j int) bool {
+			a, b := items[i].DeadlineAt, items[j].DeadlineAt
+			if (a == nil) != (b == nil) {
+				return a != nil
+			}
+			if a == nil {
+				return names.Key(items[i].Name) < names.Key(items[j].Name)
+			}
+			return a.Before(*b)
+		})
+	default:
+		sort.SliceStable(items, func(i, j int) bool { return names.Key(items[i].Name) < names.Key(items[j].Name) })
+	}
 }
 
 // leadsToMine — по профилю: сильные льготы (БВИ, БВИ победителям, 100 баллов)
