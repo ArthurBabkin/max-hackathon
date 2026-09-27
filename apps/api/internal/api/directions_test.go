@@ -66,7 +66,7 @@ func TestDirections_AllWithPopular(t *testing.T) {
 			t.Fatalf("ПИ: %v", it)
 		}
 	}
-	if len(items) != 72 || popular != 16 {
+	if len(items) != 68 || popular != 16 {
 		t.Fatalf("направлений %d, основных %d", len(items), popular)
 	}
 }
@@ -78,17 +78,21 @@ func TestOlympiad_BenefitOnMyDirections(t *testing.T) {
 	e.kidCreator() // цель ПИ; вузы Иннополис, ВШЭ, КФУ
 	token := e.login(900000001, "Артём")
 
+	// «Виртуальные миры» на ПИ в ВШЭ льготы не дают: в Москве она на ИБ, ИВТ
+	// и ИТСС — 3 направления из 14 (БВИ на ПИ давал филиал в Нижнем Новгороде).
 	benefits := list(t, e.do("GET", "/api/v1/olympiads/"+virtualProfile, token, nil).body["benefits"])
 	hse := rowOf(t, benefits, "hse")
-	if hse["benefit"] != "bvi" || !slices.Equal(strs(hse["directions"]), []string{"Программная инженерия"}) ||
-		hse["unverified"] != false || hse["varies"] != true {
+	if hse["benefit"] != nil || !slices.Equal(strs(hse["directions"]), []string{"Программная инженерия"}) ||
+		hse["directions_count"] != float64(3) || hse["directions_total"] != float64(14) {
 		t.Fatalf("ВШЭ на ПИ: %v", hse)
 	}
-	// Льгота не на всех программах направления — плашкой у вуза.
-	if c := strs(hse["conditions"]); !slices.ContainsFunc(c, func(x string) bool {
-		return strings.HasPrefix(x, "Зависит от программы: льгота только на «Компьютерные науки и технологии»")
+	// Льгота не на всех программах направления — плашкой у вуза: олимпиада
+	// по ИИ на ПИ — БВИ, но на «Программной инженерии» призёру только 100 баллов.
+	ai := rowOf(t, list(t, e.do("GET", "/api/v1/olympiads/p669-7-iskusstvennyy-intellekt", token, nil).body["benefits"]), "hse")
+	if c := strs(ai["conditions"]); ai["benefit"] != "bvi" || ai["varies"] != true || !slices.ContainsFunc(c, func(x string) bool {
+		return strings.HasPrefix(x, "Зависит от программы: на «Программная инженерия» — БВИ победителю, 100 баллов призёру")
 	}) {
-		t.Fatalf("ВШЭ: зависит от программы: %v", hse["conditions"])
+		t.Fatalf("ВШЭ: зависит от программы: %v", ai)
 	}
 
 	// «Где ещё даёт льготу» — на скольких направлениях вуза.
@@ -157,22 +161,23 @@ func TestUniversity_Directions(t *testing.T) {
 
 	b := e.do("GET", "/api/v1/universities/hse", token, nil).body
 	ds := list(t, b["offered_directions"])
-	if len(ds) != 18 || ds[0]["id"] != dirSE || ds[0]["is_goal"] != true || ds[0]["is_mine"] != false ||
+	if len(ds) != 14 || ds[0]["id"] != dirSE || ds[0]["is_goal"] != true || ds[0]["is_mine"] != false ||
 		ds[0]["code"] != "09.03.04" || ds[0]["status"] != "offered" || ds[0]["benefit_olympiads_count"].(float64) == 0 {
 		t.Fatalf("направления ВШЭ: %v", ds[:2])
 	}
 	if b["target_basis"] != "goal" {
 		t.Fatalf("льготы по цели: %v", b["target_basis"])
 	}
-	var virtual map[string]any
+	// Олимпиада по ИИ: БВИ и на направлении цели (ПИ), и ещё на нескольких.
+	var ai map[string]any
 	for _, o := range list(t, b["olympiads"]) {
-		if o["olympiad_profile_id"] == virtualProfile {
-			virtual = o
+		if o["olympiad_profile_id"] == "p669-7-iskusstvennyy-intellekt" {
+			ai = o
 		}
 	}
-	if virtual == nil || virtual["benefit"] != "bvi" || virtual["my_benefit"] != "bvi" ||
-		virtual["directions_count"].(float64) < 2 || virtual["directions_total"] != float64(18) {
-		t.Fatalf("олимпиада в ВШЭ: %v", virtual)
+	if ai == nil || ai["benefit"] != "bvi" || ai["my_benefit"] != "bvi" ||
+		ai["directions_count"].(float64) < 2 || ai["directions_total"] != float64(14) {
+		t.Fatalf("олимпиада в ВШЭ: %v", ai)
 	}
 }
 

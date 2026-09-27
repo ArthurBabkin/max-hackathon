@@ -211,8 +211,9 @@ class BuildTest(unittest.TestCase):
         # там, где предмет олимпиады — ВИ, но не первое (приложение 3, стр. 1–2).
         # Затем сверка с документами по вузам: НГУ по кодам заголовка, ВсОШ
         # СПбГУ и МГУ со 100 баллами, строки Сеченова в несколько строк,
-        # профили НТО, коды КФУ без профиля.
-        self.assertEqual(self.seed.stats["benefit_keys"], 1462)
+        # профили НТО, коды КФУ без профиля. Затем ушли льготы, которые держались
+        # только на филиалах: кампусы ВШЭ вне Москвы, МГУ в Грозном и Севастополе.
+        self.assertEqual(self.seed.stats["benefit_keys"], 1420)
         self.assertEqual(self.seed.stats["benefit_level_filtered"], 2)
         self.assertEqual(self.seed.stats["benefit_unknown_profile"], 0)
 
@@ -334,6 +335,14 @@ class BuildTest(unittest.TestCase):
     def test_committed_sql_is_up_to_date(self):
         self.assertEqual(bs.OUT.read_text(encoding="utf-8"), bs.render(self.seed),
                          "0003_seed_content.sql устарел — выполните make seed")
+
+    def test_sources_of_later_migrations_stay_in_seed(self):
+        # На чистой базе 0017, 0018 и 0022 идут поверх свежего сида и ссылаются
+        # на его источники: страница МГУ о Севастополе (стр. 59) нужна 0018, хотя
+        # льгот филиала в датасете больше нет.
+        self.assertIn("src-62e30c04be77", self.seed.sources)
+        for f, sid in bs.later_source_refs():
+            self.assertIn(sid, self.seed.sources, f)
 
 
 class ProgramGrantTest(unittest.TestCase):
@@ -461,7 +470,7 @@ class UniversityDirectionsTest(unittest.TestCase):
         cls.pairs = {(p["university_id"], p["direction_id"]): p for p in cls.ud.pairs}
 
     def test_every_code_of_pairs_is_a_direction(self):
-        self.assertEqual(len(self.ud.directions), 72)
+        self.assertEqual(len(self.ud.directions), 68)
         self.assertEqual({p["direction_id"] for p in self.ud.pairs}, set(self.dirs))
         self.assertEqual(sum(d["onboarding"] for d in self.ud.directions), 16)
 
@@ -470,7 +479,7 @@ class UniversityDirectionsTest(unittest.TestCase):
             got = self.dirs[d["id"]]
             self.assertTrue(got["onboarding"], d["id"])
             self.assertEqual((got["name"], got["subject_codes"]), (d["name"], d["subject_codes"]))
-        self.assertEqual(self.dirs["napr-09-03-04"]["groups"], ["Биомед", "ИТ", "Экономика"])
+        self.assertEqual(self.dirs["napr-09-03-04"]["groups"], ["Биомед", "ИТ"])
 
     def test_new_directions_get_group_subjects(self):
         d = self.dirs["napr-01-03-01"]
@@ -486,7 +495,7 @@ class UniversityDirectionsTest(unittest.TestCase):
             self.assertTrue(set(d["subject_codes"]) <= codes, d["id"])
 
     def test_pairs_and_statuses(self):
-        self.assertEqual(len(self.ud.pairs), 173)
+        self.assertEqual(len(self.ud.pairs), 163)
         to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
         # СПбГУ 06.03.01 получил свою ВсОШ (bac_spec_olymp_1), НГУ 01.03.01–03 —
         # льготы заголовка «Математика и механика». Пара ВШЭ — 40.03.01 держалась
@@ -509,18 +518,28 @@ class UniversityDirectionsTest(unittest.TestCase):
 
     def test_places_unknown_stay_null(self):
         hse = self.pairs[("hse", "napr-38-03-01")]
-        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 10, None))
-        # «Экономика и бизнес» в Нижнем — очно-заочная, в A её нет (#79).
-        self.assertNotIn("Экономика и бизнес", hse["program_names"])
+        self.assertEqual((hse["status"], hse["programs"], hse["budget_places"]), ("offered", 6, None))
 
-    def test_branches_are_named_by_faculty(self):
+    def test_same_name_programs_are_named_by_faculty(self):
         msu = self.pairs[("msu", "napr-01-03-02")]
-        self.assertEqual((msu["programs"], msu["budget_places"]), (4, 367))
-        self.assertIn("Прикладная математика и информатика (Филиал МГУ в г. Грозном)",
+        self.assertEqual((msu["programs"], msu["budget_places"]), (2, 332))
+        self.assertIn("Прикладная математика и информатика (Факультет искусственного интеллекта)",
                       msu["program_names"])
 
+    def test_branches_are_not_programs_of_university(self):
+        # Филиал — отдельный вуз со своим приёмом: ни его программ, ни его льгот.
+        names = [n for p in self.ud.pairs for n in p["program_names"]]
+        self.assertFalse([n for n in names if "илиал" in n or "ВШЭ —" in n])
+        # ВШЭ, 01.03.01: Всесибирская по физике давала БВИ «Фундаментальной и
+        # прикладной математике» в Нижнем Новгороде (стр. 8), а в Москве —
+        # только 100 баллов победителю на «Математике» (стр. 1).
+        b = next(b for b in self.ud.benefits if (b["olympiad_profile_id"], b["university_id"],
+                                                  b["direction_id"]) ==
+                 ("p669-14-fizika", "hse", "napr-01-03-01"))
+        self.assertEqual((b["benefit"], b["varies"]), ("score100", False))
+
     def test_direction_benefits_refine_university_benefits(self):
-        self.assertEqual(len(self.ud.benefits), 12769)
+        self.assertEqual(len(self.ud.benefits), 11411)
         keys = {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
                 for b in self.ud.benefits}
         self.assertEqual(keys, {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
@@ -533,19 +552,18 @@ class UniversityDirectionsTest(unittest.TestCase):
 
     def test_varies_rows_explain_themselves(self):
         varies = [b for b in self.ud.benefits if b["varies"]]
-        self.assertEqual(len(varies), 1631)
+        self.assertEqual(len(varies), 841)
         for b in self.ud.benefits:
             self.assertEqual(b["varies"], (b["note"] or "").startswith("Зависит от программы: "),
                              (b["olympiad_profile_id"], b["university_id"], b["direction_id"]))
-        # ВШЭ, 01.03.01: Всесибирская по физике — БВИ на «Фундаментальной и
-        # прикладной математике» (Нижний Новгород, стр. 8) и 100 баллов
-        # победителю на «Математике» (Москва, стр. 1).
+        # ВШЭ, 01.03.02: Всесибирская по физике — БВИ победителю там, где она
+        # есть, 100 баллов на «Компьютерных науках и анализе данных».
         b = next(b for b in self.ud.benefits if (b["olympiad_profile_id"], b["university_id"],
                                                   b["direction_id"]) ==
-                 ("p669-14-fizika", "hse", "napr-01-03-01"))
-        self.assertEqual(b["benefit"], "bvi")
+                 ("p669-14-fizika", "hse", "napr-01-03-02"))
+        self.assertEqual(b["benefit"], "bvi_winners")
         self.assertTrue(b["note"].startswith(
-            "Зависит от программы: на «Математика» — 100 баллов только победителю"), b["note"])
+            "Зависит от программы: на «Компьютерные науки и анализ данных» — 100 баллов"), b["note"])
 
     def test_down_removes_only_sources_of_its_own(self):
         own = {k for k in self.ud.sources if k not in self.seed.sources}
