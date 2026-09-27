@@ -699,6 +699,14 @@
     "kid": "регистрация закрыта",
     "parent": "регистрация закрыта"
   },
+  "catalog.sortName": {
+    "kid": "По алфавиту",
+    "parent": "По алфавиту"
+  },
+  "catalog.sortDeadline": {
+    "kid": "По срокам",
+    "parent": "По срокам"
+  },
   "catalog.emptyTitle": {
     "kid": "Ничего не нашлось",
     "parent": "Ничего не нашлось"
