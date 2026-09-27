@@ -41,6 +41,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
+from diff_seed import _unquote, fields, rows as sql_rows, up_section
+
 ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
 DATA, SPEC = ROOT / "data", ROOT / "spec"
@@ -254,6 +256,37 @@ def add_source(seed: Seed, url: str, page, kind: str, title: str, verified) -> s
     elif verified and not prev["verified_at"]:
         prev["verified_at"] = verified
     return sid
+
+
+def later_source_refs() -> list[tuple[str, str]]:
+    """(миграция, источник): на что ссылаются миграции после сида, не вставляя
+    источник сами."""
+    out = []
+    for f in sorted(OUT.parent.glob("*.sql")):
+        if f in (OUT, UD_OUT):
+            continue
+        # Удаление источников — не ссылка на них.
+        up = re.sub(r"DELETE FROM sources .*?;", "", up_section(f.read_text(encoding="utf-8")), flags=re.S)
+        own = set(sql_rows(up, "sources"))
+        out += [(f.name, sid) for sid in sorted(set(re.findall(r"'(src-[0-9a-f]{12})'", up)) - own)]
+    return out
+
+
+def keep_later_sources(seed: Seed):
+    """Источник, на который ссылается миграция после сида (0018 — страница МГУ
+    о Севастополе), остаётся в сиде, даже когда льгот с ним в датасете нет:
+    на чистой базе такая миграция идёт поверх свежего сида и иначе упала бы на
+    внешнем ключе. Строка берётся из закоммиченных сидов — она там уже есть."""
+    committed = {}
+    for path in (OUT, UD_OUT):
+        committed.update(sql_rows(path.read_text(encoding="utf-8"), "sources"))
+    for name, sid in later_source_refs():
+        if sid in seed.sources:
+            continue
+        if sid not in committed:
+            raise SystemExit(f"{name} ссылается на {sid}, а в сидах его нет — верните строку источника")
+        f = [None if x == "NULL" else _unquote(x.removesuffix("::date")) for x in fields(committed[sid])]
+        seed.sources[sid] = dict(zip(["id", "kind", "title", "url", "verified_at"], f))
 
 
 # ---------------------------------------------------------------------------
@@ -719,6 +752,7 @@ def build() -> Seed:
     olympiad_format(seed)
     build_benefits(seed, B, UNIVERSITY_SHORT)
     seed.benefits.sort(key=lambda b: b["id"])
+    keep_later_sources(seed)
     return seed
 
 

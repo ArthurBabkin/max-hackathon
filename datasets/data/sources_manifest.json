@@ -1,7 +1,7 @@
 {
   "_note": "Манифест источников датасетов A и B. Сами файлы (85 МБ PDF/HTML) в репозиторий не кладём — они воспроизводятся `python3 parser/fetch.py` и сверяются по sha256 из этого манифеста.",
   "_generated_at": "2026-09-21",
-  "_count": 72,
+  "_count": 66,
   "sources": [
     {
       "vuz_id": "hse",
@@ -34,48 +34,6 @@
     {
       "vuz_id": "hse",
       "role": "olymp_list",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1120660311",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1120660311",
-      "sha256": "2745a0c85ff7eb9855638a9551fc9d778da686eb112bc281272b4ac828463c40",
-      "bytes": 394588,
-      "content_type": "application/pdf",
-      "last_modified": "Tue, 20 Jan 2026 11:16:06 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 30,
-      "campus": "Санкт-Петербург",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "olymp_list",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1170734747",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1170734747",
-      "sha256": "0c46ceb06b1f5dbe694c81476a49435ce336da917917307c6dae8dfc3d6066a8",
-      "bytes": 727404,
-      "content_type": "application/pdf",
-      "last_modified": "Thu, 18 Jun 2026 08:29:49 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 66,
-      "campus": "Нижний Новгород",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "olymp_list",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1170736201",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1170736201",
-      "sha256": "cefb414745b4f97120104a83c40291ec66d6bb14cc700d305f4bb2d673073dac",
-      "bytes": 383846,
-      "content_type": "application/pdf",
-      "last_modified": "Thu, 18 Jun 2026 08:31:39 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 30,
-      "campus": "Пермь",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "olymp_list",
       "url": "https://ba.hse.ru/mirror/pubs/share/1170753498",
       "final_url": "https://ba.hse.ru/mirror/pubs/share/1170753498",
       "sha256": "7cd1f303ef02ba3d4f17f4178b1354624ee908cd8e90790fd815ecb13c5a03cb",
@@ -99,48 +57,6 @@
       "fetched_at": "2026-09-21",
       "pages": 21,
       "campus": "Москва",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "programs",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1120607522",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1120607522",
-      "sha256": "bf4cc9bf1717b8c09c736e4ee7cb922f25ec803069f101068a74f75ef817e32f",
-      "bytes": 223148,
-      "content_type": "application/pdf",
-      "last_modified": "Tue, 20 Jan 2026 08:11:30 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 6,
-      "campus": "Нижний Новгород",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "programs",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1120607575",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1120607575",
-      "sha256": "2dc3b062af8683c6398ccbca5313e85c7cb8a80dd92efd06087d34a48dc323dd",
-      "bytes": 239196,
-      "content_type": "application/pdf",
-      "last_modified": "Tue, 20 Jan 2026 08:11:54 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 7,
-      "campus": "Санкт-Петербург",
-      "note": null
-    },
-    {
-      "vuz_id": "hse",
-      "role": "programs",
-      "url": "https://ba.hse.ru/mirror/pubs/share/1134464654",
-      "final_url": "https://ba.hse.ru/mirror/pubs/share/1134464654",
-      "sha256": "ca3b0fad1e115e96fbb09e8e439bcfc3815345fa5c9a2dfc20e22036b02c6931",
-      "bytes": 201842,
-      "content_type": "application/pdf",
-      "last_modified": "Tue, 03 Mar 2026 14:00:48 GMT",
-      "fetched_at": "2026-09-21",
-      "pages": 3,
-      "campus": "Пермь",
       "note": null
     },
     {

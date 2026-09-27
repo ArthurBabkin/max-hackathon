@@ -34,19 +34,14 @@ vuzy:
     name: НИУ ВШЭ
     delay_sec: 3.0
     docs:
+      # Только Москва: Нижний Новгород, Пермь и Петербург — филиалы, отдельные вузы.
       - {role: landing,    url: "https://ba.hse.ru/docs"}
       - {role: rules,      url: "https://ba.hse.ru/mirror/pubs/share/1170720303"}
       - {role: rules,      url: "https://ba.hse.ru/mirror/pubs/share/1170734037", note: "порядок учёта олимпиад"}
       - {role: vsosh_list, url: "https://ba.hse.ru/mirror/pubs/share/1133957386"}
       - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170753498", campus: Москва}
-      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170734747", campus: Нижний Новгород}
-      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1170736201", campus: Пермь}
-      - {role: olymp_list, url: "https://ba.hse.ru/mirror/pubs/share/1120660311", campus: Санкт-Петербург}
       - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607478", campus: Москва}
-      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607522", campus: Нижний Новгород}
-      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1134464654", campus: Пермь}
-      - {role: programs,   url: "https://ba.hse.ru/mirror/pubs/share/1120607575", campus: Санкт-Петербург}
-      - {role: kcp,        url: "https://www.hse.ru/mirror/pubs/share/1132535527.pdf", note: "все 4 кампуса"}
+      - {role: kcp,        url: "https://www.hse.ru/mirror/pubs/share/1132535527.pdf", note: "все 4 кампуса, читаем Москву"}
 
   mipt:
     name: МФТИ

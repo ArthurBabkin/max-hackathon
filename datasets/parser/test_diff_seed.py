@@ -111,6 +111,20 @@ class RenderTest(unittest.TestCase):
         # источник, которого в прежнем сиде не было, убирается, если на него не ссылаются
         self.assertIn("'src-c'", self.down.split("DELETE FROM sources")[1])
 
+    def test_every_referenced_source_is_upserted(self):
+        # Сид в накатанной базе мог лечь старой версией, где источника ещё не
+        # было: миграция вставляет каждый источник, на который ссылается.
+        src = self.up.split("INSERT INTO sources")[1].split(";")[0]
+        self.assertIn("('src-a', 'rules'", src)
+        self.assertIn("('src-c', 'rules'", src)
+        self.assertIn("('src-a', 'rules'", self.down.split("INSERT INTO sources")[1].split(";")[0])
+
+    def test_down_restores_parents_before_children(self):
+        # Льгота по направлению вставляется, только если её пара есть: если
+        # Down вернёт строки раньше пар, условие молча их пропустит.
+        self.assertLess(self.down.index("DELETE FROM benefits"), self.down.index("INSERT INTO direction_benefits"))
+        self.assertLess(self.down.index("INSERT INTO benefits"), self.down.index("INSERT INTO direction_benefits"))
+
     def test_up_drops_sources_gone_from_seed(self):
         # src-b был у прежних льгот; в новом сиде его нет — уходит, если на
         # него больше ничто не ссылается. Down вернёт его вместе с льготами.
@@ -139,6 +153,59 @@ STAGES_NEW = STAGES_OLD.replace(
     "'2026-10-13 00:00:00+03'::timestamptz, '2026-10-16 23:59:59+03'::timestamptz, '2026-10-13 00:00:00+03'::timestamptz, true, false, 'src-d'")
 
 SRC_D = "  ('src-d', 'site', 'Г', 'https://d', '2026-09-26'::date),\n"
+
+
+UNI = """INSERT INTO universities (id, short_name, name, city, directions, ege_note, rules_url, rules_verified_at) VALUES
+  ('hse', 'ВШЭ', 'НИУ ВШЭ', 'Москва', ARRAY[{hse}]::text[], NULL, NULL, NULL),
+  ('msu', 'МГУ', 'МГУ', 'Москва', ARRAY['Экономика']::text[], NULL, NULL, NULL)
+ON CONFLICT (id) DO UPDATE SET
+  directions = EXCLUDED.directions;
+"""
+
+DIRS = """UPDATE directions d SET groups = v.groups
+FROM (VALUES
+  ('napr-09-03-04', ARRAY[{groups}]::text[]),
+  ('napr-38-03-01', ARRAY['Экономика']::text[])
+) AS v(id, groups)
+WHERE d.id = v.id;
+
+INSERT INTO directions (id, name, subject_codes, groups, onboarding) VALUES
+  ('napr-01-03-01', 'Математика', ARRAY['math']::text[], ARRAY['ИТ']::text[], false){extra}
+ON CONFLICT (id) DO NOTHING;
+"""
+
+
+class UniversitiesAndDirectionsTest(unittest.TestCase):
+    """Филиалы ушли из A: у вуза меньше направлений, у направления — групп,
+    а направления без программ пропадают из выбора цели."""
+
+    def setUp(self):
+        old = [OLD.replace("-- +goose Down", UNI.format(hse="'Экономика','Психология'") + "\n-- +goose Down"),
+               DIR_OLD + DIRS.format(groups="'ИТ','Экономика'", extra=",\n  ('napr-37-03-01', 'Психология', "
+                                     "ARRAY['soc']::text[], ARRAY['Экономика']::text[], false)")]
+        new = [NEW + UNI.format(hse="'Экономика'"), DIR_NEW + DIRS.format(groups="'ИТ'", extra="")]
+        self.up, self.down = ds.render(old=old, new=new, note="-- Проба.", touched={}).split("-- +goose Down")
+
+    def test_university_directions_follow_seed(self):
+        self.assertIn("('hse', 'ВШЭ', 'НИУ ВШЭ', 'Москва', ARRAY['Экономика']::text[]", self.up)
+        self.assertNotIn("('msu',", self.up)
+        self.assertIn("directions = EXCLUDED.directions", self.up)
+        self.assertIn("ARRAY['Экономика','Психология']::text[]", self.down)
+
+    def test_direction_groups_follow_seed(self):
+        groups = self.up.split("UPDATE directions d SET groups = v.groups")[1].split(";")[0]
+        self.assertIn("('napr-09-03-04', ARRAY['ИТ']::text[])", groups)
+        self.assertNotIn("napr-38-03-01", groups)
+        self.assertIn("('napr-09-03-04', ARRAY['ИТ','Экономика']::text[])", self.down)
+
+    def test_direction_without_programs_goes_unless_chosen(self):
+        # Направление в цели ученика не удаляется: каскад снял бы его из цели.
+        gone = self.up.split("DELETE FROM directions d WHERE d.id IN (")[1].split(";")[0]
+        self.assertIn("'napr-37-03-01'", gone)
+        self.assertNotIn("napr-01-03-01", gone)
+        self.assertIn("NOT EXISTS (SELECT 1 FROM trajectory_directions t WHERE t.direction_id = d.id)", gone)
+        self.assertIn("NOT EXISTS (SELECT 1 FROM trajectories t WHERE t.direction_id = d.id)", gone)
+        self.assertIn("('napr-37-03-01', 'Психология'", self.down)
 
 
 class StagesTest(unittest.TestCase):

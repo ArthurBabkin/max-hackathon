@@ -302,7 +302,9 @@ def hse_vsosh_rows(pages, url: str) -> list[dict]:
             if c[0].lower().startswith(("no п/п", "№")):
                 campus_no += 1
                 continue
-            if not 0 <= campus_no < len(HSE_VSOSH_CAMPUSES) or not name:
+            # Пермь, Нижний Новгород и Петербург — филиалы, в каталоге их нет.
+            if not 0 <= campus_no < len(HSE_VSOSH_CAMPUSES) or HSE_VSOSH_CAMPUSES[campus_no] != "Москва" \
+                    or not name:
                 continue
             aside = re.search(r"\((?:по )?направлени[^)]*\)", name)
             if "/" in name:
@@ -481,12 +483,12 @@ def spbu_vsosh_rows(pages: list[dict], url: str) -> list[dict]:
     return out
 
 
-HSE_OLYMP = {"olymp_list__1170753498": "Москва", "olymp_list__1170734747": "Нижний Новгород",
-             "olymp_list__1170736201": "Пермь", "olymp_list__1120660311": "Санкт-Петербург"}
+# Приложения Нижнего Новгорода, Перми и Петербурга не читаются: это филиалы.
+HSE_OLYMP = {"olymp_list__1170753498": "Москва"}
 
 
 def rows_hse():
-    """Четыре приложения по кампусам.
+    """Приложение московского кампуса.
 
     Ширина строки гуляет (11 колонок на первой странице блока, 9-10 на
     продолжениях: pdfplumber выбрасывает пустые ведущие колонки), поэтому

@@ -14,6 +14,10 @@ from common import (ADMISSION_YEAR, CODE_RE, DATA, ROOT, TODAY, clean, fetched_d
                     html_rows, load_html, load_pages, meta, slugify, to_int, write_json)
 
 LEVEL_BY_CODE = lambda code: "specialitet" if code[3:5] == "05" else "bakalavriat"
+# Филиал — отдельный вуз со своим приёмом, в каталоге только головные вузы.
+# Шапка секции филиала называет его «филиалом» или юрлицом головного вуза
+# («Набережночелнинский институт ФГАОУ ВО …»): свои институты так не пишут.
+BRANCH_RE = re.compile(r"филиал|ФГАОУ", re.I)
 
 
 def _src(vuz_id, filename, page):
@@ -39,7 +43,7 @@ def parse_msu():
                     if len(first) > 5 and not first[0].isdigit():
                         faculty = first
                     continue
-                if not CODE_RE.fullmatch(first):
+                if not CODE_RE.fullmatch(first) or BRANCH_RE.search(faculty or ""):
                     continue
                 name = re.sub(r'^(Направление подготовки|Специальность)\s*', "", cells[1])
                 name = re.sub(r'\s*\((очная|заочная|очно).*$', "", name, flags=re.I)
@@ -80,12 +84,12 @@ def parse_spbu():
 
 
 # ---------------------------------------------------------------- ВШЭ
-HSE_CAMPUS = {"programs__1120607478": "Москва", "programs__1120607522": "Нижний Новгород",
-              "programs__1134464654": "Пермь", "programs__1120607575": "Санкт-Петербург"}
+# Нижний Новгород, Пермь и Петербург — филиалы со своим приёмом, не ВШЭ.
+HSE_CAMPUS = {"programs__1120607478": "Москва"}
 
 
 def parse_hse():
-    """Приложения 1-4 по кампусам.
+    """Приложение 1 — московский кампус.
 
     Строка программы опознаётся по порядковому номеру в первой ячейке;
     строки без номера — это продолжение списка вступительных испытаний
@@ -222,18 +226,23 @@ def parse_nsu():
 
 # ---------------------------------------------------------------- КФУ
 def parse_kfu():
-    """План приёма: [код, направление, профиль(программа), уровень, УГСН, ...], бюджет дальше."""
-    out = []
+    """План приёма: строки-шапки институтов, затем [код, направление,
+    профиль(программа), уровень, программы СПО, ...], бюджет дальше.
+    Со стр. 10 идут филиалы — Елабуга, Набережные Челны, Джизак."""
+    out, faculty = [], None
     f = "programs__plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf"
     for pg in load_pages("kfu", f):
         for table in pg["tables"]:
             for row in table:
                 cells = [clean(c) for c in row]
-                if len(cells) < 6 or not CODE_RE.fullmatch(cells[0]):
+                if cells and cells[0] and not cells[0][0].isdigit() and not any(cells[1:]):
+                    faculty = cells[0]
+                    continue
+                if len(cells) < 6 or not CODE_RE.fullmatch(cells[0]) or BRANCH_RE.search(faculty or ""):
                     continue
                 code = cells[0]
                 out.append({
-                    "program_name": cells[2] or cells[1], "faculty": clean(cells[4]).split(";")[0],
+                    "program_name": cells[2] or cells[1], "faculty": faculty or "КФУ",
                     "napravlenie_code": code, "napravlenie_name": cells[1],
                     "education_level": "specialitet" if "специалитет" in cells[3].lower() else LEVEL_BY_CODE(code),
                     "budget_places_2026": to_int(cells[14]) if len(cells) > 14 else None,
@@ -290,7 +299,12 @@ def _parse_code_name_table(vuz_id, fname, code_col=0, name_col=1, budget_col=Non
 
 
 def parse_sechenov():
-    rows = _parse_code_name_table("sechenov", "programs__Pravila-priema_2026_2027_BS_pril1_Perechen-programm.pdf")
+    """Приложение 1. Стр. 3–4 — Бакинский и Брянский филиалы; конкурсные
+    группы для иностранных граждан — не для школьников из России."""
+    f = "programs__Pravila-priema_2026_2027_BS_pril1_Perechen-programm.pdf"
+    branch = {pg["page"] for pg in load_pages("sechenov", f) if "филиал" in pg["text"].lower()}
+    rows = [r for r in _parse_code_name_table("sechenov", f)
+            if r["source_page"] not in branch and "иностранных граждан" not in r["program_name"]]
     for r in rows:
         r["faculty"] = "Сеченовский Университет"
     return rows

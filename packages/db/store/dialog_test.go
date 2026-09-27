@@ -233,7 +233,7 @@ func TestAllDirections(t *testing.T) {
 			se = &all[i]
 		}
 	}
-	if len(all) != 72 || popular != 16 || se == nil || se.Code != "09.03.04" || !se.Onboarding || len(se.Groups) == 0 {
+	if len(all) != 68 || popular != 16 || se == nil || se.Code != "09.03.04" || !se.Onboarding || len(se.Groups) == 0 {
 		t.Fatalf("направлений %d, основных %d, ПИ %+v", len(all), popular, se)
 	}
 }
