@@ -47,8 +47,7 @@ export const keys = {
   session: ['session'] as const,
   home: ['home'] as const,
   recommendations: (filter: MatchFilter) => ['recommendations', filter] as const,
-  olympiads: (q: string, subject: string, mine: boolean, sort: string = 'name') =>
-    ['olympiads', q, subject, mine, sort] as const,
+  olympiads: (q: string, subject: string, mine: boolean) => ['olympiads', q, subject, mine] as const,
   olympiad: (id: string) => ['olympiad', id] as const,
   universities: (q: string, city: string, direction = '') => ['universities', q, city, direction] as const,
   university: (id: string) => ['university', id] as const,
@@ -129,15 +128,14 @@ export const useRecommendations = (filter: MatchFilter) =>
     queryFn: () => api.get<Recommendations>('/recommendations', { filter }),
   })
 
-export const useOlympiads = (q: string, subject: string, mine: boolean, sort: string = 'name') =>
+export const useOlympiads = (q: string, subject: string, mine: boolean) =>
   useQuery({
-    queryKey: keys.olympiads(q, subject, mine, sort),
+    queryKey: keys.olympiads(q, subject, mine),
     queryFn: () =>
       api.get<{ items: OlympiadListItem[] }>('/olympiads', {
         q,
         subject: subject === 'all' ? undefined : subject,
         mine: mine ? 'true' : undefined,
-        sort: sort === 'name' ? undefined : sort,
       }),
   })
 

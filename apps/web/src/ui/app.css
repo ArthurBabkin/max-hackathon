@@ -3110,32 +3110,6 @@
   display: contents;
 }
 
-/* Уход карточки из подбора после «Добавить» — сжимается, а не пропадает
-   мгновенно (grid-rows 1fr → 0fr не требует измерения высоты в JS). */
-.match-card-wrap {
-  display: grid;
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition:
-    grid-template-rows 0.26s ease,
-    opacity 0.26s ease;
-}
-
-.match-card-wrap > .oly-card {
-  overflow: hidden;
-  min-height: 0;
-  transition: margin-bottom 0.26s ease;
-}
-
-.match-card-leaving {
-  grid-template-rows: 0fr;
-  opacity: 0;
-}
-
-.match-card-leaving > .oly-card {
-  margin-bottom: 0;
-}
-
 /* Что спрятано из подбора: уже в трекере и ждущее ответа (C3). Тихая
    строка-ссылка, а не баннер: главное на экране — новые олимпиады. */
 .match-hidden {
@@ -3555,15 +3529,6 @@
 .row-closed {
   display: block;
   margin-top: 1px;
-  font-size: var(--t-micro);
-  color: var(--mu);
-}
-
-.row-deadline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
   font-size: var(--t-micro);
   color: var(--mu);
 }

@@ -8,7 +8,7 @@ import { useDirections, useOlympiads, useProfile, useTracker, useUniversities } 
 import { groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
 import { Icon } from '@/ui/Icon'
-import { CardSkeletons, Chip, Pill, StateBlock, Tile } from '@/ui/primitives'
+import { CardSkeletons, Chip, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
 import type { TextKey } from '@/voice/texts'
 import { countText, useVoice, type Translate } from '@/voice/useVoice'
@@ -117,12 +117,10 @@ export function CatalogScreen() {
   const [mineOn, setMine] = useState(false)
   const myUniversities = profile.data?.universities ?? []
   const mine = mineOn && myUniversities.length > 0
-  // Сортировка каталога олимпиад (F27): по алфавиту или по ближайшему сроку.
-  const [sort, setSort] = useState<'name' | 'deadline_asc'>('name')
 
   const debouncedQuery = useDebounced(query)
 
-  const olympiads = useOlympiads(debouncedQuery, subject, mine, sort)
+  const olympiads = useOlympiads(debouncedQuery, subject, mine)
   const universities = useUniversities(debouncedQuery, city, direction)
   const active = segment === 'olympiads' ? olympiads : universities
 
@@ -190,11 +188,6 @@ export function CatalogScreen() {
                       </span>
                     ) : item.registration_closed ? (
                       <span className="row-closed">{t('catalog.registrationClosed')}</span>
-                    ) : item.deadline_at ? (
-                      <span className="row-deadline">
-                        {item.next_stage_title}
-                        <Pill deadlineAt={item.deadline_at} />
-                      </span>
                     ) : null}
                   </span>
                   <span
@@ -352,19 +345,6 @@ export function CatalogScreen() {
                 {item.label}
               </Chip>
             ))}
-          </div>
-        </div>
-      ) : null}
-
-      {segment === 'olympiads' ? (
-        <div className="filter-row">
-          <div className="chips">
-            <Chip active={sort === 'name'} onClick={() => setSort('name')}>
-              {t('catalog.sortName')}
-            </Chip>
-            <Chip active={sort === 'deadline_asc'} onClick={() => setSort('deadline_asc')}>
-              {t('catalog.sortDeadline')}
-            </Chip>
           </div>
         </div>
       ) : null}
