@@ -11,6 +11,10 @@
 
 `--tables stages` — сроки этапов своей миграцией (0023).
 
+Вузы (список направлений) только обновляются. Направления 0021: группы
+направлений онбординга обновляются, новые вставляются, а направление, которого
+в сиде больше нет, удаляется, только если его не выбрал ни один ученик.
+
 `--touched` — миграции между сидом и этой, что сами правят льготы: на чистой
 базе они идут поверх новой 0003, поэтому их строки приводятся к сиду всегда.
 Down возвращает состояние `--base`. Эквивалентность проверяет make test-db.
@@ -26,7 +30,10 @@ ROOT = Path(__file__).resolve().parents[2]
 SEEDS = ["packages/db/migrations/0003_seed_content.sql",
          "packages/db/migrations/0021_university_directions_content.sql"]
 # Таблица -> сколько первых колонок составляют ключ.
-KEYS = {"sources": 1, "benefits": 1, "university_directions": 2, "direction_benefits": 4, "stages": 1}
+KEYS = {"sources": 1, "universities": 1, "benefits": 1, "university_directions": 2, "direction_benefits": 4,
+        "stages": 1}
+DIR_GROUPS = "UPDATE directions d SET groups = v.groups"
+DIR_INSERT = "INSERT INTO directions (id, name, subject_codes, groups, onboarding) VALUES"
 
 
 def up_section(sql: str) -> str:
@@ -144,6 +151,42 @@ def _merged(files: list[str], table: str) -> Block:
     return out
 
 
+def _values_rows(sql: str, head: str) -> dict:
+    """Строки VALUES оператора секции Up, который начинается с head, по первому полю."""
+    out, started = {}, False
+    for line in up_section(sql).split("\n"):
+        if line.startswith(head):
+            started = True
+        elif started and line.startswith("  ("):
+            row = re.sub(r"[,;]$", "", line.strip())
+            out[_key(row, 1)] = row
+        elif started and out:
+            break
+    return out
+
+
+def _directions(old: str, new: str) -> tuple[list[str], list[str]]:
+    """Направления 0021 от old к new: (вставки и группы — до пар, удаления — после)."""
+    groups = diff(_values_rows(old, DIR_GROUPS), _values_rows(new, DIR_GROUPS))
+    dirs = diff(_values_rows(old, DIR_INSERT), _values_rows(new, DIR_INSERT))
+    rows_ = lambda d: ",\n".join("  " + r for r in d.values())  # noqa: E731
+    before, after = [], []
+    if groups.upsert:
+        before.append(f"{DIR_GROUPS}\nFROM (VALUES\n{rows_(groups.upsert)}\n) AS v(id, groups)\n"
+                      "WHERE d.id = v.id;\n")
+    if dirs.upsert:
+        before.append(f"{DIR_INSERT}\n{rows_(dirs.upsert)}\nON CONFLICT (id) DO UPDATE SET\n"
+                      "  name = EXCLUDED.name,\n  subject_codes = EXCLUDED.subject_codes,\n"
+                      "  groups = EXCLUDED.groups;\n")
+    if dirs.removed:
+        # Направление в цели ученика остаётся: каскад снял бы его из цели.
+        after.append("DELETE FROM directions d WHERE d.id IN (\n" + ",\n".join(f"  {_lit(k)}" for k in dirs.removed)
+                     + ")\n  AND NOT d.onboarding\n"
+                     "  AND NOT EXISTS (SELECT 1 FROM trajectory_directions t WHERE t.direction_id = d.id)\n"
+                     "  AND NOT EXISTS (SELECT 1 FROM trajectories t WHERE t.direction_id = d.id);\n")
+    return before, after
+
+
 def _lit(v: str) -> str:
     return v if v.isdigit() else "'" + v.replace("'", "''") + "'"
 
@@ -189,16 +232,25 @@ def render(old: list[str], new: list[str], note: str, touched: dict) -> str:
             f"-- Пары вуз–направление: {count('university_directions')}. Источников новых {len(new_sources)}.\n"
             f"--\n-- Сгенерировано datasets/parser/diff_seed.py; эквивалентность сиду — make test-db.\n")
 
-    up = [_insert(n["sources"], d["sources"].upsert)]
+    dirs_up, dirs_gone = _directions(old[-1], new[-1])
+    dirs_back, dirs_back_gone = _directions(new[-1], old[-1])
+    up = [_insert(n["sources"], d["sources"].upsert), _insert(n["universities"], d["universities"].upsert),
+          *dirs_up]
     for t in ("benefits", "university_directions", "direction_benefits"):
         up += [_delete(t, n[t].cols or o[t].cols, d[t].removed), _insert(n[t], d[t].upsert)]
+    up += dirs_gone
     if gone_sources:
         up.append("-- Источники, которых в новом сиде нет, — если на них больше ничто не ссылается.\n"
                   + _drop_unused_sources(gone_sources))
     down = ["-- Источники прежних льгот: в базе, накатанной уже с новыми 0003 и 0021, их нет.\n"
-            + _insert(o["sources"], back["sources"].upsert)]
-    for t in ("direction_benefits", "university_directions", "benefits"):
-        down += [_delete(t, o[t].cols or n[t].cols, back[t].removed), _insert(o[t], back[t].upsert)]
+            + _insert(o["sources"], back["sources"].upsert),
+            _insert(o["universities"], back["universities"].upsert), *dirs_back]
+    # Сначала удаления, потом вставки от родителей к детям: льгота по
+    # направлению вставляется, только если её пара уже есть.
+    down += [_delete(t, o[t].cols or n[t].cols, back[t].removed)
+             for t in ("direction_benefits", "university_directions", "benefits")]
+    down += [_insert(o[t], back[t].upsert) for t in ("benefits", "university_directions", "direction_benefits")]
+    down += dirs_back_gone
     if new_sources:
         down.append(_drop_unused_sources(new_sources))
     body = lambda parts: "\n".join(p for p in parts if p)  # noqa: E731
@@ -249,7 +301,9 @@ def _other_tables_changed(old: list[str], new: list[str]) -> list[str]:
     out = []
     for t in sorted(names - set(KEYS)):
         KEYS[t] = 1
-        if _merged(old, t).rows != _merged(new, t).rows:
+        # Направления 0021 переносит _directions, здесь — только направления 0003.
+        files = (old[:1], new[:1]) if t == "directions" else (old, new)
+        if _merged(files[0], t).rows != _merged(files[1], t).rows:
             out.append(t)
         del KEYS[t]
     return out
