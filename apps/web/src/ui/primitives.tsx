@@ -8,7 +8,9 @@
  */
 
 import { useState, type ReactNode } from 'react'
+import type { BenefitKind } from '@contract'
 import { badgeColor, badgeLogo, badgeShortName } from '@/lib/badge'
+import { splitBenefitLabel } from '@/lib/benefits'
 import { daysLabel, daysLeft, deadlineTone } from '@/lib/deadline'
 import { Icon, type IconName } from './Icon'
 import { useVoice } from '@/voice/useVoice'
@@ -49,6 +51,30 @@ export type SourceKind = 'fact' | 'recommendation' | 'demo'
 export function SourceTag({ kind }: { kind: SourceKind }) {
   const t = useVoice()
   return <span className={`tag tag-${kind}`}>{t(`tag.${kind}`)}</span>
+}
+
+// --- Плашка льготы -----------------------------------------------------------
+
+const BENEFIT_TONE: Record<BenefitKind, string> = {
+  bvi: 'benefit-bvi',
+  bvi_winners: 'benefit-bvi',
+  score100: 'benefit-score',
+  extra_points: 'benefit-extra',
+}
+
+/**
+ * Льгота: в плашке — вид, под ней — уточнение («100 баллов» и «по физике или
+ * химии»). Целиком в плашке длинная подпись сжимала название вуза в строке
+ * до слова и вылезала из узкого столбца таблицы.
+ */
+export function BenefitValue({ kind, label }: { kind: BenefitKind | null | undefined; label: string }) {
+  const { main, detail } = splitBenefitLabel(kind, label)
+  return (
+    <span className="benefit-grant">
+      <span className={`benefit-value ${kind ? BENEFIT_TONE[kind] : 'benefit-none'}`}>{main}</span>
+      {detail ? <span className="benefit-detail">{detail}</span> : null}
+    </span>
+  )
 }
 
 // --- Плитка ------------------------------------------------------------------

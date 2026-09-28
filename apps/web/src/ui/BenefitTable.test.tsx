@@ -219,3 +219,15 @@ it('льгота вуза целиком — без направлений и б
   setup()
   expect(screen.queryByText(/на твои направления/)).not.toBeInTheDocument()
 })
+
+// В столбце шириной в слово «100 баллов по информатике» вылезала за ячейку:
+// предмет — подписью под плашкой, она переносится по словам.
+it('предмет 100 баллов — под плашкой в ячейке', () => {
+  const inf: BenefitGrant = { kind: 'score100', label: '100 баллов по информатике' }
+  setup([row('msu', 'МГУ', { winner: inf, prizer: inf })], ['winner', 'prizer', 'ege'])
+  const cells = within(rowOf('МГУ')).getAllByRole('cell')
+  for (const cell of cells.slice(0, 2)) {
+    expect(within(cell).getByText('100 баллов')).toHaveClass('benefit-value')
+    expect(within(cell).getByText('по информатике')).toHaveClass('benefit-detail')
+  }
+})

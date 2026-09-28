@@ -1227,6 +1227,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* Длинное слово не вылезает из столбца, даже если перенос по слогам недоступен. */
+  overflow-wrap: break-word;
 }
 
 .benefit-text b {
@@ -1254,12 +1256,54 @@
   font-weight: 700;
 }
 
-/* «100 баллов по информатике» в строке списка — в две строки, а не поверх названия. */
-.benefit > .benefit-value {
-  flex-shrink: 1;
-  max-width: 45%;
+/* Льгота: плашка с видом и уточнение под ней — «100 баллов» и «по физике
+   или химии». Уточнение переносится по словам, длинное слово — по слогам. */
+.benefit-grant {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.benefit-detail {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--p);
+  hyphens: auto;
+  /* «информа-тике», а не «информати-ке»: у переноса хотя бы по три буквы. */
+  hyphenate-limit-chars: 6 3 3;
+  -webkit-hyphenate-limit-before: 3;
+  -webkit-hyphenate-limit-after: 3;
+  overflow-wrap: break-word;
+}
+
+/* В строке списка льгота не шире 112 px: название вуза не сжимается до
+   слова в строке, плашки стоят у правого края одна под другой. */
+.benefit > .benefit-grant {
+  flex: 0 0 auto;
+  max-width: 112px;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* «БВИ победителям» в две строки — плашка со скруглением, а не капсула. */
+.benefit > .benefit-grant .benefit-value {
   border-radius: 12px;
   text-align: center;
+}
+
+/* Самые узкие телефоны: льгота уже, чтобы названию осталось место, а
+   «Промышленное программирование» переносится по слогам. */
+@media (max-width: 359px) {
+  .benefit > .benefit-grant {
+    max-width: 84px;
+  }
+
+  .benefit-text {
+    hyphens: auto;
+  }
 }
 
 .benefit-bvi {
@@ -1415,6 +1459,10 @@
   border-radius: 8px;
   font-size: 11px;
   line-height: 1.2;
+}
+
+.benefit-table .benefit-detail {
+  font-size: 10px;
 }
 
 /* «от 75–90» — одной строкой: на тире он рвался бы в «от 75–» и «90». */

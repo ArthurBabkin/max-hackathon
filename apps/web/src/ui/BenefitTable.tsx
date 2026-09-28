@@ -9,23 +9,17 @@
  * только на другие направления — своей строкой.
  */
 
-import type { BenefitColumn, BenefitGrant, BenefitRow } from '@contract'
+import type { BenefitColumn, BenefitRow } from '@contract'
 import { outliers } from '@/lib/benefits'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
-import { Tile } from './primitives'
+import { BenefitValue, Tile } from './primitives'
 
 const HEADS: Record<BenefitColumn, TextKey> = {
   winner: 'benefits.colWinner',
   prizer: 'benefits.colPrizer',
   ege: 'benefits.colEge',
   extra_points: 'benefits.colExtra',
-}
-
-const GRANT_CLASS: Record<BenefitGrant['kind'], string> = {
-  bvi: 'benefit-bvi',
-  score100: 'benefit-score',
-  extra_points: 'benefit-extra',
 }
 
 export interface BenefitTableProps {
@@ -76,12 +70,7 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
         </>
       )
     }
-    const grant = grantOf(row, column)
-    return (
-      <span className={`benefit-value ${grant ? GRANT_CLASS[grant.kind] : 'benefit-none'}`}>
-        {label(row, column)}
-      </span>
-    )
+    return <BenefitValue kind={grantOf(row, column)?.kind} label={label(row, column)} />
   }
 
   return (
@@ -149,9 +138,7 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
                       return (
                         <td key={column}>
                           {column === 'ege' ? null : (
-                            <span className={`benefit-value ${grant ? GRANT_CLASS[grant.kind] : 'benefit-none'}`}>
-                              {grant?.label ?? t('benefits.none')}
-                            </span>
+                            <BenefitValue kind={grant?.kind} label={grant?.label ?? t('benefits.none')} />
                           )}
                         </td>
                       )
