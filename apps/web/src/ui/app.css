@@ -1240,12 +1240,26 @@
   color: var(--mu);
 }
 
+.benefit-text .benefit-cond {
+  margin-top: 4px;
+  color: var(--am-ink);
+  line-height: 1.35;
+}
+
 .benefit-value {
   flex: 0 0 auto;
   padding: 4px 9px;
   border-radius: var(--r-pill);
   font-size: var(--t-micro);
   font-weight: 700;
+}
+
+/* «100 баллов по информатике» в строке списка — в две строки, а не поверх названия. */
+.benefit > .benefit-value {
+  flex-shrink: 1;
+  max-width: 45%;
+  border-radius: 12px;
+  text-align: center;
 }
 
 .benefit-bvi {

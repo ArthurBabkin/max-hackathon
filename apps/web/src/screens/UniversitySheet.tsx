@@ -146,7 +146,9 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
   // «На мои направления» — льгота на них; фильтр есть, только если льготы
   // считаются по направлениям и они проверены.
   const myOlympiads = byOlympiad(
-    university.olympiads.flatMap((o) => (o.my_benefit ? [{ ...o, benefit: o.my_benefit }] : [])),
+    university.olympiads.flatMap((o) =>
+      o.my_benefit ? [{ ...o, benefit: o.my_benefit, benefit_label: o.my_benefit_label ?? BENEFIT_LABELS[o.my_benefit] }] : [],
+    ),
   )
   const byDirections = university.target_basis !== 'university' && !university.target_unverified
   const shownMode: Olympiads = mode ?? (byDirections && myOlympiads.length > 0 ? 'mine' : 'all')
@@ -247,7 +249,7 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
             olympiadId={row.olympiad_id}
             name={row.first.name}
             subtitle={shownMode === 'all' ? row.subjects + coverage(row.rows) : row.subjects}
-            label={BENEFIT_LABELS[row.benefit]}
+            label={row.label}
             benefit={row.benefit}
             shortName={row.first.short_name}
             color={row.first.color}

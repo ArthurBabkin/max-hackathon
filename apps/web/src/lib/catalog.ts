@@ -3,7 +3,7 @@
  * «Олимпиады с льготой» в карточке вуза — по олимпиаде, а не по профилю.
  */
 
-import type { BenefitKind, Level } from '@contract'
+import { BENEFIT_LABELS, type BenefitKind, type Level } from '@contract'
 
 export type LevelGroup = 'vsosh' | 'I' | 'II' | 'III' | 'other' | 'unknown'
 
@@ -35,6 +35,8 @@ interface ProfileRow {
   name: string
   subject_name?: string
   benefit: BenefitKind
+  /** Подпись льготы от сервера: «100 баллов по информатике». */
+  benefit_label?: string | null
 }
 
 export interface OlympiadRow<T> {
@@ -43,6 +45,8 @@ export interface OlympiadRow<T> {
   first: T
   subjects: string
   benefit: BenefitKind
+  /** Подпись лучшей льготы; у её профилей разные — общая: «100 баллов». */
+  label: string
   open_profile_id: string
   /** Все профили олимпиады в порядке появления. */
   rows: T[]
@@ -60,6 +64,7 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
         first: r,
         subjects: r.subject_name ?? '',
         benefit: r.benefit,
+        label: r.benefit_label ?? BENEFIT_LABELS[r.benefit],
         open_profile_id: r.olympiad_profile_id,
         rows: [r],
       })
@@ -69,7 +74,13 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
     if (r.subject_name && !seen.subjects.split(', ').includes(r.subject_name)) {
       seen.subjects = seen.subjects ? `${seen.subjects}, ${r.subject_name}` : r.subject_name
     }
-    if (STRENGTH[r.benefit] > STRENGTH[seen.benefit]) seen.benefit = r.benefit
+    const label = r.benefit_label ?? BENEFIT_LABELS[r.benefit]
+    if (STRENGTH[r.benefit] > STRENGTH[seen.benefit]) {
+      seen.benefit = r.benefit
+      seen.label = label
+    } else if (r.benefit === seen.benefit && label !== seen.label) {
+      seen.label = BENEFIT_LABELS[r.benefit]
+    }
   }
   return [...out.values()]
 }

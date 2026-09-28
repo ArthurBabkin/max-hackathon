@@ -298,14 +298,15 @@ type UniversityOlympiad struct {
 	ProfileName  *string
 	Level        *string
 	Benefit      string
+	Note         *string
 }
 
 // UniversityOlympiads — профили с льготой БВИ или 100 баллов в вузе за
 // последний год приёма, сильные льготы и уровни первыми.
 func (s *Store) UniversityOlympiads(ctx context.Context, universityID string) ([]UniversityOlympiad, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT p.id, o.id, o.name, p.subject_code, sub.name, p.profile_name, p.level, b.benefit
-		FROM (SELECT DISTINCT ON (olympiad_profile_id) olympiad_profile_id, benefit
+		SELECT p.id, o.id, o.name, p.subject_code, sub.name, p.profile_name, p.level, b.benefit, b.note
+		FROM (SELECT DISTINCT ON (olympiad_profile_id) olympiad_profile_id, benefit, note
 		      FROM benefits
 		      WHERE university_id = $1 AND benefit IN ('bvi', 'bvi_winners', 'score100')
 		        AND admission_year = (SELECT max(admission_year) FROM benefits WHERE university_id = $1)
@@ -322,6 +323,6 @@ func (s *Store) UniversityOlympiads(ctx context.Context, universityID string) ([
 	return collect(rows, func(r rowScanner) (UniversityOlympiad, error) {
 		var x UniversityOlympiad
 		return x, r.Scan(&x.ProfileID, &x.OlympiadID, &x.OlympiadName, &x.SubjectCode, &x.SubjectName, &x.ProfileName,
-			&x.Level, &x.Benefit)
+			&x.Level, &x.Benefit, &x.Note)
 	})
 }

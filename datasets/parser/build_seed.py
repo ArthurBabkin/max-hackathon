@@ -116,6 +116,31 @@ GROUP_SUBJECTS = {
     "Экономика": ["econ", "soc", "math"],
 }
 
+# Направления, профильный предмет которых — предмет ВсОШ: коды или их начала
+# (УГСН). Победители и призёры ВсОШ поступают на них обычно без вступительных
+# испытаний. Если по правилам вуза там только 100 баллов (КФУ: ВсОШ по
+# информатике на ИТ, хотя на страницах ИТИС — БВИ), в льготе остаётся факт из
+# нормативного документа, а в примечании — просьба уточнить. Группы программ
+# для этого слишком широкие: в «Экономику» попадают лингвистика и политология,
+# где 100 баллов за ВсОШ по экономике вполне законны.
+VSOSH_OWN_DIRECTIONS = {
+    "vsosh-informatika": ("09.", "10.", "02.03.02", "02.03.03"),
+    "vsosh-fizika": ("03.",),
+    "vsosh-biologiya": ("06.",),
+    "vsosh-ekonomika": ("38.",),
+}
+DOUBT_NOTE = ("Уточните в приёмной комиссии — по правилам приёма здесь 100 баллов, "
+              "хотя ВсОШ по профильному предмету обычно даёт БВИ")
+
+# ВсОШ не подтверждают ЕГЭ, и предмета в записи нет: 100 баллов засчитают по
+# предмету самой олимпиады, если он есть в ЕГЭ. Астрономии, экологии и
+# экономики в ЕГЭ нет — что им сопоставил вуз, в записях не сказано.
+VSOSH_EGE_SUBJECT = {
+    "vsosh-informatika": "Информатика", "vsosh-matematika": "Математика",
+    "vsosh-fizika": "Физика", "vsosh-himiya": "Химия", "vsosh-biologiya": "Биология",
+    "vsosh-obschestvoznanie": "Обществознание",
+}
+
 # Направления-цели для онбординга (F8): по четыре самых распространённых в
 # вузах базы на каждую профильную группу. Список короткий, потому что это
 # клавиатура в чате.
@@ -556,8 +581,29 @@ def grades_text(grades: list[int]) -> str:
     return ", ".join(map(str, grades))
 
 
-def aggregate_key(records: list[dict]) -> dict:
-    """Свернуть записи вуза по одному профилю и году в строку benefits."""
+def doubtful_olympiads(code: str | None, records: list[dict]) -> set[str]:
+    """ВсОШ по профильному предмету направления code, за которую победителю
+    или призёру программа не даёт БВИ, — см. VSOSH_OWN_DIRECTIONS."""
+    namesakes = {oid for oid, prefixes in VSOSH_OWN_DIRECTIONS.items() if (code or "").startswith(prefixes)}
+    bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == "БВИ"}
+    return {r["olympiad_id"] for r in records if r["olympiad_id"] in namesakes
+            and (r["olympiad_id"], r["diploma_status"]) not in bvi}
+
+
+def score100_subject(records: list[dict]) -> str:
+    """На какой предмет засчитают 100 баллов: предмет, соответствующий профилю
+    олимпиады, — тот же, что подтверждает льготу (КФУ, приложение 3, стр. 2)."""
+    subjects = sorted({s for r in records
+                       for s in (r["ege_confirm_subject"] or VSOSH_EGE_SUBJECT.get(r["olympiad_id"], "")).split(" или ")
+                       if s})
+    if not subjects:
+        return "Предмет, по которому засчитают 100 баллов, уточните в приёмной комиссии"
+    return "100 баллов засчитают по предмету " + " или ".join(f"«{s}»" for s in subjects)
+
+
+def aggregate_key(records: list[dict], doubtful: bool = False) -> dict:
+    """Свернуть записи вуза по одному профилю и году в строку benefits.
+    doubtful — льгота сомнительна (doubtful_olympiads) хоть на одной программе."""
     by_status = defaultdict(set)
     for r in records:
         by_status[r["diploma_status"]].add(r["benefit_type"])
@@ -577,6 +623,8 @@ def aggregate_key(records: list[dict]) -> dict:
         benefit = "score100"
         if not pri:
             notes.append("100 баллов только победителю")
+    if doubtful and benefit != "bvi":
+        notes.append(DOUBT_NOTE)
 
     # Классы — у записей лучшей льготы: строка БВИ не обещает её за диплом
     # класса, которому дают только 100 баллов; такие классы — в заметке (#78).
@@ -603,13 +651,20 @@ def aggregate_key(records: list[dict]) -> dict:
     if subjects:
         notes.append("Подтвердить ЕГЭ: " + " или ".join(subjects))
 
+    # Предмет — только если 100 баллов видны в строке: у «БВИ» обоим 100
+    # баллов бывают лишь на других программах, и предмет там сбивает.
+    hundred = [r for r in records if r["benefit_type"] == "100_ballov"]
+    subject100 = score100_subject(hundred) if hundred else None
+    if subject100 and (benefit == "score100" or any("100 баллов" in n for n in notes)):
+        notes.append(subject100)
+
     demo = any(r["is_demo"] for r in records)
     src_counter = Counter((r["source_url"], r["source_page"]) for r in records)
     (src_url, src_page), _ = sorted(src_counter.items(),
                                     key=lambda kv: (-kv[1], kv[0][0] or "", kv[0][1] or 0))[0]
     return {
         "benefit": benefit, "ege_min": ege_min, "diploma_grades": diploma_grades,
-        "note": ". ".join(notes) or None, "demo": demo,
+        "note": ". ".join(notes) or None, "demo": demo, "subject100": subject100,
         "src_url": src_url, "src_page": src_page,
         "src_date": max(r["source_date"] or "" for r in records) or None,
     }
@@ -634,11 +689,18 @@ def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",)):
     return keys, stats
 
 
+def doubtful_keys(B: list[dict]) -> set[tuple]:
+    """Ключи (профиль, вуз, год), где льгота сомнительна хоть на одной программе."""
+    return {(oid, prog["vuz_id"], prog["admission_year"]) for prog in B if prog["status"] == "offered"
+            for oid in doubtful_olympiads(prog["napravlenie_code"], prog["prinimaemye_olimpiady"])}
+
+
 def build_benefits(seed: Seed, B: list[dict], short: dict[str, str]):
     keys, stats = benefit_keys(B, seed.profiles)
     seed.stats.update(stats)
+    doubts = doubtful_keys(B)
     for (pid, vuz, year) in sorted(keys):
-        agg = aggregate_key(keys[(pid, vuz, year)])
+        agg = aggregate_key(keys[(pid, vuz, year)], (pid, vuz, year) in doubts)
         src = None
         if not agg["demo"]:
             src = add_source(seed, agg["src_url"], agg["src_page"], "rules",
@@ -994,7 +1056,8 @@ def build_direction_benefits(ud: UniversityDirections, seed: Seed, vuz: str, cod
     for (pid, year) in sorted(keys):
         per = keys[(pid, year)]
         progs = [p for p in offered if p["year"] == year]
-        agg = aggregate_key([r for p in progs for r in per.get(p["program_id"], [])])
+        doubtful = any(pid in doubtful_olympiads(p["code"], p["records"]) for p in progs)
+        agg = aggregate_key([r for p in progs for r in per.get(p["program_id"], [])], doubtful)
         vnote = varies_note([(labels[p["program_id"]], program_grant(per.get(p["program_id"], [])))
                              for p in progs])
         src = None
@@ -1002,11 +1065,14 @@ def build_direction_benefits(ud: UniversityDirections, seed: Seed, vuz: str, cod
             src = add_source(ud, agg["src_url"], agg["src_page"], "rules",
                              f"{UNIVERSITY_SHORT[vuz]}: особые права победителей и призёров олимпиад, {year}",
                              agg["src_date"])
+        notes = [vnote, agg["note"]]
+        if vnote and "100 баллов" in vnote and agg["subject100"] not in (agg["note"] or ""):
+            notes.append(agg["subject100"])
         ud.benefits.append({
             "olympiad_profile_id": pid, "university_id": vuz, "direction_id": direction_id(code),
             "admission_year": year, "benefit": agg["benefit"], "ege_min": agg["ege_min"],
             "diploma_grades": agg["diploma_grades"],
-            "note": ". ".join(n for n in (vnote, agg["note"]) if n) or None,
+            "note": ". ".join(n for n in notes if n) or None,
             "varies": vnote is not None, "source_id": src,
         })
 

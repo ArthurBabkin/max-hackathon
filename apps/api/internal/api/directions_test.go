@@ -47,7 +47,7 @@ func TestOlympiad_OtherDirectionGrants(t *testing.T) {
 	itmo := rowOf(t, list(t, e.do("GET", "/api/v1/olympiads/p669-2-matematika", token, nil).body["benefits"]), "itmo")
 	others := list(t, itmo["other_directions"])
 	if itmo["benefit"] != "bvi" || len(others) != 1 || others[0]["benefit"] != "bvi_winners" ||
-		grant(others[0]["winner"]) != "bvi БВИ" || grant(others[0]["prizer"]) != "score100 100 баллов" {
+		grant(others[0]["winner"]) != "bvi БВИ" || grant(others[0]["prizer"]) != "score100 100 баллов по математике" {
 		t.Fatalf("ИТМО на ПИ и ПМИ: %v", itmo)
 	}
 }

@@ -74,7 +74,7 @@ func TestOlympiad_PerechenCard(t *testing.T) {
 		want, label, ege := "bvi", "БВИ", float64(75)
 		switch row["university_id"] {
 		case "kfu":
-			want, label = "score100", "100 баллов"
+			want, label = "score100", "100 баллов по информатике"
 		case "hse":
 			ege = 80
 		}
@@ -200,16 +200,17 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	b := e.do("GET", "/api/v1/olympiads/p669-8-informatika", e.login(900000001, "Артём"), nil).body
 
 	// Призёр и порог — в столбцах таблицы, в условиях строки остаётся только
-	// то, для чего столбца нет: класс диплома.
+	// то, для чего столбца нет: класс диплома. Предмет для 100 баллов — в
+	// подписи: у МГУ его засчитают и по математике.
 	var got []string
 	for _, row := range list(t, b["benefits"]) {
 		got = append(got, fmt.Sprintf("%s: %s / %s / %v–%v / %s", row["university_nick"], grant(row["winner"]),
 			grant(row["prizer"]), row["ege_min"], row["ege_max"], rowConditions(t, row)))
 	}
 	want := []string{
-		"МГУ: bvi БВИ / score100 100 баллов / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"МФТИ: bvi БВИ / score100 100 баллов / 75–80 / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"КФУ: score100 100 баллов / score100 100 баллов / 75–<nil> / Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт",
+		"МГУ: bvi БВИ / score100 100 баллов по информатике или математике / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
+		"МФТИ: bvi БВИ / score100 100 баллов по информатике / 75–80 / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
+		"КФУ: score100 100 баллов по информатике / score100 100 баллов по информатике / 75–<nil> / Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("строки таблицы:\n%s", strings.Join(got, "\n"))
@@ -218,6 +219,39 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 		if strings.Contains(c.(string), "МГУ") || strings.Contains(c.(string), "порог выше") {
 			t.Fatalf("своё у вуза не дублируется в общих условиях: %v", b["conditions"])
 		}
+	}
+}
+
+// ВсОШ по информатике: по приложению 3 КФУ на ИТ-программах — только 100
+// баллов, хотя ИТИС пишет о БВИ. Льгота — как в документе, но и в таблице
+// вузов ученика, и в «Где ещё даёт льготу» — просьба уточнить.
+func TestOlympiad_DoubtfulBenefitAsksToCheck(t *testing.T) {
+	e := newEnv(t)
+	f := e.kidCreator()
+	const doubt = "Уточните в приёмной комиссии — по правилам приёма здесь 100 баллов, хотя ВсОШ по профильному предмету обычно даёт БВИ"
+	find := func(rows []map[string]any) map[string]any {
+		for _, row := range rows {
+			if row["university_id"] == "kfu" {
+				return row
+			}
+		}
+		t.Fatalf("нет строки КФУ: %v", rows)
+		return nil
+	}
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"msu"}); err != nil {
+		t.Fatal(err)
+	}
+	b := e.do("GET", "/api/v1/olympiads/vsosh-informatika", e.login(900000001, "Артём"), nil).body
+	kfu := find(list(t, b["benefit_universities"]))
+	if got := rowConditions(t, kfu); got != doubt || kfu["benefit_label"] != "100 баллов по информатике" {
+		t.Fatalf("КФУ в «Где ещё даёт льготу»: %q, %v", got, kfu["benefit_label"])
+	}
+	if err := e.st.ReplaceUniversities(context.Background(), f.trajectoryID, []string{"kfu"}); err != nil {
+		t.Fatal(err)
+	}
+	b = e.do("GET", "/api/v1/olympiads/vsosh-informatika", e.login(900000001, "Артём"), nil).body
+	if got := rowConditions(t, find(list(t, b["benefits"]))); got != doubt {
+		t.Fatalf("КФУ в таблице вузов ученика: %q", got)
 	}
 }
 
@@ -394,6 +428,12 @@ func TestUniConditions(t *testing.T) {
 		{"предмет с «и ИКТ»", store.BenefitRow{Note: ptr("Подтвердить ЕГЭ: Физика и ИКТ")}, ""},
 		// Хвост разбора правил, а не предмет ЕГЭ: в карточку такое не выводим.
 		{"не предмет", store.BenefitRow{Note: ptr("Подтвердить ЕГЭ: фотоника, приборостроение, машиностроение")}, ""},
+		// Предмет для 100 баллов — в подписи льготы, условием только «уточните».
+		{"предмет 100 баллов", store.BenefitRow{Note: ptr("100 баллов засчитают по предмету «Математика»")}, ""},
+		{"уточнить льготу", store.BenefitRow{Note: ptr("Уточните в приёмной комиссии — так бывает. 100 баллов засчитают по предмету «Физика»")},
+			"Уточните в приёмной комиссии — так бывает"},
+		{"уточнить предмет", store.BenefitRow{Note: ptr("Предмет, по которому засчитают 100 баллов, уточните в приёмной комиссии")},
+			"Предмет, по которому засчитают 100 баллов, уточните в приёмной комиссии"},
 	} {
 		if got := strings.Join(cs.uniConditions(tc.row, "Физика"), " | "); got != tc.want {
 			t.Errorf("%s: %q, ждали %q", tc.name, got, tc.want)

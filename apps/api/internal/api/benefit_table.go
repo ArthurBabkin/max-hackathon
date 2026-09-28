@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -28,10 +29,61 @@ func grants(b store.BenefitRow) (winner, prizer *benefitGrant) {
 		case "extra_points":
 			return &benefitGrant{Kind: kind, Label: extraPointsLabel(b.ExtraPoints)}
 		}
-		return &benefitGrant{Kind: kind, Label: benefitLabels[kind]}
+		return &benefitGrant{Kind: kind, Label: benefitLabel(kind, b.Note)}
 	}
 	w, p := pick.Grants(b)
 	return grant(w), grant(p)
+}
+
+// Предмета в подписи нет, если сид его не знает (score100Unknown) или
+// склонения нет в словаре: «100 баллов» без предмета лучше неверного падежа.
+var score100Dative = map[string]string{
+	"Информатика": "информатике", "Математика": "математике", "Физика": "физике", "Химия": "химии",
+	"Биология": "биологии", "Обществознание": "обществознанию", "География": "географии",
+}
+
+var quotedRe = regexp.MustCompile(`«([^»]+)»`)
+
+// benefitLabel — подпись льготы; у 100 баллов — с предметом из примечания
+// сида: «100 баллов по информатике». Строк несколько (вузы в одной подписи) —
+// предмет, только если он у всех один.
+func benefitLabel(kind string, notes ...*string) string {
+	label := benefitLabels[kind]
+	if kind != "score100" {
+		return label
+	}
+	subject := ""
+	for i, note := range notes {
+		s := score100Subject(note)
+		if s == "" || (i > 0 && s != subject) {
+			return label
+		}
+		subject = s
+	}
+	if subject == "" {
+		return label
+	}
+	return label + " по " + subject
+}
+
+// score100Subject — «информатике или математике» из предложения «100 баллов
+// засчитают по предмету «Информатика» или «Математика»».
+func score100Subject(note *string) string {
+	for _, s := range pick.NoteSentences(note) {
+		if !strings.HasPrefix(s, score100Prefix) {
+			continue
+		}
+		var out []string
+		for _, m := range quotedRe.FindAllStringSubmatch(s, -1) {
+			d, ok := score100Dative[m[1]]
+			if !ok {
+				return ""
+			}
+			out = append(out, d)
+		}
+		return strings.Join(out, " или ")
+	}
+	return ""
 }
 
 // extraPointsLabel — «+3 балла»; без числа — «доп. баллы».
