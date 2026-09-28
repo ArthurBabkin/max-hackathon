@@ -87,6 +87,12 @@ describe('badgeLogo', () => {
     }
   })
 
+  it('у всех олимпиад КФУ — знак его межрегиональных предметных олимпиад', () => {
+    // Межрегиональные предметные олимпиады и «Потомки Менделеева».
+    expect(badgeLogo('p669-34')).toBe('/logos/p669-34.png')
+    expect(badgeLogo('p669-46')).toBe('/logos/p669-34.png')
+  })
+
   it('без логотипа возвращает null', () => {
     expect(badgeLogo('unknown-uni')).toBeNull()
     expect(badgeLogo('other-tyk')).toBeNull()
