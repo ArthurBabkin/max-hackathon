@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Оборонно-техническая олимпиада: синий градиент и радужный шестигранник с её баннера, «ОТО» -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A2266"/>
+      <stop offset="1" stop-color="#3446CF"/>
+    </linearGradient>
+    <linearGradient id="holo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7C6E6"/>
+      <stop offset=".5" stop-color="#A9E6F3"/>
+      <stop offset="1" stop-color="#BDF3C9"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="url(#bg)"/>
+  <path d="M64 14 L107 39 L107 89 L64 114 L21 89 L21 39 Z" fill="url(#holo)"/>
+  <g fill="#1A2266">
+    <!-- О -->
+    <path fill-rule="evenodd" d="M30 51 h14 a8 8 0 0 1 8 8 v10 a8 8 0 0 1 -8 8 h-14 a8 8 0 0 1 -8 -8 v-10 a8 8 0 0 1 8 -8 Z M32 57 a3 3 0 0 0 -3 3 v8 a3 3 0 0 0 3 3 h10 a3 3 0 0 0 3 -3 v-8 a3 3 0 0 0 -3 -3 Z"/>
+    <!-- Т -->
+    <rect x="53" y="51" width="22" height="6.5" rx="1"/>
+    <rect x="60.5" y="51" width="7" height="26" rx="1"/>
+    <!-- О -->
+    <path fill-rule="evenodd" d="M84 51 h14 a8 8 0 0 1 8 8 v10 a8 8 0 0 1 -8 8 h-14 a8 8 0 0 1 -8 -8 v-10 a8 8 0 0 1 8 -8 Z M86 57 a3 3 0 0 0 -3 3 v8 a3 3 0 0 0 3 3 h10 a3 3 0 0 0 3 -3 v-8 a3 3 0 0 0 -3 -3 Z"/>
+  </g>
+</svg>
