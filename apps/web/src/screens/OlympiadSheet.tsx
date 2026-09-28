@@ -1,5 +1,6 @@
 /** Карточка олимпиады — экраны C4, C5, C6. Функции F17–F23, F28. */
 
+import { useState } from 'react'
 import { Button } from '@maxhub/max-ui'
 import type { OlympiadDetail, Source } from '@contract'
 import { useAddToTracker, useOlympiad, usePropose, useSession } from '@/api/queries'
@@ -11,7 +12,7 @@ import { BenefitRow } from '@/ui/BenefitRow'
 import { BenefitTable } from '@/ui/BenefitTable'
 import { Icon } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
-import { CardSkeletons, Pill, SourceLine, SourceTag, Tile } from '@/ui/primitives'
+import { CardSkeletons, ListToggle, Pill, SourceLine, SourceTag, Tile } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
 import { useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
@@ -27,6 +28,33 @@ function Stages({ detail }: { detail: OlympiadDetail }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+/** Сколько плашек уровней видно сразу: у НТО их двадцать одна. */
+const LEVELS_PREVIEW = 6
+
+/**
+ * Уровни по профилям (F17). Длинный список свёрнут до шести плашек; мой
+ * профиль — первым, чтобы он был виден и в свёрнутом.
+ */
+function Levels({ profiles }: { profiles: OlympiadDetail['profiles'] }) {
+  const [expanded, setExpanded] = useState(false)
+  const ordered = [...profiles.filter((p) => p.is_mine), ...profiles.filter((p) => !p.is_mine)]
+  // Две-три лишние плашки прятать незачем.
+  const long = ordered.length > LEVELS_PREVIEW + 2
+  const shown = long && !expanded ? ordered.slice(0, LEVELS_PREVIEW) : ordered
+  return (
+    <>
+      <div className="levels">
+        {shown.map((profile) => (
+          <span key={profile.olympiad_profile_id} className={`level-item${profile.is_mine ? ' level-item-mine' : ''}`}>
+            {profile.subject_name}: {profile.level ?? '—'}
+          </span>
+        ))}
+      </div>
+      {long ? <ListToggle expanded={expanded} count={ordered.length} onToggle={() => setExpanded(!expanded)} /> : null}
+    </>
   )
 }
 
@@ -203,13 +231,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
             {t('olympiad.levelsTitle')}
             <SourceTag kind="fact" />
           </h3>
-          <div className="levels">
-            {detail.profiles.map((profile) => (
-              <span key={profile.olympiad_profile_id} className={`level-item${profile.is_mine ? ' level-item-mine' : ''}`}>
-                {profile.subject_name}: {profile.level ?? '—'}
-              </span>
-            ))}
-          </div>
+          <Levels profiles={detail.profiles} />
           <p className="fine">{t('olympiad.levelsHint', { subject: detail.subject_name.toLowerCase() })}</p>
           {detail.profiles_source ? (
             <SourceLine title={detail.profiles_source.title} url={detail.profiles_source.url} />

@@ -57,7 +57,7 @@ it('в строке олимпиады карточки вуза — так же
       id="p669-36-fizika"
       olympiadId="p669-36"
       name="Звезда"
-      subtitle="Физика, Химия"
+      subjects={['Физика', 'Химия']}
       label="100 баллов по физике или химии"
       benefit="score100"
       onOpen={vi.fn()}

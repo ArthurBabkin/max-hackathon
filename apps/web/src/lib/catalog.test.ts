@@ -50,11 +50,11 @@ describe('byOlympiad', () => {
     expect(out).toEqual([
       expect.objectContaining({
         olympiad_id: 'hse',
-        subjects: 'Информатика, Математика',
+        subjects: ['Информатика', 'Математика'],
         benefit: 'bvi',
         open_profile_id: 'hse-Информатика',
       }),
-      expect.objectContaining({ olympiad_id: 'msu', subjects: 'Физика', benefit: 'bvi' }),
+      expect.objectContaining({ olympiad_id: 'msu', subjects: ['Физика'], benefit: 'bvi' }),
     ])
   })
 

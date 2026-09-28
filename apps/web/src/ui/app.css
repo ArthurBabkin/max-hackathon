@@ -1203,6 +1203,48 @@
   border-bottom: 0;
 }
 
+/* Строка олимпиады в карточке вуза с кнопкой «Все профили» под ней: черта —
+   под обеими, а не между строкой и её кнопкой. */
+.benefit-item {
+  border-bottom: 1px dashed var(--ln-strong);
+}
+
+.benefit-item:last-of-type {
+  border-bottom: 0;
+}
+
+.benefit-item > .benefit {
+  border-bottom: 0;
+}
+
+/* «Все профили (40)» — под текстом строки, вровень с ним. Высота нажатия
+   44 px, но строка ниже не растёт: кнопка заходит на её нижний отступ. */
+.list-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--tap);
+  color: var(--p);
+  font-size: var(--t-micro);
+  font-weight: 700;
+}
+
+.benefit-item > .list-toggle {
+  margin: -9px 0 -4px 42px;
+}
+
+.levels + .list-toggle {
+  margin-top: 2px;
+}
+
+.list-toggle-down {
+  transform: rotate(90deg);
+}
+
+.list-toggle-up {
+  transform: rotate(-90deg);
+}
+
 /* Текст забирает всё свободное место: льгота и стрелка стоят у правого края
    на одной линии во всех строках, какой бы длины ни было название. */
 .benefit-main {

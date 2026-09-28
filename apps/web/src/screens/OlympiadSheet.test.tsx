@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { OlympiadDetail } from '@contract'
 import { expect, it, vi } from 'vitest'
 import { keys } from '@/api/queries'
@@ -172,4 +173,31 @@ it('закрытая регистрация — пометкой под шапк
 it('открытая регистрация — без пометки', () => {
   renderSheet({ registration_closed: false })
   expect(screen.queryByText('Регистрация на этот сезон закрыта')).toBeNull()
+})
+
+// У НТО 21 профиль — плашки уровней занимали больше экрана. Видно шесть,
+// профиль ученика среди них, даже если в списке он последний.
+it('уровни по профилям: длинный список свёрнут, мой профиль виден', async () => {
+  const profiles = Array.from({ length: 21 }, (_, i) => ({
+    olympiad_profile_id: `nto-${i + 1}`,
+    subject_code: `p${i + 1}`,
+    subject_name: `Профиль ${i + 1}`,
+    level: 'II' as const,
+    is_mine: i === 20,
+  }))
+  renderSheet({ kind: 'perechen', profiles })
+  const block = screen.getByRole('heading', { name: /Уровень по профилям/ }).closest('section')!
+  const chips = () => within(block).getAllByText(/^Профиль \d+: II$/).map((c) => c.textContent)
+  expect(chips()).toEqual(['Профиль 21: II', ...[1, 2, 3, 4, 5].map((n) => `Профиль ${n}: II`)])
+
+  await userEvent.click(within(block).getByRole('button', { name: 'Все профили (21)' }))
+  expect(chips()).toHaveLength(21)
+  await userEvent.click(within(block).getByRole('button', { name: 'Свернуть' }))
+  expect(chips()).toHaveLength(6)
+})
+
+it('уровни по профилям: короткий список — без кнопки', () => {
+  renderSheet({ kind: 'perechen' })
+  const block = screen.getByRole('heading', { name: /Уровень по профилям/ }).closest('section')!
+  expect(within(block).queryByRole('button', { name: /Все профили/ })).not.toBeInTheDocument()
 })

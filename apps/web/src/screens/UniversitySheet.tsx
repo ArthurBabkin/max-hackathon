@@ -248,7 +248,8 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
             id={row.open_profile_id}
             olympiadId={row.olympiad_id}
             name={row.first.name}
-            subtitle={shownMode === 'all' ? row.subjects + coverage(row.rows) : row.subjects}
+            subjects={row.subjects}
+            coverage={shownMode === 'all' ? coverage(row.rows) : ''}
             label={row.label}
             benefit={row.benefit}
             shortName={row.first.short_name}
