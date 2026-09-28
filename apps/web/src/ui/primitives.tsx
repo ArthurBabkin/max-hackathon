@@ -7,7 +7,8 @@
  * чем описать.
  */
 
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import type { BenefitKind } from '@contract'
 import { badgeColor, badgeLogo, badgeShortName } from '@/lib/badge'
 import { splitBenefitLabel } from '@/lib/benefits'
@@ -125,6 +126,35 @@ export function Chip({ active = false, onClick, 'aria-label': label, children }:
       onClick={onClick}
     >
       {children}
+    </button>
+  )
+}
+
+// --- Раскрыть список ---------------------------------------------------------
+
+/**
+ * «Все профили (40)» и «Свернуть» под длинным списком. Свернули — кнопка
+ * остаётся на экране: без этого после длинного списка страница уезжала бы
+ * вниз, в Safari на iOS 15 прокрутка за содержимым не следит.
+ */
+export function ListToggle({ expanded, count, onToggle }: { expanded: boolean; count: number; onToggle: () => void }) {
+  const t = useVoice()
+  const ref = useRef<HTMLButtonElement>(null)
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className="list-toggle"
+      aria-expanded={expanded}
+      onClick={() => {
+        if (!expanded) return onToggle()
+        // Сначала список сворачивается, потом кнопка возвращается на экран.
+        flushSync(onToggle)
+        ref.current?.scrollIntoView?.({ block: 'nearest' })
+      }}
+    >
+      {expanded ? t('olympiad.profilesCollapse') : t('olympiad.allProfiles', { count })}
+      <Icon name="chevron" size={13} className={expanded ? 'list-toggle-up' : 'list-toggle-down'} />
     </button>
   )
 }

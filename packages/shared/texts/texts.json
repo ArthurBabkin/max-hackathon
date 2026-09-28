@@ -323,6 +323,14 @@
     "kid": "Уровень по профилям",
     "parent": "Уровень по профилям"
   },
+  "olympiad.allProfiles": {
+    "kid": "Все профили ({count})",
+    "parent": "Все профили ({count})"
+  },
+  "olympiad.profilesCollapse": {
+    "kid": "Свернуть",
+    "parent": "Свернуть"
+  },
   "olympiad.levelsHint": {
     "kid": "Твой профиль: {subject}. У каждого профиля олимпиады свой уровень.",
     "parent": "Профиль {student_gen}: {subject}. У каждого профиля олимпиады свой уровень."
@@ -2546,6 +2554,10 @@
   "university.showAll": {
     "kid": "Показать все {count}",
     "parent": "Показать все {count}"
+  },
+  "university.subjectsMore": {
+    "kid": "{subjects} и ещё {count}",
+    "parent": "{subjects} и ещё {count}"
   },
   "olympiad.aboutTitle": {
     "kid": "Об олимпиаде",

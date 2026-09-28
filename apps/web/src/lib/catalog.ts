@@ -43,7 +43,8 @@ export interface OlympiadRow<T> {
   olympiad_id: string
   /** Первая строка олимпиады — её же и открываем: сервер ставит профили ученика вперёд. */
   first: T
-  subjects: string
+  /** Предметы профилей без повторов, в порядке появления. */
+  subjects: string[]
   benefit: BenefitKind
   /** Подпись лучшей льготы; у её профилей разные — общая: «100 баллов». */
   label: string
@@ -62,7 +63,7 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
       out.set(id, {
         olympiad_id: id,
         first: r,
-        subjects: r.subject_name ?? '',
+        subjects: r.subject_name ? [r.subject_name] : [],
         benefit: r.benefit,
         label: r.benefit_label ?? BENEFIT_LABELS[r.benefit],
         open_profile_id: r.olympiad_profile_id,
@@ -71,9 +72,7 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
       continue
     }
     seen.rows.push(r)
-    if (r.subject_name && !seen.subjects.split(', ').includes(r.subject_name)) {
-      seen.subjects = seen.subjects ? `${seen.subjects}, ${r.subject_name}` : r.subject_name
-    }
+    if (r.subject_name && !seen.subjects.includes(r.subject_name)) seen.subjects.push(r.subject_name)
     const label = r.benefit_label ?? BENEFIT_LABELS[r.benefit]
     if (STRENGTH[r.benefit] > STRENGTH[seen.benefit]) {
       seen.benefit = r.benefit

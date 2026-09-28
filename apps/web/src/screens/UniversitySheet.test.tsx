@@ -61,3 +61,25 @@ it('олимпиады с льготой — строка на олимпиад�
   await userEvent.click(within(block).getByRole('button', { name: 'Показать все 10' }))
   expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(10)
 })
+
+// У НТО в вузе сорок профилей: через запятую они занимали экран. Видно три,
+// остальные — по кнопке, и так же сворачиваются.
+it('длинный список профилей олимпиады свёрнут до трёх', async () => {
+  const subjects = Array.from({ length: 40 }, (_, i) => `Профиль ${i + 1}`)
+  renderSheet({
+    olympiads: [
+      ...subjects.map((s) => benefitRow('nto', s, 'score100')),
+      ...['Математика', 'Физика', 'Химия', 'Биология'].map((s) => benefitRow('vsosh', s)),
+    ] as unknown as UniversityDetail['olympiads'],
+  })
+  const block = screen.getByRole('heading', { name: /Олимпиады с льготой/ }).closest('section')!
+  expect(within(block).getByText('Профиль 1, Профиль 2, Профиль 3 и ещё 37')).toBeInTheDocument()
+  // Четыре профиля — ещё не список: все видны, кнопки нет.
+  expect(within(block).getByText('Математика, Физика, Химия, Биология')).toBeInTheDocument()
+  expect(within(block).getAllByRole('button', { name: /Все профили/ })).toHaveLength(1)
+
+  await userEvent.click(within(block).getByRole('button', { name: 'Все профили (40)' }))
+  expect(within(block).getByText(subjects.join(', '))).toBeInTheDocument()
+  await userEvent.click(within(block).getByRole('button', { name: 'Свернуть' }))
+  expect(within(block).getByText('Профиль 1, Профиль 2, Профиль 3 и ещё 37')).toBeInTheDocument()
+})
