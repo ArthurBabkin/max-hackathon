@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react'
 import type { BenefitRow as BenefitRowData } from '@contract'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { renderApp } from '@/test/render'
-import { BenefitRow } from './BenefitRow'
+import { BenefitRow, UniversityOlympiadRow } from './BenefitRow'
 
 const itmo: BenefitRowData = {
   university_id: 'itmo',
@@ -41,4 +41,28 @@ it('показывает условия вуза под названием', () 
   const conditions = ['Уточните в приёмной комиссии — так бывает', '100 баллов засчитают по предмету «Информатика»']
   renderApp(<BenefitRow data={{ ...itmo, benefit: 'score100', benefit_label: '100 баллов', conditions }} />)
   for (const c of conditions) expect(screen.getByText(c)).toBeInTheDocument()
+})
+
+// Предмет 100 баллов — подписью под плашкой: целиком в плашке он сжимал
+// название вуза до слова в строке.
+it('в плашке — вид льготы, предмет — под ней', () => {
+  renderApp(<BenefitRow data={{ ...itmo, benefit: 'score100', benefit_label: '100 баллов по физике или химии' }} />)
+  expect(screen.getByText('100 баллов')).toHaveClass('benefit-value')
+  expect(screen.getByText('по физике или химии')).toHaveClass('benefit-detail')
+})
+
+it('в строке олимпиады карточки вуза — так же', () => {
+  renderApp(
+    <UniversityOlympiadRow
+      id="p669-36-fizika"
+      olympiadId="p669-36"
+      name="Звезда"
+      subtitle="Физика, Химия"
+      label="100 баллов по физике или химии"
+      benefit="score100"
+      onOpen={vi.fn()}
+    />,
+  )
+  expect(screen.getByText('100 баллов')).toHaveClass('benefit-value')
+  expect(screen.getByText('по физике или химии')).toHaveClass('benefit-detail')
 })

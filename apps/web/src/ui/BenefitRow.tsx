@@ -9,15 +9,7 @@ import type { BenefitKind, BenefitRow as BenefitRowData } from '@contract'
 import { NO_BENEFIT_LABEL } from '@contract'
 import { countText, useVoice } from '@/voice/useVoice'
 import { Icon } from './Icon'
-import { Tile } from './primitives'
-
-/** Класс подписи по виду льготы — БВИ выделяется сильнее остальных. */
-function benefitClass(data: BenefitRowData): string {
-  if (!data.benefit) return 'benefit-value benefit-none'
-  if (data.benefit === 'bvi' || data.benefit === 'bvi_winners') return 'benefit-value benefit-bvi'
-  if (data.benefit === 'score100') return 'benefit-value benefit-score'
-  return 'benefit-value benefit-extra'
-}
+import { BenefitValue, Tile } from './primitives'
 
 export interface BenefitRowProps {
   data: BenefitRowData
@@ -54,7 +46,8 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
           ))}
         </span>
       </span>
-      <span className={benefitClass(data)}>{data.benefit_label ?? NO_BENEFIT_LABEL}</span>
+      <BenefitValue kind={data.benefit} label={data.benefit_label ?? NO_BENEFIT_LABEL} />
+      {onOpen ? <Icon name="chevron" size={15} /> : null}
     </>
   )
 
@@ -84,7 +77,7 @@ export function UniversityOlympiadRow({
   name: string
   subtitle: string
   label: string
-  /** 100 баллов — своим цветом, как в таблице льгот. */
+  /** Вид льготы — цвет плашки, как в таблице льгот. */
   benefit?: BenefitKind
   shortName?: string | null
   color?: string | null
@@ -99,7 +92,7 @@ export function UniversityOlympiadRow({
           <span>{subtitle}</span>
         </span>
       </span>
-      <span className={`benefit-value ${benefit === 'score100' ? 'benefit-score' : 'benefit-bvi'}`}>{label}</span>
+      <BenefitValue kind={benefit ?? 'bvi'} label={label} />
       <Icon name="chevron" size={15} />
     </button>
   )
