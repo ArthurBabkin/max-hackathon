@@ -47,6 +47,11 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
             {data.city}
             {coverage}
           </span>
+          {data.conditions?.map((condition) => (
+            <span key={condition} className="benefit-cond">
+              {condition}
+            </span>
+          ))}
         </span>
       </span>
       <span className={benefitClass(data)}>{data.benefit_label ?? NO_BENEFIT_LABEL}</span>

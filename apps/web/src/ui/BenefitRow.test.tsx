@@ -35,3 +35,10 @@ it('данных по направлениям нет — только горо�
   renderApp(<BenefitRow data={{ ...itmo, directions_count: 0, directions_total: 0 }} />)
   expect(screen.getByText('Санкт-Петербург')).toBeInTheDocument()
 })
+
+// Предмет для 100 баллов и просьба уточнить сомнительную льготу — под вузом.
+it('показывает условия вуза под названием', () => {
+  const conditions = ['Уточните в приёмной комиссии — так бывает', '100 баллов засчитают по предмету «Информатика»']
+  renderApp(<BenefitRow data={{ ...itmo, benefit: 'score100', benefit_label: '100 баллов', conditions }} />)
+  for (const c of conditions) expect(screen.getByText(c)).toBeInTheDocument()
+})
