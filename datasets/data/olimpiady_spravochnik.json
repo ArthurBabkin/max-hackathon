@@ -4332,6 +4332,113 @@
       "is_demo": false
     },
     {
+      "olympiad_id": "p669-36-estestvennye-nauki",
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "естественные науки",
+      "profile_group": "Физика",
+      "profile_groups": [
+        "Физика"
+      ],
+      "subject": "Физика",
+      "profile_slug": "estestvennye-nauki",
+      "profile_slug_in_catalog": true,
+      "organizer": "ЮУрГУ",
+      "level": "II",
+      "perechen_number_669": 36,
+      "perechen_edition": "2025/26",
+      "official_site": "https://zv.susu.ru/",
+      "description": "Многопрофильная инженерная олимпиада «Звезда» — профиль «естественные науки» (предмет: Физика). Организатор — ЮУрГУ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 36 с уровнем II.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "cost": null,
+      "etapy": [
+        {
+          "stage_name": "Отборочный этап, интернет-тур",
+          "type": "qualifying",
+          "start_date": "2026-11-09",
+          "end_date": "2026-12-09",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный этап, очно на площадках вузов-партнёров",
+          "type": "qualifying",
+          "start_date": "2026-11-09",
+          "end_date": "2026-12-20",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "partial_2026_27",
+      "etapy_source_url": "https://zv.susu.ru/index.php/mnogoprofilnaya-inzhenernaya-olimpiada-zvezda/otborochnyj-etap",
+      "etapy_source_page": null,
+      "etapy_note": "Отборочный этап 2026/27 — очно на площадках вузов-партнёров (9 ноября — 20 декабря 2026) или интернет-тур на сайте олимпиады (9 ноября — 9 декабря). Заключительный этап пока не объявлен: в приложении он демо.",
+      "etapy_checked_at": "2026-09-28",
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": false
+    },
+    {
+      "olympiad_id": "p669-36-tehnika-i-tehnologii",
+      "name": "Многопрофильная инженерная олимпиада «Звезда»",
+      "profile": "техника и технологии",
+      "profile_group": "Физика",
+      "profile_groups": [
+        "Физика"
+      ],
+      "subject": "Физика",
+      "profile_slug": "tehnika-i-tehnologii",
+      "profile_slug_in_catalog": true,
+      "organizer": "ЮУрГУ",
+      "level": "I",
+      "perechen_number_669": 36,
+      "perechen_edition": "2025/26",
+      "official_site": "https://zv.susu.ru/",
+      "description": "Многопрофильная инженерная олимпиада «Звезда» — профиль «техника и технологии» (предмет: Физика). Организатор — ЮУрГУ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 36 с уровнем I.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "cost": null,
+      "etapy": [
+        {
+          "stage_name": "Отборочный этап, интернет-тур",
+          "type": "qualifying",
+          "start_date": "2026-11-09",
+          "end_date": "2026-12-09",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный этап, очно на площадках вузов-партнёров",
+          "type": "qualifying",
+          "start_date": "2026-11-09",
+          "end_date": "2026-12-20",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "partial_2026_27",
+      "etapy_source_url": "https://zv.susu.ru/index.php/mnogoprofilnaya-inzhenernaya-olimpiada-zvezda/otborochnyj-etap",
+      "etapy_source_page": null,
+      "etapy_note": "Отборочный этап 2026/27 — очно на площадках вузов-партнёров (9 ноября — 20 декабря 2026) или интернет-тур на сайте олимпиады (9 ноября — 9 декабря). Заключительный этап пока не объявлен: в приложении он демо.",
+      "etapy_checked_at": "2026-09-28",
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": false
+    },
+    {
       "olympiad_id": "p669-37-informatika",
       "name": "Московская олимпиада школьников",
       "profile": "информатика",
@@ -4960,6 +5067,64 @@
       "etapy_source_page": null,
       "etapy_note": null,
       "etapy_checked_at": "2026-09-23",
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": false
+    },
+    {
+      "olympiad_id": "p669-48-obschestvoznanie",
+      "name": "Олимпиада РГГУ для школьников",
+      "profile": "обществознание",
+      "profile_group": "Экономика",
+      "profile_groups": [
+        "Экономика"
+      ],
+      "subject": "Обществознание",
+      "profile_slug": "obschestvoznanie",
+      "profile_slug_in_catalog": true,
+      "organizer": "РГГУ",
+      "level": "II",
+      "perechen_number_669": 48,
+      "perechen_edition": "2025/26",
+      "official_site": "https://www.rsuh.ru/education/cdo/olimpiada-rggu-dlya-shkolnikov.php",
+      "description": "Олимпиада РГГУ для школьников — профиль «обществознание» (предмет: Обществознание). Организатор — РГГУ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 48 с уровнем II.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        9,
+        10,
+        11
+      ],
+      "cost": "free",
+      "etapy": [
+        {
+          "stage_name": "Регистрация",
+          "type": "registration",
+          "start_date": "2026-12-01",
+          "end_date": "2027-01-11",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный этап (заочный, дистанционный)",
+          "type": "qualifying",
+          "start_date": "2027-01-13",
+          "end_date": "2027-01-27",
+          "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап, очно в РГГУ (Москва)",
+          "type": "final",
+          "start_date": "2027-02-21",
+          "end_date": "2027-02-21",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "published_2026_27",
+      "etapy_source_url": "https://www.rsuh.ru/education/cdo/olimpiada-rggu-dlya-shkolnikov.php",
+      "etapy_source_page": null,
+      "etapy_note": "Заключительный этап по обществознанию — 21 февраля 2027, 15:30–18:00 по Москве; по другим профилям — 21–22 февраля. Итоги отбора — до 5 февраля, итоги финала — до 12 марта.",
+      "etapy_checked_at": "2026-09-28",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -7623,6 +7788,68 @@
       "etapy_source_url": null,
       "etapy_source_page": null,
       "etapy_note": null,
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": true
+    },
+    {
+      "olympiad_id": "p669-74-astronomiya",
+      "name": "Санкт-Петербургская астрономическая олимпиада",
+      "profile": "астрономия",
+      "profile_group": "Физика",
+      "profile_groups": [
+        "Физика"
+      ],
+      "subject": "Астрономия",
+      "profile_slug": "astronomiya",
+      "profile_slug_in_catalog": true,
+      "organizer": "Алфёровский университет",
+      "level": "I",
+      "perechen_number_669": 74,
+      "perechen_edition": "2025/26",
+      "official_site": "http://school.astro.spbu.ru/?q=olymp",
+      "description": "Санкт-Петербургская астрономическая олимпиада — профиль «астрономия» (предмет: Астрономия). Организатор — Алфёровский университет. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 74 с уровнем I.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "cost": null,
+      "etapy": [
+        {
+          "stage_name": "Отборочный этап (заочный)",
+          "type": "qualifying",
+          "start_date": "2025-12-16",
+          "end_date": "2026-01-20",
+          "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап, теоретический тур",
+          "type": "final",
+          "start_date": "2026-02-08",
+          "end_date": "2026-02-08",
+          "format": "offline"
+        },
+        {
+          "stage_name": "Заключительный этап, практический тур",
+          "type": "final",
+          "start_date": "2026-03-15",
+          "end_date": "2026-03-15",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2025/26",
+      "etapy_status": "previous_season",
+      "etapy_source_url": "http://school.astro.spbu.ru/?q=node/682",
+      "etapy_source_page": null,
+      "etapy_note": "Сроки 2026/27 ещё не опубликованы; в etapy — сезон 2025/26 (туры заключительного этапа — по воскресеньям). В приложении — примерные даты: те же, через 52 недели.",
+      "etapy_checked_at": "2026-09-28",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",

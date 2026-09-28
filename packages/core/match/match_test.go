@@ -195,7 +195,7 @@ func TestRecommend_OneProfilePerOlympiad(t *testing.T) {
 }
 
 func TestRecommend_ProfileWithoutStagesStays(t *testing.T) {
-	// 14 профилей из missing_in_C без дат: «данные уточняются», но из подбора
+	// Профили из missing_in_C без дат: «данные уточняются», но из подбора
 	// они не выпадают — срок просто не добавляет им очков.
 	bare := Candidate{ProfileID: "bare", OlympiadID: "bare", Kind: "perechen", SubjectCode: "inf", Level: lvl("I"),
 		BestBenefit: "extra_points"}

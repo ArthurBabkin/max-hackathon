@@ -154,6 +154,25 @@ STAGES_NEW = STAGES_OLD.replace(
 
 SRC_D = "  ('src-d', 'site', 'Г', 'https://d', '2026-09-26'::date),\n"
 
+OLYMPIADS_OLD = """INSERT INTO olympiads (id, name, organizer, kind, official_url, format, final_city, final_region_code) VALUES
+  ('op', 'Олимпиада П', NULL, 'perechen', NULL, NULL, NULL, NULL),
+  ('oq', 'Олимпиада Q', 'Вуз Q', 'perechen', 'https://q', NULL, NULL, NULL)
+ON CONFLICT (id) DO UPDATE SET
+  official_url = EXCLUDED.official_url;
+
+INSERT INTO olympiad_profiles (id, olympiad_id, subject_code, profile_slug, profile_name, level, school_year, grades_from, grades_to, source_id) VALUES
+  ('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 8, 11, 'src-a'),
+  ('v', 'oq', 'phys', 'y', 'игрек', 'I', '2026/27', 8, 11, 'src-a')
+ON CONFLICT (id) DO UPDATE SET
+  grades_from = EXCLUDED.grades_from;
+"""
+
+OLYMPIADS_NEW = OLYMPIADS_OLD.replace(
+    "('op', 'Олимпиада П', NULL, 'perechen', NULL, NULL, NULL, NULL)",
+    "('op', 'Олимпиада П', 'Вуз П', 'perechen', 'https://p', 'Онлайн-отбор', 'Москва', '77')").replace(
+    "('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 8, 11, 'src-a')",
+    "('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 9, 11, 'src-a')")
+
 
 UNI = """INSERT INTO universities (id, short_name, name, city, directions, ege_note, rules_url, rules_verified_at) VALUES
   ('hse', 'ВШЭ', 'НИУ ВШЭ', 'Москва', ARRAY[{hse}]::text[], NULL, NULL, NULL),
@@ -230,6 +249,23 @@ class StagesTest(unittest.TestCase):
 
     def test_counts_in_header(self):
         self.assertIn("-- Этапы: удаляется 0, добавляется или меняется 1. Источников новых 1.", self.sql)
+
+    def test_olympiads_and_profiles_of_new_dates_follow_seed(self):
+        # Олимпиада, у которой появились сроки, получает и сайт с организатором,
+        # а профиль — классы из положения: всё это приходит из датасета C вместе.
+        old_seed = OLD.replace("-- +goose Down", OLYMPIADS_OLD + STAGES_OLD + "\n-- +goose Down")
+        new_seed = NEW.replace("  ('src-c',", SRC_D + "  ('src-c',") + OLYMPIADS_NEW + STAGES_NEW
+        up, down = ds.render_stages(old=[old_seed], new=[new_seed], note="-- Сроки.").split("-- +goose Down")
+        olymp = "('op', 'Олимпиада П', 'Вуз П', 'perechen', 'https://p', 'Онлайн-отбор', 'Москва', '77')"
+        profile = "('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 9, 11, 'src-a')"
+        self.assertIn(olymp, up)
+        self.assertIn(profile, up)
+        self.assertNotIn("'oq'", up)
+        self.assertLess(up.index(olymp), up.index(profile))
+        self.assertLess(up.index(profile), up.index("INSERT INTO stages"))
+        self.assertIn("('op', 'Олимпиада П', NULL, 'perechen', NULL, NULL, NULL, NULL)", down)
+        self.assertIn("('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 8, 11, 'src-a')", down)
+        self.assertIn("ON CONFLICT (id) DO UPDATE SET\n  official_url = EXCLUDED.official_url;", up)
 
     def test_benefit_migration_skips_sources_of_stages_only(self):
         new_seed = NEW.replace("  ('src-c',", SRC_D + "  ('src-c',")
