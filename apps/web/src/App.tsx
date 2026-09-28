@@ -7,7 +7,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { Button, IconButton } from '@maxhub/max-ui'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useSession, useTracker } from './api/queries'
-import { getWebApp } from './bridge'
+import { BOT_URL, getWebApp, openMaxLink } from './bridge'
 import { trackerBadgeCount } from './lib/derive'
 import { useStartRoute } from './lib/startParam'
 import { shouldShowTutorial } from './lib/tutorial'
@@ -91,13 +91,22 @@ export function App() {
 
   if (session.isError) {
     // 404 на POST /session — траектории ещё нет: анкета в чате бота не
-    // пройдена. Это не сбой, а следующий шаг, поэтому без красной иконки.
+    // пройдена. Это не сбой, а следующий шаг, поэтому без красной иконки и
+    // с кнопкой в чат; вернулся из чата — вход проверяется сам (useSession).
     const noTrajectory = errorKind(session.error) === 'notFound'
     return (
       <div className="app app-state">
         {noTrajectory ? (
           <StateBlock icon="target" title={t('state.noTrajectoryTitle')} text={t('state.noTrajectoryText')}>
-            <Button stretched iconBefore={<Icon name="refresh" size={16} />} onClick={() => void session.refetch()}>
+            <Button stretched iconBefore={<Icon name="send" size={16} />} onClick={() => openMaxLink(BOT_URL)}>
+              {t('state.noTrajectoryBot')}
+            </Button>
+            <Button
+              stretched
+              variant="secondary"
+              iconBefore={<Icon name="refresh" size={16} />}
+              onClick={() => void session.refetch()}
+            >
               {t('state.noTrajectoryRetry')}
             </Button>
           </StateBlock>

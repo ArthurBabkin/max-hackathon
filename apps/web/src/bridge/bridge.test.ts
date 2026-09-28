@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isWorkingBridge, shareLink } from './index'
+import { BOT_URL, isWorkingBridge, openMaxLink, shareLink } from './index'
 import type { MaxWebApp } from './types'
 
 /**
@@ -56,5 +56,35 @@ describe('shareLink', () => {
   it('метода нет в клиенте — false, ссылку никто не открывает', async () => {
     inMax(undefined)
     expect(await shareLink('https://max.ru/bot?start=inv_x')).toBe(false)
+  })
+})
+
+// Анкета — в чате бота. Ссылку max.ru мост открывает внутри MAX; клиент без
+// openMaxLink открыл бы её во внешнем браузере, и там MAX предложит чат сам.
+describe('openMaxLink', () => {
+  const inMax = (over: Partial<MaxWebApp>) => {
+    window.WebApp = { initData: 'user=%7B%7D&hash=abc', openLink: vi.fn(), ...over } as unknown as MaxWebApp
+  }
+
+  afterEach(() => {
+    delete window.WebApp
+  })
+
+  it('чат бота — диплинк max.ru с ником бота', () => {
+    expect(BOT_URL).toBe('https://max.ru/t356_hakaton_max_bot')
+  })
+
+  it('открывает ссылку внутри MAX', () => {
+    const open = vi.fn()
+    inMax({ openMaxLink: open })
+    openMaxLink(BOT_URL)
+    expect(open).toHaveBeenCalledWith(BOT_URL)
+    expect(window.WebApp!.openLink).not.toHaveBeenCalled()
+  })
+
+  it('метода нет в клиенте — обычной ссылкой', () => {
+    inMax({})
+    openMaxLink(BOT_URL)
+    expect(window.WebApp!.openLink).toHaveBeenCalledWith(BOT_URL)
   })
 })

@@ -41,6 +41,7 @@ import type {
 } from '@contract'
 import { api, request, setReauth, setToken } from './client'
 import { getWebApp } from '@/bridge'
+import { errorKind } from './errors'
 import { retryOnce } from './queryClient'
 
 export const keys = {
@@ -115,6 +116,9 @@ export function useSession(): UseQueryResult<Session> {
     // каждый новый подписчик — тот же экран ошибки через useVoice — заново
     // запускал бы POST /session, и приложение крутилось бы в цикле.
     retryOnMount: false,
+    // Анкета не пройдена — человек ушёл в чат бота. Вернулся в приложение —
+    // вход проверяется сам: «Проверить снова» нажимать не нужно.
+    refetchOnWindowFocus: (query) => (errorKind(query.state.error) === 'notFound' ? 'always' : false),
   })
 }
 
