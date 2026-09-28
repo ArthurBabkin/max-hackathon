@@ -847,10 +847,6 @@
     "kid": "Регистрация до {date}",
     "parent": "Регистрация до {date}"
   },
-  "tracker.stageOn": {
-    "kid": "{stage} {date}",
-    "parent": "{stage} {date}"
-  },
   "tracker.nextStage": {
     "kid": "Дальше: {stage}",
     "parent": "Дальше: {stage}"

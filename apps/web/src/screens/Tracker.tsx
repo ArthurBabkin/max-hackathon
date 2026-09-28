@@ -17,6 +17,7 @@ import {
 import { getWebApp } from '@/bridge'
 import { formatDay, nearestDeadlineMonth } from '@/lib/deadline'
 import { groupTracker, sortByDeadline } from '@/lib/derive'
+import { deadlineLabel, shortLabels, stageDate } from '@/lib/stages'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
@@ -26,36 +27,10 @@ import { useRole, useVoice } from '@/voice/useVoice'
 import { CalendarView } from './Calendar'
 import { ErrorState } from '@/ui/ErrorState'
 
-
 type Voice = ReturnType<typeof useVoice>
 type Mark = (stageId: string | null, registered: boolean, result: StageResult | null) => void
 
 const registrationLike = (kind: string) => kind === 'registration' || kind === 'school'
-
-/**
- * Короткие названия для полоски: «Отбор», «Финал». Полные названия этапов
- * бывают длиной в строку («Предварительный тур, очная предметная
- * олимпиада…»), а в полоске на них три-четыре слова места. Повторы
- * нумеруются: «Отбор 1», «Отбор 2».
- */
-function shortLabels(stages: TrackerStage[], t: Voice): string[] {
-  const total = new Map<string, number>()
-  for (const s of stages) total.set(s.kind, (total.get(s.kind) ?? 0) + 1)
-  const seen = new Map<string, number>()
-  return stages.map((s) => {
-    const n = (seen.get(s.kind) ?? 0) + 1
-    seen.set(s.kind, n)
-    const label = t(`tracker.stageShort.${s.kind}` as TextKey)
-    return (total.get(s.kind) ?? 0) > 1 ? `${label} ${n}` : label
-  })
-}
-
-/** Когда этап: срок регистрации или день начала, иначе подпись словами. */
-function stageDate(s: TrackerStage, t: Voice): string {
-  if (s.deadline_at) return t('tracker.stageUntil', { date: formatDay(s.deadline_at) ?? '' })
-  if (s.starts_at) return formatDay(s.starts_at) ?? ''
-  return s.subtitle ?? ''
-}
 
 /** Класс плитки в полоске: отмечено, ждёт итога, текущий, серый. */
 function stripTone(s: TrackerStage): string {
@@ -241,10 +216,7 @@ function Subtitle({ item }: { item: TrackerItem }) {
     return <>{t(`tracker.outcome.${item.outcome ?? 'unknown'}` as TextKey, { stage })}</>
   }
   const date = formatDay(item.deadline_at)
-  if (item.status === 'open') {
-    if (item.kind === 'vsosh' && date) return <>{t('tracker.stageOn', { stage: item.next_stage_title ?? t('tracker.stageFallback'), date })}</>
-    return <>{date ? t('tracker.deadlineUntil', { date }) : (item.next_stage_title ?? '')}</>
-  }
+  if (item.status === 'open') return <>{deadlineLabel(item, t) ?? item.next_stage_title ?? ''}</>
   if (!item.next_stage_title) return <>{t('tracker.waitNext')}</>
   return <>{t('tracker.nextStage', { stage: date ? `${item.next_stage_title} ${date}` : item.next_stage_title })}</>
 }
