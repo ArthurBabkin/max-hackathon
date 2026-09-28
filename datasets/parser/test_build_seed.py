@@ -55,29 +55,39 @@ class Score100SubjectTest(unittest.TestCase):
 
 
 class DoubtfulTest(unittest.TestCase):
-    """ВсОШ по предмету, одноимённому группе программы, обычно даёт БВИ. Если
-    по документу вуза там только 100 баллов, факт остаётся, но его просим
-    уточнить в приёмной комиссии."""
+    """ВсОШ на направление, профильный предмет которого — предмет олимпиады,
+    обычно даёт БВИ. Если по документу вуза там только 100 баллов, факт
+    остаётся, но его просим уточнить в приёмной комиссии."""
 
-    def test_vsosh_namesake_with_only_score100_is_doubtful(self):
+    def test_vsosh_on_its_own_direction_with_only_score100_is_doubtful(self):
         records = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-informatika"),
                    rec("prizyor", "100_ballov", subject=None, oid="vsosh-informatika"),
-                   rec("pobeditel", "БВИ", subject=None, oid="vsosh-matematika")]
-        self.assertEqual(bs.doubtful_olympiads({"ИТ"}, records), {"vsosh-informatika"})
+                   rec("pobeditel", "100_ballov", subject=None, oid="vsosh-matematika")]
+        self.assertEqual(bs.doubtful_olympiads("09.03.04", records), {"vsosh-informatika"})
+        self.assertEqual(bs.doubtful_olympiads("10.05.03", records), {"vsosh-informatika"})
+        self.assertEqual(bs.doubtful_olympiads("02.03.02", records), {"vsosh-informatika"})
 
-    def test_other_subjects_and_bvi_are_not_doubtful(self):
-        # Математика у ИТ — не одноимённый предмет: 100 баллов вполне законны.
-        records = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-matematika"),
-                   rec("pobeditel", "БВИ", subject=None, oid="vsosh-informatika"),
-                   rec("prizyor", "БВИ", subject=None, oid="vsosh-informatika"),
-                   rec("pobeditel", "100_ballov", subject=None, oid="vsosh-fizika")]
-        self.assertEqual(bs.doubtful_olympiads({"ИТ"}, records), set())
-        self.assertEqual(bs.doubtful_olympiads({"ИТ", "Физика"}, records), {"vsosh-fizika"})
+    def test_other_directions_are_not_doubtful(self):
+        # Профильный предмет ПМИ, бизнес-информатики, лингвистики — не тот, что
+        # у олимпиады: 100 баллов там вполне законны.
+        records = [rec("pobeditel", "100_ballov", subject=None, oid=oid)
+                   for oid in ("vsosh-informatika", "vsosh-ekonomika", "vsosh-fizika", "vsosh-biologiya")]
+        for code in ("01.03.02", "38.03.05", "45.03.02", "44.03.05", "04.03.02", "12.03.04"):
+            self.assertEqual(bs.doubtful_olympiads(code, records),
+                             {"vsosh-ekonomika"} if code == "38.03.05" else set(), code)
+        self.assertEqual(bs.doubtful_olympiads("03.05.01", records), {"vsosh-fizika"})
+        self.assertEqual(bs.doubtful_olympiads("06.03.01", records), {"vsosh-biologiya"})
+        self.assertEqual(bs.doubtful_olympiads(None, records), set())
+
+    def test_bvi_is_not_doubtful(self):
+        records = [rec("pobeditel", "БВИ", subject=None, oid="vsosh-informatika"),
+                   rec("prizyor", "БВИ", subject=None, oid="vsosh-informatika")]
+        self.assertEqual(bs.doubtful_olympiads("09.03.04", records), set())
 
     def test_prize_winner_without_bvi_is_doubtful(self):
         records = [rec("pobeditel", "БВИ", subject=None, oid="vsosh-fizika"),
                    rec("prizyor", "100_ballov", subject=None, oid="vsosh-fizika")]
-        self.assertEqual(bs.doubtful_olympiads({"Физика"}, records), {"vsosh-fizika"})
+        self.assertEqual(bs.doubtful_olympiads("03.03.02", records), {"vsosh-fizika"})
 
     def test_doubt_goes_to_note_unless_everyone_gets_bvi(self):
         hundred = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-informatika")]
@@ -273,6 +283,7 @@ class BuildTest(unittest.TestCase):
     def setUpClass(cls):
         cls.seed = bs.build()
         cls.demo = bs.build_demo()
+        cls.ud = bs.build_university_directions(cls.seed)
 
     def test_benefit_keys_match_dataset(self):
         # После исправления привязки льгот к программам (#68): ушли льготы,
@@ -297,6 +308,11 @@ class BuildTest(unittest.TestCase):
         self.assertIn("100 баллов засчитают по предмету «Информатика»", b["note"])
         doubts = {b["olympiad_profile_id"] for b in self.seed.benefits if bs.DOUBT_NOTE in (b["note"] or "")}
         self.assertEqual(doubts, {"vsosh-informatika"})
+        # По направлениям — только те, где профильный предмет — предмет олимпиады.
+        pairs = {(b["olympiad_profile_id"], b["university_id"], b["direction_id"])
+                 for b in self.ud.benefits if bs.DOUBT_NOTE in (b["note"] or "")}
+        self.assertIn(("vsosh-informatika", "kfu", "napr-09-03-04"), pairs)
+        self.assertNotIn(("vsosh-ekonomika", "kfu", "napr-45-03-02"), pairs)
         for b in self.seed.benefits:
             if b["benefit"] == "score100":
                 self.assertIn("засчитают", b["note"] or "", b["id"])

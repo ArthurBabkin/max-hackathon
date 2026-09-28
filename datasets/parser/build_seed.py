@@ -116,14 +116,18 @@ GROUP_SUBJECTS = {
     "Экономика": ["econ", "soc", "math"],
 }
 
-# ВсОШ по предмету, одноимённому группе, — олимпиада по профилю программ
-# группы, и её победители и призёры обычно поступают без вступительных
-# испытаний. Если по правилам вуза на программе группы только 100 баллов (КФУ:
-# ВсОШ по информатике на ИТ, хотя на страницах ИТИС — БВИ), в льготе остаётся
-# факт из нормативного документа, а в примечании — просьба уточнить.
-GROUP_NAMESAKE = {
-    "ИТ": "vsosh-informatika", "Физика": "vsosh-fizika",
-    "Биомед": "vsosh-biologiya", "Экономика": "vsosh-ekonomika",
+# Направления, профильный предмет которых — предмет ВсОШ: коды или их начала
+# (УГСН). Победители и призёры ВсОШ поступают на них обычно без вступительных
+# испытаний. Если по правилам вуза там только 100 баллов (КФУ: ВсОШ по
+# информатике на ИТ, хотя на страницах ИТИС — БВИ), в льготе остаётся факт из
+# нормативного документа, а в примечании — просьба уточнить. Группы программ
+# для этого слишком широкие: в «Экономику» попадают лингвистика и политология,
+# где 100 баллов за ВсОШ по экономике вполне законны.
+VSOSH_OWN_DIRECTIONS = {
+    "vsosh-informatika": ("09.", "10.", "02.03.02", "02.03.03"),
+    "vsosh-fizika": ("03.",),
+    "vsosh-biologiya": ("06.",),
+    "vsosh-ekonomika": ("38.",),
 }
 DOUBT_NOTE = ("Уточните в приёмной комиссии — по правилам приёма здесь 100 баллов, "
               "хотя ВсОШ по профильному предмету обычно даёт БВИ")
@@ -577,10 +581,10 @@ def grades_text(grades: list[int]) -> str:
     return ", ".join(map(str, grades))
 
 
-def doubtful_olympiads(groups: set[str], records: list[dict]) -> set[str]:
-    """ВсОШ по одноимённому предмету групп программы, за которую победителю
-    или призёру программа не даёт БВИ, — см. GROUP_NAMESAKE."""
-    namesakes = {GROUP_NAMESAKE[g] for g in groups}
+def doubtful_olympiads(code: str | None, records: list[dict]) -> set[str]:
+    """ВсОШ по профильному предмету направления code, за которую победителю
+    или призёру программа не даёт БВИ, — см. VSOSH_OWN_DIRECTIONS."""
+    namesakes = {oid for oid, prefixes in VSOSH_OWN_DIRECTIONS.items() if (code or "").startswith(prefixes)}
     bvi = {(r["olympiad_id"], r["diploma_status"]) for r in records if r["benefit_type"] == "БВИ"}
     return {r["olympiad_id"] for r in records if r["olympiad_id"] in namesakes
             and (r["olympiad_id"], r["diploma_status"]) not in bvi}
@@ -688,7 +692,7 @@ def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",)):
 def doubtful_keys(B: list[dict]) -> set[tuple]:
     """Ключи (профиль, вуз, год), где льгота сомнительна хоть на одной программе."""
     return {(oid, prog["vuz_id"], prog["admission_year"]) for prog in B if prog["status"] == "offered"
-            for oid in doubtful_olympiads({prog["profile_group"]}, prog["prinimaemye_olimpiady"])}
+            for oid in doubtful_olympiads(prog["napravlenie_code"], prog["prinimaemye_olimpiady"])}
 
 
 def build_benefits(seed: Seed, B: list[dict], short: dict[str, str]):
@@ -1052,7 +1056,7 @@ def build_direction_benefits(ud: UniversityDirections, seed: Seed, vuz: str, cod
     for (pid, year) in sorted(keys):
         per = keys[(pid, year)]
         progs = [p for p in offered if p["year"] == year]
-        doubtful = any(pid in doubtful_olympiads(p["groups"], p["records"]) for p in progs)
+        doubtful = any(pid in doubtful_olympiads(p["code"], p["records"]) for p in progs)
         agg = aggregate_key([r for p in progs for r in per.get(p["program_id"], [])], doubtful)
         vnote = varies_note([(labels[p["program_id"]], program_grant(per.get(p["program_id"], [])))
                              for p in progs])
