@@ -9,7 +9,8 @@
                   packages/db/migrations/0018_msu_merged_cells.sql \\
         -o packages/db/migrations/0022_benefit_linking.sql
 
-`--tables stages` — сроки этапов своей миграцией (0023).
+`--tables stages` — сроки этапов своей миграцией (0023) вместе с олимпиадами и
+профилями, которые поменялись с ними: сайт, организатор, классы.
 
 Вузы (список направлений) только обновляются. Направления 0021: группы
 направлений онбординга обновляются, новые вставляются, а направление, которого
@@ -31,7 +32,10 @@ SEEDS = ["packages/db/migrations/0003_seed_content.sql",
          "packages/db/migrations/0021_university_directions_content.sql"]
 # Таблица -> сколько первых колонок составляют ключ.
 KEYS = {"sources": 1, "universities": 1, "benefits": 1, "university_directions": 2, "direction_benefits": 4,
-        "stages": 1}
+        "stages": 1, "olympiads": 1, "olympiad_profiles": 1}
+# Что переносит каждый режим; об остальных изменённых таблицах — предупреждение.
+CARRIED = {"benefits": {"sources", "universities", "benefits", "university_directions", "direction_benefits"},
+           "stages": {"sources", "olympiads", "olympiad_profiles", "stages"}}
 DIR_GROUPS = "UPDATE directions d SET groups = v.groups"
 DIR_INSERT = "INSERT INTO directions (id, name, subject_codes, groups, onboarding) VALUES"
 
@@ -272,23 +276,36 @@ def _source_refs(rows_: dict) -> set:
 
 
 def render_stages(old: list[str], new: list[str], note: str) -> str:
-    """Сроки этапов — своей миграцией: разница stages и источники, на которые
-    ссылаются изменённые этапы. Этапы только обновляются: на них ссылаются
-    отметки трекера, удалять их молча нельзя."""
+    """Сроки этапов — своей миграцией: разница stages, олимпиад и профилей
+    (сроки приходят из датасета C вместе с сайтом и классами) и источники, на
+    которые ссылаются изменённые строки. Этапы только обновляются: на них
+    ссылаются отметки трекера, удалять их молча нельзя; олимпиады и профили
+    не удаляются вовсе."""
     o, n = _merged(old, "stages"), _merged(new, "stages")
     so, sn = _merged(old, "sources"), _merged(new, "sources")
     d, back = diff(o.rows, n.rows), diff(n.rows, o.rows)
     if d.removed:
         print("! в новом сиде нет этапов: " + ", ".join(d.removed), file=sys.stderr)
-    refs = _source_refs(d.upsert)
+    parents = {}
+    for t in ("olympiads", "olympiad_profiles"):
+        po, pn = _merged(old, t), _merged(new, t)
+        pd = diff(po.rows, pn.rows)
+        if pd.removed:
+            print(f"! в новом сиде нет строк {t}: " + ", ".join(pd.removed), file=sys.stderr)
+        parents[t] = (po, pn, pd, diff(pn.rows, po.rows))
+    refs = _source_refs({**d.upsert, **parents["olympiad_profiles"][2].upsert})
     src = {k: v for k, v in sn.rows.items() if k in refs and so.rows.get(k) != v}
     new_sources = [k for k in src if k not in so.rows]
     head = (f"{note.rstrip()}\n--\n"
             f"-- Этапы: удаляется {len(d.removed)}, добавляется или меняется {len(d.upsert)}."
             f" Источников новых {len(new_sources)}.\n"
+            f"-- Олимпиад меняется {len(parents['olympiads'][2].upsert)},"
+            f" профилей {len(parents['olympiad_profiles'][2].upsert)}.\n"
             f"--\n-- Сгенерировано datasets/parser/diff_seed.py --tables stages.\n")
-    up = [_insert(sn, src), _delete("stages", n.cols or o.cols, d.removed), _insert(n, d.upsert)]
-    down = [_delete("stages", o.cols or n.cols, back.removed), _insert(o, back.upsert)]
+    up = [_insert(sn, src), *(_insert(pn, pd.upsert) for _, pn, pd, _ in parents.values()),
+          _delete("stages", n.cols or o.cols, d.removed), _insert(n, d.upsert)]
+    down = [_delete("stages", o.cols or n.cols, back.removed), _insert(o, back.upsert),
+            *(_insert(po, pb.upsert) for po, _, _, pb in reversed(parents.values()))]
     if new_sources:
         down.append(_drop_unused_sources(new_sources))
     body = lambda parts: "\n".join(p for p in parts if p)  # noqa: E731
@@ -303,18 +320,20 @@ def _drop_unused_sources(ids: list[str]) -> str:
             "  AND NOT EXISTS (SELECT 1 FROM olympiad_profiles p WHERE p.source_id = s.id);\n")
 
 
-def _other_tables_changed(old: list[str], new: list[str]) -> list[str]:
+def _other_tables_changed(old: list[str], new: list[str], carried: set) -> list[str]:
     names = set()
     for sql in old + new:
         names |= set(re.findall(r"^INSERT INTO (\w+) \(", up_section(sql), re.M))
     out = []
-    for t in sorted(names - set(KEYS)):
-        KEYS[t] = 1
+    for t in sorted(names - carried):
+        known = t in KEYS
+        KEYS.setdefault(t, 1)
         # Направления 0021 переносит _directions, здесь — только направления 0003.
         files = (old[:1], new[:1]) if t == "directions" else (old, new)
         if _merged(files[0], t).rows != _merged(files[1], t).rows:
             out.append(t)
-        del KEYS[t]
+        if not known:
+            del KEYS[t]
     return out
 
 
@@ -330,7 +349,7 @@ def main() -> int:
     old = [subprocess.run(["git", "show", f"{a.base}:{p}"], cwd=ROOT, check=True,
                           capture_output=True, text=True).stdout for p in SEEDS]
     new = [(ROOT / p).read_text(encoding="utf-8") for p in SEEDS]
-    for t in _other_tables_changed(old, new):
+    for t in _other_tables_changed(old, new, CARRIED[a.tables]):
         print(f"! в сидах изменилась таблица {t} — в эту миграцию она не входит", file=sys.stderr)
     touched = {"benefits": set()}
     for p in a.touched:

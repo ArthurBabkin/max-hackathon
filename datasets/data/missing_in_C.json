@@ -86,73 +86,6 @@
       ]
     },
     {
-      "olympiad_id": "p669-36-tehnika-i-tehnologii",
-      "perechen_number_669": 36,
-      "name": "Многопрофильная инженерная олимпиада «Звезда»",
-      "profile": "техника и технологии",
-      "level": "I",
-      "profile_slug": "tehnika-i-tehnologii",
-      "zapisey_v_B": 157,
-      "profile_groups_v_B": [
-        "Биомед",
-        "ИТ",
-        "Физика",
-        "Экономика"
-      ],
-      "vuzy": [
-        "hse",
-        "itmo",
-        "kfu",
-        "msu",
-        "nsu",
-        "sechenov"
-      ]
-    },
-    {
-      "olympiad_id": "p669-36-estestvennye-nauki",
-      "perechen_number_669": 36,
-      "name": "Многопрофильная инженерная олимпиада «Звезда»",
-      "profile": "естественные науки",
-      "level": "II",
-      "profile_slug": "estestvennye-nauki",
-      "zapisey_v_B": 142,
-      "profile_groups_v_B": [
-        "Биомед",
-        "ИТ",
-        "Физика",
-        "Экономика"
-      ],
-      "vuzy": [
-        "hse",
-        "itmo",
-        "kfu",
-        "msu",
-        "sechenov"
-      ]
-    },
-    {
-      "olympiad_id": "p669-74-astronomiya",
-      "perechen_number_669": 74,
-      "name": "Санкт-Петербургская астрономическая олимпиада",
-      "profile": "астрономия",
-      "level": "I",
-      "profile_slug": "astronomiya",
-      "zapisey_v_B": 140,
-      "profile_groups_v_B": [
-        "ИТ",
-        "Физика"
-      ],
-      "vuzy": [
-        "hse",
-        "innopolis",
-        "itmo",
-        "kfu",
-        "mipt",
-        "msu",
-        "nsu"
-      ]
-    },
-    {
       "olympiad_id": "p669-55-kompyuternoe-modelirovanie-i-grafika",
       "perechen_number_669": 55,
       "name": "Олимпиада школьников «Шаг в будущее»",
@@ -169,27 +102,6 @@
         "hse",
         "itmo",
         "kfu"
-      ]
-    },
-    {
-      "olympiad_id": "p669-48-obschestvoznanie",
-      "perechen_number_669": 48,
-      "name": "Олимпиада РГГУ для школьников",
-      "profile": "обществознание",
-      "level": "II",
-      "profile_slug": "obschestvoznanie",
-      "zapisey_v_B": 88,
-      "profile_groups_v_B": [
-        "ИТ",
-        "Экономика"
-      ],
-      "vuzy": [
-        "hse",
-        "itmo",
-        "kfu",
-        "msu",
-        "nsu",
-        "sechenov"
       ]
     },
     {

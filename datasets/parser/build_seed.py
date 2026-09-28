@@ -20,7 +20,8 @@
 * `is_demo` — признак, а не фильтр: если хоть одна запись ключа демо, у льготы
   нет источника, и API честно отдаёт «данные уточняются».
 * Даты этапов: опубликованные — как есть, а если опубликованы только ранние
-  этапы, финал — демо. ВсОШ — по графику «Сириуса» и предельным срокам
+  этапы, финал — демо. Если известны только сроки прошлого сезона — демо-даты
+  по ним, через 52 недели. ВсОШ — по графику «Сириуса» и предельным срокам
   Порядка проведения (vsosh_stages). Остальные профили — демо, с пометкой
   is_demo, чтобы работали трекер, календарь и напоминания.
 
@@ -88,11 +89,7 @@ MISSING_SUBJECT = {
     "p669-49-estestvennye-nauki": "phys",
     "p669-37-astronomiya": "astro",
     "p669-50-vysokie-tehnologii": "phys",
-    "p669-36-tehnika-i-tehnologii": "phys",
-    "p669-36-estestvennye-nauki": "phys",
-    "p669-74-astronomiya": "astro",
     "p669-55-kompyuternoe-modelirovanie-i-grafika": "inf",
-    "p669-48-obschestvoznanie": "soc",
     "vsosh-astronomiya": "astro",
     "p669-59-medicina": "bio",
     "p669-37-robototehnika": "inf",
@@ -205,6 +202,7 @@ ORGANIZER_CITY = {
     "Сеченовский Университет": ("Москва", "77"),
     "РЭУ им. Г.В. Плеханова": ("Москва", "77"),
     "РАНХиГС": ("Москва", "77"),
+    "РГГУ": ("Москва", "77"),
     "НИУ «МЭИ»": ("Москва", "77"),
     "РХТУ им. Д.И. Менделеева": ("Москва", "77"),
     "МФТИ": ("Долгопрудный", "50"),
@@ -445,21 +443,29 @@ def stage(pid, kind, n, start, end, online, demo, src=None, title=None):
 # ещё нет, и он ставится демо — иначе трекер и календарь не видели бы, чем
 # кончается сезон.
 PUBLISHED = {"published_2026_27", "partial_2026_27"}
+# Сроков сезона ещё нет, но в etapy — прошлогодние: демо-даты — те же через
+# 52 недели, чтобы туры пришлись на тот же день недели.
+PREVIOUS_SEASON_SHIFT = timedelta(weeks=52)
 
 
 def published_stages(seed: Seed, p: dict) -> list[dict]:
     c = p["_c"]
-    src = add_source(seed, c["etapy_source_url"], c["etapy_source_page"], "site",
-                     f"{seed.olympiads[p['olympiad_id']]['name']} — сроки этапов",
-                     c.get("etapy_checked_at") or CHECKED)
     demo = c["etapy_status"] not in PUBLISHED
+    src = None if demo else add_source(seed, c["etapy_source_url"], c["etapy_source_page"], "site",
+                                       f"{seed.olympiads[p['olympiad_id']]['name']} — сроки этапов",
+                                       c.get("etapy_checked_at") or CHECKED)
+    shift = PREVIOUS_SEASON_SHIFT if c["etapy_status"] == "previous_season" else timedelta(0)
+
+    def moved(d):
+        return (date.fromisoformat(d) + shift).isoformat() if d else None
+
     out, counter = [], Counter()
     for e in c["etapy"]:
         kind = e["type"]
         counter[kind] += 1
         online = e["format"] == "online" or (kind == "registration" and e["format"] is None)
-        out.append(stage(p["id"], kind, counter[kind], e["start_date"], e["end_date"], online,
-                         demo, None if demo else src, e["stage_name"]))
+        out.append(stage(p["id"], kind, counter[kind], moved(e["start_date"]), moved(e["end_date"]),
+                         online, demo, src, e["stage_name"]))
     if c["etapy_status"] == "partial_2026_27" and not counter["final"]:
         # Как у сгенерированных демо-дат: финал через месяц после отбора, три дня.
         final = date.fromisoformat(max(e["end_date"] for e in c["etapy"])) + timedelta(days=30)
@@ -530,7 +536,8 @@ def build_stages(seed: Seed):
         if pid.startswith("vsosh-"):
             rows, tier = vsosh_stages(seed, pid), "vsosh"
         elif c and c["etapy"]:
-            rows, tier = published_stages(seed, p), "published"
+            rows = published_stages(seed, p)
+            tier = "published" if c["etapy_status"] in PUBLISHED else "previous"
         elif c:
             rows, tier = generated_stages(pid), "generated"
         else:

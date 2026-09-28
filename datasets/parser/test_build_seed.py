@@ -325,7 +325,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(set(offered), set(everything))
 
     def test_every_profile_is_seeded_including_missing_in_c(self):
-        self.assertEqual(len(self.seed.profiles), 178 + 14)
+        self.assertEqual(len(self.seed.profiles), 182 + 10)
         self.assertIn("p669-5-yadernye-tehnologii", self.seed.profiles)
 
     def test_subject_codes_are_the_frontend_ones(self):
@@ -346,9 +346,9 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(all(by_profile[p] == 4 for p in vsosh))
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
-        # +1 к 23.09 — Московская олимпиада по информатике (26.09).
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 113)
-        self.assertEqual(self.seed.stats["stages_profiles_none"], 12)
+        # +1 к 23.09 — Московская олимпиада по информатике (26.09), +3 — РГГУ и «Звезда» (28.09).
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 116)
+        self.assertEqual(self.seed.stats["stages_profiles_none"], 8)
 
     def test_stage_ids_unique_and_windows_ordered(self):
         ids = [s["id"] for s in self.seed.stages]
@@ -366,6 +366,64 @@ class BuildTest(unittest.TestCase):
         self.assertFalse(any(t["is_demo"] or t["is_online"] for t in tours))
         self.assertTrue(by_id["p669-37-informatika:final:1"]["is_demo"])
         self.assertNotIn("p669-37-informatika:registration:1", by_id)
+
+    def test_rggu_olympiad_site_and_calendar_2026_27(self):
+        # Страница олимпиады на rsuh.ru, 28.09.2026: регистрация 1 декабря —
+        # 11 января, отбор заочно 13–27 января, финал по обществознанию —
+        # 21 февраля 2027, очно в РГГУ. Олимпиада — для 9–11 классов.
+        site = "https://www.rsuh.ru/education/cdo/olimpiada-rggu-dlya-shkolnikov.php"
+        o = self.seed.olympiads["p669-48"]
+        self.assertEqual((o["official_url"], o["organizer"], o["final_city"]), (site, "РГГУ", "Москва"))
+        p = self.seed.profiles["p669-48-obschestvoznanie"]
+        self.assertEqual((p["grades_from"], p["grades_to"]), (9, 11))
+        stages = [s for s in self.seed.stages if s["olympiad_profile_id"] == "p669-48-obschestvoznanie"]
+        self.assertEqual([(s["kind"], (s["starts_at"] or "")[:10], s["ends_at"][:10], s["is_online"], s["is_demo"])
+                          for s in stages],
+                         [("registration", "2026-12-01", "2027-01-11", True, False),
+                          ("qualifying", "2027-01-13", "2027-01-27", True, False),
+                          ("final", "2027-02-21", "2027-02-21", False, False)])
+        self.assertEqual({self.seed.sources[s["source_id"]]["url"] for s in stages}, {site})
+
+    def test_zvezda_olympiad_site_and_qualifying_2026_27(self):
+        # zv.susu.ru, 28.09.2026: отбор по естественным наукам и технике и
+        # технологиям — интернет-тур 9 ноября — 9 декабря 2026 или очно на
+        # площадках вузов-партнёров 9 ноября — 20 декабря; финал не объявлен —
+        # демо. Организатор — ЮУрГУ (Положение, п. 1.4); финал не только в
+        # Челябинске, поэтому города нет.
+        page = "https://zv.susu.ru/index.php/mnogoprofilnaya-inzhenernaya-olimpiada-zvezda/otborochnyj-etap"
+        o = self.seed.olympiads["p669-36"]
+        self.assertEqual((o["official_url"], o["organizer"], o["final_city"]), ("https://zv.susu.ru/", "ЮУрГУ", None))
+        grades = {pid: (self.seed.profiles[pid]["grades_from"], self.seed.profiles[pid]["grades_to"])
+                  for pid in ("p669-36-estestvennye-nauki", "p669-36-tehnika-i-tehnologii")}
+        self.assertEqual(grades, {"p669-36-estestvennye-nauki": (6, 11), "p669-36-tehnika-i-tehnologii": (7, 11)})
+        for pid in grades:
+            self.assertEqual(self.seed.profiles[pid]["subject_code"], "phys")
+            stages = [s for s in self.seed.stages if s["olympiad_profile_id"] == pid]
+            self.assertEqual([(s["kind"], s["starts_at"][:10], s["ends_at"][:10], s["is_online"], s["is_demo"])
+                              for s in stages],
+                             [("qualifying", "2026-11-09", "2026-12-09", True, False),
+                              ("qualifying", "2026-11-09", "2026-12-20", False, False),
+                              ("final", "2027-01-19", "2027-01-21", False, True)])
+            self.assertEqual(self.seed.sources[stages[0]["source_id"]]["url"], page)
+
+    def test_previous_season_dates_become_approximate_ones_52_weeks_later(self):
+        # Санкт-Петербургская астрономическая олимпиада: сроков 2026/27 нет, в
+        # 2025/26 (school.astro.spbu.ru, «Текущая олимпиада») — заочный отбор
+        # 16 декабря — 20 января, теоретический тур 8 февраля, практический —
+        # 15 марта, туры по воскресеньям. Демо-даты — те же, через 52 недели:
+        # тот же день недели; источника у примерных дат нет.
+        o = self.seed.olympiads["p669-74"]
+        self.assertEqual((o["official_url"], o["organizer"], o["final_city"]),
+                         ("http://school.astro.spbu.ru/?q=olymp", "Алфёровский университет", None))
+        p = self.seed.profiles["p669-74-astronomiya"]
+        self.assertEqual((p["subject_code"], p["grades_from"], p["grades_to"]), ("astro", 5, 11))
+        stages = [s for s in self.seed.stages if s["olympiad_profile_id"] == "p669-74-astronomiya"]
+        self.assertEqual([(s["kind"], s["starts_at"][:10], s["ends_at"][:10], s["is_online"], s["is_demo"],
+                           s["source_id"]) for s in stages],
+                         [("qualifying", "2026-12-15", "2027-01-19", True, True, None),
+                          ("final", "2027-02-07", "2027-02-07", False, True, None),
+                          ("final", "2027-03-14", "2027-03-14", False, True, None)])
+        self.assertEqual(self.seed.stats["stages_profiles_previous"], 1)
 
     def test_calendars_found_on_2026_09_23(self):
         by_id = {s["id"]: s for s in self.seed.stages}
