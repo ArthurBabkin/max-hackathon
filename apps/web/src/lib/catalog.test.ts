@@ -58,6 +58,26 @@ describe('byOlympiad', () => {
     ])
   })
 
+  it('подпись — у лучшей льготы, если у её профилей она одна', () => {
+    const labeled = (o: string, s: string, b: 'bvi' | 'score100', l: string) => ({ ...row(o, s, b), benefit_label: l })
+    expect(
+      byOlympiad([
+        labeled('a', 'X', 'score100', '100 баллов по физике'),
+        labeled('a', 'Y', 'score100', '100 баллов по физике'),
+      ])[0]!.label,
+    ).toBe('100 баллов по физике')
+    expect(
+      byOlympiad([
+        labeled('a', 'X', 'score100', '100 баллов по физике'),
+        labeled('a', 'Y', 'score100', '100 баллов по химии'),
+      ])[0]!.label,
+    ).toBe('100 баллов')
+    expect(
+      byOlympiad([labeled('a', 'X', 'score100', '100 баллов по физике'), labeled('a', 'Y', 'bvi', 'БВИ')])[0]!.label,
+    ).toBe('БВИ')
+    expect(byOlympiad([row('a', 'X', 'score100')])[0]!.label).toBe('100 баллов')
+  })
+
   it('БВИ победителям уступает БВИ, но сильнее 100 баллов', () => {
     expect(byOlympiad([row('a', 'X', 'score100'), row('a', 'Y', 'bvi_winners')])[0]!.benefit).toBe('bvi_winners')
   })

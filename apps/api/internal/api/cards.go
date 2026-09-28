@@ -101,7 +101,13 @@ func (cs cardSet) benefitsSummary(profileID string) string {
 		return cs.voice.T("match.noBenefits", nil)
 	}
 	best := pick.BestBenefit(rows)
-	return nicksWith(rows, best) + ": " + benefitLabels[best]
+	var notes []*string
+	for _, b := range rows {
+		if b.Benefit == best {
+			notes = append(notes, b.Note)
+		}
+	}
+	return nicksWith(rows, best) + ": " + benefitLabel(best, notes...)
 }
 
 // reason — причина рекомендации из двух самых сильных факторов (ТЗ §6.1

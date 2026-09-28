@@ -94,7 +94,7 @@ type directionBenefitDTO struct {
 }
 
 func benefitRowOf(b store.BenefitRow) benefitRow {
-	benefit, label := b.Benefit, benefitLabels[b.Benefit]
+	benefit, label := b.Benefit, benefitLabel(b.Benefit, b.Note)
 	winner, prizer := grants(b)
 	row := benefitRow{
 		UniversityID: b.UniversityID, UniversityName: b.UniversityName, UniversityShortName: b.UniversityShort,
@@ -107,7 +107,7 @@ func benefitRowOf(b store.BenefitRow) benefitRow {
 	for _, o := range b.OtherDirections {
 		winner, prizer := grants(store.BenefitRow{Benefit: o.Benefit, Note: o.Note})
 		row.OtherDirections = append(row.OtherDirections, directionBenefitDTO{
-			Benefit: o.Benefit, BenefitLabel: benefitLabels[o.Benefit], Directions: o.Names,
+			Benefit: o.Benefit, BenefitLabel: benefitLabel(o.Benefit, o.Note), Directions: o.Names,
 			Winner: winner, Prizer: prizer})
 	}
 	if _, to, ok := egeRange(b.Note); ok {
@@ -224,7 +224,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		if !own[b.UniversityID] {
 			row := benefitRowOf(b)
 			if p.Kind != "other" {
-				row.Conditions = noteConditions(b.Note, "")
+				row.Conditions = noteConditions(b.Note)
 			}
 			c := cov[p.ID+"/"+b.UniversityID]
 			row.DirectionsCount, row.DirectionsTotal = c.Count, c.Total
@@ -255,7 +255,7 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 		if b, ok := byUni[u.ID]; ok {
 			row := benefitRowOf(b)
 			if p.Kind != "other" {
-				row.Conditions = cs.uniConditions(b, egeSubject(mine), score100Common(mine))
+				row.Conditions = cs.uniConditions(b, egeSubject(mine))
 			}
 			out.Benefits = append(out.Benefits, row)
 			continue
@@ -345,7 +345,6 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 
 	minEge, maxEge := egeBounds(rows)
 	subject := egeSubject(rows)
-	common100 := score100Common(rows)
 	switch {
 	case own && egeInTable(rows):
 		// Порог — в столбце таблицы, здесь только предмет.
@@ -359,9 +358,6 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 	case subject != "":
 		out = append(out, v.T("cond.egeSubject", voice.Vars{"subject": subject}))
 	}
-	if common100 != "" {
-		out = append(out, common100)
-	}
 	if !own {
 		varies := false
 		for _, b := range rows {
@@ -374,7 +370,7 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 		if g := commonGrades(rows); g != "" {
 			out = append(out, v.T("cond.grades", voice.Vars{"grade": g}))
 		}
-		for _, n := range winnerNotes(rows, common100) {
+		for _, n := range winnerNotes(rows) {
 			out = append(out, v.T("cond.note", voice.Vars{"names": n.nicks, "note": lowerFirst(n.text)}))
 		}
 	}
@@ -385,13 +381,12 @@ func (cs cardSet) conditions(p store.Profile, mine, all []store.BenefitRow) []st
 }
 
 // uniConditions — чем условия вуза отличаются от общих (F19), кроме того, что
-// видно в столбцах таблицы: просьба уточнить льготу, свой предмет для 100
+// видно в столбцах таблицы: просьба уточнить льготу или предмет для 100
 // баллов, другой предмет ЕГЭ и — только если мешает — за какой класс вуз
-// засчитывает диплом. subject — общий предмет ЕГЭ, common100 — общий предмет
-// для 100 баллов (score100Common).
-func (cs cardSet) uniConditions(b store.BenefitRow, subject, common100 string) []string {
+// засчитывает диплом. subject — общий предмет ЕГЭ.
+func (cs cardSet) uniConditions(b store.BenefitRow, subject string) []string {
 	v := cs.voice
-	out := noteConditions(b.Note, common100)
+	out := noteConditions(b.Note)
 	if own := subjects(noteSubject(b.Note)); len(own) > 0 && !sameSubject(own, subjects(subject)) {
 		out = append(out, v.T("cond.egeSubjectUni", voice.Vars{"subject": strings.Join(own, " или "), "common": subject}))
 	}
@@ -476,60 +471,39 @@ func egeSubject(rows []store.BenefitRow) string {
 
 type winnerNote struct{ text, nicks string }
 
-// Предложения примечания, которые сид пишет для карточки как есть: на какой
-// предмет засчитают 100 баллов и просьба уточнить сомнительную льготу.
+// Предложения примечания сида о 100 баллах. Предмет (score100Prefix) —
+// в подписи льготы (benefitLabel), а просьбы уточнить — условием как есть.
 const (
 	score100Prefix  = "100 баллов засчитают по предмету"
 	score100Unknown = "Предмет, по которому засчитают 100 баллов"
 	doubtPrefix     = "Уточните в приёмной комиссии"
 )
 
-func isScore100(s string) bool {
-	return strings.HasPrefix(s, score100Prefix) || strings.HasPrefix(s, score100Unknown)
+func toCheck(s string) bool {
+	return strings.HasPrefix(s, doubtPrefix) || strings.HasPrefix(s, score100Unknown)
 }
 
-// noteConditions — просьба уточнить и предмет для 100 баллов, если он не
-// common100: общий предмет уже сказан в общих условиях.
-func noteConditions(note *string, common100 string) []string {
-	var doubt, subject []string
+// noteConditions — просьбы уточнить в приёмной комиссии: сомнительную
+// льготу или неизвестный предмет для 100 баллов.
+func noteConditions(note *string) []string {
+	var out []string
 	for _, s := range pick.NoteSentences(note) {
-		switch {
-		case strings.HasPrefix(s, doubtPrefix):
-			doubt = append(doubt, s)
-		case isScore100(s) && s != common100:
-			subject = append(subject, s)
+		if toCheck(s) {
+			out = append(out, s)
 		}
 	}
-	return append(doubt, subject...)
+	return out
 }
 
-// score100Common — предмет для 100 баллов, если он один у всех вузов, где
-// есть 100 баллов; иначе "".
-func score100Common(rows []store.BenefitRow) string {
-	common := ""
-	for _, b := range rows {
-		for _, s := range pick.NoteSentences(b.Note) {
-			if !isScore100(s) {
-				continue
-			}
-			if common != "" && s != common {
-				return ""
-			}
-			common = s
-		}
-	}
-	return common
-}
-
-// winnerNotes — правила для победителя и призёра, просьбы уточнить и предмет
-// для 100 баллов, если он не общий (common100), — с вузами, где они действуют.
-func winnerNotes(rows []store.BenefitRow, common100 string) []winnerNote {
+// winnerNotes — правила для победителя и призёра и просьбы уточнить — с
+// вузами, где они действуют.
+func winnerNotes(rows []store.BenefitRow) []winnerNote {
 	var notes []winnerNote
 	at := map[string]int{}
 	for _, b := range rows {
 		for _, sentence := range pick.NoteSentences(b.Note) {
 			if !strings.HasPrefix(sentence, "Победителю") && !strings.Contains(sentence, "только победителю") &&
-				!strings.HasPrefix(sentence, doubtPrefix) && (!isScore100(sentence) || sentence == common100) {
+				!toCheck(sentence) {
 				continue
 			}
 			n := nick(b.UniversityID, b.UniversityShort)

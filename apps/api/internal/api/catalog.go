@@ -177,19 +177,21 @@ func (s *Server) leadsToMine(ctx context.Context, trajectoryID string, profiles 
 	for _, p := range profiles {
 		for _, kind := range []string{"bvi", "bvi_winners", "score100"} {
 			var names, partial []string
+			var notes []*string
 			for _, u := range unis {
 				b, ok := byPair[p.ID+"/"+u.ID]
 				if !ok || b.Benefit != kind {
 					continue
 				}
 				names = append(names, nick(u.ID, u.ShortName))
+				notes = append(notes, b.Note)
 				if b.Varies {
 					partial = append(partial, nick(u.ID, u.ShortName))
 				}
 			}
 			if names != nil {
 				out[p.ID] = append(out[p.ID], myBenefit{
-					Benefit: kind, BenefitLabel: benefitLabels[kind], Universities: names, PartialUniversities: orEmpty(partial),
+					Benefit: kind, BenefitLabel: benefitLabel(kind, notes...), Universities: names, PartialUniversities: orEmpty(partial),
 				})
 			}
 		}
@@ -402,11 +404,11 @@ func (s *Server) universityTargets(r *http.Request, out *universityDetail, rows 
 		o := universityOlympiad{
 			OlympiadProfileID: x.ProfileID, OlympiadID: x.OlympiadID, Name: names.Olympiad(x.OlympiadName), SubjectCode: x.SubjectCode,
 			SubjectName: profileLabel(x.SubjectName, x.ProfileName), Level: x.Level, Benefit: x.Benefit,
-			BenefitLabel: benefitLabels[x.Benefit], MyDirections: []string{},
+			BenefitLabel: benefitLabel(x.Benefit, x.Note), MyDirections: []string{},
 			DirectionsCount: c.Count, DirectionsTotal: c.Total,
 		}
 		if b, ok := my[x.ProfileID]; ok {
-			label := benefitLabels[b.Benefit]
+			label := benefitLabel(b.Benefit, b.Note)
 			o.MyBenefit, o.MyBenefitLabel, o.MyDirections = &b.Benefit, &label, orEmpty(b.DirectionNames)
 		}
 		out.Olympiads[i] = o

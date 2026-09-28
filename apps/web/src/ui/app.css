@@ -1254,6 +1254,14 @@
   font-weight: 700;
 }
 
+/* «100 баллов по информатике» в строке списка — в две строки, а не поверх названия. */
+.benefit > .benefit-value {
+  flex-shrink: 1;
+  max-width: 45%;
+  border-radius: 12px;
+  text-align: center;
+}
+
 .benefit-bvi {
   background: var(--grs);
   color: var(--gr-ink);
