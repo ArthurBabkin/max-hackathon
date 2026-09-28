@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- «Миссия выполнима»: золотой каркасный глобус на бирюзовом, как на баннере олимпиады -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E9B866"/>
+      <stop offset="1" stop-color="#B07A34"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" fill="#19565B"/>
+  <g fill="#23686D">
+    <rect x="86" y="10" width="8" height="8"/><rect x="98" y="10" width="8" height="8"/><rect x="110" y="22" width="8" height="8"/>
+    <rect x="98" y="34" width="8" height="8"/><rect x="110" y="46" width="8" height="8"/><rect x="10" y="98" width="8" height="8"/>
+    <rect x="22" y="110" width="8" height="8"/><rect x="10" y="86" width="8" height="8"/>
+  </g>
+  <g fill="none" stroke="url(#g)" stroke-width="3.5" transform="rotate(-18 64 64)">
+    <circle cx="64" cy="64" r="40"/>
+    <ellipse cx="64" cy="64" rx="15" ry="40"/>
+    <ellipse cx="64" cy="64" rx="29" ry="40"/>
+    <line x1="64" y1="24" x2="64" y2="104"/>
+    <line x1="24" y1="64" x2="104" y2="64"/>
+    <path d="M30 44 Q64 54 98 44"/>
+    <path d="M30 84 Q64 74 98 84"/>
+  </g>
+</svg>

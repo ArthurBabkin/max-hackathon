@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { badgeColor, badgeLogo, badgeShortName } from './badge'
@@ -65,10 +65,28 @@ describe('badgeLogo', () => {
   it('у ВсОШ по каждому предмету свой знак', () => {
     expect(badgeLogo('vsosh-fizika')).toBe('/logos/vsosh-fizika.png')
     expect(badgeLogo('vsosh-himiya')).toBe('/logos/vsosh-himiya.png')
+    expect(badgeLogo('vsosh-ekologiya')).toBe('/logos/vsosh-ekologiya.png')
   })
 
   it('ВсОШ без предметного знака получает общий', () => {
-    expect(badgeLogo('vsosh-ekologiya')).toBe('/logos/vsosh.png')
+    expect(badgeLogo('vsosh-pravo')).toBe('/logos/vsosh.png')
+  })
+
+  // Плитка с буквами — только у вымышленных олимпиад локального стенда: у
+  // каждой олимпиады из сида есть знак, и его файл лежит в public/logos.
+  it('знак есть у каждой олимпиады из сида', () => {
+    const seed = readFileSync(
+      fileURLToPath(new URL('../../../../packages/db/migrations/0003_seed_content.sql', import.meta.url)),
+      'utf8',
+    )
+    const insert = seed.slice(seed.indexOf('INSERT INTO olympiads'))
+    const ids = [...insert.slice(0, insert.indexOf(';\n')).matchAll(/^\s+\('([a-z0-9-]+)'/gm)].map((m) => m[1]!)
+    expect(ids.length).toBeGreaterThan(70)
+    const missing = ids.filter((id) => {
+      const logo = badgeLogo(id)
+      return !logo || !existsSync(fileURLToPath(new URL(`../../public${logo}`, import.meta.url)))
+    })
+    expect(missing).toEqual([])
   })
 
   it('у олимпиад перечня — их собственные знаки, файлы на месте', () => {

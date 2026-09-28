@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Открытая олимпиада по программированию: приглашение командной строки в цветах её сайта inf-open.ru -->
+  <rect width="128" height="128" fill="#212529"/>
+  <path d="M32 42 L58 64 L32 86" fill="none" stroke="#3D8BFD" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="64" y="79" width="34" height="10" rx="3" fill="#F8F9FA"/>
+</svg>
