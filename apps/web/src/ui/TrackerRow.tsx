@@ -4,7 +4,7 @@
  */
 
 import type { TrackerItem } from '@contract'
-import { formatDay } from '@/lib/deadline'
+import { deadlineLabel } from '@/lib/stages'
 import { useVoice } from '@/voice/useVoice'
 import { Pill, Tile } from './primitives'
 
@@ -23,12 +23,9 @@ export function TrackerRow({ item, onOpen, showAuthor = true }: TrackerRowProps)
     if (registered && showAuthor && item.registered_by) {
       return t('tracker.markedBy', { name: item.registered_by.name })
     }
-    const date = formatDay(item.deadline_at)
-    if (!date) return item.next_stage_title ?? ''
-    if (item.kind === 'vsosh') {
-      return t('tracker.stageOn', { stage: item.next_stage_title ?? t('tracker.stageFallback'), date })
-    }
-    return t('tracker.deadlineUntil', { date })
+    // Срок — этапа, к которому он относится: в календаре у одной олимпиады
+    // бывают регистрация, отбор и финал, и каждый подписан по-своему.
+    return deadlineLabel(item, t) ?? item.next_stage_title ?? ''
   }
 
   return (
