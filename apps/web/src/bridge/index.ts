@@ -53,6 +53,19 @@ export function isRealBridge(): boolean {
 }
 
 /**
+ * Чат бота — там анкета. Ник тот же, что `MAX_BOT_NAME` у Go-сервисов: он
+ * публичный, как адрес сайта, а для другого бота его меняет переменная сборки.
+ */
+export const BOT_URL = `https://max.ru/${(import.meta.env.VITE_MAX_BOT_NAME as string | undefined) || 't356_hakaton_max_bot'}`
+
+/** Открыть ссылку max.ru внутри MAX; клиент без openMaxLink откроет её браузером. */
+export function openMaxLink(url: string): void {
+  const bridge = getWebApp()
+  if (bridge.openMaxLink) bridge.openMaxLink(url)
+  else bridge.openLink(url)
+}
+
+/**
  * Отправить ссылку в чат MAX. false — поделиться не вышло: метода нет в
  * клиенте или MAX отказал. Промис никогда не отклоняется — отказ моста не
  * должен долетать до пользователя баннером «Что-то сломалось».

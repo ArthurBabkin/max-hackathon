@@ -12,17 +12,19 @@ import type { MaxWebApp } from './types'
 /**
  * Персонажи демо-траектории (packages/db/migrations-demo): Артём — ученик,
  * Ольга — мама. `?dev_user=parent` в адресе открывает приложение голосом
- * родителя. Id из дев-диапазона 900000000–900000999: живой API принимает их
- * без подписи только вне production.
+ * родителя, `?dev_user=new` — от лица того, кто анкету в боте ещё не прошёл.
+ * Id из дев-диапазона 900000000–900000999: живой API принимает их без
+ * подписи только вне production.
  */
 const DEV_USERS = {
   kid: { id: 900_000_001, first_name: 'Артём' },
   parent: { id: 900_000_002, first_name: 'Ольга' },
+  new: { id: 900_000_009, first_name: 'Гость' },
 }
 
 function devUser() {
   const who = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('dev_user')
-  return who === 'parent' ? DEV_USERS.parent : DEV_USERS.kid
+  return who === 'parent' || who === 'new' ? DEV_USERS[who] : DEV_USERS.kid
 }
 
 const DEV_USER = devUser()
@@ -51,6 +53,11 @@ export function createStub(): MaxWebApp {
     version: 'stub',
 
     openLink(url) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    },
+
+    // В браузере max.ru сам откроет чат в вебе MAX или предложит приложение.
+    openMaxLink(url) {
       window.open(url, '_blank', 'noopener,noreferrer')
     },
 

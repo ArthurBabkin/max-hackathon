@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createQueryClient } from './api/queryClient'
+import { getWebApp } from './bridge'
 import { makeSession } from './test/render'
 
 // Моки токен не проверяют — тест ходит в «живой» API: fetch отвечает 401
@@ -114,6 +115,35 @@ it('без траектории просит закончить анкету и 
   // Анкету закончили — «Проверить снова» открывает приложение.
   status = 200
   await userEvent.click(screen.getByRole('button', { name: /Проверить снова/ }))
+  expect(await screen.findByRole('button', { name: 'Спросить' })).toBeInTheDocument()
+})
+
+// Анкета — в чате бота: кнопка ведёт туда, а вернулись в приложение — вход
+// проверяется сам, без «Проверить снова».
+it('без траектории ведёт в чат бота и проверяет вход по возвращении', async () => {
+  let status = 404
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) =>
+      url.endsWith('/session')
+        ? Promise.resolve(
+            status === 404
+              ? reply(404, { error: { code: 'NOT_FOUND', message: 'Сначала пройдите онбординг в чате бота.' } })
+              : reply(200, { token: 't', session: makeSession() }),
+          )
+        : new Promise(() => {}),
+    ),
+  )
+  const open = vi.spyOn(getWebApp(), 'openMaxLink').mockImplementation(() => {})
+  renderWith(createQueryClient({ defaultOptions: { queries: { retryDelay: 0 } } }))
+
+  await userEvent.click(await screen.findByRole('button', { name: /Пройти анкету в чате бота/ }))
+  expect(open).toHaveBeenCalledWith('https://max.ru/t356_hakaton_max_bot')
+
+  // Ушли в чат, прошли анкету, вернулись.
+  status = 200
+  act(() => focusManager.setFocused(false))
+  act(() => focusManager.setFocused(true))
   expect(await screen.findByRole('button', { name: 'Спросить' })).toBeInTheDocument()
 })
 

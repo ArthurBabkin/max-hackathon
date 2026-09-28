@@ -84,6 +84,7 @@ docker compose -f infra/docker-compose.yml up --build    # или make up
 | --- | --- |
 | Мини-приложение от лица ученика Артёма | http://localhost:8083 |
 | То же от лица мамы Ольги | http://localhost:8083/?dev_user=parent |
+| Анкета в боте ещё не пройдена | http://localhost:8083/?dev_user=new |
 | API вживую | `curl localhost:8081/health` |
 | Прогон воркера напоминаний | `curl -XPOST localhost:8082/run`; без токена бота воркер только ведёт план, с токеном второй вызов подряд даёт `"sent":0` |
 | Прогон уведомлений об изменениях | `curl -XPOST localhost:8084/run` |
@@ -206,6 +207,7 @@ stateless: состояние диалога в `bot_dialogs`, пул соеди
 | `REMINDER_HOUR` | bot, api, reminders | час напоминаний по местному времени ученика |
 | `BOT_MODE` | bot (локально) | `webhook` или `poll` |
 | `VITE_API_BASE`, `VITE_DEV_FAKE_WEBAPP` | web (сборка) | адрес API; заглушка моста для браузера |
+| `VITE_MAX_BOT_NAME` | web (сборка) | ник бота для кнопки «Пройти анкету в чате бота»; по умолчанию тот же, что `MAX_BOT_NAME` |
 
 ## Интеграции
 

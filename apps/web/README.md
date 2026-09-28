@@ -38,6 +38,7 @@ docker compose -f ../../infra/docker-compose.yml up --build
 | `?as=parent` | смотреть глазами родителя — проверка второго голоса из ТЗ F3 |
 | `?mock=empty` | пустой подбор и каталог — экран H3 |
 | `?mock=error` | запросы падают — экран H4 |
+| `?dev_user=new` | на живом API — вход того, кто анкету в боте не прошёл: «Пройти анкету в чате бота» |
 
 Пример: `http://localhost:5173/?as=parent#/tracker`.
 
