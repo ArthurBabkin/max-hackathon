@@ -8,12 +8,84 @@ import build_seed as bs
 
 
 def rec(status, benefit, score=75, subject="Информатика", grades=None, demo=False,
-        url="https://vuz.example/olymp.pdf", page=1):
+        url="https://vuz.example/olymp.pdf", page=1, oid="p669-8-informatika"):
     return {
-        "diploma_status": status, "benefit_type": benefit, "ege_confirm_min_score": score,
+        "olympiad_id": oid, "diploma_status": status, "benefit_type": benefit, "ege_confirm_min_score": score,
         "ege_confirm_subject": subject, "eligible_grades": grades, "is_demo": demo,
         "source_url": url, "source_page": page, "source_date": "2026-09-21",
     }
+
+
+class Score100SubjectTest(unittest.TestCase):
+    """На какой предмет засчитают 100 баллов. Это предмет, соответствующий
+    профилю олимпиады, — тот же, что подтверждает льготу (КФУ, приложение 3,
+    стр. 2: «для использования особого права на 100 баллов — по
+    общеобразовательному предмету, соответствующему вступительному испытанию»)."""
+
+    def test_subject_of_score100(self):
+        a = bs.aggregate_key([rec("pobeditel", "100_ballov", subject="Физика"),
+                              rec("prizyor", "100_ballov", subject="Физика")])
+        self.assertIn("100 баллов засчитают по предмету «Физика»", a["note"])
+
+    def test_alternative_subjects_listed_once(self):
+        a = bs.aggregate_key([rec("pobeditel", "100_ballov", subject="Математика или Информатика"),
+                              rec("prizyor", "100_ballov", subject="Информатика")])
+        self.assertIn("100 баллов засчитают по предмету «Информатика» или «Математика»", a["note"])
+
+    def test_prize_winner_score100_gets_subject(self):
+        a = bs.aggregate_key([rec("pobeditel", "БВИ"), rec("prizyor", "100_ballov")])
+        self.assertIn("100 баллов засчитают по предмету «Информатика»", a["note"])
+
+    def test_bvi_has_no_score100_subject(self):
+        a = bs.aggregate_key([rec("pobeditel", "БВИ"), rec("prizyor", "БВИ")])
+        self.assertNotIn("100 баллов", a["note"])
+
+    def test_vsosh_counts_for_its_own_subject(self):
+        # ВсОШ не подтверждают ЕГЭ, предмета в записи нет: предмет — сама олимпиада.
+        a = bs.aggregate_key([rec("pobeditel", "100_ballov", score=None, subject=None,
+                                  oid="vsosh-informatika")])
+        self.assertIn("100 баллов засчитают по предмету «Информатика»", a["note"])
+
+    def test_unknown_subject_is_to_be_checked(self):
+        # Экологии в ЕГЭ нет: какой предмет вуз ей сопоставил, в записи не сказано.
+        a = bs.aggregate_key([rec("pobeditel", "100_ballov", score=None, subject=None,
+                                  oid="vsosh-ekologiya")])
+        self.assertIn("Предмет, по которому засчитают 100 баллов, уточните в приёмной комиссии",
+                      a["note"])
+
+
+class DoubtfulTest(unittest.TestCase):
+    """ВсОШ по предмету, одноимённому группе программы, обычно даёт БВИ. Если
+    по документу вуза там только 100 баллов, факт остаётся, но его просим
+    уточнить в приёмной комиссии."""
+
+    def test_vsosh_namesake_with_only_score100_is_doubtful(self):
+        records = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-informatika"),
+                   rec("prizyor", "100_ballov", subject=None, oid="vsosh-informatika"),
+                   rec("pobeditel", "БВИ", subject=None, oid="vsosh-matematika")]
+        self.assertEqual(bs.doubtful_olympiads({"ИТ"}, records), {"vsosh-informatika"})
+
+    def test_other_subjects_and_bvi_are_not_doubtful(self):
+        # Математика у ИТ — не одноимённый предмет: 100 баллов вполне законны.
+        records = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-matematika"),
+                   rec("pobeditel", "БВИ", subject=None, oid="vsosh-informatika"),
+                   rec("prizyor", "БВИ", subject=None, oid="vsosh-informatika"),
+                   rec("pobeditel", "100_ballov", subject=None, oid="vsosh-fizika")]
+        self.assertEqual(bs.doubtful_olympiads({"ИТ"}, records), set())
+        self.assertEqual(bs.doubtful_olympiads({"ИТ", "Физика"}, records), {"vsosh-fizika"})
+
+    def test_prize_winner_without_bvi_is_doubtful(self):
+        records = [rec("pobeditel", "БВИ", subject=None, oid="vsosh-fizika"),
+                   rec("prizyor", "100_ballov", subject=None, oid="vsosh-fizika")]
+        self.assertEqual(bs.doubtful_olympiads({"Физика"}, records), {"vsosh-fizika"})
+
+    def test_doubt_goes_to_note_unless_everyone_gets_bvi(self):
+        hundred = [rec("pobeditel", "100_ballov", subject=None, oid="vsosh-informatika")]
+        self.assertIn(bs.DOUBT_NOTE, bs.aggregate_key(hundred, doubtful=True)["note"])
+        self.assertNotIn(bs.DOUBT_NOTE, bs.aggregate_key(hundred)["note"])
+        bvi = [rec("pobeditel", "БВИ", subject=None, oid="vsosh-informatika"),
+               rec("prizyor", "БВИ", subject=None, oid="vsosh-informatika")]
+        self.assertIsNone(bs.aggregate_key(bvi, doubtful=True)["note"])
 
 
 class AggregateKeyTest(unittest.TestCase):
@@ -216,6 +288,18 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(self.seed.stats["benefit_keys"], 1420)
         self.assertEqual(self.seed.stats["benefit_level_filtered"], 2)
         self.assertEqual(self.seed.stats["benefit_unknown_profile"], 0)
+
+    def test_kfu_vsosh_informatics_is_score100_to_be_checked(self):
+        # Приложение 3 КФУ: ВсОШ по информатике — 100 баллов на ИТ-программах,
+        # а страницы ИТИС пишут о БВИ. Верим документу, но просим уточнить.
+        b = next(b for b in self.seed.benefits if b["id"] == "vsosh-informatika__kfu__2026__score100")
+        self.assertIn(bs.DOUBT_NOTE, b["note"])
+        self.assertIn("100 баллов засчитают по предмету «Информатика»", b["note"])
+        doubts = {b["olympiad_profile_id"] for b in self.seed.benefits if bs.DOUBT_NOTE in (b["note"] or "")}
+        self.assertEqual(doubts, {"vsosh-informatika"})
+        for b in self.seed.benefits:
+            if b["benefit"] == "score100":
+                self.assertIn("засчитают", b["note"] or "", b["id"])
 
     def test_programs_to_check_add_no_keys(self):
         B = bs.load("vuz_napravlenie_olimpiady.json", "vuz_napravlenie_olimpiady")
