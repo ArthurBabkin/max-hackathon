@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { badgeColor, badgeLogo, badgeShortName } from './badge'
 
@@ -67,6 +69,20 @@ describe('badgeLogo', () => {
 
   it('ВсОШ без предметного знака получает общий', () => {
     expect(badgeLogo('vsosh-ekologiya')).toBe('/logos/vsosh.png')
+  })
+
+  it('у олимпиад перечня — их собственные знаки, файлы на месте', () => {
+    // «Высшая проба», «Ломоносов», ПВГ, Московская, СПбГУ, НТО, «Юниор»,
+    // Всесибирская, «Будущие исследователи», Пироговская, РАНХиГС, РГГУ,
+    // «Звезда», СПб астрономическая, ВАОИ, Innopolis Open, КФУ, «Бельчонок»,
+    // «Курчатов», «Робофест», ОММО.
+    const ids = ['p669-8', 'p669-50', 'p669-52', 'p669-37', 'p669-59', 'p669-5', 'p669-13', 'p669-14',
+      'p669-29', 'p669-71', 'p669-58', 'p669-48', 'p669-36', 'p669-74', 'p669-15', 'p669-22', 'p669-34',
+      'p669-83', 'p669-43', 'p669-53', 'p669-41']
+    for (const id of ids) {
+      expect(badgeLogo(id)).toBe(`/logos/${id}.png`)
+      expect(existsSync(fileURLToPath(new URL(`../../public/logos/${id}.png`, import.meta.url))), id).toBe(true)
+    }
   })
 
   it('без логотипа возвращает null', () => {
