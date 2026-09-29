@@ -9,17 +9,51 @@
  * только на другие направления — своей строкой.
  */
 
+import { useState } from 'react'
 import type { BenefitColumn, BenefitRow } from '@contract'
 import { outliers } from '@/lib/benefits'
+import { previewByLength } from '@/lib/catalog'
 import { useVoice } from '@/voice/useVoice'
 import type { TextKey } from '@/voice/texts'
-import { BenefitValue, Tile } from './primitives'
+import { BenefitValue, ListToggle, Tile } from './primitives'
 
 const HEADS: Record<BenefitColumn, TextKey> = {
   winner: 'benefits.colWinner',
   prizer: 'benefits.colPrizer',
   ege: 'benefits.colEge',
   extra_points: 'benefits.colExtra',
+}
+
+/** Сколько знаков направлений видно под вузом: столбец узкий, это пара-тройка строк. */
+const DIRECTIONS_BUDGET = 50
+
+/**
+ * Мои направления под вузом (F65). У КФУ их бывает семнадцать — списком они
+ * вытягивали строку таблицы на экран, поэтому длинный список свёрнут.
+ */
+function Directions({ names, className }: { names: string[]; className?: string }) {
+  const t = useVoice()
+  const [expanded, setExpanded] = useState(false)
+  const preview = previewByLength(names, DIRECTIONS_BUDGET)
+  const long = preview.length < names.length
+  return (
+    <>
+      <span className={className}>
+        {long && !expanded
+          ? t('university.subjectsMore', { subjects: preview.join(', '), count: names.length - preview.length })
+          : names.join(', ')}
+      </span>
+      {long ? (
+        <ListToggle
+          expanded={expanded}
+          // «Все направления (17)» в столбец шириной в слово не влезает;
+          // «и ещё 15» уже сказано в подписи над кнопкой.
+          label={t('university.showAll', { count: names.length })}
+          onToggle={() => setExpanded(!expanded)}
+        />
+      ) : null}
+    </>
+  )
 }
 
 export interface BenefitTableProps {
@@ -111,7 +145,7 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
                     {row.directions.length > 0 ? (
                       <>
                         {' '}
-                        <span className="benefit-table-directions">{row.directions.join(', ')}</span>
+                        <Directions names={row.directions} className="benefit-table-directions" />
                       </>
                     ) : null}
                   </th>
@@ -132,7 +166,9 @@ export function BenefitTable({ rows, columns, onOpen }: BenefitTableProps) {
                 if (!winner) return []
                 return [
                   <tr key={`${row.university_id}-${j}`} className="benefit-table-sub">
-                    <th scope="row">{other.directions.join(', ')}</th>
+                    <th scope="row">
+                      <Directions names={other.directions} />
+                    </th>
                     {columns.map((column) => {
                       const grant = column === 'winner' ? winner : column === 'prizer' ? prizer : null
                       return (

@@ -84,3 +84,24 @@ export function byOlympiad<T extends ProfileRow>(rows: T[]): OlympiadRow<T>[] {
   return [...out.values()]
 }
 
+
+/** Сколько знаков спрятанного хвоста не стоит кнопки: меньше строки. */
+const REST_MIN = 30
+
+/**
+ * Пункты для свёрнутого списка: пока подпись через запятую не длиннее
+ * бюджета, и хотя бы один. Считается длина, а не число: у НТО профиль бывает
+ * длиной в абзац, и три «первых» занимали семь строк. Если спрятать осталось
+ * меньше строки, список целиком: «и ещё 1» с кнопкой места не экономит.
+ */
+export function previewByLength(items: string[], budget: number): string[] {
+  const out: string[] = []
+  let length = 0
+  for (const item of items) {
+    if (out.length > 0 && length + 2 + item.length > budget) break
+    length += (out.length > 0 ? 2 : 0) + item.length
+    out.push(item)
+  }
+  const rest = items.slice(out.length).reduce((sum, item) => sum + 2 + item.length, 0)
+  return rest > REST_MIN ? out : items
+}

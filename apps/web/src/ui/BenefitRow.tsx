@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import type { BenefitKind, BenefitRow as BenefitRowData } from '@contract'
 import { NO_BENEFIT_LABEL } from '@contract'
+import { previewByLength } from '@/lib/catalog'
 import { countText, useVoice } from '@/voice/useVoice'
 import { Icon } from './Icon'
 import { BenefitValue, ListToggle, Tile } from './primitives'
@@ -61,23 +62,8 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
   )
 }
 
-/**
- * Сколько знаков подписи видно в свёрнутой строке — пара строк на телефоне.
- * Считается длина, а не число профилей: у НТО профиль бывает длиной в абзац.
- */
+/** Сколько знаков подписи видно в свёрнутой строке — пара строк на телефоне. */
 const SUBJECTS_BUDGET = 70
-
-/** Профили, что влезают в свёрнутую подпись; хотя бы один. */
-function previewSubjects(subjects: string[]): string[] {
-  const out: string[] = []
-  let length = 0
-  for (const subject of subjects) {
-    if (out.length > 0 && length + 2 + subject.length > SUBJECTS_BUDGET) break
-    length += (out.length > 0 ? 2 : 0) + subject.length
-    out.push(subject)
-  }
-  return out
-}
 
 /**
  * Строка олимпиады в карточке вуза — зеркальная к BenefitRow (F26). Под
@@ -112,7 +98,7 @@ export function UniversityOlympiadRow({
 }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
-  const preview = previewSubjects(subjects)
+  const preview = previewByLength(subjects, SUBJECTS_BUDGET)
   const long = preview.length < subjects.length
   const shown =
     long && !expanded
@@ -135,7 +121,13 @@ export function UniversityOlympiadRow({
         <BenefitValue kind={benefit ?? 'bvi'} label={label} />
         <Icon name="chevron" size={15} />
       </button>
-      {long ? <ListToggle expanded={expanded} count={subjects.length} onToggle={() => setExpanded(!expanded)} /> : null}
+      {long ? (
+        <ListToggle
+          expanded={expanded}
+          label={t('olympiad.allProfiles', { count: subjects.length })}
+          onToggle={() => setExpanded(!expanded)}
+        />
+      ) : null}
     </div>
   )
 }

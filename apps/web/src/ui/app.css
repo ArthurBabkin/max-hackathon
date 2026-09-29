@@ -1464,6 +1464,20 @@
   overflow-wrap: break-word;
 }
 
+/* «Все направления (17)» под списком — мелко, как сам список. Правило для
+   кнопки-названия вуза выше её не касается. Высота нажатия 44 px, а строка не
+   растёт: кнопка заходит на отступы вокруг. */
+.benefit-table tbody th .list-toggle {
+  width: auto;
+  min-height: var(--tap);
+  margin: -14px 0 -10px;
+  gap: 2px;
+  color: var(--p);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .benefit-table tbody .benefit-table-sub {
   border-top: 0;
 }
@@ -1582,6 +1596,14 @@
   background: var(--ams);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--am-ink) 35%, transparent);
   vertical-align: -1px;
+}
+
+/* В MAX на компьютере лист шире телефона: столбец вуза растёт вместе с ним,
+   иначе направления стояли бы столбиком по слову в 116 px при пустых соседях. */
+@media (min-width: 560px) {
+  .benefit-table-uni {
+    width: 36%;
+  }
 }
 
 /* Уже 390 px «Победителю» не влезает в столбец целиком, а переносить
