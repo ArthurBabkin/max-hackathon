@@ -20,6 +20,13 @@ data "archive_file" "backend" {
     "dataset_c_src",
     "infra",
     "apps/web",
+    # Лимит архива функций — 3,5 МБ: ролик лендинга и миграции с контентом
+    # в него не влезают, а функциям не нужны.
+    "apps/landing",
+    "packages/api-contract",
+    "packages/db/migrations",
+    "packages/db/migrations-demo",
+    "packages/db/migrations-local",
     "olimpiady_spravochnik.json",
     "DATASET_C_NOTES.md",
   ]
