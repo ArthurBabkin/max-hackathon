@@ -35,6 +35,15 @@ it('рассказывает о вузе и ведёт на сайт и прав
   expect(openLink).toHaveBeenLastCalledWith('https://apply.innopolis.university/rules.pdf')
 })
 
+// Как в карточке олимпиады: главное действие закреплено внизу листа, а не
+// ждёт в конце длинного списка направлений и олимпиад.
+it('«Добавить в мои вузы» закреплена внизу листа, вне прокрутки', () => {
+  renderSheet({ is_mine: false })
+  const button = screen.getByRole('button', { name: 'Добавить в мои вузы' })
+  expect(button.closest('[role="dialog"]')).not.toBeNull()
+  expect(button.closest('.sheet-body')).toBeNull()
+})
+
 const benefitRow = (olympiad_id: string, subject_name: string, benefit = 'bvi') => ({
   olympiad_profile_id: `${olympiad_id}-${subject_name}`,
   olympiad_id,

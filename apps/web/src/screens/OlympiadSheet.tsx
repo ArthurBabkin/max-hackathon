@@ -167,6 +167,15 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
       canGoBack={canGoBack}
       onBack={sheets.back}
       onClose={sheets.closeAll}
+      footer={
+        <>
+          <div data-tour="track-action">{mainButton()}</div>
+          <p className="lock lock-center">
+            <Icon name="bell" size={12} />
+            {lockNote}
+          </p>
+        </>
+      }
       header={
         <>
           <Tile
@@ -309,15 +318,6 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
           ))}
         </section>
       ) : null}
-
-      <div className="sheet-actions" data-tour="track-action">
-        {mainButton()}
-      </div>
-
-      <p className="lock">
-        <Icon name="bell" size={12} />
-        {lockNote}
-      </p>
     </Sheet>
   )
 }

@@ -17,11 +17,16 @@ export interface SheetProps {
   onClose: () => void
   header?: ReactNode
   children: ReactNode
+  /**
+   * Главное действие листа — под прокруткой, всегда на виду: иначе его
+   * приходится искать, пролистав длинную карточку до конца.
+   */
+  footer?: ReactNode
   /** Лист помощника занимает почти весь экран и скроллится внутри. */
   tall?: boolean
 }
 
-export function Sheet({ label, canGoBack, onBack, onClose, header, children, tall = false }: SheetProps) {
+export function Sheet({ label, canGoBack, onBack, onClose, header, children, footer, tall = false }: SheetProps) {
   const t = useVoice()
   // Пока лист открыт, фон под ним не должен прокручиваться: иначе на телефоне
   // экран уезжает под листом и возвращается уже не туда.
@@ -59,6 +64,7 @@ export function Sheet({ label, canGoBack, onBack, onClose, header, children, tal
           </IconButton>
         </div>
         {tall ? children : <div className="sheet-body">{children}</div>}
+        {footer ? <div className="sheet-foot">{footer}</div> : null}
       </div>
     </>
   )
