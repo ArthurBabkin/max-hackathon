@@ -309,6 +309,13 @@ func (s *Store) DeleteTrajectory(ctx context.Context, trajectoryID, creatorMembe
 			trajectoryID); err != nil {
 			return wrap(err)
 		}
+		var creator string
+		if err := tx.db.QueryRow(ctx, `SELECT user_id::text FROM members WHERE id = $1`, creatorMemberID).Scan(&creator); err != nil {
+			return wrap(err)
+		}
+		if _, err := tx.WithdrawPrivacy(ctx, creator); err != nil {
+			return err
+		}
 		return tx.Audit(ctx, creatorMemberID, "delete", "trajectory", trajectoryID)
 	})
 }
