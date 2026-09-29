@@ -60,17 +60,20 @@ def probe(url, method, headers, expect, version=""):
                                  data=b"{}" if method == "POST" else None)
     for attempt in range(6):
         got = ""
+        # Любой сбой пробы — повод повторить и в конце откатить, а не упасть
+        # с трейсбеком до set-tag: тогда битая версия осталась бы в $latest.
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 code = r.status
                 if version:
                     try:
-                        got = str(json.loads(r.read()).get("version", ""))
-                    except ValueError:
+                        body = json.loads(r.read())
+                        got = str(body.get("version", "")) if isinstance(body, dict) else "?"
+                    except Exception:
                         got = "?"
         except urllib.error.HTTPError as e:
             code = e.code
-        except OSError as e:
+        except Exception as e:
             code = str(e)
         print(f"{method} {url} -> {code}{f', версия {got}' if version else ''} (ждём {expect}{f', {version}' if version else ''})")
         if code == expect and (not version or got == version):

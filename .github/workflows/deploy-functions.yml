@@ -156,7 +156,7 @@ jobs:
           mkdir -p deploy-logs
           run() {
             local name=$1; shift
-            python3 .github/scripts/deploy_function.py --name "$name" --api-url "$API_URL" "$@" \
+            python3 -u .github/scripts/deploy_function.py --name "$name" --api-url "$API_URL" "$@" \
               > "deploy-logs/$name.log" 2>&1
           }
           run traektoria-bot --require MAX_BOT_TOKEN,WEBHOOK_SECRET,DATABASE_URL --probe bot & p1=$!
