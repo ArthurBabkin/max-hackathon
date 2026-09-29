@@ -19,7 +19,7 @@ concurrency:
 jobs:
   backend:
     name: Go
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux]
     services:
       # Интеграционные тесты store и сценариев идут против настоящего Postgres
       # той же версии, что в compose и в базе на проде.
@@ -62,7 +62,7 @@ jobs:
 
   web:
     name: Мини-приложение
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux]
     defaults:
       run:
         working-directory: apps/web
@@ -84,7 +84,7 @@ jobs:
   # Лендинг — статика без зависимостей, тесты на встроенном node:test.
   landing:
     name: Лендинг
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,7 +96,7 @@ jobs:
   # docker-compose, без токенов — уведомления и модель помощника выключены.
   contract:
     name: Контракт API
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux]
     services:
       postgres:
         image: postgres:16-alpine
@@ -147,7 +147,7 @@ jobs:
 
   infra:
     name: Terraform
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     defaults:
       run:
         working-directory: infra/terraform

@@ -14,6 +14,23 @@
 
 Все деплои можно запустить руками через **Actions → Run workflow**, не делая пустой коммит.
 
+## Раннер
+
+Все job'ы идут на своём раннере (`runs-on: [self-hosted, linux]`): бесплатные
+минуты GitHub закончились. Это ВМ `gh-runner` в Yandex Cloud (ru-central1-a,
+отдельно от ВМ с базой), пользователь `runner`, раннер в `~/actions-runner`
+как сервис systemd. На ВМ стоят Docker (для сервиса Postgres в CI), aws cli,
+python3, gcc, системный node 22 (обёртке tofu из
+setup-opentofu он нужен без setup-node); Go, Node и tofu ставят сами actions.
+
+`registry.opentofu.org` из Yandex Cloud отвечает 403, поэтому в `~/.tofurc`
+раннера провайдеры берутся с зеркала `https://terraform-mirror.yandexcloud.net/`
+(хэши из `.terraform.lock.hcl` совпадают).
+
+Раннер один, job'ы идут по очереди: CI поднимает Postgres на порту 5432
+хоста, два раннера на одной ВМ за него бы подрались. Вернуться на раннеры
+GitHub — заменить `runs-on` обратно на `ubuntu-latest`.
+
 ## Первый запуск бэкенда
 
 Пока база и функции не подняты, **Deploy functions** честно падает на проверке
