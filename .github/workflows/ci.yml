@@ -80,8 +80,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.12.0"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
       # ci, а не install: ставит ровно то, что в lock-файле, и падает при
       # расхождении с package.json вместо тихого обновления зависимостей.
       - run: npm ci --no-audit --no-fund
@@ -130,8 +128,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.12.0"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
       - name: Миграции и демо-данные
         run: |
           go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
@@ -173,21 +169,14 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
 
       # Провайдер Yandex весит около 100 МБ и без кеша качается каждый прогон.
-      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог,
-      # который мы и кешируем между запусками.
+      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог.
+      # Раннер свой, каталог живёт между прогонами — кеш actions не нужен.
       # Путь считаем здесь, а не в env уровня job: tofu не разворачивает `~`,
       # он уходит к нему литералом, и кеш провайдеров молча не работает.
       - name: Каталог кеша провайдеров
         run: |
           echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
           mkdir -p "$HOME/.terraform.d/plugin-cache"
-
-      - name: Кеш провайдеров
-        uses: actions/cache@v4
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
-          restore-keys: tofu-providers-
 
       - name: Форматирование
         run: tofu fmt -check -recursive

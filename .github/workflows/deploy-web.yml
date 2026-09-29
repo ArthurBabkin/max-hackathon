@@ -32,8 +32,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
 
       # Адрес api вшивается в сборку. Это API Gateway, а не функция: прямой
       # вызов функции не передаёт путь запроса. Без адреса сборка ходила бы

@@ -116,21 +116,14 @@ jobs:
             exit 1
           fi
 
-      # Дистрибутив yc весит около 177 МБ. Без кеша он качался бы на каждый
-      # деплой — это дольше, чем всё остальное в workflow вместе взятое.
-      - name: Кеш yc CLI
-        id: yc-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/yc
-          key: yc-cli-${{ runner.os }}-1.36.0
-
-      - name: Установить yc CLI
-        if: steps.yc-cache.outputs.cache-hit != 'true'
-        run: curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
-
-      - name: Добавить yc в PATH
-        run: echo "$HOME/yc/bin" >> "$GITHUB_PATH"
+      # Дистрибутив yc весит около 177 МБ. Раннер свой, и yc остаётся в его
+      # домашнем каталоге: ставим только на новой машине, без кеша actions.
+      - name: yc CLI
+        run: |
+          if [ ! -x "$HOME/yc/bin/yc" ]; then
+            curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
+          fi
+          echo "$HOME/yc/bin" >> "$GITHUB_PATH"
 
       - name: Авторизация
         env:
