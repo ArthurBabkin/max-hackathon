@@ -1,0 +1,6 @@
+# Локальный стенд из корня репозитория: docker compose up --build
+# Сервисы описаны в infra/docker-compose.yml, здесь только подключение.
+name: traektoria
+
+include:
+  - infra/docker-compose.yml
