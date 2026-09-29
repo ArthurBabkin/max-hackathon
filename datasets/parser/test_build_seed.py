@@ -628,7 +628,7 @@ class UniversityDirectionsTest(unittest.TestCase):
         cls.pairs = {(p["university_id"], p["direction_id"]): p for p in cls.ud.pairs}
 
     def test_every_code_of_pairs_is_a_direction(self):
-        self.assertEqual(len(self.ud.directions), 68)
+        self.assertEqual(len(self.ud.directions), 67)
         self.assertEqual({p["direction_id"] for p in self.ud.pairs}, set(self.dirs))
         self.assertEqual(sum(d["onboarding"] for d in self.ud.directions), 16)
 
@@ -643,9 +643,9 @@ class UniversityDirectionsTest(unittest.TestCase):
         d = self.dirs["napr-01-03-01"]
         self.assertEqual((d["name"], d["groups"], d["subject_codes"], d["onboarding"]),
                          ("Математика", ["ИТ", "Экономика"], ["inf", "math", "econ", "soc"], False))
-        innopolis = self.dirs["napr-09-00-00"]
-        self.assertEqual((innopolis["name"], innopolis["groups"]),
-                         ("Информатика и вычислительная техника", ["ИТ"]))
+        robotics = self.dirs["napr-15-03-06"]
+        self.assertEqual((robotics["name"], robotics["groups"], robotics["onboarding"]),
+                         ("Мехатроника и робототехника", ["ИТ"], False))
         codes = {c for c, _ in bs.SUBJECTS}
         for d in self.ud.directions:
             self.assertTrue(d["groups"], d["id"])
@@ -653,7 +653,7 @@ class UniversityDirectionsTest(unittest.TestCase):
             self.assertTrue(set(d["subject_codes"]) <= codes, d["id"])
 
     def test_pairs_and_statuses(self):
-        self.assertEqual(len(self.ud.pairs), 163)
+        self.assertEqual(len(self.ud.pairs), 164)
         to_check = sorted(k for k, p in self.pairs.items() if p["status"] == "to_check")
         # СПбГУ 06.03.01 получил свою ВсОШ (bac_spec_olymp_1), НГУ 01.03.01–03 —
         # льготы заголовка «Математика и механика». Пара ВШЭ — 40.03.01 держалась
@@ -673,6 +673,16 @@ class UniversityDirectionsTest(unittest.TestCase):
         # приёма 2026, строка «01.03.02 … 180»), а не 5 × 180.
         for code, places in (("01-03-02", 180), ("03-03-01", 517), ("09-03-01", 196), ("19-03-01", 66)):
             self.assertEqual(self.pairs[("mipt", "napr-" + code)]["budget_places"], places, code)
+
+    def test_innopolis_directions_from_rules(self):
+        # КЦП Иннополиса — только УГСН (09.00.00 — 159 мест), направления и
+        # профили — в правилах приёма: у четырёх профилей 09.03.01 места общие.
+        self.assertNotIn("napr-09-00-00", self.dirs)
+        ivt, robotics = self.pairs[("innopolis", "napr-09-03-01")], self.pairs[("innopolis", "napr-15-03-06")]
+        self.assertEqual((ivt["programs"], ivt["budget_places"]), (4, 159))
+        self.assertIn("Инженерия информационных систем", ivt["program_names"])
+        self.assertEqual((robotics["programs"], robotics["budget_places"], robotics["program_names"]),
+                         (1, 12, ["Робототехника"]))
 
     def test_places_unknown_stay_null(self):
         hse = self.pairs[("hse", "napr-38-03-01")]
@@ -697,7 +707,7 @@ class UniversityDirectionsTest(unittest.TestCase):
         self.assertEqual((b["benefit"], b["varies"]), ("score100", False))
 
     def test_direction_benefits_refine_university_benefits(self):
-        self.assertEqual(len(self.ud.benefits), 11411)
+        self.assertEqual(len(self.ud.benefits), 11519)
         keys = {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])
                 for b in self.ud.benefits}
         self.assertEqual(keys, {(b["olympiad_profile_id"], b["university_id"], b["admission_year"])

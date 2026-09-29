@@ -66,7 +66,7 @@ func TestDirections_AllWithPopular(t *testing.T) {
 			t.Fatalf("ПИ: %v", it)
 		}
 	}
-	if len(items) != 68 || popular != 16 {
+	if len(items) != 67 || popular != 16 {
 		t.Fatalf("направлений %d, основных %d", len(items), popular)
 	}
 }
@@ -390,24 +390,24 @@ func TestOlympiadsCatalog_Mine(t *testing.T) {
 	}
 }
 
-// Каталог вузов по направлению (F67): вузы, где оно есть (с укрупнёнными
-// группами), сколько олимпиад дают на нём льготу и проверены ли льготы.
+// Каталог вузов по направлению (F67): вузы, где оно есть, сколько олимпиад
+// дают на нём льготу и проверены ли льготы.
 func TestUniversitiesCatalog_Direction(t *testing.T) {
 	e := newEnv(t)
 	e.kidCreator()
 	token := e.login(900000001, "Артём")
 	get := func(query string) resp { return e.do("GET", "/api/v1/universities"+query, token, nil) }
 
-	items := list(t, get("?direction=" + dirSE).body["items"])
+	items := list(t, get("?direction=napr-09-03-01").body["items"])
 	inno := rowOf(t, withID(items), "innopolis")
 	match, _ := inno["direction_match"].(map[string]any)
-	if match == nil || !slices.Equal(strs(match["direction_ids"]), []string{"napr-09-00-00"}) ||
+	if match == nil || !slices.Equal(strs(match["direction_ids"]), []string{"napr-09-03-01"}) ||
 		match["olympiads_count"].(float64) == 0 || match["status"] != "offered" {
-		t.Fatalf("Иннополис по ПИ: %v", inno)
+		t.Fatalf("Иннополис по ИВТ: %v", inno)
 	}
-	for _, u := range items {
-		if u["id"] == "kazan-gmu" {
-			t.Fatal("медвуза без ПИ нет")
+	for _, u := range list(t, get("?direction=" + dirSE).body["items"]) {
+		if u["id"] == "kazan-gmu" || u["id"] == "innopolis" {
+			t.Fatalf("%s без ПИ — не в списке", u["id"])
 		}
 	}
 

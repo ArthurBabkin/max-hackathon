@@ -267,9 +267,8 @@ func TestKnowledge_StudentCardHasStageResults(t *testing.T) {
 
 // Льгота в вузах ученика — на его направления (F65): Innopolis Open по
 // информационной безопасности на Программной инженерии ВШЭ льготы не даёт
-// (в Москве она на ИБ и ИВТ), по информатике — с порогом своих программ;
-// Иннополис даёт БВИ на
-// укрупнённую группу 09.00.00.
+// (в Москве она на ИБ и ИВТ), по информатике — с порогом своих программ.
+// В Иннополисе ПИ нет — его льгота по вузу целиком, не в этом блоке.
 func TestKnowledge_TargetBenefits(t *testing.T) {
 	st, tr := setup(t)
 	ctx := context.Background()
@@ -288,12 +287,13 @@ func TestKnowledge_TargetBenefits(t *testing.T) {
 		"Информационная безопасность:\n    ВШЭ (направления ученика: Программная инженерия): льготы нет",
 		"Информатика:\n    ВШЭ (направления ученика: Программная инженерия): победителю — БВИ; призёру — 100 баллов, " +
 			"ЕГЭ от 80, диплом за 11 класс. Порог ЕГЭ зависит от программы: 80–85 баллов",
-		"Иннополис (направления ученика: Информатика и вычислительная техника): победителю и призёру — БВИ, ЕГЭ от 75, " +
-			"диплом за 9–11 класс",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("нет %q:\n%s", want, text)
 		}
+	}
+	if strings.Contains(text, "Иннополис") {
+		t.Fatalf("в Иннополисе ПИ нет:\n%s", text)
 	}
 
 	// В карточке олимпиады это видно рядом со льготами вузов целиком.
@@ -347,7 +347,7 @@ func TestKnowledge_TargetBenefitsForQuestionSubject(t *testing.T) {
 	}
 	sec := c[i:]
 	if strings.Contains(sec, "Информатика и программирование:") || strings.Contains(sec, "Математика:") ||
-		!strings.Contains(sec, "Иннополис (направления ученика: Информатика и вычислительная техника): победителю и призёру — БВИ") {
+		!strings.Contains(sec, `\n  Физика:\n    ВШЭ (направления ученика: Программная инженерия): льготы нет`) {
 		t.Fatalf("льгота на направления ученика — по физике:\n%s", sec)
 	}
 }
@@ -358,6 +358,11 @@ func TestKnowledge_StudentCardHasUniversityDirections(t *testing.T) {
 	ctx := context.Background()
 	m, _ := st.CurrentMember(ctx, 900000001)
 	if err := st.SetUniversityDirections(ctx, tr.ID, "hse", m.MemberID, []string{"napr-01-03-02"}); err != nil {
+		t.Fatal(err)
+	}
+	// ИВТ — в цели: в Иннополисе ПИ нет, а ИВТ есть.
+	goal := store.TrajectoryPatch{DirectionIDs: []string{"napr-09-03-04", "napr-01-03-02", "napr-09-03-01"}}
+	if err := st.UpdateTrajectory(ctx, tr.ID, m.MemberID, goal); err != nil {
 		t.Fatal(err)
 	}
 	a := &Assistant{Store: st}
@@ -577,7 +582,7 @@ func TestKnowledge_DirectionCard(t *testing.T) {
 	pi := cardIn(t, contextFor(t, "Где учат на программную инженерию?"), "direction:napr-09-03-04")
 	for _, want := range []string{
 		"Направление 09.03.04 Программная инженерия (сокращённо: ПИ) — в цели ученика",
-		`Иннополис — как 09.00.00 Информатика и вычислительная техника (укрупнённая группа), `,
+		"Этого направления нет: КГМУ, МГУ, НГУ, Сеченовский, Иннополис",
 	} {
 		if !strings.Contains(pi, want) {
 			t.Errorf("в карточке ПИ нет %q:\n%s", want, pi)

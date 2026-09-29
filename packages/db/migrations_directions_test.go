@@ -49,7 +49,8 @@ func queryStrings(t *testing.T, q rowQuerier, sql string) []string {
 }
 
 // Счётчики контента 0021 — числа из датасетов на 21.09.2026 с исправленной
-// привязкой льгот к программам (0022) и без филиалов (0024).
+// привязкой льгот к программам (0022), без филиалов (0024) и с направлениями
+// Иннополиса из правил приёма (0028).
 func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 	t.Helper()
 	return map[string]int{
@@ -65,6 +66,14 @@ func universityDirectionCounts(t *testing.T, q rowQuerier) map[string]int {
 }
 
 var wantUniversityDirections = map[string]int{
+	"directions": 67, "onboarding": 16, "no_groups": 0,
+	"pairs": 164, "to_check": 0,
+	"benefits": 11519, "varies": 841,
+	"user_choices": 0,
+}
+
+// То же до 0028 — у Иннополиса одна укрупнённая группа 09.00.00.
+var wantBefore0028 = map[string]int{
 	"directions": 68, "onboarding": 16, "no_groups": 0,
 	"pairs": 163, "to_check": 0,
 	"benefits": 11411, "varies": 841,
@@ -89,11 +98,10 @@ func TestMigration_UniversityDirections_Content(t *testing.T) {
 	if n := queryInt(t, pool, `SELECT count(*) FROM university_directions WHERE status = 'to_check'`); n != 0 {
 		t.Fatalf("to_check: %d, ожидали 0", n)
 	}
-	// Иннополис принимает на укрупнённую группу — её покрывает targets.Covers.
-	var status string
-	if err := pool.QueryRow(context.Background(), `SELECT status FROM university_directions
-		WHERE university_id = 'innopolis' AND direction_id = 'napr-09-00-00'`).Scan(&status); err != nil || status != "offered" {
-		t.Fatalf("Иннополис 09.00.00: %q (err=%v)", status, err)
+	// Иннополис: направления из правил приёма, укрупнённой группы нет (0028).
+	if got := queryStrings(t, pool, `SELECT direction_id FROM university_directions
+		WHERE university_id = 'innopolis' AND status = 'offered'`); !slices.Equal(got, []string{"napr-09-03-01", "napr-15-03-06"}) {
+		t.Fatalf("направления Иннополиса: %v", got)
 	}
 	if n := queryInt(t, pool, `SELECT count(*) FROM university_directions
 		WHERE programs < 1 OR cardinality(program_names) < 1`); n != 0 {
@@ -207,11 +215,11 @@ func TestMigration_UniversityDirections_DownUp(t *testing.T) {
 	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, goal_status) VALUES
 		('`+tid+`', 'Артём', 10, '16', 'known')`)
 	mustExec(t, tx.Exec, `INSERT INTO trajectory_directions (trajectory_id, direction_id, position) VALUES
-		('`+tid+`', 'napr-09-03-04', 0), ('`+tid+`', 'napr-09-00-00', 1)`)
+		('`+tid+`', 'napr-09-03-04', 0), ('`+tid+`', 'napr-15-03-06', 1)`)
 	mustExec(t, tx.Exec, `INSERT INTO trajectory_universities (trajectory_id, university_id) VALUES
 		('`+tid+`', 'innopolis'), ('`+tid+`', 'msu')`)
 	mustExec(t, tx.Exec, `INSERT INTO trajectory_university_directions (trajectory_id, university_id, direction_id) VALUES
-		('`+tid+`', 'innopolis', 'napr-09-00-00'), ('`+tid+`', 'msu', 'napr-01-03-02')`)
+		('`+tid+`', 'innopolis', 'napr-15-03-06'), ('`+tid+`', 'msu', 'napr-01-03-02')`)
 	want := maps.Clone(wantUniversityDirections)
 	want["user_choices"] = 2
 	if got := universityDirectionCounts(t, tx); !maps.Equal(got, want) {
@@ -285,7 +293,7 @@ func TestMigration_UniversityDirections_ChoiceGoesWithUniversity(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = sp.Exec(ctx, `INSERT INTO trajectory_university_directions (trajectory_id, university_id, direction_id) VALUES
-		('`+tid+`', 'innopolis', 'napr-09-00-00')`)
+		('`+tid+`', 'innopolis', 'napr-09-03-01')`)
 	if err == nil || !strings.Contains(err.Error(), "foreign key") {
 		t.Fatalf("направление в невыбранном вузе должно быть запрещено, err=%v", err)
 	}
@@ -312,7 +320,8 @@ func TestMigration_BenefitLinking(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
-	// 0022 проверяется в том состоянии, в котором её накатывали: до 0024.
+	// 0022 проверяется в том состоянии, в котором её накатывали: до 0024 и 0028.
+	mustExec(t, tx.Exec, dbtest.DownSection(readMigration(t, "0028_innopolis_directions.sql")))
 	mustExec(t, tx.Exec, dbtest.DownSection(branches))
 
 	const bioOnPmi = `SELECT count(*) FROM direction_benefits WHERE olympiad_profile_id = 'vsosh-biologiya'
@@ -392,7 +401,8 @@ func TestMigration_DropBranches(t *testing.T) {
 		return b
 	}
 
-	// Как на проде до миграции.
+	// Как на проде до миграции: без 0028 и 0024.
+	mustExec(t, tx.Exec, dbtest.DownSection(readMigration(t, "0028_innopolis_directions.sql")))
 	mustExec(t, tx.Exec, dbtest.DownSection(raw))
 	if got := universityDirectionCounts(t, tx); !maps.Equal(got, wantWithBranches) {
 		t.Fatalf("до 0024:\n%v\nожидали:\n%v", got, wantWithBranches)
@@ -424,7 +434,7 @@ func TestMigration_DropBranches(t *testing.T) {
 		queryInt(t, tx, `SELECT count(*) FROM trajectory_universities WHERE trajectory_id = '`+tid+`'`); n != 3 {
 		t.Fatalf("цель ученика после 0024: направлений и вузов %d, ожидали 3", n)
 	}
-	want := maps.Clone(wantUniversityDirections)
+	want := maps.Clone(wantBefore0028)
 	want["directions"] += 2 // выбранные учеником
 	if got := universityDirectionCounts(t, tx); !maps.Equal(got, want) {
 		t.Fatalf("после 0024:\n%v\nожидали:\n%v", got, want)
@@ -492,4 +502,75 @@ func first(xs []string) string {
 		return "—"
 	}
 	return xs[0]
+}
+
+// 0028: у Иннополиса вместо укрупнённой группы 09.00.00 — направления из
+// правил приёма, 09.03.01 и 15.03.06. Выбор 09.00.00 в вузе и цель 09.00.00
+// переходят на 09.03.01, откат возвращает выбор в вузе. Событие «изменились
+// льготы» — одно: «Юниор» (инженерные науки) даёт в Иннополисе БВИ на
+// робототехнику. Повторный прогон ничего не меняет.
+func TestMigration_InnopolisDirections(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw := readMigration(t, "0028_innopolis_directions.sql")
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const innopolis = `SELECT direction_id FROM university_directions WHERE university_id = 'innopolis'`
+	const tid = "00000000-0000-4000-8000-00000000f028"
+	choices := func() []string {
+		return queryStrings(t, tx, `SELECT direction_id FROM trajectory_university_directions WHERE trajectory_id = '`+tid+`'`)
+	}
+
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, dbtest.DownSection(raw))
+	if got := queryStrings(t, tx, innopolis); !slices.Equal(got, []string{"napr-09-00-00"}) {
+		t.Fatalf("до 0028 направления Иннополиса: %v", got)
+	}
+	mustExec(t, tx.Exec, `INSERT INTO trajectories (id, student_name, grade, region_code, goal_status) VALUES
+		('`+tid+`', 'Артём', 10, '16', 'known')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_directions (trajectory_id, direction_id, position) VALUES
+		('`+tid+`', 'napr-09-03-04', 0), ('`+tid+`', 'napr-09-00-00', 1)`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_universities (trajectory_id, university_id) VALUES ('`+tid+`', 'innopolis')`)
+	mustExec(t, tx.Exec, `INSERT INTO trajectory_university_directions (trajectory_id, university_id, direction_id) VALUES
+		('`+tid+`', 'innopolis', 'napr-09-00-00')`)
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if got := queryStrings(t, tx, innopolis); !slices.Equal(got, []string{"napr-09-03-01", "napr-15-03-06"}) {
+		t.Fatalf("после 0028 направления Иннополиса: %v", got)
+	}
+	if got := choices(); !slices.Equal(got, []string{"napr-09-03-01"}) {
+		t.Fatalf("выбор в Иннополисе после 0028: %v", got)
+	}
+	if got := queryStrings(t, tx, `SELECT direction_id FROM trajectory_directions WHERE trajectory_id = '`+tid+`'`); !slices.Equal(got, []string{"napr-09-03-01", "napr-09-03-04"}) {
+		t.Fatalf("цель после 0028: %v", got)
+	}
+	want := maps.Clone(wantUniversityDirections)
+	want["user_choices"] = 1
+	if got := universityDirectionCounts(t, tx); !maps.Equal(got, want) {
+		t.Fatalf("после 0028:\n%v\nожидали:\n%v", got, want)
+	}
+	if got := queryStrings(t, tx, `SELECT DISTINCT entity_id FROM content_changes`); !slices.Equal(got, []string{"p669-13-inzhenernye-nauki@innopolis"}) {
+		t.Fatalf("события 0028: %v", got)
+	}
+
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, `SELECT count(*) FROM content_changes`); n != 0 {
+		t.Fatalf("повторный прогон 0028 породил %d событий", n)
+	}
+
+	mustExec(t, tx.Exec, dbtest.DownSection(raw))
+	if got := choices(); !slices.Equal(got, []string{"napr-09-00-00"}) {
+		t.Fatalf("выбор в Иннополисе после отката 0028: %v", got)
+	}
+	want = maps.Clone(wantBefore0028)
+	want["user_choices"] = 1
+	if got := universityDirectionCounts(t, tx); !maps.Equal(got, want) {
+		t.Fatalf("после отката 0028:\n%v\nожидали:\n%v", got, want)
+	}
 }

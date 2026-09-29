@@ -14,7 +14,7 @@ func TestCovers_EqualCodes(t *testing.T) {
 	}
 }
 
-// Иннополис даёт укрупнённую группу 09.00.00, а ученик выбирает 09.03.04.
+// Вуз даёт укрупнённую группу 09.00.00, а ученик выбирает 09.03.04.
 func TestCovers_EnlargedGroupBothWays(t *testing.T) {
 	if !Covers("09.00.00", "09.03.04") {
 		t.Fatal("09.00.00 покрывает 09.03.04")
@@ -89,7 +89,7 @@ func TestResolve_GoalCodesPickUniversityDirections(t *testing.T) {
 	}
 }
 
-// Иннополис: у вуза одна укрупнённая группа, ученик хочет 09.03.04.
+// У вуза одна укрупнённая группа (как было у Иннополиса), ученик хочет 09.03.04.
 func TestResolve_GoalCoveredByEnlargedGroup(t *testing.T) {
 	innopolis := []Offered{{DirectionID: "napr-09-00-00", Code: "09.00.00", Status: "offered"}}
 	got := Resolve("innopolis", innopolis, nil, []string{"09.03.04"})
