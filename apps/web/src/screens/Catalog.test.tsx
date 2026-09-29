@@ -26,12 +26,11 @@ const olympiad = (id: string, level: 'I' | 'II' | null, kind: 'vsosh' | 'pereche
 const II = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'].map((id) => olympiad(id, 'II'))
 
 function setup() {
-  // Ученик демо-профиля выбрал информатику и математику: каталог сразу про его предмет (D1).
   return renderApp(<CatalogScreen />, {
     route: '/catalog',
     seed: (c) => {
       c.setQueryData(keys.profile, profile())
-      c.setQueryData(keys.olympiads('', 'inf', false), {
+      c.setQueryData(keys.olympiads('', 'all', false), {
         items: [olympiad('v', null, 'vsosh'), olympiad('a', 'I'), ...II],
       })
       c.setQueryData(keys.tracker, {
@@ -42,9 +41,12 @@ function setup() {
   })
 }
 
-it('по умолчанию — предмет ученика, олимпиады разложены по уровням', () => {
+// Раньше каталог открывался на первом предмете ученика: олимпиад по другим
+// предметам не было видно, и казалось, что их нет. Фильтр ученик ставит сам.
+it('по умолчанию — все предметы, олимпиады разложены по уровням', () => {
   setup()
-  expect(screen.getByRole('button', { name: 'Информатика', pressed: true })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Все', pressed: true })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Информатика', pressed: false })).toBeInTheDocument()
   const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
   expect(headings).toEqual(['ВсОШ1', 'I уровень1', 'II уровень7'])
 })
@@ -80,7 +82,7 @@ it('закрытую регистрацию помечает в строке', (
     route: '/catalog',
     seed: (c) => {
       c.setQueryData(keys.profile, profile())
-      c.setQueryData(keys.olympiads('', 'inf', false), {
+      c.setQueryData(keys.olympiads('', 'all', false), {
         items: [{ ...olympiad('z', 'I'), registration_closed: true }, olympiad('y', 'I')],
       })
       c.setQueryData(keys.tracker, { items: [], proposals: [] })
@@ -114,7 +116,7 @@ describe('ведут в мои вузы и на мои направления', 
       seed: (c) => {
         c.setQueryData(keys.profile, profile())
         c.setQueryData(keys.tracker, { items: [], proposals: [] })
-        c.setQueryData(keys.olympiads('', 'inf', false), { items: [olympiad('a', 'I'), olympiad('b', 'I')] })
+        c.setQueryData(keys.olympiads('', 'all', false), { items: [olympiad('a', 'I'), olympiad('b', 'I')] })
         for (const [subject, items] of Object.entries(mine)) c.setQueryData(keys.olympiads('', subject, true), { items })
       },
     })
@@ -122,7 +124,7 @@ describe('ведут в мои вузы и на мои направления', 
 
   it('переключатель — мои вузы и направления; включённый оставляет ведущие туда, с льготой в строке', async () => {
     renderMine({
-      inf: [
+      all: [
         leads('hse', 'Высшая проба', [
           { benefit: 'bvi', benefit_label: 'БВИ', universities: ['Иннополис'], partial_universities: [] },
           { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: [] },
@@ -156,7 +158,7 @@ describe('ведут в мои вузы и на мои направления', 
   it('вуз, где льгота не на все программы, помечен', async () => {
     state.universities = ['kfu', 'hse']
     renderMine({
-      inf: [
+      all: [
         leads('hse', 'Высшая проба', [
           { benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: ['ВШЭ'] },
         ]),
@@ -171,7 +173,7 @@ describe('ведут в мои вузы и на мои направления', 
   it('льгота во всех моих вузах — так и написано', async () => {
     state.universities = ['kfu', 'hse']
     renderMine({
-      inf: [leads('hse', 'Высшая проба', [{ benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: [] }])],
+      all: [leads('hse', 'Высшая проба', [{ benefit: 'score100', benefit_label: '100 баллов', universities: ['КФУ', 'ВШЭ'], partial_universities: [] }])],
     })
     await userEvent.click(screen.getByRole('switch', { name: /Ведут/ }))
     expect(screen.getByRole('button', { name: /Высшая проба/ })).toHaveTextContent('100 баллов во всех твоих вузах')
