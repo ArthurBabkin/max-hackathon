@@ -25,11 +25,23 @@ const olympiad = (id: string, level: 'I' | 'II' | null, kind: 'vsosh' | 'pereche
 
 const II = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'].map((id) => olympiad(id, 'II'))
 
+// Справочник предметов с сервера: первыми — с большим числом олимпиад.
+const SUBJECTS = {
+  items: [
+    { code: 'phys', name: 'Физика' },
+    { code: 'inf', name: 'Информатика' },
+    { code: 'chem', name: 'Химия' },
+    { code: 'econ', name: 'Экономика' },
+    { code: 'astro', name: 'Астрономия' },
+  ],
+}
+
 function setup() {
   return renderApp(<CatalogScreen />, {
     route: '/catalog',
     seed: (c) => {
       c.setQueryData(keys.profile, profile())
+      c.setQueryData(keys.subjects, SUBJECTS)
       c.setQueryData(keys.olympiads('', 'all', false), {
         items: [olympiad('v', null, 'vsosh'), olympiad('a', 'I'), ...II],
       })
@@ -62,6 +74,21 @@ it('длинная группа свёрнута до пяти, «Показат
 it('олимпиада из трекера помечена', () => {
   setup()
   expect(within(screen.getByRole('button', { name: /Олимпиада a/ })).getByText('в трекере')).toBeInTheDocument()
+})
+
+// Предметы — справочником с сервера (#73): в фильтре есть «Экономика» и
+// «Астрономия», которых раньше не было.
+it('предметы фильтра — из справочника, в его порядке', () => {
+  setup()
+  const row = within(screen.getByRole('group', { name: 'Предмет' }))
+  expect(row.getAllByRole('button').map((b) => b.textContent)).toEqual([
+    'Все',
+    'Физика',
+    'Информатика',
+    'Химия',
+    'Экономика',
+    'Астрономия',
+  ])
 })
 
 // Из «Подбора» без подходящих олимпиад — «Найти вузы» (C3): каталог сразу на вузах.
@@ -115,6 +142,7 @@ describe('ведут в мои вузы и на мои направления', 
       session,
       seed: (c) => {
         c.setQueryData(keys.profile, profile())
+        c.setQueryData(keys.subjects, SUBJECTS)
         c.setQueryData(keys.tracker, { items: [], proposals: [] })
         c.setQueryData(keys.olympiads('', 'all', false), { items: [olympiad('a', 'I'), olympiad('b', 'I')] })
         for (const [subject, items] of Object.entries(mine)) c.setQueryData(keys.olympiads('', subject, true), { items })
@@ -298,5 +326,30 @@ describe('вузы по направлению', () => {
     await userEvent.click(screen.getByRole('button', { name: /Казанский университет/ }))
 
     expect(screen.getByRole('status', { name: 'адрес' })).toHaveTextContent('sheet=vuz:kfu:dir-se')
+  })
+
+  // Города — из списка вузов (#73): Новосибирск (НГУ) в фильтре есть.
+  // Где вузов больше — раньше; выбранный город остальные не прячет.
+  it('города фильтра — из списка вузов', async () => {
+    const at = (id: string, city: string | null) => ({ ...uni(id, id), city })
+    renderApp(<CatalogScreen />, {
+      route: '/catalog?segment=universities',
+      seed: (c) => {
+        c.setQueryData(keys.profile, profile())
+        c.setQueryData(keys.directions, { items: [] })
+        c.setQueryData(keys.universities('', 'all'), {
+          items: [at('msu', 'Москва'), at('nsu', 'Новосибирск'), at('hse', 'Москва'), at('kfu', 'Казань'), at('x', null)],
+        })
+        c.setQueryData(keys.universities('', 'Новосибирск'), { items: [at('nsu', 'Новосибирск')] })
+      },
+    })
+    const row = within(screen.getByRole('group', { name: 'Город' }))
+    const names = () => row.getAllByRole('button').map((b) => b.textContent)
+    expect(names()).toEqual(['Все', 'Москва', 'Казань', 'Новосибирск'])
+
+    await userEvent.click(row.getByRole('button', { name: 'Новосибирск' }))
+
+    expect(row.getByRole('button', { name: 'Новосибирск' })).toHaveAttribute('aria-pressed', 'true')
+    expect(names()).toEqual(['Все', 'Москва', 'Казань', 'Новосибирск'])
   })
 })

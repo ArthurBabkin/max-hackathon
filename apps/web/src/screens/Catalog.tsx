@@ -4,8 +4,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { Button, Input } from '@maxhub/max-ui'
 import type { OlympiadListItem, Profile } from '@contract'
-import { useDirections, useOlympiads, useProfile, useTracker, useUniversities } from '@/api/queries'
-import { groupByLevel } from '@/lib/catalog'
+import { useDirections, useOlympiads, useProfile, useSubjects, useTracker, useUniversities } from '@/api/queries'
+import { citiesOf, groupByLevel } from '@/lib/catalog'
 import { useDebounced } from '@/lib/useDebounced'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip, StateBlock, Tile } from '@/ui/primitives'
@@ -18,23 +18,8 @@ import { DirectionPicker } from './DirectionPicker'
 
 type Segment = 'olympiads' | 'universities'
 
-/**
- * Значения фильтров. В демо-данных это фиксированные списки; когда появятся
- * справочники с сервера, сюда встанут они — разметка не изменится.
- */
-const SUBJECTS: { value: string; label: string }[] = [
-  { value: 'inf', label: 'Информатика' },
-  { value: 'math', label: 'Математика' },
-  { value: 'phys', label: 'Физика' },
-  { value: 'chem', label: 'Химия' },
-  { value: 'bio', label: 'Биология' },
-  { value: 'soc', label: 'Обществознание' },
-]
-
 /** Сколько строк группы видно сразу: дальше — «Показать ещё». */
 const GROUP_PREVIEW = 5
-
-const UNIVERSITY_CITIES = ['all', 'Казань', 'Иннополис', 'Москва', 'Санкт-Петербург', 'Долгопрудный']
 
 /** Мои вузы и сколько направлений в них учитываются: «ВШЭ, КФУ · 2 направления». */
 function mineSummary(profile: Profile, t: Translate): string {
@@ -121,6 +106,10 @@ export function CatalogScreen() {
 
   const olympiads = useOlympiads(debouncedQuery, subject, mine)
   const universities = useUniversities(debouncedQuery, city, direction)
+  // Фильтры — из данных: предметы справочником, города — из всех вузов, а не
+  // из найденных, чтобы выбранный город не прятал остальные.
+  const subjects = useSubjects()
+  const cities = citiesOf(useUniversities('', 'all').data?.items ?? [])
   const active = segment === 'olympiads' ? olympiads : universities
 
   const reset = () => {
@@ -335,13 +324,13 @@ export function CatalogScreen() {
       {segment === 'olympiads' ? (
         <div className="filter-row" data-tour="catalog-subjects">
           <span className="filter-label">{t('catalog.filterSubject')}</span>
-          <div className="chips">
+          <div className="chips" role="group" aria-label={t('catalog.filterSubject')}>
             <Chip active={subject === 'all'} onClick={() => setSubject('all')}>
               {t('catalog.all')}
             </Chip>
-            {SUBJECTS.map((item) => (
-              <Chip key={item.value} active={subject === item.value} onClick={() => setSubject(item.value)}>
-                {item.label}
+            {(subjects.data?.items ?? []).map((item) => (
+              <Chip key={item.code} active={subject === item.code} onClick={() => setSubject(item.code)}>
+                {item.name}
               </Chip>
             ))}
           </div>
@@ -378,10 +367,13 @@ export function CatalogScreen() {
       {segment === 'universities' ? (
         <div className="filter-row">
           <span className="filter-label">{t('catalog.filterCity')}</span>
-          <div className="chips">
-            {UNIVERSITY_CITIES.map((value) => (
+          <div className="chips" role="group" aria-label={t('catalog.filterCity')}>
+            <Chip active={city === 'all'} onClick={() => setCity('all')}>
+              {t('catalog.all')}
+            </Chip>
+            {cities.map((value) => (
               <Chip key={value} active={city === value} onClick={() => setCity(value)}>
-                {value === 'all' ? t('catalog.all') : value}
+                {value}
               </Chip>
             ))}
           </div>

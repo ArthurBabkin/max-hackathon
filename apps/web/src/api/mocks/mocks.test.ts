@@ -12,6 +12,7 @@ import type {
   OlympiadDetail,
   OlympiadListItem,
   Profile,
+  Subject,
   Tracker,
   TrackerItem,
   UniversityDetail,
@@ -391,6 +392,12 @@ describe('профиль', () => {
   it('пустой регион — «не указан», без прежнего названия', async () => {
     const p = (await handleMock('PATCH', '/profile', { region_code: '' })) as Profile
     expect([p.region_code, p.region_name]).toEqual(['', ''])
+  })
+
+  it('справочник предметов — все предметы демо-данных, у каждого название', async () => {
+    const { items } = (await handleMock('GET', '/subjects')) as { items: Subject[] }
+    expect(items.map((s) => s.code)).toEqual(expect.arrayContaining(['inf', 'math', 'econ', 'robo']))
+    expect(items.every((s) => s.name && s.name !== s.code)).toBe(true)
   })
 })
 

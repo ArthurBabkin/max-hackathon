@@ -16,7 +16,7 @@
 
 import { ApiError } from '../errors'
 import { regions as REGIONS } from '@regions'
-import { DIRECTIONS, OLYMPIADS, SOURCES, UNIVERSITIES, inDays } from './fixtures'
+import { DIRECTIONS, OLYMPIADS, SOURCES, SUBJECTS, UNIVERSITIES, inDays } from './fixtures'
 import {
   type DemoAiChat,
   findProfile,
@@ -199,6 +199,8 @@ route('GET', '/universities', ({ query }) => {
 })
 
 route('GET', '/directions', () => ({ items: DIRECTIONS }))
+
+route('GET', '/subjects', () => ({ items: Object.entries(SUBJECTS).map(([code, name]) => ({ code, name })) }))
 
 route('GET', '/universities/:id', ({ params }) => {
   const u = universityById(params.id!)

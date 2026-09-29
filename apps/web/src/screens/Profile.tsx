@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Input } from '@maxhub/max-ui'
 import { GRADES, type Grade, type Profile, type ProfilePatch } from '@contract'
 import { districts, regions } from '@regions'
-import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
+import { useDirections, usePatchProfile, useProfile, useServerVersion, useSubjects, useUniversities } from '@/api/queries'
 import { getWebApp } from '@/bridge'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip } from '@/ui/primitives'
@@ -22,7 +22,6 @@ const PRIVACY_URL = 'https://traektoriaedu.ru/privacy.html'
 
 const WEB_VERSION = ((import.meta.env.VITE_APP_VERSION as string | undefined) || 'dev').slice(0, 7)
 
-/** Предметы онбординга (ТЗ F7). Придут справочником с сервера — разметка та же. */
 /** Опыт в олимпиадах (онбординг v2, SPEC 6): от него зависит вес уровня олимпиады. */
 const EXPERIENCES = ['none', 'school', 'region'] as const
 type Experience = (typeof EXPERIENCES)[number]
@@ -76,21 +75,13 @@ export function rebase<T>(local: T, base: T, server: T): T {
   return local
 }
 
-const SUBJECTS = [
-  { code: 'inf', name: 'Информатика' },
-  { code: 'math', name: 'Математика' },
-  { code: 'phys', name: 'Физика' },
-  { code: 'chem', name: 'Химия' },
-  { code: 'bio', name: 'Биология' },
-  { code: 'soc', name: 'Обществознание' },
-]
-
 export function ProfileScreen() {
   const t = useVoice()
   const navigate = useNavigate()
   const profile = useProfile()
   const universities = useUniversities('', 'all')
   const directions = useDirections()
+  const subjectDirectory = useSubjects()
   const save = usePatchProfile()
   const serverVersion = useServerVersion()
   const sheets = useSheetStack()
@@ -193,6 +184,11 @@ export function ProfileScreen() {
     )
   }
 
+  // Предметы — справочником с сервера (F7). Выбранное, чего в нём нет или
+  // пока он не пришёл, — тоже чипом: «выбрано» не расходится с отмеченным.
+  const directory = subjectDirectory.data?.items ?? []
+  const subjectChips = [...directory, ...data.subjects.filter((s) => !directory.some((d) => d.code === s.code))]
+
   /** Подпись места: город или название региона. */
   const placeName = (place: PlacePatch) =>
     place.city ?? regions.find((r) => r.code === place.region_code)?.name ?? place.region_code
@@ -293,8 +289,8 @@ export function ProfileScreen() {
           <span>{t('profile.subjectsLabel')}</span>
           <span>{t('profile.selectedCount', { count: subjects.length })}</span>
         </p>
-        <div className="wrap-chips">
-          {SUBJECTS.map((subject) => (
+        <div className="wrap-chips" role="group" aria-label={t('profile.subjectsLabel')}>
+          {subjectChips.map((subject) => (
             <Chip
               key={subject.code}
               active={subjects.includes(subject.code)}

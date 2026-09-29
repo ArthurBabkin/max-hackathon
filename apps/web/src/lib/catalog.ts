@@ -27,6 +27,13 @@ export function groupByLevel<T extends Groupable>(items: T[]): { key: LevelGroup
   )
 }
 
+/** Города фильтра каталога вузов — из самих вузов: где вузов больше, раньше, при равенстве — по алфавиту. */
+export function citiesOf(universities: { city: string | null }[]): string[] {
+  const count = new Map<string, number>()
+  for (const u of universities) if (u.city) count.set(u.city, (count.get(u.city) ?? 0) + 1)
+  return [...count.keys()].sort((a, b) => count.get(b)! - count.get(a)! || a.localeCompare(b, 'ru'))
+}
+
 const STRENGTH: Record<BenefitKind, number> = { bvi: 3, bvi_winners: 2, score100: 1, extra_points: 0 }
 
 interface ProfileRow {

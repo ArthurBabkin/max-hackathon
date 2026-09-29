@@ -36,6 +36,7 @@ import type {
   Session,
   SessionResponse,
   StageResult,
+  Subject,
   TrackerItem,
   UniversityDetail,
 } from '@contract'
@@ -58,6 +59,7 @@ export const keys = {
   family: ['family'] as const,
   profile: ['profile'] as const,
   directions: ['directions'] as const,
+  subjects: ['subjects'] as const,
   aiChats: ['ai', 'chats'] as const,
   aiChat: (id: string) => ['ai', 'chat', id] as const,
   health: ['health'] as const,
@@ -207,6 +209,14 @@ export const useDirections = () =>
   useQuery({
     queryKey: keys.directions,
     queryFn: () => api.get<{ items: DirectionOption[] }>('/directions'),
+    staleTime: Infinity,
+  })
+
+/** Справочник предметов (F7, F27, F49): все, что предлагает бот; меняется только с выкладкой. */
+export const useSubjects = () =>
+  useQuery({
+    queryKey: keys.subjects,
+    queryFn: () => api.get<{ items: Subject[] }>('/subjects'),
     staleTime: Infinity,
   })
 
