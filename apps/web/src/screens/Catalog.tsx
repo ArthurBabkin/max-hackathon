@@ -78,14 +78,13 @@ export function CatalogScreen() {
   const location = useLocation()
   const [segment, setSegment] = useState<Segment>(params.get('segment') === 'universities' ? 'universities' : 'olympiads')
   const [query, setQuery] = useState('')
-  // Пока пользователь не выбрал сам — предмет ученика, как на макете D1:
-  // семьдесят олимпиад разом никто не читает.
-  const [pickedSubject, setSubject] = useState<string | null>(null)
+  // Сразу — все олимпиады (F24). На макете D1 выбран предмет ученика, но
+  // такой фильтр, которого никто не ставил, прятал остальные предметы:
+  // казалось, что олимпиад в каталоге меньше. Длинные группы и так свёрнуты.
+  const [subject, setSubject] = useState('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const profile = useProfile()
   const tracker = useTracker()
-  const mySubject = profile.data?.subjects.map((s) => s.code).find((code) => SUBJECTS.some((s) => s.value === code))
-  const subject = pickedSubject ?? mySubject ?? 'all'
   const tracked = new Set(tracker.data?.items.map((item) => item.olympiad_id))
   // Уже в трекере или ждёт ответа на предложение — добавить её нельзя.
   // Туториал открывает олимпиаду, у которой кнопка «Добавить» ещё есть.
