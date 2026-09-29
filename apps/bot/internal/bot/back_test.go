@@ -57,7 +57,7 @@ func TestBack_KidToStartAndForward(t *testing.T) {
 		t.Fatalf("назад к имени: %q", q.Text)
 	}
 	q = h.tap(artem, q, "back:name_confirm")
-	if !strings.HasPrefix(q.Text, "Шаг 1 из 9\n\nПривет!") || maxtest.Buttons(q) != "✓ Я школьник | Я родитель" || hasBack(q) {
+	if q.Text != "Шаг 1 из 9\n\nЗадам несколько коротких вопросов. Кто вы?" || maxtest.Buttons(q) != "✓ Я школьник | Я родитель" || hasBack(q) {
 		t.Fatalf("первый вопрос, дальше назад некуда: %q %s", q.Text, maxtest.Buttons(q))
 	}
 
@@ -103,7 +103,7 @@ func TestBack_OldButtonIsStale(t *testing.T) {
 // написать другое. Смена роли имя сбрасывает: у родителя это имя ребёнка.
 func TestBack_ParentName(t *testing.T) {
 	h := newHarness(t)
-	h.started(olga, "")
+	h.register(olga, "")
 	h.press(olga, "role:parent")
 	h.text(olga, "Артём")
 	q := h.tap(olga, h.fake.Last(olga.UserID), "back:grade")

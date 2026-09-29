@@ -17,6 +17,10 @@ import (
 // перехода: кнопка из старого сообщения не совпадает с текущим шагом и
 // ничего не меняет.
 const (
+	// stepConsent — согласие с политикой конфиденциальности (152-ФЗ): до
+	// первого вопроса анкеты и до входа по приглашению. Счётчика и «Назад»
+	// у него нет, это ещё не анкета.
+	stepConsent     = "consent"
 	stepRole        = "role"
 	stepNameConfirm = "name_confirm"
 	stepNameInput   = "name_input"
@@ -111,6 +115,8 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	v := dialogVoice(t, d)
 	cb := maxapi.CallbackButton
 	switch d.Step {
+	case stepConsent:
+		return consentPrompt(v, d, false), nil
 	case stepRole:
 		return maxapi.WithKeyboard(v.T("bot.welcome", nil), maxapi.Keyboard{maxapi.Row(
 			cb(check(d.Role == "kid", v.T("bot.role.kid", nil)), "role:kid"),
@@ -167,6 +173,54 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 		return b.summaryPrompt(t, v, d)
 	}
 	return maxapi.NewMessage{}, errors.New("bot: у шага нет вопроса: " + d.Step)
+}
+
+// privacyURL — политика конфиденциальности на лендинге (apps/landing).
+const privacyURL = "https://traektoriaedu.ru/privacy.html"
+
+// consentPrompt — вопрос о согласии: ссылка на политику и «Принимаю».
+// Пришёл по приглашению — о том, что увидят участники траектории. После
+// нажатия ссылка остаётся, а «Принимаю» отмечен.
+func consentPrompt(v voice.Voice, d store.Dialog, accepted bool) maxapi.NewMessage {
+	text := "bot.consent"
+	if d.SourcePayload != nil && strings.HasPrefix(*d.SourcePayload, "inv_") {
+		text = "bot.consent.join"
+	}
+	accept := maxapi.CallbackButton(v.T("bot.consent.accept", nil), "consent:ok")
+	if accepted {
+		accept = maxapi.CallbackButton(check(true, accept.Text), "noop")
+	}
+	return maxapi.WithKeyboard(v.T(text, nil), maxapi.Keyboard{
+		maxapi.Row(maxapi.LinkButton(v.T("privacy.link", nil), privacyURL)),
+		maxapi.Row(accept),
+	})
+}
+
+// consentCallback — «Принимаю»: согласие записано, дальше то, с чем пришли, —
+// анкета или вход по приглашению (параметр ссылки ждал в диалоге).
+func (b *Bot) consentCallback(t *turn, cb *maxapi.Callback) error {
+	d, err := b.store.Dialog(t.ctx, t.userID)
+	if errors.Is(err, store.ErrNotFound) {
+		return b.stale(t, cb, nil)
+	}
+	if err != nil {
+		return err
+	}
+	if d.Step != stepConsent {
+		return b.stale(t, cb, &d)
+	}
+	if err := b.store.AcceptPrivacy(t.ctx, t.userID); err != nil {
+		return err
+	}
+	msg := consentPrompt(kidVoice(t), d, true)
+	if err := b.max.Answer(t.ctx, cb.CallbackID, maxapi.CallbackAnswer{Message: &msg}); err != nil {
+		return err
+	}
+	payload := ""
+	if d.SourcePayload != nil {
+		payload = *d.SourcePayload
+	}
+	return b.start(t, payload)
 }
 
 // matchingDirections — направления, чьи ключевые предметы пересекаются с
@@ -559,6 +613,8 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 	}
 	v := kidVoice(t)
 	switch kind {
+	case "consent":
+		return true, b.consentCallback(t, cb)
 	case "role":
 		role := arg(0)
 		if role != "kid" && role != "parent" {
