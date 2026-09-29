@@ -173,6 +173,29 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
       canGoBack={canGoBack}
       onBack={sheets.back}
       onClose={sheets.closeAll}
+      footer={
+        <>
+          <Button
+            stretched
+            variant={isMine ? 'secondary' : 'primary'}
+            loading={setUniversities.isPending}
+            iconBefore={<Icon name={isMine ? 'check' : 'plus'} size={16} />}
+            onClick={toggle}
+          >
+            {!isMine
+              ? t('university.addToMine')
+              : chosen > 0
+                ? t('university.inMineWith', {
+                    count: countText(t, 'count.directions', chosen),
+                  })
+                : t('university.inMine')}
+          </Button>
+          <p className="lock lock-center">
+            <Icon name="users" size={12} />
+            {t('university.sharedNote')}
+          </p>
+        </>
+      }
       header={
         <>
           <Tile
@@ -270,29 +293,6 @@ export function UniversitySheet({ id, focus, sheets }: { id: string; focus?: str
           <p className="block-text">{t('university.egeText', { note: university.ege_note })}</p>
         </section>
       ) : null}
-
-      <div className="sheet-actions">
-        <Button
-          stretched
-          variant={isMine ? 'secondary' : 'primary'}
-          loading={setUniversities.isPending}
-          iconBefore={<Icon name={isMine ? 'check' : 'plus'} size={16} />}
-          onClick={toggle}
-        >
-          {!isMine
-            ? t('university.addToMine')
-            : chosen > 0
-              ? t('university.inMineWith', {
-                  count: countText(t, 'count.directions', chosen),
-                })
-              : t('university.inMine')}
-        </Button>
-      </div>
-
-      <p className="lock">
-        <Icon name="users" size={12} />
-        {t('university.sharedNote')}
-      </p>
     </Sheet>
   )
 }

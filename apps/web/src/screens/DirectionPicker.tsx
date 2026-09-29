@@ -93,6 +93,14 @@ export function DirectionPicker({
       canGoBack={false}
       onBack={onClose}
       onClose={onClose}
+      // Мультивыбор закрывается «Готово» — под списком из 72 направлений её не найти.
+      footer={
+        single ? null : (
+          <Button stretched onClick={onClose}>
+            {t('directions.done')}
+          </Button>
+        )
+      }
       header={
         <div className="sheet-title">
           <h2>{title}</h2>
@@ -115,13 +123,6 @@ export function DirectionPicker({
             {s.items.map(row)}
           </section>
         ))}
-      {single ? null : (
-        <div className="sheet-actions">
-          <Button stretched onClick={onClose}>
-            {t('directions.done')}
-          </Button>
-        </div>
-      )}
     </Sheet>
   )
 }

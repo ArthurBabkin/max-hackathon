@@ -464,10 +464,13 @@ export function Tutorial({ onDone }: { onDone: () => void }) {
     const timers = SETTLE_MS.map((ms) => window.setTimeout(update, ms))
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
+    // Лист доехал снизу: цель в его подвале встала на место без прокрутки.
+    window.addEventListener('animationend', update, true)
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer))
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
+      window.removeEventListener('animationend', update, true)
     }
   }, [view])
 

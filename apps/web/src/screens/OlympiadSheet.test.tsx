@@ -142,6 +142,24 @@ it('ни один вуз олимпиаду не учитывает — без �
   expect(within(block).getByText(/^Не учитыва/)).toBeInTheDocument()
 })
 
+// Кнопку трекера приходилось искать, пролистав карточку до конца. Она
+// закреплена внизу листа, вне прокрутки: видна сразу, какой бы длинной ни
+// была карточка, — вместе с подписью о напоминаниях.
+it('кнопка трекера закреплена внизу листа, вне прокрутки', () => {
+  renderSheet({ in_tracker: false, proposal_status: null })
+  const button = screen.getByRole('button', { name: 'Добавить в трекер' })
+  expect(button.closest('[role="dialog"]')).not.toBeNull()
+  expect(button.closest('.sheet-body')).toBeNull()
+  expect(screen.getByText('После добавления напоминания получат все участники').closest('.sheet-body')).toBeNull()
+})
+
+it('олимпиада уже в трекере — статус там же, внизу листа', () => {
+  renderSheet({ in_tracker: true })
+  const status = screen.getByRole('button', { name: 'В трекере' })
+  expect(status).toBeDisabled()
+  expect(status.closest('.sheet-body')).toBeNull()
+})
+
 const blockOrder = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
 
 // Даты — сразу под уровнями: «когда» важно не меньше, чем «насколько сильная».

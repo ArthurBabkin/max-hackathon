@@ -1145,10 +1145,25 @@
   margin: 0 0 var(--gap-sm);
 }
 
-.sheet-actions {
+/* Главное действие листа — под прокруткой, всегда на виду. Линия сверху
+   отделяет его от прокручиваемого содержимого. */
+.sheet-foot {
+  flex: 0 0 auto;
   display: grid;
   gap: var(--gap-sm);
-  margin-top: var(--gap-lg);
+  margin: 0 calc(-1 * var(--gap-lg));
+  padding: var(--gap-md) var(--gap-lg) calc(var(--gap-md) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ln);
+  background: var(--surface);
+}
+
+.sheet-foot .lock {
+  margin: 0;
+}
+
+/* Отступ под безопасную зону теперь у подвала. */
+.sheet-body:has(+ .sheet-foot) {
+  padding-bottom: var(--gap-lg);
 }
 
 .lock {
