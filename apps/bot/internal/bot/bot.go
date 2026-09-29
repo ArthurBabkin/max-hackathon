@@ -178,20 +178,37 @@ func (b *Bot) unknown(t *turn) error {
 
 // start — /start и bot_started (F1). Параметр inv_<token> — вход по
 // приглашению; любой другой сохраняется как источник, битый — игнорируется.
+// Без согласия с политикой конфиденциальности — сначала оно, параметр ждёт
+// в диалоге.
 func (b *Bot) start(t *turn, payload string) error {
-	if token, ok := strings.CutPrefix(payload, "inv_"); ok && inviteTokenRe.MatchString(token) {
-		return b.join(t, token)
-	}
-	_, ok, err := b.member(t)
-	if err != nil {
-		return err
-	}
-	if ok {
-		return b.menu(t, true)
+	token, invite := strings.CutPrefix(payload, "inv_")
+	invite = invite && inviteTokenRe.MatchString(token)
+	if !invite {
+		_, ok, err := b.member(t)
+		if err != nil {
+			return err
+		}
+		if ok {
+			return b.menu(t, true)
+		}
 	}
 	var source *string
 	if sourceRe.MatchString(payload) {
 		source = &payload
+	}
+	accepted, err := b.store.PrivacyAccepted(t.ctx, t.userID)
+	if err != nil {
+		return err
+	}
+	if !accepted {
+		d, err := b.store.StartDialog(t.ctx, store.Dialog{UserID: t.userID, Step: stepConsent, SourcePayload: source})
+		if err != nil {
+			return err
+		}
+		return b.ask(t, d)
+	}
+	if invite {
+		return b.join(t, token)
 	}
 	d, err := b.store.StartDialog(t.ctx, store.Dialog{UserID: t.userID, Step: stepRole, SourcePayload: source})
 	if err != nil {
@@ -243,7 +260,10 @@ func (b *Bot) help(t *turn) error {
 			return err
 		}
 	}
-	return b.say(t, v.T("bot.help", nil))
+	// Политика конфиденциальности — по ссылке из /help (ТЗ §12).
+	_, err = b.send(t, maxapi.WithKeyboard(v.T("bot.help", nil), maxapi.Keyboard{
+		maxapi.Row(maxapi.LinkButton(v.T("privacy.link", nil), privacyURL))}))
+	return err
 }
 
 // Commands — подсказки меню бота (F51), их ставит cmd/setup.

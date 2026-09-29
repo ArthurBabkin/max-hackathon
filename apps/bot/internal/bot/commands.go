@@ -129,6 +129,15 @@ func (b *Bot) deleteCommand(t *turn) error {
 		return err
 	}
 	if !ok {
+		// Траектории нет, но согласие могли дать и бросить анкету: отозвать
+		// его и стереть черновик можно и так (152-ФЗ).
+		withdrawn, err := b.store.WithdrawPrivacy(t.ctx, t.userID)
+		if err != nil {
+			return err
+		}
+		if withdrawn {
+			return b.say(t, kidVoice(t).T("bot.delete.draft", nil))
+		}
 		return b.say(t, kidVoice(t).T("bot.noTrajectory", nil))
 	}
 	v, _, err := b.voiceOf(t, m)

@@ -6,6 +6,7 @@ import { Button, Input } from '@maxhub/max-ui'
 import { GRADES, type Grade, type Profile, type ProfilePatch } from '@contract'
 import { districts, regions } from '@regions'
 import { useDirections, usePatchProfile, useProfile, useServerVersion, useUniversities } from '@/api/queries'
+import { getWebApp } from '@/bridge'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Chip } from '@/ui/primitives'
 import { ThemeSetting } from '@/ui/ThemeSetting'
@@ -16,6 +17,9 @@ import { useVoice } from '@/voice/useVoice'
 import { ErrorState } from '@/ui/ErrorState'
 
 /** Коммит сборки фронта; вне CI — «dev». */
+/** Политика конфиденциальности на лендинге; ту же ссылку даёт бот. */
+const PRIVACY_URL = 'https://traektoriaedu.ru/privacy.html'
+
 const WEB_VERSION = ((import.meta.env.VITE_APP_VERSION as string | undefined) || 'dev').slice(0, 7)
 
 /** Предметы онбординга (ТЗ F7). Придут справочником с сервера — разметка та же. */
@@ -450,10 +454,16 @@ export function ProfileScreen() {
         {t('profile.saveCta')}
       </Button>
 
-      <button type="button" className="link tutorial-replay" onClick={() => navigate('/?tutorial=1')}>
-        <Icon name="book" size={15} />
-        {t('tutorial.replay')}
-      </button>
+      <div className="profile-links">
+        <button type="button" className="link tutorial-replay" onClick={() => navigate('/?tutorial=1')}>
+          <Icon name="book" size={15} />
+          {t('tutorial.replay')}
+        </button>
+        <button type="button" className="link tutorial-replay" onClick={() => getWebApp().openLink(PRIVACY_URL)}>
+          <Icon name="doc" size={15} />
+          {t('privacy.link')}
+        </button>
+      </div>
 
       {/* По версиям видно, какие коммиты сейчас в проде. */}
       <p className="app-version">

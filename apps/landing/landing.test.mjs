@@ -449,6 +449,27 @@ test('ролик: без видео или кнопки ничего не дел
   assert.doesNotThrow(() => initFilm(null, null))
 })
 
+// --- политика конфиденциальности ---
+
+// Бот и мини-приложение открывают политику по полному адресу: переименуешь
+// страницу — их ссылки сломаются тихо.
+test('политика конфиденциальности: отдельная страница, бот и приложение ведут на неё', () => {
+  const page = read('privacy.html')
+  assert.match(page, /<html lang="ru" data-theme="light"/)
+  assert.match(page, /<title>Политика конфиденциальности — Траектория<\/title>/)
+  assert.equal([...page.matchAll(/<h1[\s>]/g)].length, 1)
+  const url = attrs('link', page).find((l) => l.rel === 'canonical')?.href
+  assert.equal(url, 'https://traektoriaedu.ru/privacy.html')
+  for (const f of ['../bot/internal/bot/onboarding.go', '../web/src/screens/Profile.tsx']) {
+    assert.ok(read(f).includes(url), `${f} не ведёт на ${url}`)
+  }
+  for (const s of attrs('script', page)) assert.ok(!s.src || isLocal(s.src), `внешний скрипт ${s.src}`)
+  for (const l of attrs('link', page).filter((l) => l.rel === 'stylesheet')) assert.ok(isLocal(l.href), `внешний стиль ${l.href}`)
+  for (const [, v] of page.matchAll(/\s(?:src|href)="([^"]+)"/g)) {
+    if (isLocal(v) && /\.\w{2,5}$/.test(v)) assert.ok(existsSync(join(here, v)), `нет файла ${v}`)
+  }
+})
+
 // --- вопросы ---
 
 test('вопросы: кнопки связаны с ответами, открыт первый', () => {
