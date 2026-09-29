@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import type { BenefitKind, BenefitRow as BenefitRowData } from '@contract'
 import { NO_BENEFIT_LABEL } from '@contract'
+import { previewByLength } from '@/lib/catalog'
 import { countText, useVoice } from '@/voice/useVoice'
 import { Icon } from './Icon'
 import { BenefitValue, ListToggle, Tile } from './primitives'
@@ -61,13 +62,14 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
   )
 }
 
-/** Сколько профилей олимпиады видно в строке сразу: у НТО их сорок. */
-const SUBJECTS_PREVIEW = 3
+/** Сколько знаков подписи видно в свёрнутой строке — пара строк на телефоне. */
+const SUBJECTS_BUDGET = 70
 
 /**
  * Строка олимпиады в карточке вуза — зеркальная к BenefitRow (F26). Под
- * названием — профили олимпиады; длинный список свёрнут до трёх, остальные
- * раскрывает кнопка под строкой: в самой строке её не вложить, строка — кнопка.
+ * названием — профили олимпиады; длинный список свёрнут до пары строк,
+ * остальные раскрывает кнопка под строкой: в самой строке её не вложить,
+ * строка — кнопка.
  */
 export function UniversityOlympiadRow({
   id,
@@ -96,14 +98,11 @@ export function UniversityOlympiadRow({
 }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
-  // «и ещё 1» не сворачиваем — одна строка места не экономит.
-  const long = subjects.length > SUBJECTS_PREVIEW + 1
+  const preview = previewByLength(subjects, SUBJECTS_BUDGET)
+  const long = preview.length < subjects.length
   const shown =
     long && !expanded
-      ? t('university.subjectsMore', {
-          subjects: subjects.slice(0, SUBJECTS_PREVIEW).join(', '),
-          count: subjects.length - SUBJECTS_PREVIEW,
-        })
+      ? t('university.subjectsMore', { subjects: preview.join(', '), count: subjects.length - preview.length })
       : subjects.join(', ')
 
   return (
@@ -122,7 +121,13 @@ export function UniversityOlympiadRow({
         <BenefitValue kind={benefit ?? 'bvi'} label={label} />
         <Icon name="chevron" size={15} />
       </button>
-      {long ? <ListToggle expanded={expanded} count={subjects.length} onToggle={() => setExpanded(!expanded)} /> : null}
+      {long ? (
+        <ListToggle
+          expanded={expanded}
+          label={t('olympiad.allProfiles', { count: subjects.length })}
+          onToggle={() => setExpanded(!expanded)}
+        />
+      ) : null}
     </div>
   )
 }

@@ -137,7 +137,7 @@ export function Chip({ active = false, onClick, 'aria-label': label, children }:
  * остаётся на экране: без этого после длинного списка страница уезжала бы
  * вниз, в Safari на iOS 15 прокрутка за содержимым не следит.
  */
-export function ListToggle({ expanded, count, onToggle }: { expanded: boolean; count: number; onToggle: () => void }) {
+export function ListToggle({ expanded, label, onToggle }: { expanded: boolean; label: string; onToggle: () => void }) {
   const t = useVoice()
   const ref = useRef<HTMLButtonElement>(null)
   return (
@@ -153,7 +153,7 @@ export function ListToggle({ expanded, count, onToggle }: { expanded: boolean; c
         ref.current?.scrollIntoView?.({ block: 'nearest' })
       }}
     >
-      {expanded ? t('olympiad.profilesCollapse') : t('olympiad.allProfiles', { count })}
+      {expanded ? t('list.collapse') : label}
       <Icon name="chevron" size={13} className={expanded ? 'list-toggle-up' : 'list-toggle-down'} />
     </button>
   )

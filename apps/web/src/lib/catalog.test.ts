@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byOlympiad, groupByLevel } from './catalog'
+import { byOlympiad, groupByLevel, previewByLength } from './catalog'
 
 const item = (olympiad_id: string, kind: 'vsosh' | 'perechen' | 'other', level: 'I' | 'II' | 'III' | null) => ({
   olympiad_id,
@@ -80,5 +80,33 @@ describe('byOlympiad', () => {
 
   it('БВИ победителям уступает БВИ, но сильнее 100 баллов', () => {
     expect(byOlympiad([row('a', 'X', 'score100'), row('a', 'Y', 'bvi_winners')])[0]!.benefit).toBe('bvi_winners')
+  })
+})
+
+// Свёрнутый список — по длине подписи, а не по числу пунктов: у НТО профиль
+// бывает длиной в абзац, у КФУ — семнадцать направлений.
+describe('previewByLength', () => {
+  const rest = ['Информационная безопасность', 'Информационные системы и технологии']
+
+  it('берёт пункты, пока подпись через запятую не длиннее бюджета', () => {
+    expect(previewByLength(['Математика', 'Физика', ...rest], 20)).toEqual(['Математика', 'Физика'])
+    expect(previewByLength(['Математика', 'Физика', ...rest], 200)).toEqual(['Математика', 'Физика', ...rest])
+  })
+
+  it('первый пункт — всегда, даже длиннее бюджета', () => {
+    expect(previewByLength(['Беспилотный транспорт: аэрокосмические системы', ...rest], 10)).toEqual([
+      'Беспилотный транспорт: аэрокосмические системы',
+    ])
+  })
+
+  it('спрятать осталось меньше строки — список целиком', () => {
+    expect(previewByLength(['Прикладная математика и информатика', 'Программная инженерия'], 50)).toEqual([
+      'Прикладная математика и информатика',
+      'Программная инженерия',
+    ])
+  })
+
+  it('пустой список — пустой', () => {
+    expect(previewByLength([], 10)).toEqual([])
   })
 })

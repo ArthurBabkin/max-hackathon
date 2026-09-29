@@ -39,6 +39,7 @@ const LEVELS_PREVIEW = 6
  * профиль — первым, чтобы он был виден и в свёрнутом.
  */
 function Levels({ profiles }: { profiles: OlympiadDetail['profiles'] }) {
+  const t = useVoice()
   const [expanded, setExpanded] = useState(false)
   const ordered = [...profiles.filter((p) => p.is_mine), ...profiles.filter((p) => !p.is_mine)]
   // Две-три лишние плашки прятать незачем.
@@ -53,7 +54,13 @@ function Levels({ profiles }: { profiles: OlympiadDetail['profiles'] }) {
           </span>
         ))}
       </div>
-      {long ? <ListToggle expanded={expanded} count={ordered.length} onToggle={() => setExpanded(!expanded)} /> : null}
+      {long ? (
+        <ListToggle
+          expanded={expanded}
+          label={t('olympiad.allProfiles', { count: ordered.length })}
+          onToggle={() => setExpanded(!expanded)}
+        />
+      ) : null}
     </>
   )
 }

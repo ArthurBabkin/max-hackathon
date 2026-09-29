@@ -231,3 +231,31 @@ it('предмет 100 баллов — под плашкой в ячейке', 
     expect(within(cell).getByText('по информатике')).toHaveClass('benefit-detail')
   }
 })
+
+// У КФУ бывает семнадцать моих направлений: списком под названием вуза они
+// вытягивали строку таблицы на экран. Свёрнуто до пары строк, остальное — по кнопке.
+it('длинный список моих направлений под вузом свёрнут', async () => {
+  const directions = [
+    'Бизнес-информатика',
+    'Биотехнические системы и технологии',
+    'Инноватика',
+    'Информационная безопасность',
+    'Информационные системы и технологии',
+    'Математика',
+    'Менеджмент',
+  ]
+  setup([row('kfu', 'КФУ', { directions })], ['winner', 'prizer'])
+  const cell = screen.getByRole('button', { name: 'КФУ' }).closest('th')!
+  expect(within(cell).getByText('Бизнес-информатика и ещё 6')).toBeInTheDocument()
+
+  await userEvent.click(within(cell).getByRole('button', { name: 'Показать все 7' }))
+  expect(within(cell).getByText(directions.join(', '))).toBeInTheDocument()
+  await userEvent.click(within(cell).getByRole('button', { name: 'Свернуть' }))
+  expect(within(cell).getByText('Бизнес-информатика и ещё 6')).toBeInTheDocument()
+})
+
+it('короткий список направлений — целиком, без кнопки', () => {
+  setup([row('hse', 'ВШЭ', { directions: ['Программная инженерия'] })], ['winner', 'prizer'])
+  expect(screen.getByText('Программная инженерия')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Показать все/ })).not.toBeInTheDocument()
+})

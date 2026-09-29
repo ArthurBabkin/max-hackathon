@@ -327,7 +327,7 @@
     "kid": "Все профили ({count})",
     "parent": "Все профили ({count})"
   },
-  "olympiad.profilesCollapse": {
+  "list.collapse": {
     "kid": "Свернуть",
     "parent": "Свернуть"
   },
