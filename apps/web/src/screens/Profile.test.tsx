@@ -146,6 +146,18 @@ function renderProfile() {
   )
 }
 
+// Политика конфиденциальности (152-ФЗ): согласие с ней бот спрашивает при
+// регистрации, а перечитать её можно и из профиля, где лежат сами данные.
+it('ведёт на политику конфиденциальности', async () => {
+  const { getWebApp } = await import('@/bridge')
+  const openLink = vi.spyOn(getWebApp(), 'openLink').mockImplementation(() => {})
+  stubSystemTheme(false)
+  renderProfile()
+  await userEvent.click(screen.getByRole('button', { name: 'Политика конфиденциальности' }))
+  expect(openLink).toHaveBeenCalledWith('https://traektoriaedu.ru/privacy.html')
+  vi.unstubAllGlobals()
+})
+
 const themeOption = (name: string) =>
   within(screen.getByRole('radiogroup', { name: 'Тема оформления' })).getByRole('radio', { name })
 const saveButton = () => screen.getByRole('button', { name: /Сохранить/ })
