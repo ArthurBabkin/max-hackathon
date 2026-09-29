@@ -67,6 +67,8 @@ jobs:
       - name: Проверка
         run: |
           curl -fsS "https://$BUCKET/" | grep -q 'Одна траектория'
+          # На политику ведут бот и мини-приложение: без неё их ссылки битые.
+          curl -fsS "https://$BUCKET/privacy.html" | grep -q 'Политика конфиденциальности'
           for f in styles.css animations.css tokens/tokens.css main.js; do
             type=$(curl -fsSI "https://$BUCKET/$f" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')
             echo "$f -> $type"
