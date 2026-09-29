@@ -267,6 +267,28 @@ paths:
                     items: { $ref: "#/components/schemas/DirectionOption" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
+  /subjects:
+    get:
+      tags: [profile]
+      summary: Предметы — справочник для профиля и фильтра каталога
+      description: |
+        Все предметы из базы — те же, что бот предлагает в онбординге. Первыми — те, по которым
+        больше олимпиад, при равенстве — по названию.
+      x-tz: "F7, F27, F49"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subject" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /tracker:
     get:
       tags: [tracker]
@@ -1574,6 +1596,13 @@ components:
       properties:
         id: { type: string, examples: ["napr-09-03-04"] }
         name: { type: string, examples: ["Программная инженерия"] }
+
+    Subject:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string, examples: ["inf"] }
+        name: { type: string, examples: ["Информатика"] }
 
     DirectionOption:
       allOf:

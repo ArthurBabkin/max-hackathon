@@ -382,6 +382,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Предметы — справочник для профиля и фильтра каталога
+         * @description Все предметы из базы — те же, что бот предлагает в онбординге. Первыми — те, по которым
+         *     больше олимпиад, при равенстве — по названию.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["Subject"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tracker": {
         parameters: {
             query?: never;
@@ -1971,6 +2014,12 @@ export interface components {
             /** @example napr-09-03-04 */
             id: string;
             /** @example Программная инженерия */
+            name: string;
+        };
+        Subject: {
+            /** @example inf */
+            code: string;
+            /** @example Информатика */
             name: string;
         };
         DirectionOption: components["schemas"]["Direction"] & {

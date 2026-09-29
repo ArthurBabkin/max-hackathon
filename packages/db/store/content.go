@@ -275,6 +275,23 @@ func (s *Store) AllSubjects(ctx context.Context) ([]Subject, error) {
 	})
 }
 
+// SubjectsByOlympiads — все предметы, первыми те, по которым больше
+// олимпиад: в чипах мини-приложения частые предметы видны без прокрутки.
+func (s *Store) SubjectsByOlympiads(ctx context.Context) ([]Subject, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT sub.code, sub.name FROM subjects sub
+		LEFT JOIN olympiad_profiles p ON p.subject_code = sub.code
+		GROUP BY sub.code, sub.name
+		ORDER BY count(DISTINCT p.olympiad_id) DESC, sub.name`)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, func(r rowScanner) (Subject, error) {
+		var x Subject
+		return x, r.Scan(&x.Code, &x.Name)
+	})
+}
+
 type Direction struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`

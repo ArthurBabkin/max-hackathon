@@ -71,6 +71,50 @@ func TestDirections_AllWithPopular(t *testing.T) {
 	}
 }
 
+// Предметы — справочником из базы, все девять: «Экономику», «Астрономию» и
+// «Экологию» бот предлагает, и профиль с каталогом должны их показать.
+// Первыми — те, по которым больше олимпиад.
+func TestSubjects_AllByOlympiads(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	r := e.do("GET", "/api/v1/subjects", token, nil)
+	if r.code != 200 {
+		t.Fatalf("%d %s", r.code, r.raw)
+	}
+	items := list(t, r.body["items"])
+	var codes []string
+	for _, it := range items {
+		codes = append(codes, it["code"].(string))
+	}
+	want := []string{"astro", "bio", "chem", "ecol", "econ", "inf", "math", "phys", "soc"}
+	if got := slices.Sorted(slices.Values(codes)); !slices.Equal(got, want) {
+		t.Fatalf("предметы: %v", codes)
+	}
+	if items[slices.Index(codes, "astro")]["name"] != "Астрономия" {
+		t.Fatalf("название: %v", items)
+	}
+	count := map[string]int{}
+	rows, err := e.pool.Query(context.Background(),
+		`SELECT subject_code, count(DISTINCT olympiad_id) FROM olympiad_profiles GROUP BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var code string
+		var n int
+		if err := rows.Scan(&code, &n); err != nil {
+			t.Fatal(err)
+		}
+		count[code] = n
+	}
+	for i := 1; i < len(codes); i++ {
+		if count[codes[i-1]] < count[codes[i]] {
+			t.Fatalf("первыми — где больше олимпиад: %v, %v", codes, count)
+		}
+	}
+}
+
 // Льгота в моих вузах — на мои направления (F65): цель, а выбор в вузе
 // важнее цели.
 func TestOlympiad_BenefitOnMyDirections(t *testing.T) {

@@ -421,6 +421,21 @@ type directionItem struct {
 	Name string `json:"name"`
 }
 
+// subjects — справочник предметов для профиля и фильтра каталога: все, что
+// предлагает бот, первыми — с большим числом олимпиад.
+func (s *Server) subjects(w http.ResponseWriter, r *http.Request) error {
+	subs, err := s.store.SubjectsByOlympiads(r.Context())
+	if err != nil {
+		return err
+	}
+	out := listResponse[subjectDTO]{Items: make([]subjectDTO, len(subs))}
+	for i, x := range subs {
+		out.Items[i] = subjectDTO{Code: x.Code, Name: x.Name}
+	}
+	writeJSON(w, http.StatusOK, out)
+	return nil
+}
+
 // directionOption — направление в справочнике: код, группы для выбора с
 // поиском (D4) и popular — одно из основных, что показываются чипами.
 type directionOption struct {

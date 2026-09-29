@@ -340,6 +340,64 @@ describe('направления цели и в вузах (F65)', () => {
   })
 })
 
+// Предметы — справочником с сервера (#73): бот предлагает все девять, и
+// выбранную там «Астрономию» профиль показывает и даёт снять.
+describe('любимые предметы', () => {
+  const directory = {
+    items: [
+      { code: 'phys', name: 'Физика' },
+      { code: 'inf', name: 'Информатика' },
+      { code: 'math', name: 'Математика' },
+      { code: 'astro', name: 'Астрономия' },
+    ],
+  }
+
+  function renderSubjects(seedDirectory: boolean) {
+    const sent: unknown[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) => {
+        if (init.method === 'PATCH') sent.push(JSON.parse(init.body as string))
+        return new Promise(() => {})
+      }),
+    )
+    renderApp(<ProfileScreen />, {
+      route: '/profile',
+      seed: (c) => {
+        c.setQueryData(keys.profile, { ...profile(), subjects: [{ code: 'astro', name: 'Астрономия' }] })
+        c.setQueryData(keys.universities('', 'all'), { items: [] })
+        c.setQueryData(keys.directions, { items: [] })
+        if (seedDirectory) c.setQueryData(keys.subjects, directory)
+      },
+    })
+    return { sent, chips: within(screen.getByRole('group', { name: 'Любимые предметы' })) }
+  }
+
+  it('все предметы справочника в его порядке, выбранный из бота отмечен', () => {
+    const { chips } = renderSubjects(true)
+    expect(chips.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Физика',
+      'Информатика',
+      'Математика',
+      '✓ Астрономия',
+    ])
+    expect(screen.getByText('Любимые предметы').nextElementSibling).toHaveTextContent('выбрано: 1')
+  })
+
+  it('предмет из бота можно снять и заменить', async () => {
+    const { sent, chips } = renderSubjects(true)
+    await userEvent.click(chips.getByRole('button', { name: 'Информатика' }))
+    await userEvent.click(chips.getByRole('button', { name: '✓ Астрономия' }))
+    await userEvent.click(screen.getByRole('button', { name: /Сохранить/ }))
+    expect(sent).toEqual([expect.objectContaining({ subject_codes: ['inf'] })])
+  })
+
+  it('пока справочник не пришёл, выбранные предметы всё равно видны', () => {
+    const { chips } = renderSubjects(false)
+    expect(chips.getByRole('button', { name: '✓ Астрономия' })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
 // Новая версия профиля поверх несохранённой формы: элементы списков —
 // значения, а не ссылки. Места приходят новыми объектами при каждом ответе.
 describe('rebase', () => {
