@@ -114,13 +114,18 @@ jobs:
 
       # Тот же состав, что у archive_file в infra/terraform/functions.tf.
       # Лишнее вырезаем: без этого в архив уехали бы датасеты, макеты и .git.
+      # Лимит Cloud Functions на архив — 3,5 МБ: ролик лендинга (20 МБ) и
+      # миграции с контентом (14 МБ) в него не влезают, а функциям не нужны —
+      # миграции накатывает job «Миграции» из checkout.
       - name: Собрать архив исходников
         run: |
           mkdir -p build
           rsync -a \
             --exclude='.git' --exclude='.github' --exclude='.claude' \
             --exclude='docs' --exclude='datasets' --exclude='dataset_c_src' \
-            --exclude='infra' --exclude='apps/web' --exclude='build' \
+            --exclude='infra' --exclude='apps/web' --exclude='apps/landing' --exclude='build' \
+            --exclude='packages/api-contract' --exclude='packages/db/migrations' \
+            --exclude='packages/db/migrations-demo' --exclude='packages/db/migrations-local' \
             --exclude='olimpiady_spravochnik.json' --exclude='DATASET_C_NOTES.md' \
             ./ build/
           # Коммит видно в /health и в описании версии функции — так понятно,
