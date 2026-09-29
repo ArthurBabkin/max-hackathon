@@ -61,13 +61,29 @@ export function BenefitRow({ data, onOpen }: BenefitRowProps) {
   )
 }
 
-/** Сколько профилей олимпиады видно в строке сразу: у НТО их сорок. */
-const SUBJECTS_PREVIEW = 3
+/**
+ * Сколько знаков подписи видно в свёрнутой строке — пара строк на телефоне.
+ * Считается длина, а не число профилей: у НТО профиль бывает длиной в абзац.
+ */
+const SUBJECTS_BUDGET = 70
+
+/** Профили, что влезают в свёрнутую подпись; хотя бы один. */
+function previewSubjects(subjects: string[]): string[] {
+  const out: string[] = []
+  let length = 0
+  for (const subject of subjects) {
+    if (out.length > 0 && length + 2 + subject.length > SUBJECTS_BUDGET) break
+    length += (out.length > 0 ? 2 : 0) + subject.length
+    out.push(subject)
+  }
+  return out
+}
 
 /**
  * Строка олимпиады в карточке вуза — зеркальная к BenefitRow (F26). Под
- * названием — профили олимпиады; длинный список свёрнут до трёх, остальные
- * раскрывает кнопка под строкой: в самой строке её не вложить, строка — кнопка.
+ * названием — профили олимпиады; длинный список свёрнут до пары строк,
+ * остальные раскрывает кнопка под строкой: в самой строке её не вложить,
+ * строка — кнопка.
  */
 export function UniversityOlympiadRow({
   id,
@@ -96,14 +112,11 @@ export function UniversityOlympiadRow({
 }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
-  // «и ещё 1» не сворачиваем — одна строка места не экономит.
-  const long = subjects.length > SUBJECTS_PREVIEW + 1
+  const preview = previewSubjects(subjects)
+  const long = preview.length < subjects.length
   const shown =
     long && !expanded
-      ? t('university.subjectsMore', {
-          subjects: subjects.slice(0, SUBJECTS_PREVIEW).join(', '),
-          count: subjects.length - SUBJECTS_PREVIEW,
-        })
+      ? t('university.subjectsMore', { subjects: preview.join(', '), count: subjects.length - preview.length })
       : subjects.join(', ')
 
   return (

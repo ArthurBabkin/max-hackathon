@@ -62,9 +62,9 @@ it('олимпиады с льготой — строка на олимпиад�
   expect(within(block).getAllByRole('button', { name: /Олимпиада/ })).toHaveLength(10)
 })
 
-// У НТО в вузе сорок профилей: через запятую они занимали экран. Видно три,
-// остальные — по кнопке, и так же сворачиваются.
-it('длинный список профилей олимпиады свёрнут до трёх', async () => {
+// У НТО в вузе сорок профилей: через запятую они занимали экран. Свёрнутая
+// подпись — пара строк, остальное — по кнопке, и так же сворачивается.
+it('длинный список профилей олимпиады свёрнут до пары строк', async () => {
   const subjects = Array.from({ length: 40 }, (_, i) => `Профиль ${i + 1}`)
   renderSheet({
     olympiads: [
@@ -73,13 +73,31 @@ it('длинный список профилей олимпиады свёрну
     ] as unknown as UniversityDetail['olympiads'],
   })
   const block = screen.getByRole('heading', { name: /Олимпиады с льготой/ }).closest('section')!
-  expect(within(block).getByText('Профиль 1, Профиль 2, Профиль 3 и ещё 37')).toBeInTheDocument()
-  // Четыре профиля — ещё не список: все видны, кнопки нет.
+  const collapsed = `${subjects.slice(0, 6).join(', ')} и ещё 34`
+  expect(within(block).getByText(collapsed)).toBeInTheDocument()
+  // Короткий список — не список: все видны, кнопки нет.
   expect(within(block).getByText('Математика, Физика, Химия, Биология')).toBeInTheDocument()
   expect(within(block).getAllByRole('button', { name: /Все профили/ })).toHaveLength(1)
 
   await userEvent.click(within(block).getByRole('button', { name: 'Все профили (40)' }))
   expect(within(block).getByText(subjects.join(', '))).toBeInTheDocument()
   await userEvent.click(within(block).getByRole('button', { name: 'Свернуть' }))
-  expect(within(block).getByText('Профиль 1, Профиль 2, Профиль 3 и ещё 37')).toBeInTheDocument()
+  expect(within(block).getByText(collapsed)).toBeInTheDocument()
+})
+
+// Профиль НТО бывает длиной в абзац: три таких «коротких» профиля занимали
+// семь строк, и казалось, что список не свернулся. Считается длина, а не число.
+it('свёрнутая подпись — по длине, а не по числу профилей', () => {
+  const subjects = [
+    'Автоматизация бизнес-процессов',
+    'Автономные транспортные системы',
+    'Беспилотный транспорт: аэрокосмические системы, беспилотные авиационные системы, водные робототехнические системы, летающая робототехника',
+    'Большие данные и машинное обучение',
+  ]
+  renderSheet({ olympiads: subjects.map((s) => benefitRow('nto', s)) as unknown as UniversityDetail['olympiads'] })
+  const block = screen.getByRole('heading', { name: /Олимпиады с льготой/ }).closest('section')!
+  expect(
+    within(block).getByText('Автоматизация бизнес-процессов, Автономные транспортные системы и ещё 2'),
+  ).toBeInTheDocument()
+  expect(within(block).getByRole('button', { name: 'Все профили (4)' })).toBeInTheDocument()
 })
