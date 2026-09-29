@@ -313,6 +313,25 @@ describe('Tutorial отдельно от приложения', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('data-anchored', 'true')
   })
 
+  // Кнопка трекера — в подвале листа, а лист выезжает снизу: замер на ходу
+  // ставил окно под экран, и прокрутки, после которой оно перемерилось бы,
+  // нет. Лист доехал — окно встаёт на цель.
+  it('перемеряет цель, когда закончилась анимация', async () => {
+    renderApp(
+      <TutorialPace.Provider value={NO_WAIT}>
+        <section data-tour="goal">Цель</section>
+        <Tutorial onDone={() => {}} />
+      </TutorialPace.Provider>,
+    )
+    const goal = document.querySelector<HTMLElement>('[data-tour="goal"]')!
+    const rect = vi.spyOn(goal, 'getBoundingClientRect').mockReturnValue(new DOMRect(16, 700, 358, 52))
+    await screen.findByRole('heading', { name: 'Это главная' })
+    rect.mockReturnValue(new DOMRect(16, 120, 358, 180))
+    fireEvent.animationEnd(goal)
+
+    expect(document.querySelector('.tour-spot')).toHaveStyle({ transform: 'translate(10px, 114px)' })
+  })
+
   it('окно над группой элементов не круглое, даже если в группе кнопка-«таблетка»', async () => {
     renderApp(
       <TutorialPace.Provider value={NO_WAIT}>
