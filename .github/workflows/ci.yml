@@ -29,13 +29,19 @@ jobs:
           POSTGRES_USER: traektoria
           POSTGRES_PASSWORD: traektoria
           POSTGRES_DB: postgres
-        ports: ["5432:5432"]
+        # Порт хоста случайный: на ВМ может работать несколько раннеров, и
+        # фиксированный 5432 они бы делили. Адрес собирает первый шаг.
+        ports: ["5432"]
+        # Данные тестов — в RAM: каждый тест делает TRUNCATE и десятки
+        # коммитов, а fsync на сетевом диске раннера делал тесты в разы
+        # медленнее, чем локально.
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd "pg_isready -U traektoria"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/postgres?sslmode=disable
     steps:
+      - name: Адрес тестовой базы
+        run: echo "TEST_DATABASE_URL=postgres://traektoria:traektoria@localhost:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -104,13 +110,15 @@ jobs:
           POSTGRES_USER: traektoria
           POSTGRES_PASSWORD: traektoria
           POSTGRES_DB: traektoria
-        ports: ["5432:5432"]
+        # Случайный порт и RAM — как у Go-тестов выше.
+        ports: ["5432"]
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd "pg_isready -U traektoria"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/traektoria?sslmode=disable
     steps:
+      - name: Адрес базы
+        run: echo "DATABASE_URL=postgres://traektoria:traektoria@localhost:${{ job.services.postgres.ports['5432'] }}/traektoria?sslmode=disable" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
