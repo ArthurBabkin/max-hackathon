@@ -49,7 +49,10 @@ jobs:
           # Если собирать более новым Go, код может использовать то, чего нет
           # в 1.23, и упасть уже в облаке.
           go-version: "1.23.12"
-          cache: true
+          # Раннер свой: кеш модулей и сборки и так лежит в его домашнем
+          # каталоге между прогонами. Кеш actions качал бы 415 МБ из GitHub
+          # поверх него — 25 секунд на каждый job без пользы.
+          cache: false
       - name: Форматирование
         run: make fmt-check
       - name: go vet
@@ -123,7 +126,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23.12"
-          cache: true
+          cache: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22.12.0"
@@ -152,6 +155,11 @@ jobs:
         working-directory: apps/web
       - if: failure()
         run: cat /tmp/api.log
+      # Пока api держит соединения, Postgres не останавливается по SIGTERM,
+      # и остановка контейнера ждёт 10 секунд до SIGKILL.
+      - name: Остановить api
+        if: always()
+        run: pkill -f '^/tmp/api$' || true
 
   infra:
     name: Terraform

@@ -46,7 +46,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.12'
-          cache-dependency-path: go.sum
+          # Кеш Go и так на диске раннера, см. комментарий в ci.yml.
+          cache: false
 
       - name: Проверить, что собирается
         run: go build ./...
