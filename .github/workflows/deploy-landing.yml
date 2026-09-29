@@ -64,14 +64,15 @@ jobs:
             --cache-control "no-cache"
 
       # main.js подключён как модуль: с неверным Content-Type браузер его не выполнит.
+      # Ролик Safari играет, только если он отдаётся как video/mp4.
       - name: Проверка
         run: |
           curl -fsS "https://$BUCKET/" | grep -q 'Одна траектория'
-          for f in styles.css animations.css tokens/tokens.css main.js; do
+          for f in styles.css animations.css tokens/tokens.css main.js assets/video/traektoriya-promo.mp4; do
             type=$(curl -fsSI "https://$BUCKET/$f" | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type"{print $2}')
             echo "$f -> $type"
             case "$f:$type" in
-              *.css:text/css*|main.js:*javascript*) ;;
+              *.css:text/css*|main.js:*javascript*|*.mp4:video/mp4*) ;;
               *) echo "::error::$f отдаётся как $type"; exit 1 ;;
             esac
           done
