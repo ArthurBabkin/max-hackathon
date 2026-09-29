@@ -134,6 +134,28 @@ export function initCounters(items, win) {
   initInView([...finals.keys()], win, (el) => countUp(el, win, finals.get(el)), 0.6)
 }
 
+// Ролик: без скрипта у видео обычные контролы браузера. Со скриптом — постер
+// с кнопкой «Смотреть»: она включает ролик со звуком и отдаёт управление
+// контролам, а в конце постер с кнопкой возвращается. Если браузер не дал
+// запустить видео, кнопка тоже возвращается.
+export function initFilm(video, button) {
+  if (!video || !button) return
+  const cover = (on) => {
+    button.hidden = !on
+    video.controls = !on
+  }
+  cover(true)
+  button.addEventListener('click', () => {
+    cover(false)
+    video.focus()
+    Promise.resolve(video.play()).catch(() => cover(true))
+  })
+  video.addEventListener('ended', () => {
+    cover(true)
+    video.load()
+  })
+}
+
 if (typeof document !== 'undefined') {
   const $$ = (sel) => [...document.querySelectorAll(sel)]
   initFaq($$('[data-faq-toggle]'), document)
@@ -143,6 +165,7 @@ if (typeof document !== 'undefined') {
     initInView($$('.perk, .versus, .unis, .cta'), window, (el) => el.classList.add('is-in'))
     initCounters($$('.stat__num'), window)
   }
+  initFilm(document.querySelector('.film__video'), document.querySelector('[data-film-play]'))
   initMenu(document.querySelector('.burger'), document.getElementById('menu'), document)
   initHeader(document.querySelector('[data-top]'), window)
 }
