@@ -6,6 +6,7 @@
 олимпиад у них разные (п. 0.8 спеки).
 """
 import json, re, sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -253,26 +254,57 @@ def parse_kfu():
 
 # ---------------------------------------------------------------- Иннополис
 def parse_innopolis():
-    """КЦП: только УГСН, без кодов конкретных направлений."""
+    """Направления и профили — из п. 2.1–2.2 правил приёма, места — из КЦП.
+    КЦП даёт места только на УГСН (09.00.00 — 159), и в каждой УГСН у
+    Иннополиса одно направление. Места группы общие у её программ — как у
+    МФТИ, помечаются budget_is_demo, чтобы сид не сложил их по программам."""
+    f = "rules___________.pdf"
+    places = innopolis_group_places(load_pages("innopolis", "kcp___.pdf"))
+    programs = innopolis_programs(load_pages("innopolis", f))
+    per_group = Counter(code[:2] for _, code, _, _ in programs)
+    return [{
+        "program_name": name, "faculty": "Университет Иннополис",
+        "napravlenie_code": code, "napravlenie_name": direction,
+        "education_level": "bakalavriat",
+        "budget_places_2026": places.get(code[:2]),
+        "budget_is_demo": per_group[code[:2]] > 1,
+        **_src("innopolis", f, page),
+    } for page, code, direction, name in programs]
+
+
+# «09.03.01 Информатика и вычислительная техника, направленности (профили)
+# образовательных программ: «…», «…»» — и то же в единственном числе.
+INNOPOLIS_PROGRAMS_RE = re.compile(
+    r"(\d{2}\.03\.\d{2}) ([^,]+?), направленност\w* \(профил\w*\) образовательн\w* программ\w*:? "
+    r"((?:«[^»]+»(?:, )?)+)")
+
+
+def innopolis_programs(pages: list[dict]) -> list[tuple]:
+    """-> [(стр., код, направление, профиль)]: п. 2.1 и 2.2 правил —
+    бакалавриат, п. 2.3 и дальше — магистратура."""
     out = []
-    f = "kcp___.pdf"
-    for pg in load_pages("innopolis", f):
+    for pg in pages:
+        m = re.search(r"2\.1\. По программам бакалавриата(.*?)2\.3\. ", clean(pg["text"]))
+        if not m:
+            continue
+        for code, direction, names in INNOPOLIS_PROGRAMS_RE.findall(m.group(1)):
+            out += [(pg["page"], code, direction, n) for n in re.findall(r"«([^»]+)»", names)]
+    return out
+
+
+def innopolis_group_places(pages: list[dict]) -> dict[str, int]:
+    """КЦП бакалавриата по УГСН: {"09": 159, "15": 12}. Таблицы магистратуры —
+    с тем же кодом 09.00.00 — не читаются: их шапка без «бакалавриата»."""
+    out = {}
+    for pg in pages:
         for table in pg["tables"]:
+            if not table or "бакалавриата" not in clean(" ".join(c or "" for c in table[0])):
+                continue
             for row in table:
                 cells = [clean(c) for c in row]
-                if len(cells) < 3:
-                    continue
-                code = next((c for c in cells if re.fullmatch(r"\d{2}\.00\.00", c)), None)
-                if not code:
-                    continue
-                name = next((c for c in cells if len(c) > 8 and not c[0].isdigit()), "")
-                out.append({
-                    "program_name": name, "faculty": "Университет Иннополис",
-                    "napravlenie_code": code, "napravlenie_name": name,
-                    "education_level": "bakalavriat",
-                    "budget_places_2026": next((to_int(c) for c in cells if to_int(c)), None),
-                    **_src("innopolis", f, pg["page"]),
-                })
+                i = next((i for i, c in enumerate(cells) if re.fullmatch(r"\d{2}\.00\.00", c)), None)
+                if i is not None and i + 1 < len(cells):
+                    out[cells[i][:2]] = to_int(cells[i + 1])
     return out
 
 
@@ -345,7 +377,7 @@ NOT_OFFERED_PROOF = {
     "hse": ("hse", "programs__1120607478", 1), "mipt": (None, "https://pk.mipt.ru/bachelor/2026_places/", None),
     "itmo": (None, "https://abit.itmo.ru/bachelor", None), "nsu": (None, "https://www.nsu.ru/n/education/programs/bachelor/", None),
     "kfu": ("kfu", "programs__plan_priema_2026_2027-bakalavriat-speczialitet-1.pdf", 1),
-    "innopolis": ("innopolis", "kcp___.pdf", 1),
+    "innopolis": ("innopolis", "rules___________.pdf", 5),
     "sechenov": ("sechenov", "programs__Pravila-priema_2026_2027_BS_pril1_Perechen-programm.pdf", 1),
     "kazan-gmu": ("kazan-gmu", "programs__download", 1),
 }

@@ -120,9 +120,9 @@ GOLDEN = [
     # Иннополис, Правила п. 57–62 и приказ от 19.01.2026: приложение 3 — БВИ и
     # 100 баллов по предмету графы 5 (Innopolis Open — «информатика»); ВсОШ —
     # БВИ и особое преимущество по графе 3 приложения 2.
-    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-22-informatika",
+    ("innopolis__analiz-dannyh-i-iskusstvennyy-intellekt", "p669-22-informatika",
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
-    ("innopolis__informatika-i-vychislitelnaya-tehnika", "vsosh-fizika",
+    ("innopolis__analiz-dannyh-i-iskusstvennyy-intellekt", "vsosh-fizika",
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
     # СПбГУ, приложение 9 (bac_spec_olymp_2_2026.pdf): «Победитель, призѐр» — обоим
     # статусам (стр. 1); колонка «предмет или УГН» точная: УГН «математика и
@@ -172,12 +172,16 @@ GOLDEN = [
     # «Юниор», инженерные науки (стр. 11) — УГСН без ИВТ: только 100 баллов по
     # физике. Стр. 13–14: «инженерное дело | физика | III» — «Газпром» (№69),
     # название в объединённой ячейке на следующей странице; графа 5 пуста.
-    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-13-inzhenernye-nauki",
+    ("innopolis__analiz-dannyh-i-iskusstvennyy-intellekt", "p669-13-inzhenernye-nauki",
      {(POB, "100_ballov"), (PRIZ, "100_ballov")}),
-    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-69-inzhenernoe-delo", {(POB, "БВИ"), (PRIZ, "БВИ")}),
+    ("innopolis__analiz-dannyh-i-iskusstvennyy-intellekt", "p669-69-inzhenernoe-delo", {(POB, "БВИ"), (PRIZ, "БВИ")}),
     # Стр. 8, НТО: «инфохимия | информатика и вычислительная техника, химическая
     # технология, химия | III | информатика» — графа 3 в три строки.
-    ("innopolis__informatika-i-vychislitelnaya-tehnika", "p669-5-infohimiya",
+    ("innopolis__analiz-dannyh-i-iskusstvennyy-intellekt", "p669-5-infohimiya",
+     {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
+    # 15.03.06 (УГСН «машиностроение»): у «Юниора», инженерные науки, в графе 3
+    # машиностроение — на робототехнику БВИ есть, в отличие от 09.03.01.
+    ("innopolis__robototehnika", "p669-13-inzhenernye-nauki",
      {(POB, "БВИ"), (PRIZ, "БВИ"), (POB, "100_ballov"), (PRIZ, "100_ballov")}),
 ]
 

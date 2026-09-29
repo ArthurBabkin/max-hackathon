@@ -11,14 +11,14 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 )
 
-// Направления из сида: ПИ — цель Артёма, ПМИ и ИБ — рядом, 09.00.00 —
-// укрупнённая группа Иннополиса, 40.03.01 у ВШЭ — льготы уточняются.
+// Направления из сида: ПИ — цель Артёма, ПМИ и ИБ — рядом, ИВТ и
+// робототехника — всё, что есть у Иннополиса, 40.03.01 у ВШЭ — льготы уточняются.
 const (
 	dirSE   = "napr-09-03-04"
 	dirAMI  = "napr-01-03-02"
 	dirIS   = "napr-10-03-01"
-	dirIVT  = "napr-09-00-00"
 	dirCS   = "napr-09-03-01"
+	dirRob  = "napr-15-03-06"
 	dirBio  = "napr-06-03-01"
 	dirLaw  = "napr-40-03-01"
 	virtual = "p669-5-virtualnye-miry-razrabotka-kompyuternyh-igr-tehnologii-virtualnoy-realnosti-tehnologii-dopolnennoy-realnosti-cifrovye-tehnologii-v-arhitekture"
@@ -199,10 +199,17 @@ func TestUniversityDirections(t *testing.T) {
 		t.Fatalf("ПИ — в цели, не выбрано: %+v", se)
 	}
 
-	// Укрупнённая группа Иннополиса покрывает цель 09.03.04.
+	// В Иннополисе ПИ нет: ИВТ и робототехника цель не покрывают.
 	inno, _ := s.UniversityDirections(ctx, f.trajectoryID, "innopolis")
-	if len(inno) != 1 || inno[0].ID != dirIVT || !inno[0].IsGoal {
-		t.Fatalf("Иннополис: %+v", inno)
+	ids := []string{}
+	for _, d := range inno {
+		if d.IsGoal || d.Status != "offered" {
+			t.Fatalf("Иннополис: %+v", d)
+		}
+		ids = append(ids, d.ID)
+	}
+	if slices.Sort(ids); !slices.Equal(ids, []string{dirCS, dirRob}) {
+		t.Fatalf("Иннополис: %v", ids)
 	}
 }
 
@@ -235,8 +242,8 @@ func TestTargetBenefits(t *testing.T) {
 			t.Fatalf("ВШЭ на ПИ: %+v", b)
 		}
 	}
-	// Иннополис: 09.00.00 покрывает ПИ.
-	if b := got[virtual+"/innopolis"]; b.Benefit != "bvi" || b.Basis != "goal" {
+	// В Иннополисе ПИ нет — льгота вуза целиком.
+	if b := got[virtual+"/innopolis"]; b.Benefit != "bvi" || b.Basis != "university" {
 		t.Fatalf("Иннополис: %+v", b)
 	}
 
@@ -317,8 +324,8 @@ func TestTargetsOf(t *testing.T) {
 	if x := tg["hse"]; x.Basis != "chosen" || !slices.Equal(x.DirectionNames, []string{"Прикладная математика и информатика"}) {
 		t.Fatalf("ВШЭ: %+v", x)
 	}
-	if x := tg["innopolis"]; x.Basis != "goal" || len(x.DirectionNames) != 1 || x.Unverified {
-		t.Fatalf("Иннополис: %+v", x)
+	if x := tg["innopolis"]; x.Basis != "university" || len(x.DirectionNames) != 0 || x.Unverified {
+		t.Fatalf("Иннополис без ПИ — вуз целиком: %+v", x)
 	}
 	if x := tg["kazan-gmu"]; x.Basis != "university" || len(x.DirectionNames) != 0 {
 		t.Fatalf("Медвуз без ПИ — вуз целиком: %+v", x)
@@ -387,7 +394,7 @@ func TestDirectionCoverage(t *testing.T) {
 	if c := cov[virtual+"/hse"]; c.Count != 3 || c.Total != 14 {
 		t.Fatalf("ВШЭ: %+v", c)
 	}
-	if c := cov[virtual+"/innopolis"]; c.Count != 1 || c.Total != 1 {
+	if c := cov[virtual+"/innopolis"]; c.Count != 2 || c.Total != 2 {
 		t.Fatalf("Иннополис: %+v", c)
 	}
 }
@@ -408,12 +415,13 @@ func TestUniversitiesByDirection(t *testing.T) {
 	for i, u := range us {
 		ids[i] = u.ID
 	}
-	if slices.Contains(ids, "kazan-gmu") || !slices.Contains(ids, "hse") || !slices.Contains(ids, "innopolis") {
+	if slices.Contains(ids, "kazan-gmu") || !slices.Contains(ids, "hse") || slices.Contains(ids, "innopolis") {
 		t.Fatalf("вузы с ПИ: %v", ids)
 	}
-	// Иннополис — через укрупнённую группу 09.00.00.
-	if x := m["innopolis"]; !slices.Equal(x.DirectionIDs, []string{dirIVT}) || x.Olympiads == 0 || x.Unverified {
-		t.Fatalf("Иннополис: %+v", x)
+	// Иннополис — в списке по ИВТ.
+	_, byCS, _ := s.UniversitiesByDirection(ctx, f.trajectoryID, "", "", dirCS)
+	if x := byCS["innopolis"]; !slices.Equal(x.DirectionIDs, []string{dirCS}) || x.Olympiads == 0 || x.Unverified {
+		t.Fatalf("Иннополис по ИВТ: %+v", x)
 	}
 	hseDirs, _ := s.UniversityDirections(ctx, f.trajectoryID, "hse")
 	se := hseDirs[slices.IndexFunc(hseDirs, func(d UniversityDirection) bool { return d.ID == dirSE })]
