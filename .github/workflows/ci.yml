@@ -29,13 +29,19 @@ jobs:
           POSTGRES_USER: traektoria
           POSTGRES_PASSWORD: traektoria
           POSTGRES_DB: postgres
-        ports: ["5432:5432"]
+        # Порт хоста случайный: на ВМ может работать несколько раннеров, и
+        # фиксированный 5432 они бы делили. Адрес собирает первый шаг.
+        ports: ["5432"]
+        # Данные тестов — в RAM: каждый тест делает TRUNCATE и десятки
+        # коммитов, а fsync на сетевом диске раннера делал тесты в разы
+        # медленнее, чем локально.
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd "pg_isready -U traektoria"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/postgres?sslmode=disable
     steps:
+      - name: Адрес тестовой базы
+        run: echo "TEST_DATABASE_URL=postgres://traektoria:traektoria@localhost:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -43,7 +49,10 @@ jobs:
           # Если собирать более новым Go, код может использовать то, чего нет
           # в 1.23, и упасть уже в облаке.
           go-version: "1.23.12"
-          cache: true
+          # Раннер свой: кеш модулей и сборки и так лежит в его домашнем
+          # каталоге между прогонами. Кеш actions качал бы 415 МБ из GitHub
+          # поверх него — 25 секунд на каждый job без пользы.
+          cache: false
       - name: Форматирование
         run: make fmt-check
       - name: go vet
@@ -71,8 +80,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.12.0"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
       # ci, а не install: ставит ровно то, что в lock-файле, и падает при
       # расхождении с package.json вместо тихого обновления зависимостей.
       - run: npm ci --no-audit --no-fund
@@ -104,23 +111,23 @@ jobs:
           POSTGRES_USER: traektoria
           POSTGRES_PASSWORD: traektoria
           POSTGRES_DB: traektoria
-        ports: ["5432:5432"]
+        # Случайный порт и RAM — как у Go-тестов выше.
+        ports: ["5432"]
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd "pg_isready -U traektoria"
           --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      DATABASE_URL: postgres://traektoria:traektoria@localhost:5432/traektoria?sslmode=disable
     steps:
+      - name: Адрес базы
+        run: echo "DATABASE_URL=postgres://traektoria:traektoria@localhost:${{ job.services.postgres.ports['5432'] }}/traektoria?sslmode=disable" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23.12"
-          cache: true
+          cache: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22.12.0"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
       - name: Миграции и демо-данные
         run: |
           go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
@@ -144,6 +151,11 @@ jobs:
         working-directory: apps/web
       - if: failure()
         run: cat /tmp/api.log
+      # Пока api держит соединения, Postgres не останавливается по SIGTERM,
+      # и остановка контейнера ждёт 10 секунд до SIGKILL.
+      - name: Остановить api
+        if: always()
+        run: pkill -f '^/tmp/api$' || true
 
   infra:
     name: Terraform
@@ -157,21 +169,14 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
 
       # Провайдер Yandex весит около 100 МБ и без кеша качается каждый прогон.
-      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог,
-      # который мы и кешируем между запусками.
+      # TF_PLUGIN_CACHE_DIR заставляет tofu класть провайдеры в общий каталог.
+      # Раннер свой, каталог живёт между прогонами — кеш actions не нужен.
       # Путь считаем здесь, а не в env уровня job: tofu не разворачивает `~`,
       # он уходит к нему литералом, и кеш провайдеров молча не работает.
       - name: Каталог кеша провайдеров
         run: |
           echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
           mkdir -p "$HOME/.terraform.d/plugin-cache"
-
-      - name: Кеш провайдеров
-        uses: actions/cache@v4
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
-          restore-keys: tofu-providers-
 
       - name: Форматирование
         run: tofu fmt -check -recursive

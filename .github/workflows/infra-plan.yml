@@ -70,13 +70,6 @@ jobs:
           echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
           mkdir -p "$HOME/.terraform.d/plugin-cache"
 
-      - name: Кеш провайдеров
-        uses: actions/cache@v4
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: tofu-providers-${{ hashFiles('infra/terraform/.terraform.lock.hcl') }}
-          restore-keys: tofu-providers-
-
       - name: Инициализация
         run: |
           tofu init -input=false

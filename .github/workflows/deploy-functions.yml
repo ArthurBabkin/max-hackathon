@@ -29,19 +29,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Схема раньше кода: новая версия может ждать новых таблиц. goose катит
-  # только ненакатанное, повторный прогон — no-op. Демо-миграции в прод не идут.
-  migrate:
-    name: Миграции
+  # Один job вместо пяти: раннер один, и каждый job заново делал checkout,
+  # setup-go и сборку. Порядок тот же — схема раньше кода; функции
+  # выкладываются параллельно и независимо: упавшая проверка api не
+  # останавливает бота, а у каждой свой откат.
+  deploy:
+    name: Миграции и функции
     runs-on: [self-hosted, linux]
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
+      # Сборка идёт на стороне Yandex Cloud: в архив уезжают только исходники.
+      # Собираем здесь же, чтобы не узнать о синтаксической ошибке из логов
+      # сборщика в облаке — там диагностика заметно хуже.
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.12'
-          cache-dependency-path: go.sum
+          # Кеш Go и так на диске раннера, см. комментарий в ci.yml.
+          cache: false
 
+      - name: Проверить, что собирается
+        run: go build ./...
+
+      # Схема раньше кода: новая версия может ждать новых таблиц. goose катит
+      # только ненакатанное, повторный прогон — no-op. Демо-миграции в прод не идут.
       - name: Схема и контент
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -72,54 +84,14 @@ jobs:
             demo reset
           fi
 
-  deploy:
-    name: ${{ matrix.function }}
-    needs: migrate
-    runs-on: [self-hosted, linux]
-    strategy:
-      # Функции независимы: упавшая проверка api не должна останавливать бота.
-      fail-fast: false
-      matrix:
-        include:
-          # require — переменные, без которых код функции не стартует.
-          - function: traektoria-bot
-            require: MAX_BOT_TOKEN,WEBHOOK_SECRET,DATABASE_URL
-            probe: bot
-            optional: ''
-          - function: traektoria-api
-            require: MAX_BOT_TOKEN,JWT_SECRET,DATABASE_URL,GODEBUG
-            probe: api
-            optional: --optional
-          - function: traektoria-reminders
-            require: MAX_BOT_TOKEN,DATABASE_URL
-            probe: none
-            optional: --optional
-          - function: traektoria-content-notifier
-            require: MAX_BOT_TOKEN,DATABASE_URL
-            probe: none
-            optional: --optional
-    steps:
-      - uses: actions/checkout@v4
-
-      # Сборка идёт на стороне Yandex Cloud: в архив уезжают только исходники.
-      # Собираем здесь же, чтобы не узнать о синтаксической ошибке из логов
-      # сборщика в облаке — там диагностика заметно хуже.
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.12'
-          cache-dependency-path: go.sum
-
-      - name: Проверить, что собирается
-        run: go build ./...
-
       # Тот же состав, что у archive_file в infra/terraform/functions.tf.
       # Лишнее вырезаем: без этого в архив уехали бы датасеты, макеты и .git.
       # Лимит Cloud Functions на архив — 3,5 МБ: ролик лендинга (20 МБ) и
       # миграции с контентом (14 МБ) в него не влезают, а функциям не нужны —
-      # миграции накатывает job «Миграции» из checkout.
+      # миграции накатывает шаг «Схема и контент» из checkout.
       - name: Собрать архив исходников
         run: |
-          mkdir -p build
+          rm -rf build && mkdir -p build
           rsync -a \
             --exclude='.git' --exclude='.github' --exclude='.claude' \
             --exclude='docs' --exclude='datasets' --exclude='dataset_c_src' \
@@ -131,23 +103,27 @@ jobs:
           # Коммит видно в /health и в описании версии функции — так понятно,
           # что именно сейчас в проде.
           printf '%s\n' "${GITHUB_SHA::7}" > build/packages/shared/version/commit.txt
-          du -sh build
+          # Упасть здесь с понятной причиной, а не на четырёх вызовах yc:
+          # размер считается так же, как zip, который yc отправит в облако.
+          size=$(cd build && python3 -c "import io,os,zipfile
+          b=io.BytesIO(); z=zipfile.ZipFile(b,'w',zipfile.ZIP_DEFLATED)
+          [z.write(os.path.join(d,f)) for d,_,fs in os.walk('.') for f in fs]
+          z.close(); print(len(b.getvalue()))")
+          echo "архив: $((size / 1024)) КБ из 3584"
+          if [ "$size" -gt $((3500 * 1024)) ]; then
+            echo "::error::Архив функций $((size / 1024)) КБ — больше лимита Cloud Functions 3,5 МБ. Крупнейшие файлы:"
+            (cd build && find . -type f -size +100k -exec ls -l {} + | sort -k5 -rn | head -10)
+            exit 1
+          fi
 
-      # Дистрибутив yc весит около 177 МБ. Без кеша он качался бы на каждый
-      # деплой — это дольше, чем всё остальное в workflow вместе взятое.
-      - name: Кеш yc CLI
-        id: yc-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/yc
-          key: yc-cli-${{ runner.os }}-1.36.0
-
-      - name: Установить yc CLI
-        if: steps.yc-cache.outputs.cache-hit != 'true'
-        run: curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
-
-      - name: Добавить yc в PATH
-        run: echo "$HOME/yc/bin" >> "$GITHUB_PATH"
+      # Дистрибутив yc весит около 177 МБ. Раннер свой, и yc остаётся в его
+      # домашнем каталоге: ставим только на новой машине, без кеша actions.
+      - name: yc CLI
+        run: |
+          if [ ! -x "$HOME/yc/bin/yc" ]; then
+            curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -n -i "$HOME/yc"
+          fi
+          echo "$HOME/yc/bin" >> "$GITHUB_PATH"
 
       - name: Авторизация
         env:
@@ -161,15 +137,38 @@ jobs:
           yc config profile activate ci 2>/dev/null || yc config profile create ci
           yc config set service-account-key "$HOME/sa-key.json"
           yc config set folder-id "${{ vars.YC_FOLDER_ID }}"
+          # IAM-токен получаем один раз заранее: параллельные вызовы ниже
+          # берут его из кеша, а не гоняются за ним вчетвером.
+          yc iam create-token >/dev/null
 
-      - name: Выложить версию и проверить
+      # require — переменные, без которых код функции не стартует.
+      # --optional — функции может не быть (enable_workers=false).
+      - name: Выложить версии и проверить
+        env:
+          API_URL: ${{ vars.YC_API_URL }}
         run: |
-          python3 .github/scripts/deploy_function.py \
-            --name '${{ matrix.function }}' \
-            --require '${{ matrix.require }}' \
-            --probe '${{ matrix.probe }}' \
-            --api-url '${{ vars.YC_API_URL }}' \
-            ${{ matrix.optional }}
+          mkdir -p deploy-logs
+          run() {
+            local name=$1; shift
+            python3 -u .github/scripts/deploy_function.py --name "$name" --api-url "$API_URL" "$@" \
+              > "deploy-logs/$name.log" 2>&1
+          }
+          run traektoria-bot --require MAX_BOT_TOKEN,WEBHOOK_SECRET,DATABASE_URL --probe bot & p1=$!
+          run traektoria-api --require MAX_BOT_TOKEN,JWT_SECRET,DATABASE_URL,GODEBUG --probe api --optional & p2=$!
+          run traektoria-reminders --require MAX_BOT_TOKEN,DATABASE_URL --probe none --optional & p3=$!
+          run traektoria-content-notifier --require MAX_BOT_TOKEN,DATABASE_URL --probe none --optional & p4=$!
+          failed=""
+          for pair in "traektoria-bot:$p1" "traektoria-api:$p2" "traektoria-reminders:$p3" "traektoria-content-notifier:$p4"; do
+            name=${pair%%:*}
+            if wait "${pair##*:}"; then status="ok"; else status="FAILED"; failed="$failed $name"; fi
+            echo "::group::$name — $status"
+            cat "deploy-logs/$name.log"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::Не выложились:$failed"
+            exit 1
+          fi
 
       - name: Удалить ключ
         # Раннер свой и не одноразовый: ключ не должен пережить job,

@@ -53,18 +53,30 @@ def env_flag(key, value):
     return '"' + pair.replace('"', '""') + '"'
 
 
-def probe(url, method, headers, expect):
+def probe(url, method, headers, expect, version=""):
+    """version — коммит, который должен отдать /health: 200 от прежней версии
+    не значит, что новая поднялась."""
     req = urllib.request.Request(url, method=method, headers=headers,
                                  data=b"{}" if method == "POST" else None)
-    for attempt in range(3):
+    for attempt in range(6):
+        got = ""
+        # Любой сбой пробы — повод повторить и в конце откатить, а не упасть
+        # с трейсбеком до set-tag: тогда битая версия осталась бы в $latest.
         try:
-            code = urllib.request.urlopen(req, timeout=30).status
+            with urllib.request.urlopen(req, timeout=30) as r:
+                code = r.status
+                if version:
+                    try:
+                        body = json.loads(r.read())
+                        got = str(body.get("version", "")) if isinstance(body, dict) else "?"
+                    except Exception:
+                        got = "?"
         except urllib.error.HTTPError as e:
             code = e.code
-        except OSError as e:
+        except Exception as e:
             code = str(e)
-        print(f"{method} {url} -> {code} (ждём {expect})")
-        if code == expect:
+        print(f"{method} {url} -> {code}{f', версия {got}' if version else ''} (ждём {expect}{f', {version}' if version else ''})")
+        if code == expect and (not version or got == version):
             return True
         time.sleep(10)
     return False
@@ -136,7 +148,8 @@ def main():
         ok = probe(f"https://functions.yandexcloud.net/{function_id}", "POST",
                    {"Content-Type": "application/json", "X-Max-Bot-Api-Secret": "ci-probe-not-the-secret"}, 403)
     elif a.probe == "api" and a.api_url:
-        ok = probe(a.api_url.rstrip("/") + "/health", "GET", {}, 200)
+        ok = probe(a.api_url.rstrip("/") + "/health", "GET", {}, 200,
+                   version=os.environ.get("GITHUB_SHA", "")[:7])
     else:
         if a.probe == "api":
             print("::warning::переменная YC_API_URL не задана — api не проверяется")
