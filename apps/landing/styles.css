@@ -402,6 +402,97 @@ a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-r
 .verdict__btn { height: 52px; padding: 0 24px; gap: 8px; flex-shrink: 0; }
 .sources { font-size: 13px; line-height: 18px; color: var(--color-ink-muted); }
 
+/* --- ролик ---
+   Раздела нет в макете. Сцена — как у первого экрана: лиловая панель,
+   ступени по краям, квадраты-конфетти; видео в скруглённой рамке. Без
+   скрипта у видео контролы браузера, со скриптом поверх постера плашка
+   «Смотреть ролик», её показывает main.js. */
+
+.sec--film { padding-top: 112px; gap: 36px; }
+.film {
+  position: relative;
+  overflow: hidden;
+  border-radius: 40px;
+  padding: clamp(40px, 3.8889vw, 56px) clamp(64px, 8.3333vw, 120px);
+  background: var(--color-brand-soft);
+}
+.film__steps { position: absolute; bottom: 0; width: clamp(180px, 22.2222vw, 320px); height: auto; }
+.film__steps--l { left: 0; }
+.film__steps--r { right: 0; }
+.film__dot { position: absolute; width: 14px; height: 14px; }
+.film__dot--cyan { left: 3.2%; top: 12%; background: var(--color-cyan); }
+.film__dot--pink { right: 3.4%; top: 22%; width: 10px; height: 10px; background: var(--color-pink); }
+.film__dot--brand { right: 5.2%; top: 44%; width: 12px; height: 12px; background: var(--color-brand); }
+.film__screen { position: relative; border-radius: 24px; box-shadow: var(--shadow-float); }
+.film__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 24px;
+  background: var(--color-ink);
+  object-fit: cover;
+}
+.film__play {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background-color .2s ease;
+}
+.film__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  height: 72px;
+  padding: 0 28px 0 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  transition: transform .25s cubic-bezier(.2, .7, .2, 1);
+}
+.film__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+  transition: transform .25s cubic-bezier(.2, .7, .2, 1);
+}
+.film__icon svg { margin-left: 2px; } /* треугольник визуально по центру круга */
+.film__time { color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+.film__play:active .film__pill { transform: scale(.97); }
+@media (hover: hover) {
+  .film__play:hover { background: rgba(23, 20, 42, .06); }
+  .film__play:hover .film__pill { transform: translateY(-2px); }
+  .film__play:hover .film__icon { transform: scale(1.06); }
+}
+/* Пересказ ролика — только для скринридера (aria-describedby у видео), на экране его нет */
+.film__about {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film__play, .film__pill, .film__icon { transition: none; }
+}
+
 /* --- шаги --- */
 
 .sec--start { padding-top: 112px; gap: 36px; }
@@ -688,6 +779,7 @@ a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-r
   .sec--faq { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .faq { grid-column: auto; }
   .foot__top { flex-wrap: wrap; }
+  .film { border-radius: 32px; }
 }
 
 /* ================= ≤767: телефон ================= */
@@ -717,6 +809,14 @@ a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-r
   .verdict { padding: 22px; border-radius: 22px; flex-direction: column; align-items: stretch; gap: 14px; }
   .verdict__text { font-size: 17px; line-height: 26px; }
   .sources { font-size: 12px; line-height: 17px; }
+
+  .sec--film { padding-top: 64px; gap: 14px; }
+  .film { padding: 10px; border-radius: 24px; }
+  .film__steps, .film__dot { display: none; }
+  .film__screen, .film__video, .film__play { border-radius: 16px; }
+  .film__pill { height: 56px; gap: 10px; padding: 0 20px 0 8px; font-size: 15px; }
+  .film__icon { width: 40px; height: 40px; }
+  .film__icon svg { width: 18px; height: 18px; }
 
   .sec--start { padding-top: 64px; gap: 14px; }
   .steps { grid-template-columns: minmax(0, 1fr); gap: 14px; }

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { countUp, initCounters, initFaq, initHeader, initInView, initMenu, initMotion, initReveal, initSwap, SWAP_MS } from './main.js'
+import { countUp, initCounters, initFaq, initFilm, initHeader, initInView, initMenu, initMotion, initReveal, initSwap, SWAP_MS } from './main.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const read = (p) => readFileSync(join(here, p), 'utf8')
@@ -237,7 +237,7 @@ test('страница на русском, светлая, с заголовк�
 
 test('один H1, у каждого раздела свой H2', () => {
   assert.equal(attrs('h1').length, 1)
-  for (const id of ['problem', 'start', 'features', 'roles', 'compare', 'trust', 'faq', 'cta']) {
+  for (const id of ['problem', 'video', 'start', 'features', 'roles', 'compare', 'trust', 'faq', 'cta']) {
     const start = html.indexOf(`<section id="${id}"`)
     assert.ok(start >= 0, `нет раздела #${id}`)
     const body = html.slice(start, html.indexOf('</section>', start))
@@ -254,7 +254,7 @@ test('заголовки без эмодзи', () => {
 // --- ассеты ---
 
 const refs = () => [
-  ...[...html.matchAll(/\s(?:src|href|srcset|content)="([^"]+)"/g)].flatMap(([, v]) =>
+  ...[...html.matchAll(/\s(?:src|href|srcset|content|poster)="([^"]+)"/g)].flatMap(([, v]) =>
     v.split(',').map((s) => s.trim().split(/\s+/)[0].replace(/^https:\/\/traektoriaedu\.ru\//, '')),
   ),
   ...CSS_FILES.flatMap((f) =>
@@ -322,6 +322,131 @@ test('ни скриптов, ни стилей с чужих доменов', ()
 
 test('без градиентов: в бренде их нет', () => {
   assert.doesNotMatch(html + css['styles.css'], /gradient\(/)
+})
+
+// --- ролик ---
+
+// Ролик — не часть макета: раздел между «Проблемой» и «Тремя шагами».
+// Видео 22 МБ, поэтому ничего не грузится, пока его не включили, и ничего не
+// играет само. Без скрипта у видео обычные контролы браузера.
+const film = () => {
+  const start = html.indexOf('<section id="video"')
+  assert.ok(start >= 0, 'нет раздела #video')
+  return html.slice(start, html.indexOf('</section>', start))
+}
+const filmVideo = () => attrs('video', film())[0]
+const fileSize = (ref) => statSync(join(here, ref)).size
+
+test('ролик: раздел после «Проблемы» и перед «Тремя шагами»', () => {
+  const ids = [...html.matchAll(/<section id="([\w-]+)"/g)].map(([, id]) => id)
+  assert.equal(ids[ids.indexOf('problem') + 1], 'video')
+  assert.equal(ids[ids.indexOf('video') + 1], 'start')
+})
+
+test('ролик: видео не грузится заранее и не играет само, без скрипта — контролы браузера', () => {
+  const v = filmVideo()
+  assert.ok(v, 'нет <video>')
+  assert.equal(v.preload, 'none')
+  assert.ok('playsinline' in v, 'без playsinline iPhone уводит видео на весь экран')
+  assert.ok('controls' in v, 'без скрипта видео нечем запустить')
+  assert.ok(!('autoplay' in v), 'автозапуск')
+  assert.ok(!('muted' in v), 'ролик без звука теряет смысл: он смонтирован под музыку')
+  assert.equal(v.width, '1920')
+  assert.equal(v.height, '1080')
+})
+
+test('ролик: MP4 1080p и постер WebP в пределах веса', () => {
+  const sources = attrs('source', film())
+  assert.deepEqual(sources.map((s) => [s.src, s.type]), [['assets/video/traektoriya-promo.mp4', 'video/mp4']])
+  assert.ok(fileSize(sources[0].src) <= 24e6, `видео ${fileSize(sources[0].src)} байт`)
+  // moov в начале файла: браузер начинает играть, не дожидаясь конца загрузки
+  const head = readFileSync(join(here, sources[0].src)).subarray(0, 64)
+  assert.equal(head.toString('latin1', 4, 8), 'ftyp')
+  assert.equal(readFileSync(join(here, sources[0].src)).toString('latin1', 36, 40), 'moov')
+  const poster = filmVideo().poster
+  assert.match(poster, /^assets\/video\/.+\.webp$/)
+  assert.ok(fileSize(poster) <= 200e3, `постер ${fileSize(poster)} байт`)
+})
+
+test('ролик: у видео есть имя и описание для скринридера', () => {
+  const v = filmVideo()
+  assert.match(v['aria-label'] ?? '', /ролик.*1 минута 4 секунды/i)
+  const about = new RegExp(`<p\\b[^>]*\\sid="${v['aria-describedby']}"[^>]*>([\\s\\S]*?)</p>`).exec(film())
+  assert.ok(about, `нет описания #${v['aria-describedby']}`)
+  assert.ok(about[1].replace(/<[^>]+>/g, '').length > 80, 'описание слишком короткое')
+})
+
+test('ролик: кнопка «Смотреть» подписана и без скрипта скрыта', () => {
+  const btn = attrs('button', film()).find((b) => 'data-film-play' in b)
+  assert.ok(btn, 'нет кнопки')
+  assert.equal(btn.type, 'button')
+  assert.ok('hidden' in btn)
+  assert.match(btn['aria-label'] ?? '', /смотреть.*со звуком/i)
+})
+
+test('ролик: разметка VideoObject для поисковиков ссылается на настоящие файлы', () => {
+  const m = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)
+  assert.ok(m, 'нет JSON-LD')
+  const ld = JSON.parse(m[1])
+  assert.equal(ld['@type'], 'VideoObject')
+  assert.equal(ld.duration, 'PT1M4S')
+  assert.ok(ld.name && ld.description && ld.uploadDate)
+  for (const url of [ld.contentUrl, ...[].concat(ld.thumbnailUrl)]) {
+    assert.match(url, /^https:\/\/traektoriaedu\.ru\//)
+    assert.ok(existsSync(join(here, url.replace('https://traektoriaedu.ru/', ''))), `нет файла ${url}`)
+  }
+})
+
+function filmDom({ rejects = false } = {}) {
+  const video = new El('video', { controls: '' })
+  video.controls = true
+  video.plays = 0
+  video.loads = 0
+  video.play = () => {
+    video.plays++
+    return rejects ? Promise.reject(new Error('NotAllowedError')) : Promise.resolve()
+  }
+  video.load = () => { video.loads++ }
+  const button = new El('button', { hidden: '' })
+  initFilm(video, button)
+  return { video, button }
+}
+
+test('ролик: со скриптом — постер с кнопкой вместо контролов браузера', () => {
+  const { video, button } = filmDom()
+  assert.equal(button.hidden, false)
+  assert.equal(video.controls, false)
+})
+
+test('ролик: кнопка запускает видео со звуком и отдаёт управление контролам', () => {
+  const { video, button } = filmDom()
+  focused = null
+  button.click()
+  assert.equal(video.plays, 1)
+  assert.equal(button.hidden, true)
+  assert.equal(video.controls, true)
+  assert.equal(focused, video, 'фокус остаётся на видео — дальше пробел и стрелки')
+})
+
+test('ролик: в конце снова постер с кнопкой', () => {
+  const { video, button } = filmDom()
+  button.click()
+  video.dispatch('ended')
+  assert.equal(button.hidden, false)
+  assert.equal(video.controls, false)
+  assert.equal(video.loads, 1, 'load() возвращает постер')
+})
+
+test('ролик: если браузер не дал запустить, кнопка возвращается', async () => {
+  const { video, button } = filmDom({ rejects: true })
+  button.click()
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(button.hidden, false)
+  assert.equal(video.controls, false)
+})
+
+test('ролик: без видео или кнопки ничего не делает', () => {
+  assert.doesNotThrow(() => initFilm(null, null))
 })
 
 // --- политика конфиденциальности ---
