@@ -376,7 +376,7 @@ Functions — `golang123`), Node.js 22.12+ и npm 11+, Python 3.11+ для па�
 | `BOT_MODE` | bot (локально) | `webhook` или `poll` | `webhook` |
 | `TZ` | все | часовой пояс контейнеров; сроки олимпиад — по Москве | `Europe/Moscow` |
 | `VITE_API_BASE`, `VITE_DEV_FAKE_WEBAPP` | web, при сборке | адрес API; заглушка моста для браузера | `/api/v1`, `true` |
-| `VITE_MAX_BOT_NAME` | web, при сборке | ник бота для кнопки «Пройти анкету в чате бота» | как `MAX_BOT_NAME` |
+| `VITE_MAX_BOT_NAME` | web, при сборке | ник бота для кнопки «Пройти анкету в чате бота» | `t356_hakaton_max_bot` |
 
 ## Внешние сервисы и интеграции
 
