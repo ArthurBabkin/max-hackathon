@@ -140,6 +140,12 @@ func (s *Store) endMembership(ctx context.Context, trajectoryID, targetID, byMem
 			WHERE created_by_member_id = $1 AND used_at IS NULL AND revoked_at IS NULL`, targetID); err != nil {
 			return wrap(err)
 		}
+		// Вышел сам — отозвал согласие; удалённый создателем его не отзывал.
+		if targetID == byMemberID {
+			if _, err := tx.WithdrawPrivacy(ctx, m.UserID); err != nil {
+				return err
+			}
+		}
 		return tx.Audit(ctx, byMemberID, action, "member", targetID)
 	})
 	return m, err

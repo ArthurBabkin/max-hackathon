@@ -239,3 +239,73 @@ func TestDirectionsIn(t *testing.T) {
 		t.Fatalf("подсказка шире клавиатуры: %d из %d", len(anywhere), len(popular))
 	}
 }
+
+// Согласие с политикой конфиденциальности (152-ФЗ): бот спрашивает его до
+// анкеты и до входа по приглашению. Отзыв — /delete создателем или выход из
+// траектории: вернувшегося бот спросит снова.
+func TestPrivacy_AcceptAndWithdraw(t *testing.T) {
+	s := New(dbtest.Open(t))
+	ctx := context.Background()
+	accepted := func(userID string) bool {
+		t.Helper()
+		ok, err := s.PrivacyAccepted(ctx, userID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+
+	f := seedTrajectory(t, s, 900000001, "kid")
+	if accepted(f.creatorUser) {
+		t.Fatal("согласия ещё не давали")
+	}
+	if err := s.AcceptPrivacy(ctx, f.creatorUser); err != nil || !accepted(f.creatorUser) {
+		t.Fatalf("согласие не записано: %v", err)
+	}
+
+	olga, _ := s.UpsertUser(ctx, 900000002, "Ольга")
+	igor, _ := s.UpsertUser(ctx, 900000003, "Игорь")
+	olgaMember := addMember(t, s, f.trajectoryID, olga, "parent", false)
+	igorMember := addMember(t, s, f.trajectoryID, igor, "parent", false)
+	for _, u := range []string{olga, igor} {
+		_ = s.AcceptPrivacy(ctx, u)
+	}
+
+	// Вместе с согласием уходит и черновик анкеты: в нём имя ученика, класс, регион.
+	draft := func(userID string) bool {
+		t.Helper()
+		_, err := s.Dialog(ctx, userID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			t.Fatal(err)
+		}
+		return err == nil
+	}
+	for _, u := range []string{f.creatorUser, olga, igor} {
+		if _, err := s.StartDialog(ctx, Dialog{UserID: u, Step: "done", Draft: Draft{Name: "Артём", Grade: 9}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Вышла сама — отозвала. Удалил создатель — её решения тут нет.
+	if _, err := s.LeaveTrajectory(ctx, f.trajectoryID, olgaMember); err != nil || accepted(olga) || draft(olga) {
+		t.Fatalf("выход из траектории отзывает согласие и стирает черновик: %v", err)
+	}
+	if _, err := s.RemoveMember(ctx, f.trajectoryID, igorMember, f.creatorMember); err != nil || !accepted(igor) || !draft(igor) {
+		t.Fatalf("удалённый создателем согласия не отзывал: %v", err)
+	}
+
+	if err := s.DeleteTrajectory(ctx, f.trajectoryID, f.creatorMember); err != nil || accepted(f.creatorUser) || draft(f.creatorUser) {
+		t.Fatalf("/delete отзывает согласие создателя и стирает черновик: %v", err)
+	}
+
+	// Анкета брошена без траектории — отозвать можно и так; второй раз стирать нечего.
+	lena, _ := s.UpsertUser(ctx, 900000004, "Лена")
+	_ = s.AcceptPrivacy(ctx, lena)
+	_, _ = s.StartDialog(ctx, Dialog{UserID: lena, Step: "grade"})
+	if changed, err := s.WithdrawPrivacy(ctx, lena); err != nil || !changed || accepted(lena) || draft(lena) {
+		t.Fatalf("отзыв без траектории: %v %v", changed, err)
+	}
+	if changed, err := s.WithdrawPrivacy(ctx, lena); err != nil || changed {
+		t.Fatalf("повторный отзыв: %v %v", changed, err)
+	}
+}

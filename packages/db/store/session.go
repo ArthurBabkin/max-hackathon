@@ -49,6 +49,36 @@ func (s *Store) UpsertUser(ctx context.Context, maxUserID int64, firstName strin
 	return id, wrap(err)
 }
 
+// AcceptPrivacy — «Принимаю» под политикой конфиденциальности (152-ФЗ).
+func (s *Store) AcceptPrivacy(ctx context.Context, userID string) error {
+	_, err := s.db.Exec(ctx, `UPDATE users SET privacy_accepted_at = now() WHERE id = $1`, userID)
+	return wrap(err)
+}
+
+// PrivacyAccepted — согласие дано и не отозвано.
+func (s *Store) PrivacyAccepted(ctx context.Context, userID string) (bool, error) {
+	var ok bool
+	err := s.db.QueryRow(ctx, `SELECT privacy_accepted_at IS NOT NULL FROM users WHERE id = $1`, userID).Scan(&ok)
+	return ok, wrap(err)
+}
+
+// WithdrawPrivacy — отзыв согласия: /delete создателем, выход из траектории
+// или /delete с брошенной анкетой. Вернувшегося бот спросит снова. Черновик
+// анкеты в диалоге с ботом (имя ученика, класс, регион) траектории не
+// принадлежит, поэтому стирается здесь же. changed — было что отзывать.
+func (s *Store) WithdrawPrivacy(ctx context.Context, userID string) (changed bool, err error) {
+	consent, err := s.db.Exec(ctx, `
+		UPDATE users SET privacy_accepted_at = NULL WHERE id = $1 AND privacy_accepted_at IS NOT NULL`, userID)
+	if err != nil {
+		return false, wrap(err)
+	}
+	draft, err := s.db.Exec(ctx, `DELETE FROM bot_dialogs WHERE user_id = $1`, userID)
+	if err != nil {
+		return false, wrap(err)
+	}
+	return consent.RowsAffected()+draft.RowsAffected() > 0, nil
+}
+
 // CurrentMember — траектория, в которую пользователь входит сейчас. Если
 // участий несколько (родитель двоих детей), берётся последнее по времени входа.
 func (s *Store) CurrentMember(ctx context.Context, maxUserID int64) (Member, error) {

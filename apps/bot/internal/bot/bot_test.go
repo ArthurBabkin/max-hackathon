@@ -70,6 +70,14 @@ func (h *harness) started(u maxapi.User, payload string) {
 	h.handle(maxapi.Update{UpdateType: maxapi.UpdateBotStarted, User: &u, Payload: p})
 }
 
+// register — «Начать» и «Принимаю»: согласие с политикой спрашивается до
+// анкеты и до входа по приглашению.
+func (h *harness) register(u maxapi.User, payload string) {
+	h.t.Helper()
+	h.started(u, payload)
+	h.press(u, "consent:ok")
+}
+
 func (h *harness) text(u maxapi.User, text string) {
 	h.t.Helper()
 	h.seq++
@@ -170,7 +178,7 @@ func (h *harness) sentBack(u maxapi.User, n int) maxapi.NewMessage {
 // toRegion — ученик Артём до вопроса о регионе.
 func (h *harness) toRegion(grade string) {
 	h.t.Helper()
-	h.started(artem, "")
+	h.register(artem, "")
 	h.press(artem, "role:kid")
 	h.press(artem, "name:ok")
 	h.press(artem, "grade:"+grade)
@@ -213,7 +221,7 @@ func (h *harness) edit(field string) {
 // kidOnboarding проходит онбординг ученика целиком (ТЗ §5.1, SPEC 3–9).
 func (h *harness) kidOnboarding() store.Member {
 	h.t.Helper()
-	h.started(artem, "src_class_9a")
+	h.register(artem, "src_class_9a")
 	h.step(artem, 1)
 	h.mustContain(artem, "Кто вы?")
 	h.press(artem, "role:kid")
@@ -338,7 +346,7 @@ func TestResult_StartIsNearest(t *testing.T) {
 
 func TestParentOnboarding_UndecidedAnywhere(t *testing.T) {
 	h := newHarness(t)
-	h.started(olga, "")
+	h.register(olga, "")
 	h.press(olga, "role:parent")
 	h.mustContain(olga, "Как зовут вашего ребёнка?")
 	h.text(olga, strings.Repeat("я", 41))
@@ -649,7 +657,7 @@ func TestDirectionHelp_KidFlow(t *testing.T) {
 // Родитель: «Помогите выбрать», «Пока не знаем», «Всё равно не знаем».
 func TestDirectionHelp_ParentStillUndecided(t *testing.T) {
 	h := newHarness(t)
-	h.started(olga, "")
+	h.register(olga, "")
 	h.press(olga, "role:parent")
 	h.text(olga, "Артём")
 	h.press(olga, "grade:11")
@@ -835,7 +843,7 @@ func TestUniversities_AddNearbyAndAllDirections(t *testing.T) {
 // Родитель передаёт вопросы об интересах ребёнку (SPEC 10).
 func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	h := newHarness(t)
-	h.started(olga, "")
+	h.register(olga, "")
 	h.press(olga, "role:parent")
 	h.step(olga, 2) // у родителя имя вводится, номер тот же
 	h.text(olga, "Артём")
@@ -869,7 +877,7 @@ func TestParentAsksKid_KidAnswersAfterJoin(t *testing.T) {
 	link := h.lastText(olga)
 	token := link[strings.Index(link, "start=inv_")+len("start=inv_"):]
 
-	h.started(artem, "inv_"+token)
+	h.register(artem, "inv_"+token)
 	check := h.fake.Last(artem.UserID)
 	if check.Text != "**Проверь, всё ли верно:**\nКласс: 10 · Казань\nПредметы: биология\nЦель: ждёт твоего ответа\n"+
 		"Опыт: первые олимпиады\nГде учиться: не важно" || check.Format != "markdown" {
@@ -935,7 +943,7 @@ func TestAliasUniversity(t *testing.T) {
 
 func TestStaleButtonChangesNothing(t *testing.T) {
 	h := newHarness(t)
-	h.started(artem, "")
+	h.register(artem, "")
 	h.press(artem, "role:kid")
 	h.press(artem, "name:ok")
 	// Нажали «Я родитель» в первом сообщении — диалог уже на классе.
@@ -952,7 +960,7 @@ func TestStaleButtonChangesNothing(t *testing.T) {
 
 func TestDuplicateDeliveryIsIgnored(t *testing.T) {
 	h := newHarness(t)
-	h.started(artem, "")
+	h.register(artem, "")
 	cb := maxapi.Update{UpdateType: maxapi.UpdateMessageCallback, Timestamp: 1,
 		Callback: &maxapi.Callback{CallbackID: "same-id", Payload: "role:kid", User: artem}}
 	for i := 0; i < 2; i++ {
@@ -960,14 +968,20 @@ func TestDuplicateDeliveryIsIgnored(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if n := len(h.fake.Answered); n != 1 {
+	n := 0
+	for _, a := range h.fake.Answered {
+		if a.CallbackID == "same-id" {
+			n++
+		}
+	}
+	if n != 1 {
 		t.Fatalf("повторная доставка — без второго ответа: %d", n)
 	}
 }
 
 func TestUnknownStartPayloadIsPlainWelcome(t *testing.T) {
 	h := newHarness(t)
-	h.started(artem, "inv_") // битое приглашение
+	h.register(artem, "inv_") // битое приглашение
 	h.mustContain(artem, "Кто вы?")
 	h.text(artem, "/start <script>")
 	h.mustContain(artem, "Кто вы?")
@@ -993,9 +1007,20 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	}
 	token := link[strings.Index(link, "start=inv_")+len("start=inv_"):]
 
+	// Сначала согласие: до «Принимаю» Артём не в траектории и Ольге ничего не приходит.
 	h.started(artem, "inv_"+token)
+	if q := h.lastText(artem); !strings.HasPrefix(q, "Прежде чем подключиться к траектории") {
+		t.Fatalf("согласие приглашённого: %q", q)
+	}
+	if _, err := h.st.CurrentMember(context.Background(), artem.UserID); err == nil {
+		t.Fatal("в траектории до согласия")
+	}
+	if got := h.lastText(olga); strings.Contains(got, "теперь в траектории") {
+		t.Fatalf("Ольге — до согласия: %q", got)
+	}
+	h.press(artem, "consent:ok")
 	h.mustContain(artem, "**Проверь, всё ли верно:**\nКласс: 9 · Татарстан\nПредметы: информатика\nЦель: программная инженерия\nГде учиться: не важно\nВузы: ВШЭ")
-	if hello := h.fake.To(artem.UserID)[0].Msg.Text; hello != "Привет, Артём! 👋 Ольга приглашает тебя в «Траекторию» — подборка олимпиад уже готова." {
+	if hello := h.fake.To(artem.UserID)[1].Msg.Text; hello != "Привет, Артём! 👋 Ольга приглашает тебя в «Траекторию» — подборка олимпиад уже готова." {
 		t.Fatalf("приветствие приглашённого: %q", hello)
 	}
 	if got := h.lastText(olga); got != "✓ Артём теперь в траектории." {
@@ -1009,7 +1034,7 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	}
 
 	// Та же ссылка второй раз — недействительна.
-	h.started(igor, "inv_"+token)
+	h.register(igor, "inv_"+token)
 	h.mustContain(igor, "Приглашение уже недействительно")
 }
 
@@ -1028,7 +1053,7 @@ func TestInvite_KidChangesGoal(t *testing.T) {
 	if _, err := h.st.CreateInvite(context.Background(), parent.TrajectoryID, parent.MemberID, "kid", token); err != nil {
 		t.Fatal(err)
 	}
-	h.started(artem, "inv_"+token)
+	h.register(artem, "inv_"+token)
 	h.press(artem, "join:goal")
 	h.mustContain(artem, "Куда думаешь поступать?")
 	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.Contains(b, "✓ Программная инженерия") {
@@ -1073,6 +1098,9 @@ func TestDelete_CreatorAndInvited(t *testing.T) {
 	if _, err := h.st.CurrentMember(context.Background(), olga.UserID); err == nil {
 		t.Fatal("доступ закрыт")
 	}
+	// /delete отзывает согласие: вернувшегося бот спросит снова.
+	h.text(artem, "/start")
+	h.mustContain(artem, "политике конфиденциальности")
 }
 
 func TestLeave_InvitedMember(t *testing.T) {
@@ -1080,10 +1108,92 @@ func TestLeave_InvitedMember(t *testing.T) {
 	m := h.kidOnboarding()
 	uid, _ := h.st.UpsertUser(context.Background(), olga.UserID, olga.FirstName)
 	_, _ = h.st.AddMember(context.Background(), m.TrajectoryID, uid, "parent")
+	_ = h.st.AcceptPrivacy(context.Background(), uid)
 	h.text(olga, "/delete")
 	h.press(olga, "leave:yes")
 	h.mustContain(olga, "Готово: вы больше не в траектории Артёма.")
 	h.mustContain(artem, "Ольга больше не в траектории.")
+	// Выход отзывает согласие: вернувшуюся Ольгу бот спросит снова.
+	h.text(olga, "/start")
+	h.mustContain(olga, "политике конфиденциальности")
+}
+
+// Согласие с политикой конфиденциальности (152-ФЗ) — до первого вопроса
+// анкеты: ответы начинают сохраняться только после «Принимаю».
+func TestConsent_BeforeQuestionnaire(t *testing.T) {
+	h := newHarness(t)
+	h.started(artem, "src_class_9a")
+	q := h.fake.Last(artem.UserID)
+	if !strings.HasPrefix(q.Text, "Привет! Помогу подобрать олимпиады для поступления и не пропустить сроки.") ||
+		!strings.Contains(q.Text, "политике конфиденциальности") || strings.HasPrefix(q.Text, "Шаг ") {
+		t.Fatalf("вопрос о согласии: %q", q.Text)
+	}
+	kb := q.Keyboard()
+	if len(kb) != 2 || kb[0][0].Type != "link" || kb[0][0].URL != privacyURL || kb[0][0].Text != "Политика конфиденциальности" ||
+		kb[1][0].Payload != "consent:ok" || kb[1][0].Text != "Принимаю" {
+		t.Fatalf("кнопки согласия: %s", maxtest.Buttons(q))
+	}
+
+	// Без согласия анкета не идёт: кнопка роли ничего не меняет.
+	if a := h.answered(h.pressAny(artem, "role:kid", "Кто вы?")); a.Notification != "Этот вопрос уже позади" {
+		t.Fatalf("роль до согласия: %+v", a)
+	}
+	if d := h.dialog(artem); d.Step != stepConsent || d.Role != "" {
+		t.Fatalf("диалог до согласия: %+v", d)
+	}
+	uid, _ := h.st.UpsertUser(context.Background(), artem.UserID, artem.FirstName)
+	if ok, _ := h.st.PrivacyAccepted(context.Background(), uid); ok {
+		t.Fatal("согласие записано до «Принимаю»")
+	}
+
+	// У вопроса остаются ссылка на политику и отметка выбора.
+	a := h.answered(h.press(artem, "consent:ok"))
+	if a.Message == nil || maxtest.Buttons(*a.Message) != "Политика конфиденциальности | ✓ Принимаю" {
+		t.Fatalf("ответ на «Принимаю»: %+v", a)
+	}
+	if ok, _ := h.st.PrivacyAccepted(context.Background(), uid); !ok {
+		t.Fatal("согласие не записано")
+	}
+	h.step(artem, 1)
+	h.mustContain(artem, "Задам несколько коротких вопросов. Кто вы?")
+	if d := h.dialog(artem); d.Step != stepRole || d.SourcePayload == nil || *d.SourcePayload != "src_class_9a" {
+		t.Fatalf("анкета с источником ссылки: %+v", d)
+	}
+
+	// Согласие уже есть — /start посреди анкеты сразу к первому вопросу.
+	h.press(artem, "role:kid")
+	h.text(artem, "/start")
+	h.step(artem, 1)
+}
+
+// Согласие дано, анкета брошена: /delete стирает черновик и отзывает согласие.
+// Без черновика и согласия удалять нечего — прежний ответ.
+func TestDelete_UnfinishedQuestionnaire(t *testing.T) {
+	h := newHarness(t)
+	h.text(igor, "/delete")
+	h.mustContain(igor, "Сначала нужно ответить на несколько коротких вопросов")
+
+	h.register(artem, "")
+	h.press(artem, "role:kid")
+	h.text(artem, "/delete")
+	h.mustContain(artem, "Удалил ответы анкеты и согласие на обработку данных.")
+	uid, _ := h.st.UpsertUser(context.Background(), artem.UserID, artem.FirstName)
+	if _, err := h.st.Dialog(context.Background(), uid); err == nil {
+		t.Fatal("черновик анкеты остался")
+	}
+	h.text(artem, "/start")
+	h.mustContain(artem, "политике конфиденциальности")
+}
+
+// Политика — по ссылке из /help (ТЗ §12, 152-ФЗ).
+func TestHelp_LinksPrivacyPolicy(t *testing.T) {
+	h := newHarness(t)
+	h.text(artem, "/help")
+	msg := h.fake.Last(artem.UserID)
+	kb := msg.Keyboard()
+	if !strings.Contains(msg.Text, "/delete") || len(kb) != 1 || kb[0][0].Type != "link" || kb[0][0].URL != privacyURL {
+		t.Fatalf("/help: %q %s", msg.Text, maxtest.Buttons(msg))
+	}
 }
 
 func TestSettings_ToggleOffsets(t *testing.T) {

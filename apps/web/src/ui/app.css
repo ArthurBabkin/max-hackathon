@@ -3574,6 +3574,13 @@
   margin-top: var(--gap-lg);
 }
 
+/* Ссылки внизу профиля — столбиком, каждая на свою строку. */
+.profile-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .tutorial-replay {
   display: inline-flex;
   align-items: center;
