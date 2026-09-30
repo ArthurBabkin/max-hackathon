@@ -10,7 +10,7 @@
 .dockerignore
 
 # Секреты. .env не должен попасть в образ даже случайно, а в
-# infra/terraform/*.tfstate пароли к Managed PostgreSQL лежат открытым текстом.
+# infra/terraform/*.tfstate пароли к базе лежат открытым текстом.
 .env
 .env.*
 infra/

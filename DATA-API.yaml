@@ -1,0 +1,281 @@
+# DATA-API 1.0 — «Траектория», API мини-приложения в MAX.
+#
+# Авторизация. Мини-приложение открывается в MAX. MAX подписывает строку
+# запуска (initData) токеном бота, POST /session проверяет подпись и выдаёт
+# JWT. Остальные запросы идут с заголовком Authorization: Bearer <JWT>.
+#
+# Роли — две тестовые учётки одной семьи, они подключены к одной траектории:
+#   kid    — ученик, ведёт трекер олимпиад;
+#   parent — родитель: видит то же, но добавлять в трекер не может (403),
+#            только предлагает олимпиады ученику.
+# Токены для ролей kid и parent переданы вместе с проектом, на первом слайде
+# презентации. Они действуют до 30.09.2027. Для роли public токен не нужен.
+#
+# Проверка tracker-add добавляет в трекер олимпиаду, которой там нет:
+# первую из /recommendations, куда трекер не попадает. Шаг cleanup удаляет
+# именно её, так что состояние тестовой траектории не меняется.
+schemaVersion: "1.0"
+
+solution:
+  name: "Траектория"
+  teamId: "t356"
+
+api:
+  baseUrl: "https://d5d8b10t57l9qlsqnsk7.y0g3kng5.apigw.yandexcloud.net/api/v1"
+  openapi: "./packages/api-contract/openapi.yaml"
+  defaultHeaders:
+    Accept: "application/json"
+
+checks:
+  - id: "health"
+    name: "Сервис доступен"
+    description: "Публичная проверка: функция отвечает и сообщает коммит, из которого собрана."
+    method: "GET"
+    path: "/health"
+    role: "public"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["status", "version"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "home-unauthorized"
+    name: "Без токена доступа нет"
+    description: "Запрос без заголовка Authorization отклоняется."
+    method: "GET"
+    path: "/home"
+    role: "public"
+    expected:
+      statusCodes: [401]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["error"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "session-bad-signature"
+    name: "Строка запуска без подписи MAX отклоняется"
+    description: "POST /session выдаёт токен только на initData с верной подписью MAX."
+    method: "POST"
+    path: "/session"
+    role: "public"
+    request:
+      headers:
+        Content-Type: "application/json"
+      body:
+        init_data: "user=%7B%22id%22%3A1%7D&hash=x"
+    expected:
+      statusCodes: [401]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["error"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "home-kid"
+    name: "Главный экран ученика"
+    description: "Цель, счётчики, следующий шаг и ближайшие сроки."
+    method: "GET"
+    path: "/home"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["trajectory", "tracker_count", "next_step", "upcoming"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "home-parent"
+    name: "Главный экран родителя"
+    description: "Та же траектория глазами родителя."
+    method: "GET"
+    path: "/home"
+    role: "parent"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["trajectory", "tracker_count", "next_step", "upcoming"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "profile"
+    name: "Анкета ученика"
+    description: "Класс, регион, предметы, направления и вузы — то, что собрал онбординг в боте."
+    method: "GET"
+    path: "/profile"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["student_name", "grade", "region_code", "subjects", "universities"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "recommendations"
+    name: "Подбор олимпиад под анкету"
+    description: "Детерминированный скоринг: олимпиады, которых ещё нет в трекере, с причиной выбора."
+    method: "GET"
+    path: "/recommendations"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["items", "state"]
+    timeoutMs: 10000
+    repeatable: true
+    extract:
+      candidateProfileId: "$.items[0].olympiad_profile_id"
+
+  - id: "olympiads"
+    name: "Каталог олимпиад"
+    method: "GET"
+    path: "/olympiads"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["items"]
+    timeoutMs: 10000
+    repeatable: true
+    extract:
+      profileId: "$.items[0].primary_profile.olympiad_profile_id"
+
+  - id: "olympiad-detail"
+    name: "Карточка олимпиады"
+    description: "Этапы, сроки и льготы в вузах."
+    method: "GET"
+    path: "/olympiads/{id}"
+    role: "kid"
+    dependsOn: ["olympiads"]
+    request:
+      path:
+        id: "${profileId}"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["olympiad_profile_id", "name", "stages", "benefits"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "universities"
+    name: "Каталог вузов"
+    method: "GET"
+    path: "/universities"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["items"]
+    timeoutMs: 10000
+    repeatable: true
+    extract:
+      universityId: "$.items[0].id"
+
+  - id: "university-detail"
+    name: "Карточка вуза"
+    description: "Направления и олимпиады, которые дают в вузе БВИ или 100 баллов."
+    method: "GET"
+    path: "/universities/{id}"
+    role: "kid"
+    dependsOn: ["universities"]
+    request:
+      path:
+        id: "${universityId}"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["id", "name", "olympiads"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "tracker"
+    name: "Трекер олимпиад"
+    description: "Выбранные олимпиады с этапами и сроками, предложения родителя."
+    method: "GET"
+    path: "/tracker"
+    role: "kid"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["items", "proposals"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "tracker-add"
+    name: "Ученик добавляет олимпиаду в трекер"
+    description: "Первая олимпиада из подбора. Удаляется в cleanup."
+    method: "POST"
+    path: "/tracker"
+    role: "kid"
+    dependsOn: ["recommendations"]
+    request:
+      headers:
+        Content-Type: "application/json"
+      body:
+        olympiad_profile_id: "${candidateProfileId}"
+    expected:
+      statusCodes: [201]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["id", "olympiad_profile_id", "stages", "status"]
+    timeoutMs: 10000
+    repeatable: false
+    extract:
+      trackerItemId: "$.id"
+
+  - id: "tracker-add-parent-forbidden"
+    name: "Родитель не добавляет в трекер сам"
+    description: "Если в траектории есть ученик, трекер ведёт он. Родителю — 403, ему доступны предложения."
+    method: "POST"
+    path: "/tracker"
+    role: "parent"
+    dependsOn: ["recommendations"]
+    request:
+      headers:
+        Content-Type: "application/json"
+      body:
+        olympiad_profile_id: "${candidateProfileId}"
+    expected:
+      statusCodes: [403]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["error"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "family"
+    name: "Семья траектории"
+    description: "Участники траектории и приглашения."
+    method: "GET"
+    path: "/family"
+    role: "parent"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["trajectory", "members", "invites"]
+    timeoutMs: 10000
+    repeatable: true
+
+  - id: "calendar"
+    name: "Календарь сроков за месяц"
+    method: "GET"
+    path: "/calendar"
+    role: "kid"
+    request:
+      query:
+        month: "2026-10"
+    expected:
+      statusCodes: [200]
+      contentType: "application/json; charset=utf-8"
+      requiredFields: ["month", "days"]
+    timeoutMs: 10000
+    repeatable: true
+
+cleanup:
+  - id: "tracker-remove"
+    method: "DELETE"
+    path: "/tracker/{id}"
+    role: "kid"
+    request:
+      path:
+        id: "${trackerItemId}"
+    expected:
+      statusCodes: [204, 404]
+    timeoutMs: 10000

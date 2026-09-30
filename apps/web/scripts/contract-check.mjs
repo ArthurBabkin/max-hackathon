@@ -189,6 +189,8 @@ async function login(id, name) {
 async function main() {
   const health = await fetch(`${API}/health`).catch(() => null)
   if (!health?.ok) throw new Error(`API не отвечает на ${API}/health`)
+  // Та же ручка через контракт: её дёргает робот организаторов (DATA-API.yaml).
+  await call('GET', '/health', { expect: 200 })
 
   // Сессия: неподписанная строка не от дев-диапазона и пользователь без траектории.
   await call('POST', '/session', { body: { init_data: 'user=%7B%22id%22%3A1%7D&hash=x' }, expect: 401 })
