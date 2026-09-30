@@ -11,21 +11,10 @@ import { Icon, Logo } from '@/ui/Icon'
 import { Sheet } from '@/ui/Sheet'
 import { SourceTag } from '@/ui/primitives'
 import type { SheetStack } from '@/ui/sheets'
-import { useRole, useVoice, type Translate } from '@/voice/useVoice'
+import { useVoice, type Translate } from '@/voice/useVoice'
 
-/** Подсказки-вопросы: с чего начать, если не знаешь, что спросить. */
-const SUGGESTIONS: Record<'kid' | 'parent', string[]> = {
-  kid: [
-    'Какие льготы даёт «Высшая проба» в моих вузах?',
-    'Чем БВИ отличается от 100 баллов?',
-    'Можно ли поступить в ИТМО по Innopolis Open?',
-  ],
-  parent: [
-    'Какие льготы даёт «Высшая проба» в вузах Артёма?',
-    'Чем БВИ отличается от 100 баллов?',
-    'Можно ли поступить в ИТМО по Innopolis Open?',
-  ],
-}
+/** Подсказки-вопросы: с чего начать, если не знаешь, что спросить. Тексты — в словаре. */
+const SUGGESTIONS = ['ai.suggest.1', 'ai.suggest.2', 'ai.suggest.3'] as const
 
 /** Новый чат в адресе: `?sheet=ai:new`. Пустой `ai` — последний чат. */
 const NEW_CHAT = 'new'
@@ -43,7 +32,6 @@ function lastDay(chat: AiChat, t: Translate): string {
 
 export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack }) {
   const t = useVoice()
-  const role = useRole()
   const [draft, setDraft] = useState('')
   const [view, setView] = useState<'chat' | 'list'>('chat')
   // Черновик названия; `null` — полоса чата не в режиме переименования.
@@ -121,7 +109,7 @@ export function AiSheet({ chatId, sheets }: { chatId: string; sheets: SheetStack
 
   const asked = new Set(items.filter((m) => m.role === 'user').map((m) => m.text))
   if (pending) asked.add(ask.variables.text)
-  const left = SUGGESTIONS[role].filter((q) => !asked.has(q))
+  const left = SUGGESTIONS.map((key) => t(key)).filter((q) => !asked.has(q))
   const title = active === null ? t('ai.newChat') : (current?.title ?? '…')
 
   return (

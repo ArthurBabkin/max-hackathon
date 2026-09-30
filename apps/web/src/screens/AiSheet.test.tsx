@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useLocation } from 'react-router-dom'
 import type { AiChat, AiMessage } from '@contract'
 import { keys } from '@/api/queries'
-import { renderApp } from '@/test/render'
+import { makeSession, renderApp } from '@/test/render'
 import { useSheetStack } from '@/ui/sheets'
 
 // Ответ помощника идёт секунды — держим его «в пути», моки отвечали бы сами.
@@ -113,6 +113,24 @@ it('показывает вопрос сразу, не дожидаясь отв
   expect(screen.getByLabelText('Помощник печатает')).toBeInTheDocument()
   expect(screen.getByText(question, { selector: '.ai-message-user p' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: question })).not.toBeInTheDocument()
+})
+
+// Подсказки идут из словаря: родитель видит имя своего ученика, а не демо-имя.
+it('подсказки родителю — с именем его ученика', () => {
+  server()
+  const session = makeSession({ role: 'parent' })
+  session.trajectory.student_name = 'Мария'
+  renderApp(<Host />, { route: '/?sheet=ai', session, seed: (c) => c.setQueryData(keys.aiChats, { items: [] }) })
+
+  expect(screen.getByRole('button', { name: 'Какие льготы дают олимпиады в вузах Марии?' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Артёма/ })).not.toBeInTheDocument()
+})
+
+it('подсказки ученику — на «ты», без имени', () => {
+  server()
+  open('ai', { chats: [] })
+
+  expect(screen.getByRole('button', { name: 'Какие льготы дают олимпиады в моих вузах?' })).toBeInTheDocument()
 })
 
 // F58: «Спросить» открывает последний чат, а не пустой.
