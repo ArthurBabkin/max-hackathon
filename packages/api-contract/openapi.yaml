@@ -49,6 +49,24 @@ tags:
 
 paths:
 
+  /health:
+    get:
+      summary: Доступность сервиса и версия кода в проде
+      security: []
+      responses:
+        "200":
+          description: Сервис отвечает
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status: { type: string, enum: [ok] }
+                  version:
+                    type: string
+                    description: Коммит, из которого собрана функция.
+
   /session:
     post:
       tags: [session]
