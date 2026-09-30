@@ -12,7 +12,7 @@ info:
     Соглашения:
       * все поля на проводе — snake_case, как колонки БД и как уже устроен
         packages/shared/maxapi/types.go; трансформера камелизации нет;
-      * даты и时间 — RFC 3339 в UTC (`2026-09-25T20:59:00Z`), «только дата» — `2026-09-25`;
+      * даты и время — RFC 3339 в UTC (`2026-09-25T20:59:00Z`), «только дата» — `2026-09-25`;
       * ошибка всегда `{"error": {"code", "message"}}` — ТЗ §10;
       * `message` написан по-русски и пригоден для показа пользователю как есть;
       * права проверяет сервер (ТЗ §3.1); клиент получает готовые флаги в `/session`
@@ -25,13 +25,10 @@ info:
     который нужно открыть.
 
 servers:
-  - url: /api/v1
-    description: Локально — через nginx-прокси мини-приложения (same-origin)
-  - url: https://{function}.apigw.yandexcloud.net/api/v1
-    description: Прод — Cloud Function
-    variables:
-      function:
-        default: example
+  - url: https://d5d8b10t57l9qlsqnsk7.y0g3kng5.apigw.yandexcloud.net/api/v1
+    description: Прод — API Gateway перед Cloud Function
+  - url: http://localhost:8081/api/v1
+    description: Локальный стенд (docker compose)
 
 security:
   - bearerAuth: []
@@ -917,7 +914,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT из `POST /session`, HS256, живёт час (ТЗ §8.2).
+      description: |
+        JWT из `POST /session`, HS256, живёт час (ТЗ §8.2). Для проверки API
+        ролям `kid` и `parent` тестовой семьи выпущены токены до 30.09.2027,
+        они на первом слайде презентации (см. DATA-API.yaml).
 
   parameters:
     ProfileId:
