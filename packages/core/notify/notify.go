@@ -31,6 +31,14 @@ type Notifier struct {
 	ReminderHour int
 }
 
+// New — единственный способ собрать Notifier: сервис, отправщик и бот одни и
+// те же во всех четырёх местах (бот, REST, оба воркера), а лишних полей
+// заполнять не надо. hour — час напоминаний по зоне ученика; там, где
+// напоминания не планируются, 0.
+func New(st *store.Store, max maxapi.Sender, botName string, botID int64, hour int) *Notifier {
+	return &Notifier{Store: st, Max: max, BotName: botName, BotID: botID, ReminderHour: hour}
+}
+
 // InviteURL — ссылка-приглашение F39: https://max.ru/<bot>?start=inv_<token>.
 func InviteURL(botName, token string) string {
 	return "https://max.ru/" + botName + "?start=inv_" + token

@@ -4,6 +4,7 @@
 package match
 
 import (
+	"slices"
 	"sort"
 	"time"
 
@@ -143,7 +144,7 @@ func Score(c Candidate, s Student, w Weights, now time.Time) Result {
 		}
 	}
 
-	if contains(s.DirectionSubjects, c.SubjectCode) {
+	if slices.Contains(s.DirectionSubjects, c.SubjectCode) {
 		r.Factors[Direction] = w.Direction
 	}
 	r.Factors[Benefit] = w.Benefit * BenefitGradeFactor(s.Grade) * benefitValue[c.BestBenefit]
@@ -252,7 +253,7 @@ func Pick(cands []Candidate, s Student, w Weights, now time.Time, o Options) Pic
 		switch c.Kind {
 		case "other":
 		case "vsosh":
-			if len(s.DirectionSubjects) > 0 && !contains(s.DirectionSubjects, c.SubjectCode) {
+			if len(s.DirectionSubjects) > 0 && !slices.Contains(s.DirectionSubjects, c.SubjectCode) {
 				continue
 			}
 		default:
@@ -390,13 +391,4 @@ func byDeadline(rs []Result) {
 		}
 		return rs[i].Score > rs[j].Score
 	})
-}
-
-func contains(xs []string, x string) bool {
-	for _, v := range xs {
-		if v == x {
-			return true
-		}
-	}
-	return false
 }

@@ -39,7 +39,7 @@ func newFamily(t *testing.T) family {
 	}
 	fake := &maxtest.Fake{}
 	return family{st: st, fake: fake, kid: kid, olga: olga,
-		n: &Notifier{Store: st, Max: fake, BotName: "test_bot", BotID: 42, ReminderHour: 10}}
+		n: New(st, fake, "test_bot", 42, 10)}
 }
 
 func TestReminder_VoiceAndButtons(t *testing.T) {

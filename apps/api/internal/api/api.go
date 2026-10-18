@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/assistant"
@@ -83,6 +84,20 @@ func Classifier() jev.Classifier {
 	return jev.New(config.Get("LLM_BASE_URL", "https://polza.ai/api/v1"), key)
 }
 
+// DepsFor собирает зависимости сервиса из конфига и готового стора. Оба
+// входа — Cloud Functions и локальный сервер — отличаются только тем, как
+// поднимают HTTP, поэтому список зависимостей живёт здесь один раз.
+func DepsFor(cfg config.Config, st *store.Store) Deps {
+	return Deps{
+		Store:       st,
+		Config:      cfg,
+		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
+		Max:         Sender(cfg),
+		LLM:         Model(),
+		Classifier:  Classifier(),
+	}
+}
+
 // New собирает обработчик со всеми middleware.
 func New(d Deps) http.Handler {
 	s := newServer(d)
@@ -98,10 +113,9 @@ func newServer(d Deps) *Server {
 			DevUnsignedInitData: d.Config.DevUnsignedInitData,
 			AppEnv:              d.Config.AppEnv,
 		},
-		now: d.Now,
-		mux: http.NewServeMux(),
-		notify: &notify.Notifier{Store: d.Store, Max: d.Max, BotName: d.Config.MaxBotName,
-			BotID: d.Config.MaxBotID, ReminderHour: d.Config.ReminderHour},
+		now:    d.Now,
+		mux:    http.NewServeMux(),
+		notify: notify.New(d.Store, d.Max, d.Config.MaxBotName, d.Config.MaxBotID, d.Config.ReminderHour),
 		// Пять вопросов подряд, дальше один в 12 секунд — не больше пяти в минуту.
 		aiLimit: newLimiter(5, 12*time.Second),
 	}

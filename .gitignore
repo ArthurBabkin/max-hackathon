@@ -31,3 +31,4 @@ infra/ansible/group_vars/all.yml
 
 # Личные настройки Claude Code
 .claude/settings.local.json
+.playwright-mcp/
