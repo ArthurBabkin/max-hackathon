@@ -62,7 +62,7 @@ func (b *Bot) Handle(ctx context.Context, u maxapi.Update) error {
 	}
 	name := strings.TrimSpace(from.FirstName)
 	if name == "" {
-		name = "Друг"
+		name = anonName
 	}
 	uid, err := b.store.UpsertUser(ctx, from.UserID, name)
 	if err != nil {

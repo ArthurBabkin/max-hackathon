@@ -2,7 +2,6 @@ package bot
 
 import (
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
@@ -14,13 +13,6 @@ import (
 
 // offerLimit — сколько вузов бот предлагает кнопками за раз (F9).
 const offerLimit = 6
-
-// nearbyLimit — сколько ближайших вузов предложить, если в выбранных местах
-// нет направления (SPEC 8.3).
-const nearbyLimit = 3
-
-// similarLimit — сколько похожих направлений предложить там же.
-const similarLimit = 2
 
 // universityAliases — как вузы называют в разговоре (SPEC 8.2). Ключи —
 // в виде refdata.Normalize.
@@ -63,29 +55,18 @@ func uniButton(u store.University) string {
 	return uniLabel(u) + " · " + *u.City
 }
 
-// offer — вузы для кнопок шага «Вузы»: подходящие по местам и направлениям
-// (с «Показать ещё» — несколько страниц) плюс уже отмеченные. Если
-// подходящих нет, а места и направления выбраны, — ближайшие вузы с
-// направлением и похожие направления в выбранных местах (V3).
+// offer — вузы для кнопок шага «Вузы»: сначала те, где есть выбранные
+// направления (с «Показать ещё» — несколько страниц), плюс уже отмеченные.
 func offer(t *turn, tx *store.Store, d *store.Dialog) error {
-	places, _ := draftPlaces(d.Draft)
-	if d.Draft.VuzAnywhere {
-		places = nil
-	}
 	shown := (d.Draft.OfferPage + 1) * offerLimit
-	unis, err := tx.SuggestUniversities(t.ctx, d.Draft.DirectionIDs, places, shown+1, 0)
+	unis, err := tx.SuggestUniversities(t.ctx, d.Draft.DirectionIDs, nil, shown+1, 0)
 	if err != nil {
 		return err
 	}
 	d.Draft.OfferMore = len(unis) > shown
-	d.Draft.Offered, d.Draft.Nearby, d.Draft.Similar = nil, nil, nil
+	d.Draft.Offered = nil
 	for _, u := range unis[:min(len(unis), shown)] {
 		d.Draft.Offered = append(d.Draft.Offered, u.ID)
-	}
-	if len(unis) == 0 && len(places) > 0 && len(d.Draft.DirectionIDs) > 0 {
-		if err := noDirectionHere(t, tx, d, places); err != nil {
-			return err
-		}
 	}
 	for _, id := range d.Draft.UniversityIDs {
 		if !slices.Contains(d.Draft.Offered, id) {
@@ -95,82 +76,24 @@ func offer(t *turn, tx *store.Store, d *store.Dialog) error {
 	return nil
 }
 
-// noDirectionHere — V3: ближайшие к ученику вузы с направлением (по
-// центрам регионов) и направления с общими ключевыми предметами, которые
-// в выбранных местах есть.
-func noDirectionHere(t *turn, tx *store.Store, d *store.Dialog, places []store.Place) error {
-	all, err := tx.SuggestUniversities(t.ctx, d.Draft.DirectionIDs, nil, 100, 0)
-	if err != nil {
-		return err
+// toUniversities — к шагу вузов с первой страницей подборки.
+func toUniversities(t *turn, tx *store.Store, d *store.Dialog) error {
+	d.Step, d.Draft.OfferPage = stepUniversities, 0
+	return offer(t, tx, d)
+}
+
+// draftPlaces — места «Где учиться» диалогов, начатых до #127 (у диалогов
+// v1 — Target). Анкета их больше не спрашивает: пусто — «не важно».
+func draftPlaces(dr store.Draft) []store.Place {
+	switch {
+	case dr.PlacesAny || dr.Target == store.TargetAny:
+		return nil
+	case len(dr.Places) > 0:
+		return dr.Places
+	case dr.Target != "":
+		return []store.Place{{RegionCode: dr.Target}}
 	}
-	lat, lon := nearbyOrigin(d.Draft, places)
-	dist := func(u store.University) float64 {
-		r, ok := refdata.ByCode(u.RegionCode)
-		if !ok {
-			return 1e9
-		}
-		return refdata.Distance(lat, lon, r.Lat, r.Lon)
-	}
-	sort.SliceStable(all, func(i, j int) bool { return dist(all[i]) < dist(all[j]) })
-	for _, u := range all[:min(len(all), nearbyLimit)] {
-		d.Draft.Nearby = append(d.Draft.Nearby, u.ID)
-	}
-	here, err := tx.DirectionsIn(t.ctx, places)
-	if err != nil {
-		return err
-	}
-	dirs, err := tx.Directions(t.ctx)
-	if err != nil {
-		return err
-	}
-	d.Draft.Similar = similarDirections(dirs, d.Draft.DirectionIDs, here, similarLimit)
 	return nil
-}
-
-// nearbyOrigin — от какой точки искать ближайшие вузы: свой город или
-// центр своего региона, а без региона («Не важно») — первое выбранное место.
-func nearbyOrigin(dr store.Draft, places []store.Place) (lat, lon float64) {
-	code, city := dr.RegionCode, dr.HomeCity
-	if code == "" && len(places) > 0 {
-		code, city = places[0].RegionCode, places[0].City
-	}
-	if la, lo, ok := refdata.CityCoords(city, code); ok {
-		return la, lo
-	}
-	r, _ := refdata.ByCode(code)
-	return r.Lat, r.Lon
-}
-
-// similarDirections — до limit направлений из here, не выбранных, у которых
-// с каким-нибудь выбранным не меньше двух общих ключевых предметов: одной
-// математики мало, она есть почти везде. Порядок справочника.
-func similarDirections(dirs []store.Direction, chosen, here []string, limit int) []string {
-	byID := map[string]store.Direction{}
-	for _, d := range dirs {
-		byID[d.ID] = d
-	}
-	var out []string
-	for _, d := range dirs {
-		if len(out) == limit {
-			break
-		}
-		if !slices.Contains(here, d.ID) || slices.Contains(chosen, d.ID) {
-			continue
-		}
-		for _, id := range chosen {
-			common := 0
-			for _, c := range byID[id].SubjectCodes {
-				if slices.Contains(d.SubjectCodes, c) {
-					common++
-				}
-			}
-			if common >= 2 {
-				out = append(out, d.ID)
-				break
-			}
-		}
-	}
-	return out
 }
 
 // directionNames — названия направлений по id через запятую, со строчной.
@@ -184,9 +107,9 @@ func directionNames(dirs []store.Direction, ids []string) string {
 	return strings.Join(names, ", ")
 }
 
-// universitiesPrompt — подборка вузов с «✓» (V1) или, если в выбранных
-// местах направления нет, ближайшие вузы с ним (V3). Выбирать не
-// обязательно: без вузов подбор покажет льготы в вузах с направлением.
+// universitiesPrompt — подборка вузов с «✓» (V1). Выбирать не
+// обязательно: без вузов подбор покажет льготы во всех вузах с
+// направлением, отметить их можно позже в мини-приложении.
 func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
 	cb := maxapi.CallbackButton
 	unis, err := b.store.FindUniversities(t.ctx, "")
@@ -197,46 +120,13 @@ func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
-	byID := func(id string) (store.University, bool) {
-		i := slices.IndexFunc(unis, func(u store.University) bool { return u.ID == id })
-		if i < 0 {
-			return store.University{}, false
-		}
-		return unis[i], true
-	}
 	var buttons []maxapi.Button
 	for _, id := range d.Draft.Offered {
-		if u, ok := byID(id); ok {
-			buttons = append(buttons, cb(check(slices.Contains(d.Draft.UniversityIDs, id), uniButton(u)), "vuz:t:"+id))
+		if i := slices.IndexFunc(unis, func(u store.University) bool { return u.ID == id }); i >= 0 {
+			buttons = append(buttons, cb(check(slices.Contains(d.Draft.UniversityIDs, id), uniButton(unis[i])), "vuz:t:"+id))
 		}
 	}
 	kb := grid(buttons, 2)
-	finish := v.T("bot.vuz.skip", nil)
-	if len(d.Draft.UniversityIDs) > 0 {
-		finish = v.T("bot.btn.done", nil)
-	}
-	if len(d.Draft.Nearby) > 0 {
-		text := v.T("bot.vuz.noDirections", nil)
-		allDir := "bot.vuz.allDirs"
-		if len(d.Draft.DirectionIDs) == 1 {
-			text = v.T("bot.vuz.noDirection", voice.Vars{"direction": directionTitle(dirs, d.Draft.DirectionIDs[0])})
-			allDir = "bot.vuz.allDir"
-		}
-		for _, id := range d.Draft.Nearby {
-			if u, ok := byID(id); ok && !slices.Contains(d.Draft.Offered, id) {
-				kb = append(kb, maxapi.Row(cb("+ "+uniButton(u), "vuz:add:"+id)))
-			}
-		}
-		kb = append(kb, maxapi.Row(cb(v.T(allDir, nil), "vuz:alldir")))
-		if len(d.Draft.Similar) > 0 {
-			kb = append(kb, maxapi.Row(cb(v.T("bot.vuz.similar", voice.Vars{"directions": directionNames(dirs, d.Draft.Similar)}), "vuz:similar")))
-		}
-		if len(d.Draft.UniversityIDs) == 0 {
-			finish = v.T("bot.vuz.skipAll", nil)
-		}
-		kb = append(kb, maxapi.Row(cb(finish, "vuz:done")))
-		return maxapi.WithKeyboard(text, kb), nil
-	}
 	text := v.T("bot.vuz.askAny", nil)
 	if len(d.Draft.DirectionIDs) > 0 {
 		text = v.T("bot.vuz.ask", voice.Vars{"directions": directionNames(dirs, d.Draft.DirectionIDs)})
@@ -247,15 +137,17 @@ func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi
 	if d.Draft.OfferMore {
 		kb = append(kb, maxapi.Row(cb(v.T("bot.vuz.more", nil), "vuz:more")))
 	}
-	kb = append(kb, maxapi.Row(cb(finish, "vuz:done")))
+	kb = append(kb, maxapi.Row(cb(finishLabel(v, d), "vuz:done")))
 	return maxapi.WithKeyboard(text, kb), nil
 }
 
-func directionTitle(dirs []store.Direction, id string) string {
-	if i := slices.IndexFunc(dirs, func(x store.Direction) bool { return x.ID == id }); i >= 0 {
-		return dirs[i].Name
+// finishLabel — последняя кнопка анкеты: «Готово», если вузы отмечены,
+// иначе «Выберу позже».
+func finishLabel(v voice.Voice, d store.Dialog) string {
+	if len(d.Draft.UniversityIDs) > 0 {
+		return v.T("bot.btn.done", nil)
 	}
-	return id
+	return v.T("bot.vuz.later", nil)
 }
 
 func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.Message, action, id string) error {
@@ -286,67 +178,18 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			d.Draft.OfferPage++
 			return offer(t, tx, d)
 		}))
-	case "places":
-		// «Изменить места» из сообщений до кнопки «← Назад».
-		return b.transition(t, cb, question, v.T("bot.vuz.places", nil), onStep(func(_ *store.Store, d *store.Dialog) error {
-			toTarget(&d.Draft)
-			d.Step, d.Draft.PlacesAny = stepTarget, false
-			return nil
-		}))
-	case "add":
-		return b.transition(t, cb, question, "", onStep(func(tx *store.Store, d *store.Dialog) error {
-			if !slices.Contains(d.Draft.Nearby, id) {
-				return store.ErrStale
-			}
-			unis, err := tx.FindUniversities(t.ctx, "")
-			if err != nil {
-				return err
-			}
-			i := slices.IndexFunc(unis, func(u store.University) bool { return u.ID == id })
-			if i < 0 || unis[i].RegionCode == "" {
-				return store.ErrStale
-			}
-			// Место вуза добавляется к выбранным: подборка покажет и его.
-			o := store.PlaceOption{Kind: "region", RegionCode: unis[i].RegionCode, Label: refdata.Short(unis[i].RegionCode)}
-			if c := unis[i].City; c != nil && *c != "" && !refdata.Federal(unis[i].RegionCode) {
-				o = store.PlaceOption{Kind: "city", RegionCode: unis[i].RegionCode, City: *c, Label: *c + " · " + refdata.Short(unis[i].RegionCode)}
-			}
-			if places, _ := draftPlaces(d.Draft); len(d.Draft.Places) == 0 {
-				d.Draft.Places = places
-			}
-			d.Draft.Target = ""
-			addPlace(&d.Draft, o)
-			if !slices.Contains(d.Draft.UniversityIDs, id) {
-				d.Draft.UniversityIDs = append(d.Draft.UniversityIDs, id)
-			}
-			return offer(t, tx, d)
-		}))
-	case "alldir":
-		return b.transition(t, cb, question, "", onStep(func(tx *store.Store, d *store.Dialog) error {
-			d.Draft.VuzAnywhere, d.Draft.OfferPage = true, 0
-			return offer(t, tx, d)
-		}))
-	case "similar":
-		return b.transition(t, cb, question, "", onStep(func(tx *store.Store, d *store.Dialog) error {
-			if len(d.Draft.Similar) == 0 {
-				return store.ErrStale
-			}
-			for _, s := range d.Draft.Similar {
-				if !slices.Contains(d.Draft.DirectionIDs, s) {
-					d.Draft.DirectionIDs = append(d.Draft.DirectionIDs, s)
-				}
-			}
-			return offer(t, tx, d)
-		}))
 	case "done":
+		// «Готово» или «Выберу позже» — конец анкеты: траектория создаётся сразу.
 		label := v.T("bot.btn.done", nil)
-		// Дальше — профиль на подтверждение; траектория создаётся по «Готово» там.
-		return b.transition(t, cb, question, label, onStep(func(_ *store.Store, d *store.Dialog) error {
-			d.Step, d.Draft.EditMenu = stepSummary, false
-			return nil
+		if d, err := b.store.Dialog(t.ctx, t.userID); err == nil {
+			label = finishLabel(v, d)
+		}
+		return b.transition(t, cb, question, label, onStep(func(tx *store.Store, d *store.Dialog) error {
+			return b.createTrajectory(t, tx, d)
 		}))
-	case "other", "city":
-		// Кнопки шага вузов из v1.
+	case "places", "add", "alldir", "similar", "other", "city":
+		// Кнопки шага вузов прежних версий: «Изменить места», ближайшие и
+		// похожие (V3), «Другой вуз» и города из v1.
 		return b.staleDialog(t, cb)
 	}
 	return b.stale(t, cb, nil)

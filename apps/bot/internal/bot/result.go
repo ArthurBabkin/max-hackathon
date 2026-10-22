@@ -15,8 +15,8 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
-// finished — траектория создана по «Готово» в карточке профиля: итог с
-// числом подобранных олимпиад (SPEC 9).
+// finished — траектория создана по «Готово» на шаге вузов: итог с числом
+// подобранных олимпиад (SPEC 9).
 func (b *Bot) finished(t *turn) error {
 	m, ok, err := b.member(t)
 	if err != nil || !ok {
@@ -29,8 +29,7 @@ func (b *Bot) finished(t *turn) error {
 	return b.sendResult(t, m, v, tr, "")
 }
 
-// profile — что показывает карточка профиля: из траектории или, до её
-// создания, из черновика онбординга.
+// profile — профиль траектории для проверки приглашённым (joinCheck).
 type profile struct {
 	Grade        int
 	RegionCode   string
@@ -69,8 +68,8 @@ func (b *Bot) trajectoryProfile(t *turn, tr store.Trajectory) (profile, error) {
 }
 
 // profileLines — профиль списком: класс и место, предметы, цель, опыт,
-// где учиться, вузы. withEmptyVuz = false — без строки «Вузы», если их нет.
-func profileLines(v voice.Voice, p profile, withEmptyVuz bool) []string {
+// где учиться, вузы. Чего нет — опыта, мест, вузов, — того и строки нет.
+func profileLines(v voice.Voice, p profile) []string {
 	place := refdata.Short(p.RegionCode)
 	if p.HomeCity != "" {
 		place = p.HomeCity
@@ -87,17 +86,15 @@ func profileLines(v voice.Voice, p profile, withEmptyVuz bool) []string {
 	if p.Experience != "" {
 		lines = append(lines, v.T("bot.summary.experience", voice.Vars{"experience": v.T("bot.exp.label."+p.Experience, nil)}))
 	}
-	lines = append(lines, v.T("bot.summary.places", voice.Vars{"places": placesText(v, p.Places)}))
-	if len(p.Universities) > 0 || withEmptyVuz {
+	if len(p.Places) > 0 {
+		lines = append(lines, v.T("bot.summary.places", voice.Vars{"places": placesText(p.Places)}))
+	}
+	if len(p.Universities) > 0 {
 		names := make([]string, len(p.Universities))
 		for i, u := range p.Universities {
 			names[i] = uniLabel(u)
 		}
-		vuzy := strings.Join(names, ", ")
-		if len(names) == 0 {
-			vuzy = v.T("bot.vuz.noneChosen", nil)
-		}
-		lines = append(lines, v.T("bot.summary.universities", voice.Vars{"names": vuzy}))
+		lines = append(lines, v.T("bot.summary.universities", voice.Vars{"names": strings.Join(names, ", ")}))
 	}
 	return lines
 }
@@ -122,11 +119,8 @@ func goalText(v voice.Voice, p profile) string {
 	return text
 }
 
-// placesText — «Казань, Москва»; мест нет — «не важно».
-func placesText(v voice.Voice, places []store.Place) string {
-	if len(places) == 0 {
-		return v.T("bot.summary.placesAny", nil)
-	}
+// placesText — «Казань, Москва».
+func placesText(places []store.Place) string {
 	names := make([]string, len(places))
 	for i, p := range places {
 		names[i] = refdata.Short(p.RegionCode)
@@ -426,7 +420,7 @@ func (b *Bot) joinCheck(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
-	msg := maxapi.WithKeyboard(v.T("bot.join.checkTitle", nil)+"\n"+strings.Join(profileLines(v, p, false), "\n"),
+	msg := maxapi.WithKeyboard(v.T("bot.join.checkTitle", nil)+"\n"+strings.Join(profileLines(v, p), "\n"),
 		maxapi.Keyboard{maxapi.Row(maxapi.CallbackButton(v.T("bot.join.ok", nil), "join:ok"),
 			maxapi.CallbackButton(v.T("bot.join.goal", nil), "join:goal"))})
 	msg.Format = "markdown"
