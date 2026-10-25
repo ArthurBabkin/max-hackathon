@@ -8,6 +8,7 @@
  */
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -150,6 +151,9 @@ export const useOlympiad = (id: string | null) =>
     queryKey: keys.olympiad(id ?? ''),
     queryFn: () => api.get<OlympiadDetail>(`/olympiads/${encodeURIComponent(id!)}`),
     enabled: id !== null,
+    // Переключение профиля в той же карточке: пока грузится новый, виден
+    // прежний, а не скелетон — иначе лист прыгает к началу.
+    placeholderData: keepPreviousData,
   })
 
 export const useUniversities = (q: string, city: string, direction = '') =>

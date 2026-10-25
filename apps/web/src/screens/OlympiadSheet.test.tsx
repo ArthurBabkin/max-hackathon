@@ -9,7 +9,7 @@ import { renderApp } from '@/test/render'
 import type { SheetStack } from '@/ui/sheets'
 import { OlympiadSheet } from './OlympiadSheet'
 
-const sheets = { stack: [], open: vi.fn(), back: vi.fn(), closeAll: vi.fn() } as unknown as SheetStack
+const sheets = { stack: [], open: vi.fn(), replace: vi.fn(), back: vi.fn(), closeAll: vi.fn() } as unknown as SheetStack
 
 function renderSheet(patch: Partial<OlympiadDetail>) {
   const id = 'hse:inf'
@@ -195,7 +195,7 @@ it('открытая регистрация — без пометки', () => {
 
 // У НТО 21 профиль — плашки уровней занимали больше экрана. Видно шесть,
 // профиль ученика среди них, даже если в списке он последний.
-it('уровни по профилям: длинный список свёрнут, мой профиль виден', async () => {
+it('уровни по профилям: длинный список свёрнут, открытый профиль виден', async () => {
   const profiles = Array.from({ length: 21 }, (_, i) => ({
     olympiad_profile_id: `nto-${i + 1}`,
     subject_code: `p${i + 1}`,
@@ -206,7 +206,8 @@ it('уровни по профилям: длинный список свёрну
   renderSheet({ kind: 'perechen', profiles })
   const block = screen.getByRole('heading', { name: /Уровень по профилям/ }).closest('section')!
   const chips = () => within(block).getAllByText(/^Профиль \d+: II$/).map((c) => c.textContent)
-  expect(chips()).toEqual(['Профиль 21: II', ...[1, 2, 3, 4, 5].map((n) => `Профиль ${n}: II`)])
+  // Порядок — как у API, открытый профиль занимает последнее место в свёрнутом.
+  expect(chips()).toEqual([...[1, 2, 3, 4, 5].map((n) => `Профиль ${n}: II`), 'Профиль 21: II'])
 
   await userEvent.click(within(block).getByRole('button', { name: 'Все профили (21)' }))
   expect(chips()).toHaveLength(21)
@@ -218,4 +219,47 @@ it('уровни по профилям: короткий список — без
   renderSheet({ kind: 'perechen' })
   const block = screen.getByRole('heading', { name: /Уровень по профилям/ }).closest('section')!
   expect(within(block).queryByRole('button', { name: /Все профили/ })).not.toBeInTheDocument()
+})
+
+// #135: у профилей одной олимпиады свои сроки и льготы — плашка открывает
+// карточку профиля на месте этой, открытый профиль назван в шапке.
+const innopolis = [
+  { olympiad_profile_id: 'inno:inf', subject_code: 'inf', subject_name: 'Информатика', level: 'II' as const, is_mine: false },
+  {
+    olympiad_profile_id: 'inno:inf:ib',
+    subject_code: 'inf',
+    subject_name: 'Информационная безопасность',
+    level: 'III' as const,
+    is_mine: true,
+  },
+]
+
+it('уровни по профилям: плашка другого профиля открывает его карточку на месте этой', async () => {
+  vi.mocked(sheets.replace).mockClear()
+  renderSheet({ kind: 'perechen', subject_name: 'Информационная безопасность', profiles: innopolis })
+  const block = screen.getByRole('heading', { name: /Уровень по профилям/ }).closest('section')!
+
+  const current = within(block).getByRole('button', { name: 'Информационная безопасность: III' })
+  expect(current).toHaveAttribute('aria-current', 'true')
+  await userEvent.click(current)
+  expect(sheets.replace).not.toHaveBeenCalled()
+
+  const other = within(block).getByRole('button', { name: 'Информатика: II' })
+  expect(other).not.toHaveAttribute('aria-current')
+  await userEvent.click(other)
+  expect(sheets.replace).toHaveBeenCalledWith({ kind: 'oly', id: 'inno:inf' })
+  expect(within(block).getByText(/Нажми на профиль, чтобы открыть его/)).toBeInTheDocument()
+})
+
+it('шапка называет открытый профиль, если профилей несколько', () => {
+  renderSheet({ kind: 'perechen', subject_name: 'Информационная безопасность', profiles: innopolis })
+  const title = screen.getByRole('heading', { level: 2 }).parentElement!
+  expect(within(title).getByText('Информационная безопасность')).toBeInTheDocument()
+})
+
+it('у олимпиады с одним профилем шапка и подсказка без профиля', () => {
+  renderSheet({ kind: 'perechen', subject_name: 'Информатика', profiles: [{ ...innopolis[0]!, is_mine: true }] })
+  const title = screen.getByRole('heading', { level: 2 }).parentElement!
+  expect(within(title).queryByText('Информатика')).not.toBeInTheDocument()
+  expect(screen.queryByText(/Нажми на профиль/)).not.toBeInTheDocument()
 })

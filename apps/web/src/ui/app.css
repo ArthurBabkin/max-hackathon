@@ -1135,6 +1135,12 @@
   color: var(--mu);
 }
 
+/* Какой профиль олимпиады открыт — выше организатора и темнее его. */
+.sheet-title .sheet-title-profile {
+  color: var(--tx);
+  font-weight: 600;
+}
+
 .sheet-title-city {
   display: flex;
   gap: 4px;
@@ -1187,18 +1193,24 @@
 }
 
 .level-item {
+  min-height: 36px;
   padding: 6px 11px;
   border: 1px solid var(--ln-strong);
   border-radius: var(--r-sm);
   background: var(--surface);
+  color: var(--tx);
+  font: inherit;
   font-size: var(--t-small);
   font-weight: 600;
+  cursor: pointer;
 }
 
+/* Открытый профиль: нажимать на него незачем. */
 .level-item-mine {
   background: var(--tx);
   border-color: var(--tx);
   color: var(--bg);
+  cursor: default;
 }
 
 /* Строка льготы */

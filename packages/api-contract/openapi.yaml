@@ -1373,7 +1373,7 @@ components:
         level: { $ref: "#/components/schemas/Level" }
         is_mine:
           type: boolean
-          description: Профиль ученика — выделяется в интерфейсе.
+          description: Профиль, карточка которого открыта, — выделяется в интерфейсе.
 
     BenefitGrant:
       type: object
@@ -1565,7 +1565,7 @@ components:
               description: Что это за олимпиада — пара предложений по официальному сайту. Пусто — блок не показывается.
             profiles:
               type: array
-              description: Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17).
+              description: Все профили этой олимпиады, открытый помечен `is_mine` (F17); остальные открываются по `olympiad_profile_id`.
               items: { $ref: "#/components/schemas/ProfileLevel" }
             profiles_source:
               oneOf:
