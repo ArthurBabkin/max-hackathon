@@ -227,6 +227,12 @@ class StagesTest(unittest.TestCase):
         self.assertIsNone(final["starts_at"])
         self.assertEqual(final["deadline_at"], final["ends_at"])
 
+    def test_announced_stage_without_day_has_no_dates(self):
+        # «Заключительный этап — в марте»: этап есть, дня нет; срока и напоминаний тоже.
+        final = bs.stage("p", "final", 1, None, None, False, False, "src", "Заключительный этап")
+        self.assertEqual((final["starts_at"], final["ends_at"], final["deadline_at"]), (None, None, None))
+        self.assertFalse(final["is_demo"])
+
     def test_organizer_hours_replace_day_bounds(self):
         # «Приём заявок с 10:00 19 октября до 12:00 18 ноября (МСК)».
         reg = bs.stage("p", "registration", 2, "2026-10-19", "2026-11-18", True, False, "src",

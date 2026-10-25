@@ -1,4 +1,4 @@
--- Сроки семи олимпиад, сверенные 26.10.2026 с сайтами и положениями
+-- Сроки восьми олимпиад, сверенные 26.10.2026 с сайтами и положениями
 -- организаторов и с codolymp.ru. Часы — по Москве, там, где организатор их
 -- называет (в C — start_time и end_time этапа):
 --
@@ -17,13 +17,22 @@
 --   10–11 классы.
 -- * «Бельчонок»: задания отбора закрываются в 17:00 по Красноярску —
 --   13:00 МСК.
+-- * «Физтех»: у всех семи профилей стояли одни даты (регистрация 7 сентября,
+--   отбор 4 октября, финал 13–14 февраля). Теперь по профилям: у физики и
+--   математики — три тура онлайн-этапа с регистрацией до 10:00 или 8:00
+--   накануне, финал 13 и 14 февраля; у биологии, химии, инженерного дела,
+--   информатики и «Старта в науку» — свои отборы и финалы. Финал инженерного
+--   дела и информатики объявлен без дня — этап без дат, «дата пока не
+--   объявлена». Классы: химия и информатика 7–11, инженерное дело 8–11.
+--   Регистрации, которой у профиля нет, больше нет.
 --
 -- В сиде 0003 это уже есть — здесь то же самое для накатанных баз. Триггер
 -- 0006 запишет события изменения сроков: кто следит за этими олимпиадами,
--- узнает о новых датах.
+-- узнает о новых датах. На этапы Физтеха, которые удаляются, на проде не
+-- ссылается ни одно напоминание и ни один результат трекера.
 --
--- Этапы: удаляется 0, добавляется или меняется 27. Источников новых 0.
--- Олимпиад меняется 0, профилей 5.
+-- Этапы: удаляется 5, добавляется или меняется 54. Источников новых 5.
+-- Олимпиад меняется 0, профилей 8.
 --
 -- Сгенерировано datasets/parser/diff_seed.py --tables stages.
 
@@ -36,9 +45,15 @@ INSERT INTO sources (id, kind, title, url, verified_at) VALUES
   ('src-431c4749b3b7', 'site', 'Международная олимпиада «Innopolis Open» — сроки этапов', 'https://dovuz.innopolis.university/innopolis-open/informatics', '2026-10-26'::date),
   ('src-446faa35dbb2', 'site', 'Международная олимпиада «Innopolis Open» — сроки этапов', 'https://dovuz.innopolis.university/innopolis-open/ai', '2026-10-26'::date),
   ('src-4c686d3e2dc2', 'site', 'Межрегиональная олимпиада школьников имени И.Я. Верченко — сроки этапов', 'https://v-olymp.ru/olymp/cryptography', '2026-10-26'::date),
+  ('src-58fe428b5abc', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://chem-olymp.mipt.ru/', '2026-10-26'::date),
+  ('src-5b372a8be104', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://start.mipt.ru/view/olymp', '2026-10-26'::date),
+  ('src-5e1726ea8b84', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://olymp-online.mipt.ru', '2026-10-26'::date),
+  ('src-64c9731d2e73', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://uc1.1c.ru/olymp-mipt/uchastnikam/', '2026-10-26'::date),
   ('src-763311cac6e7', 'site', 'Международная олимпиада «Innopolis Open» — сроки этапов', 'https://dovuz.innopolis.university/innopolis-open/robo', '2026-10-26'::date),
   ('src-78bc9874eca5', 'site', 'Международная олимпиада «Innopolis Open» — сроки этапов', 'https://dovuz.innopolis.university/innopolis-open/cyberbez', '2026-10-26'::date),
+  ('src-7ae3e4b404bc', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://bio-olymp.mipt.ru/', '2026-10-26'::date),
   ('src-88f0326adf8f', 'site', 'Интернет-олимпиада школьников по физике — сроки этапов', 'https://distolymp2.spbu.ru/', '2026-10-26'::date),
+  ('src-b394c16b7875', 'site', 'Олимпиада школьников «Физтех» — сроки этапов', 'https://olymp.mipt-rse.ru/', '2026-10-26'::date),
   ('src-c1add80231f0', 'site', 'Международная олимпиада школьников Уральского федерального университета «Изумруд» — сроки этапов', 'https://dovuz.urfu.ru/olymps/izumrud', '2026-10-26'::date),
   ('src-c4caa010c8c2', 'site', 'Межрегиональная олимпиада школьников имени И.Я. Верченко — сроки этапов', 'https://v-olymp.ru/olymp/information_security', '2026-10-26'::date),
   ('src-ec710b9ce093', 'site', 'Олимпиада школьников «Гранит науки» — сроки этапов', 'https://ogn.spmi.ru/sites/default/files/manager/2027/KalendPlan_2026-2027.pdf', '2026-10-26'::date)
@@ -53,7 +68,10 @@ INSERT INTO olympiad_profiles (id, olympiad_id, subject_code, profile_slug, prof
   ('p669-34-informatika', 'p669-34', 'inf', 'informatika', 'информатика', 'III', '2026/27', 10, 11, 'src-cc212c88451d'),
   ('p669-49-estestvennye-nauki', 'p669-49', 'phys', 'estestvennye-nauki', 'естественные науки', 'III', '2026/27', 9, 11, 'src-cc212c88451d'),
   ('p669-49-himiya', 'p669-49', 'chem', 'himiya', 'химия', 'III', '2026/27', 9, 11, 'src-cc212c88451d'),
-  ('p669-49-informatika', 'p669-49', 'inf', 'informatika', 'информатика', 'II', '2026/27', 9, 11, 'src-cc212c88451d')
+  ('p669-49-informatika', 'p669-49', 'inf', 'informatika', 'информатика', 'II', '2026/27', 9, 11, 'src-cc212c88451d'),
+  ('p669-54-himiya', 'p669-54', 'chem', 'himiya', 'химия', 'III', '2026/27', 7, 11, 'src-cc212c88451d'),
+  ('p669-54-informatika-i-programmirovanie', 'p669-54', 'inf', 'informatika-i-programmirovanie', 'информатика и программирование', 'III', '2026/27', 7, 11, 'src-cc212c88451d'),
+  ('p669-54-inzhenernoe-delo', 'p669-54', 'phys', 'inzhenernoe-delo', 'инженерное дело', 'II', '2026/27', 8, 11, 'src-cc212c88451d')
 ON CONFLICT (id) DO UPDATE SET
   olympiad_id = EXCLUDED.olympiad_id,
   subject_code = EXCLUDED.subject_code,
@@ -64,6 +82,14 @@ ON CONFLICT (id) DO UPDATE SET
   grades_from = EXCLUDED.grades_from,
   grades_to = EXCLUDED.grades_to,
   source_id = EXCLUDED.source_id;
+
+DELETE FROM stages WHERE id IN (
+  'p669-54-biologiya:registration:1',
+  'p669-54-himiya:registration:1',
+  'p669-54-informatika-i-programmirovanie:registration:1',
+  'p669-54-inzhenernoe-delo:registration:1',
+  'p669-54-nauchno-tehnicheskiy:registration:1'
+);
 
 INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
   ('p669-22-informacionnaya-bezopasnost:registration:1', 'p669-22-informacionnaya-bezopasnost', 'registration', 'Регистрация на профиль', NULL, '2026-11-11 15:00:00+03'::timestamptz, '2026-11-11 15:00:00+03'::timestamptz, true, false, 'src-78bc9874eca5'),
@@ -89,6 +115,33 @@ INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, de
   ('p669-49-estestvennye-nauki:final:1', 'p669-49-estestvennye-nauki', 'final', 'Заключительный тур (профиль Естественные науки)', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-13 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-ec710b9ce093'),
   ('p669-49-himiya:registration:2', 'p669-49-himiya', 'registration', 'Регистрация на заключительный тур олимпиады (профиль Химия)', '2027-01-15 00:00:00+03'::timestamptz, '2027-02-12 10:00:00+03'::timestamptz, '2027-02-12 10:00:00+03'::timestamptz, true, false, 'src-ec710b9ce093'),
   ('p669-49-informatika:registration:2', 'p669-49-informatika', 'registration', 'Регистрация на заключительный тур олимпиады (профиль Информатика)', '2027-01-15 00:00:00+03'::timestamptz, '2027-01-29 10:00:00+03'::timestamptz, '2027-01-29 10:00:00+03'::timestamptz, true, false, 'src-ec710b9ce093'),
+  ('p669-54-biologiya:qualifying:1', 'p669-54-biologiya', 'qualifying', 'Отборочный этап, попытка 1', '2026-12-20 00:00:00+03'::timestamptz, '2026-12-20 23:59:59+03'::timestamptz, '2026-12-20 23:59:59+03'::timestamptz, true, false, 'src-7ae3e4b404bc'),
+  ('p669-54-biologiya:qualifying:2', 'p669-54-biologiya', 'qualifying', 'Отборочный этап, попытка 2', '2027-01-09 00:00:00+03'::timestamptz, '2027-01-09 23:59:59+03'::timestamptz, '2027-01-09 23:59:59+03'::timestamptz, true, false, 'src-7ae3e4b404bc'),
+  ('p669-54-biologiya:final:1', 'p669-54-biologiya', 'final', 'Заключительный этап', '2027-02-22 00:00:00+03'::timestamptz, '2027-02-22 23:59:59+03'::timestamptz, '2027-02-22 00:00:00+03'::timestamptz, false, false, 'src-7ae3e4b404bc'),
+  ('p669-54-fizika:registration:1', 'p669-54-fizika', 'registration', 'Регистрация и подтверждение профиля на 1-й тур', '2026-09-07 10:00:00+03'::timestamptz, '2026-10-03 10:00:00+03'::timestamptz, '2026-10-03 10:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:qualifying:1', 'p669-54-fizika', 'qualifying', 'Онлайн-этап, 1-й тур', '2026-10-04 10:00:00+03'::timestamptz, '2026-10-04 15:00:00+03'::timestamptz, '2026-10-04 15:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:registration:2', 'p669-54-fizika', 'registration', 'Регистрация на 2-й тур', NULL, '2026-10-24 08:00:00+03'::timestamptz, '2026-10-24 08:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:qualifying:2', 'p669-54-fizika', 'qualifying', 'Онлайн-этап, 2-й тур', '2026-10-25 08:00:00+03'::timestamptz, '2026-10-25 13:00:00+03'::timestamptz, '2026-10-25 13:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:registration:3', 'p669-54-fizika', 'registration', 'Регистрация на 3-й тур (только 11 класс)', NULL, '2026-11-07 10:00:00+03'::timestamptz, '2026-11-07 10:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:qualifying:3', 'p669-54-fizika', 'qualifying', 'Онлайн-этап, 3-й тур (только 11 класс)', '2026-11-08 10:00:00+03'::timestamptz, '2026-11-08 15:00:00+03'::timestamptz, '2026-11-08 15:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:final:1', 'p669-54-fizika', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-13 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-himiya:qualifying:1', 'p669-54-himiya', 'qualifying', 'Отборочный этап', '2026-12-15 00:00:00+03'::timestamptz, '2027-01-10 23:59:59+03'::timestamptz, '2027-01-10 23:59:59+03'::timestamptz, true, false, 'src-58fe428b5abc'),
+  ('p669-54-himiya:final:1', 'p669-54-himiya', 'final', 'Заключительный этап', '2027-02-21 00:00:00+03'::timestamptz, '2027-02-21 23:59:59+03'::timestamptz, '2027-02-21 00:00:00+03'::timestamptz, false, false, 'src-58fe428b5abc'),
+  ('p669-54-informatika-i-programmirovanie:qualifying:1', 'p669-54-informatika-i-programmirovanie', 'qualifying', 'Первый отборочный этап', '2026-09-28 00:00:00+03'::timestamptz, '2026-11-05 23:59:59+03'::timestamptz, '2026-11-05 23:59:59+03'::timestamptz, true, false, 'src-64c9731d2e73'),
+  ('p669-54-informatika-i-programmirovanie:qualifying:2', 'p669-54-informatika-i-programmirovanie', 'qualifying', 'Второй отборочный этап', '2026-11-20 00:00:00+03'::timestamptz, '2027-01-25 23:59:59+03'::timestamptz, '2027-01-25 23:59:59+03'::timestamptz, true, false, 'src-64c9731d2e73'),
+  ('p669-54-informatika-i-programmirovanie:final:1', 'p669-54-informatika-i-programmirovanie', 'final', 'Заключительный этап, март 2027 — дата пока не объявлена', NULL, NULL, NULL, false, false, 'src-64c9731d2e73'),
+  ('p669-54-inzhenernoe-delo:qualifying:1', 'p669-54-inzhenernoe-delo', 'qualifying', 'Первый отборочный этап', '2026-10-15 00:00:00+03'::timestamptz, '2026-11-25 23:59:59+03'::timestamptz, '2026-11-25 23:59:59+03'::timestamptz, true, false, 'src-b394c16b7875'),
+  ('p669-54-inzhenernoe-delo:qualifying:2', 'p669-54-inzhenernoe-delo', 'qualifying', 'Второй отборочный этап', '2026-12-05 00:00:00+03'::timestamptz, '2027-01-15 23:59:59+03'::timestamptz, '2027-01-15 23:59:59+03'::timestamptz, true, false, 'src-b394c16b7875'),
+  ('p669-54-inzhenernoe-delo:final:1', 'p669-54-inzhenernoe-delo', 'final', 'Заключительный этап — дата пока не объявлена', NULL, NULL, NULL, false, false, 'src-b394c16b7875'),
+  ('p669-54-matematika:registration:1', 'p669-54-matematika', 'registration', 'Регистрация и подтверждение профиля на 1-й тур', '2026-09-07 10:00:00+03'::timestamptz, '2026-10-10 10:00:00+03'::timestamptz, '2026-10-10 10:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:qualifying:1', 'p669-54-matematika', 'qualifying', 'Онлайн-этап, 1-й тур', '2026-10-11 10:00:00+03'::timestamptz, '2026-10-11 15:00:00+03'::timestamptz, '2026-10-11 15:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:registration:2', 'p669-54-matematika', 'registration', 'Регистрация на 2-й тур', NULL, '2026-10-31 08:00:00+03'::timestamptz, '2026-10-31 08:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:qualifying:2', 'p669-54-matematika', 'qualifying', 'Онлайн-этап, 2-й тур', '2026-11-01 08:00:00+03'::timestamptz, '2026-11-01 13:00:00+03'::timestamptz, '2026-11-01 13:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:registration:3', 'p669-54-matematika', 'registration', 'Регистрация на 3-й тур (только 11 класс)', NULL, '2026-11-06 10:00:00+03'::timestamptz, '2026-11-06 10:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:qualifying:3', 'p669-54-matematika', 'qualifying', 'Онлайн-этап, 3-й тур (только 11 класс)', '2026-11-07 10:00:00+03'::timestamptz, '2026-11-07 15:00:00+03'::timestamptz, '2026-11-07 15:00:00+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:final:1', 'p669-54-matematika', 'final', 'Заключительный этап', '2027-02-14 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-14 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-nauchno-tehnicheskiy:qualifying:1', 'p669-54-nauchno-tehnicheskiy', 'qualifying', 'Отборочный этап: онлайн-тестирование и научная работа', '2026-10-10 10:00:00+03'::timestamptz, '2026-12-30 23:55:00+03'::timestamptz, '2026-12-30 23:55:00+03'::timestamptz, true, false, 'src-5b372a8be104'),
+  ('p669-54-nauchno-tehnicheskiy:final:1', 'p669-54-nauchno-tehnicheskiy', 'final', 'Заключительный этап в Долгопрудном', '2027-03-27 00:00:00+03'::timestamptz, '2027-04-04 23:59:59+03'::timestamptz, '2027-03-27 00:00:00+03'::timestamptz, false, false, 'src-5b372a8be104'),
   ('p669-83-fizika:qualifying:1', 'p669-83-fizika', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, true, false, 'src-0f8eff934f85'),
   ('p669-83-himiya:qualifying:1', 'p669-83-himiya', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, true, false, 'src-0f8eff934f85'),
   ('p669-83-informatika:qualifying:1', 'p669-83-informatika', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, '2027-01-12 13:00:00+03'::timestamptz, true, false, 'src-0f8eff934f85'),
@@ -112,7 +165,18 @@ DELETE FROM stages WHERE id IN (
   'p669-49-estestvennye-nauki:final:1',
   'p669-49-estestvennye-nauki:qualifying:1',
   'p669-49-estestvennye-nauki:registration:1',
-  'p669-49-estestvennye-nauki:registration:2'
+  'p669-49-estestvennye-nauki:registration:2',
+  'p669-54-biologiya:qualifying:2',
+  'p669-54-fizika:qualifying:2',
+  'p669-54-fizika:qualifying:3',
+  'p669-54-fizika:registration:2',
+  'p669-54-fizika:registration:3',
+  'p669-54-informatika-i-programmirovanie:qualifying:2',
+  'p669-54-inzhenernoe-delo:qualifying:2',
+  'p669-54-matematika:qualifying:2',
+  'p669-54-matematika:qualifying:3',
+  'p669-54-matematika:registration:2',
+  'p669-54-matematika:registration:3'
 );
 
 INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, deadline_at, is_online, is_demo, source_id) VALUES
@@ -133,6 +197,27 @@ INSERT INTO stages (id, olympiad_profile_id, kind, title, starts_at, ends_at, de
   ('p669-34-informatika:qualifying:1', 'p669-34-informatika', 'qualifying', 'Отборочный этап', '2026-10-26 00:00:00+03'::timestamptz, '2026-11-23 23:59:59+03'::timestamptz, '2026-11-23 23:59:59+03'::timestamptz, true, false, 'src-036e87aec746'),
   ('p669-49-himiya:registration:2', 'p669-49-himiya', 'registration', 'Регистрация на заключительный тур олимпиады (профиль Химия)', '2027-01-15 00:00:00+03'::timestamptz, '2027-02-12 23:59:59+03'::timestamptz, '2027-02-12 23:59:59+03'::timestamptz, true, false, 'src-ec710b9ce093'),
   ('p669-49-informatika:registration:2', 'p669-49-informatika', 'registration', 'Регистрация на заключительный тур олимпиады (профиль Информатика)', '2027-01-15 00:00:00+03'::timestamptz, '2027-01-29 23:59:59+03'::timestamptz, '2027-01-29 23:59:59+03'::timestamptz, true, false, 'src-ec710b9ce093'),
+  ('p669-54-biologiya:registration:1', 'p669-54-biologiya', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-biologiya:qualifying:1', 'p669-54-biologiya', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-biologiya:final:1', 'p669-54-biologiya', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:registration:1', 'p669-54-fizika', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:qualifying:1', 'p669-54-fizika', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-fizika:final:1', 'p669-54-fizika', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-himiya:registration:1', 'p669-54-himiya', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-himiya:qualifying:1', 'p669-54-himiya', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-himiya:final:1', 'p669-54-himiya', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-informatika-i-programmirovanie:registration:1', 'p669-54-informatika-i-programmirovanie', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-informatika-i-programmirovanie:qualifying:1', 'p669-54-informatika-i-programmirovanie', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-informatika-i-programmirovanie:final:1', 'p669-54-informatika-i-programmirovanie', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-inzhenernoe-delo:registration:1', 'p669-54-inzhenernoe-delo', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-inzhenernoe-delo:qualifying:1', 'p669-54-inzhenernoe-delo', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-inzhenernoe-delo:final:1', 'p669-54-inzhenernoe-delo', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:registration:1', 'p669-54-matematika', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:qualifying:1', 'p669-54-matematika', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-matematika:final:1', 'p669-54-matematika', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
+  ('p669-54-nauchno-tehnicheskiy:registration:1', 'p669-54-nauchno-tehnicheskiy', 'registration', 'Регистрация', '2026-09-07 00:00:00+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, '2026-09-07 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-nauchno-tehnicheskiy:qualifying:1', 'p669-54-nauchno-tehnicheskiy', 'qualifying', 'Отборочный этап', '2026-10-04 00:00:00+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, '2026-10-04 23:59:59+03'::timestamptz, true, false, 'src-5e1726ea8b84'),
+  ('p669-54-nauchno-tehnicheskiy:final:1', 'p669-54-nauchno-tehnicheskiy', 'final', 'Заключительный этап', '2027-02-13 00:00:00+03'::timestamptz, '2027-02-14 23:59:59+03'::timestamptz, '2027-02-13 00:00:00+03'::timestamptz, false, false, 'src-5e1726ea8b84'),
   ('p669-83-fizika:qualifying:1', 'p669-83-fizika', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, true, false, 'src-0f8eff934f85'),
   ('p669-83-himiya:qualifying:1', 'p669-83-himiya', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, true, false, 'src-0f8eff934f85'),
   ('p669-83-informatika:qualifying:1', 'p669-83-informatika', 'qualifying', '1 этап (отборочный)', '2026-10-01 00:00:00+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, '2027-01-12 23:59:59+03'::timestamptz, true, false, 'src-0f8eff934f85'),
@@ -153,7 +238,10 @@ INSERT INTO olympiad_profiles (id, olympiad_id, subject_code, profile_slug, prof
   ('p669-34-informatika', 'p669-34', 'inf', 'informatika', 'информатика', 'III', '2026/27', 8, 11, 'src-cc212c88451d'),
   ('p669-49-estestvennye-nauki', 'p669-49', 'phys', 'estestvennye-nauki', 'естественные науки', 'III', '2026/27', 8, 11, 'src-cc212c88451d'),
   ('p669-49-himiya', 'p669-49', 'chem', 'himiya', 'химия', 'III', '2026/27', 8, 11, 'src-cc212c88451d'),
-  ('p669-49-informatika', 'p669-49', 'inf', 'informatika', 'информатика', 'II', '2026/27', 8, 11, 'src-cc212c88451d')
+  ('p669-49-informatika', 'p669-49', 'inf', 'informatika', 'информатика', 'II', '2026/27', 8, 11, 'src-cc212c88451d'),
+  ('p669-54-himiya', 'p669-54', 'chem', 'himiya', 'химия', 'III', '2026/27', 9, 11, 'src-cc212c88451d'),
+  ('p669-54-informatika-i-programmirovanie', 'p669-54', 'inf', 'informatika-i-programmirovanie', 'информатика и программирование', 'III', '2026/27', 9, 11, 'src-cc212c88451d'),
+  ('p669-54-inzhenernoe-delo', 'p669-54', 'phys', 'inzhenernoe-delo', 'инженерное дело', 'II', '2026/27', 9, 11, 'src-cc212c88451d')
 ON CONFLICT (id) DO UPDATE SET
   olympiad_id = EXCLUDED.olympiad_id,
   subject_code = EXCLUDED.subject_code,
@@ -164,3 +252,14 @@ ON CONFLICT (id) DO UPDATE SET
   grades_from = EXCLUDED.grades_from,
   grades_to = EXCLUDED.grades_to,
   source_id = EXCLUDED.source_id;
+
+DELETE FROM sources s WHERE s.id IN (
+  'src-58fe428b5abc',
+  'src-5b372a8be104',
+  'src-64c9731d2e73',
+  'src-7ae3e4b404bc',
+  'src-b394c16b7875')
+  AND NOT EXISTS (SELECT 1 FROM benefits b WHERE b.source_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM direction_benefits d WHERE d.source_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM stages st WHERE st.source_id = s.id)
+  AND NOT EXISTS (SELECT 1 FROM olympiad_profiles p WHERE p.source_id = s.id);

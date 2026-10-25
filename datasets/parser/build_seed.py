@@ -429,8 +429,10 @@ DEFAULT_TITLE = {
 
 def stage(pid, kind, n, start, end, online, demo, src=None, title=None, start_time=None, end_time=None):
     # Бывает, что организатор называет только крайний день («не позднее
-    # 31 марта»): начала нет, и срок — этот день.
-    starts, ends = (ts(start, clock=start_time) if start else None), ts(end or start, end=True, clock=end_time)
+    # 31 марта»): начала нет, и срок — этот день. А бывает, что этап объявлен,
+    # но день — нет («финал в марте»): тогда дат нет вовсе, и напоминать не о чем.
+    starts = ts(start, clock=start_time) if start else None
+    ends = ts(end or start, end=True, clock=end_time) if end or start else None
     return {
         "id": f"{pid}:{kind}:{n}", "olympiad_profile_id": pid, "kind": kind,
         "title": title or DEFAULT_TITLE[kind], "starts_at": starts, "ends_at": ends,
