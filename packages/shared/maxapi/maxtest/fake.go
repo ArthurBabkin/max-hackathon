@@ -34,7 +34,9 @@ type Fake struct {
 	Answered []Answered
 	// Fail — если задан, Send возвращает его вместо отправки.
 	Fail func(userID int64) error
-	n    int
+	// FailMsg — то же по содержимому сообщения: например, MAX не скачал картинку.
+	FailMsg func(m maxapi.NewMessage) error
+	n       int
 }
 
 var _ maxapi.Sender = (*Fake)(nil)
@@ -44,6 +46,11 @@ func (f *Fake) Send(_ context.Context, userID int64, m maxapi.NewMessage) (strin
 	defer f.mu.Unlock()
 	if f.Fail != nil {
 		if err := f.Fail(userID); err != nil {
+			return "", err
+		}
+	}
+	if f.FailMsg != nil {
+		if err := f.FailMsg(m); err != nil {
 			return "", err
 		}
 	}

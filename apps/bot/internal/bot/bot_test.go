@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -780,7 +781,8 @@ func TestInvite_KidJoinsParentTrajectoryOnce(t *testing.T) {
 	h.press(artem, "consent:ok")
 	// Траектория с регионом (создана до #127): место в профиле видно, пустых мест — нет.
 	h.mustContain(artem, "**Проверь, всё ли верно:**\nКласс: 9 · Татарстан\nПредметы: информатика\nЦель: программная инженерия\nВузы: ВШЭ")
-	if hello := h.fake.To(artem.UserID)[1].Msg.Text; hello != "Привет, Артём! 👋 Ольга приглашает тебя в «Траекторию» — подборка олимпиад уже готова." {
+	// [0] — приветствие с картинкой, [1] — согласие.
+	if hello := h.fake.To(artem.UserID)[2].Msg.Text; hello != "Привет, Артём! 👋 Ольга приглашает тебя в «Траекторию» — подборка олимпиад уже готова." {
 		t.Fatalf("приветствие приглашённого: %q", hello)
 	}
 	if got := h.lastText(olga); got != "✓ Артём теперь в траектории." {
@@ -883,8 +885,17 @@ func TestLeave_InvitedMember(t *testing.T) {
 func TestConsent_BeforeQuestionnaire(t *testing.T) {
 	h := newHarness(t)
 	h.started(artem, "src_class_9a")
+	// Сначала приветствие с картинкой (#131), следом, без нажатий, согласие.
+	if sent := h.fake.To(artem.UserID); len(sent) != 2 {
+		t.Fatalf("после «Начать» %d сообщений, ожидали приветствие и согласие", len(sent))
+	}
+	hi := h.sentBack(artem, 1)
+	if !strings.HasPrefix(hi.Text, "**Добро пожаловать в «Траекторию»!**\n\nПодберу олимпиады") || hi.Format != "markdown" ||
+		len(hi.Attachments) != 1 || hi.Attachments[0].Type != "image" || hi.Attachments[0].Payload.URL != welcomeImageURL {
+		t.Fatalf("приветствие: %+v", hi)
+	}
 	q := h.fake.Last(artem.UserID)
-	if !strings.HasPrefix(q.Text, "Привет! Помогу подобрать олимпиады для поступления и не пропустить сроки.") ||
+	if !strings.HasPrefix(q.Text, "Чтобы подобрать олимпиады, я сохраню ответы на вопросы:") ||
 		!strings.Contains(q.Text, "политике конфиденциальности") || strings.HasPrefix(q.Text, "Шаг ") ||
 		!strings.Contains(q.Text, "имя, класс, предметы, цель и вузы") {
 		t.Fatalf("вопрос о согласии: %q", q.Text)
@@ -925,6 +936,29 @@ func TestConsent_BeforeQuestionnaire(t *testing.T) {
 	h.press(artem, "role:kid")
 	h.text(artem, "/start")
 	h.step(artem, 1)
+}
+
+// MAX не скачал картинку приветствия — то же приветствие текстом, согласие
+// приходит как обычно: новичок не застревает без первого вопроса.
+func TestIntro_ImageFails(t *testing.T) {
+	h := newHarness(t)
+	h.fake.FailMsg = func(m maxapi.NewMessage) error {
+		for _, a := range m.Attachments {
+			if a.Type == "image" {
+				return errors.New("картинка не скачалась")
+			}
+		}
+		return nil
+	}
+	h.started(artem, "")
+	sent := h.fake.To(artem.UserID)
+	if len(sent) != 2 || !strings.HasPrefix(sent[0].Msg.Text, "**Добро пожаловать") || len(sent[0].Msg.Attachments) != 0 {
+		t.Fatalf("приветствие без картинки: %+v", sent)
+	}
+	h.mustContain(artem, "политике конфиденциальности")
+	if d := h.dialog(artem); d.Step != stepConsent {
+		t.Fatalf("шаг: %q", d.Step)
+	}
 }
 
 // Согласие дано, анкета брошена: /delete стирает черновик и отзывает согласие.

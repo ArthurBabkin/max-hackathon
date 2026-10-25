@@ -1,6 +1,7 @@
 package maxapi
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -44,5 +45,23 @@ func TestWithKeyboardTruncatesText(t *testing.T) {
 func TestTruncateTrimsTrailingSpace(t *testing.T) {
 	if got := Truncate("аб вгд", 4); got != "аб…" {
 		t.Errorf("получили %q, ожидали %q", got, "аб…")
+	}
+}
+
+// Картинка идёт первой и с одним адресом: пустые кнопки в её payload MAX
+// принял бы за клавиатуру. Клавиатура рядом остаётся как была.
+func TestWithImage(t *testing.T) {
+	m := WithImage(WithKeyboard("текст", Keyboard{{CallbackButton("ок", "ok")}}), "https://example.ru/a.png")
+	got, err := json.Marshal(m.Attachments)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"type":"image","payload":{"url":"https://example.ru/a.png"}},` +
+		`{"type":"inline_keyboard","payload":{"buttons":[[{"type":"callback","text":"ок","payload":"ok"}]]}}]`
+	if string(got) != want {
+		t.Errorf("вложения\n%s\nожидали\n%s", got, want)
+	}
+	if len(m.Keyboard()) != 1 {
+		t.Error("клавиатура потерялась")
 	}
 }
