@@ -38,9 +38,11 @@ type Draft struct {
 	// подходящие под предметы.
 	AllDirections bool     `json:"all_directions,omitempty"`
 	UniversityIDs []string `json:"university_ids,omitempty"`
-	// Offered — вузы на кнопках шага вузов: предложенные по направлениям и
+	// Offered — вузы на кнопках шага вузов: предложенные по предметам и
 	// найденные поиском.
 	Offered []string `json:"offered,omitempty"`
+	// DirPage — сколько раз нажали «Показать ещё» на шаге направлений.
+	DirPage int `json:"dir_page,omitempty"`
 
 	// Онбординг v2 (docs/onboarding-v2/SPEC.md, 1.4).
 

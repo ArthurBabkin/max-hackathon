@@ -329,7 +329,29 @@ func (s *Store) AllDirections(ctx context.Context) ([]Direction, error) {
 	return collect(rows, scanDirection)
 }
 
-// SuggestUniversities — вузы для шага «Вузы» онбординга (F9): в одном из
+// UniversityDirectionIDs — направления каждого вуза: id вуза → id
+// направлений. По ним бот ранжирует вузы и направления анкеты.
+func (s *Store) UniversityDirectionIDs(ctx context.Context) (map[string][]string, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT university_id, array_agg(direction_id ORDER BY direction_id)
+		FROM university_directions GROUP BY university_id`)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	defer rows.Close()
+	out := map[string][]string{}
+	for rows.Next() {
+		var uni string
+		var dirs []string
+		if err := rows.Scan(&uni, &dirs); err != nil {
+			return nil, wrap(err)
+		}
+		out[uni] = dirs
+	}
+	return out, wrap(rows.Err())
+}
+
+// SuggestUniversities — вузы для подбора (F9): в одном из
 // мест places (пусто — где угодно), с одним из направлений directionIDs
 // (пусто — с любыми). Место-город — вузы этого города, место-регион — вузы
 // региона; Москва и Петербург — вместе с областью (refdata.Metro). Сначала

@@ -31,18 +31,16 @@ func hasBack(m maxapi.NewMessage) bool {
 // вперёд их можно пройти, ничего не выбирая заново.
 func TestBack_KidToStartAndForward(t *testing.T) {
 	h := newHarness(t)
-	h.toSubjects("9")
-	h.press(artem, "subj:t:inf")
-	h.press(artem, "subj:t:math")
-	h.press(artem, "subj:done")
+	h.toUniversities("inf", "math")
+	h.press(artem, "vuz:t:hse")
+	h.press(artem, "vuz:done")
 	h.press(artem, "dir:t:napr-09-03-04")
-	h.press(artem, "dir:done")
 
-	q := h.tap(artem, h.fake.Last(artem.UserID), "back:universities")
-	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nКуда думаешь поступать?") || !strings.Contains(maxtest.Buttons(q), "✓ Программная инженерия") {
-		t.Fatalf("назад к направлениям: %q %s", q.Text, maxtest.Buttons(q))
+	q := h.tap(artem, h.fake.Last(artem.UserID), "back:direction")
+	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nКуда хочешь поступать?") || !strings.Contains(maxtest.Buttons(q), "✓ ВШЭ · Москва") {
+		t.Fatalf("назад к вузам: %q %s", q.Text, maxtest.Buttons(q))
 	}
-	q = h.tap(artem, q, "back:direction")
+	q = h.tap(artem, q, "back:universities")
 	if b := maxtest.Buttons(q); !strings.HasPrefix(q.Text, "Шаг 3 из 5\n\nКакие предметы тебе нравятся?") ||
 		!strings.Contains(b, "✓ Информатика") || !strings.Contains(b, "✓ Математика") || !strings.HasSuffix(b, "Готово | ← Назад") {
 		t.Fatalf("назад к предметам: %q %s", q.Text, b)
@@ -67,11 +65,16 @@ func TestBack_KidToStartAndForward(t *testing.T) {
 		t.Fatalf("предметы отмечены: %s", b)
 	}
 	h.press(artem, "subj:done")
+	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.Contains(b, "✓ ВШЭ · Москва") {
+		t.Fatalf("вуз отмечен: %s", b)
+	}
+	h.press(artem, "vuz:done")
 	if b := maxtest.Buttons(h.fake.Last(artem.UserID)); !strings.Contains(b, "✓ Программная инженерия") {
 		t.Fatalf("направление отмечено: %s", b)
 	}
 	if d := h.dialog(artem); d.Step != stepDirection || d.Draft.Grade != 9 || d.Draft.Name != "Артём" ||
-		!slices.Equal(d.Draft.SubjectCodes, []string{"inf", "math"}) || !slices.Equal(d.Draft.DirectionIDs, []string{"napr-09-03-04"}) {
+		!slices.Equal(d.Draft.SubjectCodes, []string{"inf", "math"}) || !slices.Equal(d.Draft.UniversityIDs, []string{"hse"}) ||
+		!slices.Equal(d.Draft.DirectionIDs, []string{"napr-09-03-04"}) {
 		t.Fatalf("черновик: %+v", d)
 	}
 }
@@ -85,7 +88,7 @@ func TestBack_OldButtonIsStale(t *testing.T) {
 	if a := h.answered(h.pressAny(artem, "back:direction", q.Text)); a.Notification != "Этот вопрос уже позади" {
 		t.Fatalf("старая кнопка: %+v", a)
 	}
-	if d := h.dialog(artem); d.Step != stepSubjects {
+	if d := h.dialog(artem); d.Step != stepUniversities {
 		t.Fatalf("шаг: %s", d.Step)
 	}
 }
@@ -129,9 +132,8 @@ func TestBack_KidWithoutMaxName(t *testing.T) {
 	}
 }
 
-// После «Помоги выбрать» «Назад» с вузов ведёт к предложенным направлениям
-// и дальше по вопросам В2, В1 с отмеченными ответами; если направления
-// выбраны вручную — к списку направлений.
+// После «Помоги выбрать» «Назад» ведёт по вопросам В2, В1 с отмеченными
+// ответами к списку направлений и дальше к вузам.
 func TestBack_DirectionHelp(t *testing.T) {
 	h := newHarness(t)
 	h.toDirections("inf", "math")
@@ -139,13 +141,12 @@ func TestBack_DirectionHelp(t *testing.T) {
 	h.press(artem, "int:t:code")
 	h.press(artem, "int:done")
 	h.press(artem, "work:build")
-	h.press(artem, "dir:done")
-	q := h.tap(artem, h.fake.Last(artem.UserID), "back:universities")
-	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nПохоже, тебе подойдут эти направления.") || !strings.Contains(maxtest.Buttons(q), "✓ Программная инженерия") {
-		t.Fatalf("назад к предложенным: %q %s", q.Text, maxtest.Buttons(q))
+	q := h.fake.Last(artem.UserID)
+	if !strings.HasPrefix(q.Text, "Шаг 5 из 5\n\nПохоже, тебе подойдут эти направления.") || !strings.Contains(maxtest.Buttons(q), "✓ Программная инженерия") {
+		t.Fatalf("предложенные: %q %s", q.Text, maxtest.Buttons(q))
 	}
 	q = h.tap(artem, q, "back:suggest")
-	if q.Text != "Шаг 4 из 5\n\nКакая работа тебе ближе?" || !strings.Contains(maxtest.Buttons(q), "✓ Разрабатывать продукты и технологии") {
+	if q.Text != "Шаг 5 из 5\n\nКакая работа тебе ближе?" || !strings.Contains(maxtest.Buttons(q), "✓ Разрабатывать продукты и технологии") {
 		t.Fatalf("назад к В2: %q %s", q.Text, maxtest.Buttons(q))
 	}
 	q = h.tap(artem, q, "back:work")
@@ -153,12 +154,11 @@ func TestBack_DirectionHelp(t *testing.T) {
 		t.Fatalf("назад к В1: %s", maxtest.Buttons(q))
 	}
 	q = h.tap(artem, q, "back:interest")
-	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nКуда думаешь поступать?") {
+	if !strings.HasPrefix(q.Text, "Шаг 5 из 5\n\nКакое направление интересно?") {
 		t.Fatalf("назад к направлениям: %q", q.Text)
 	}
-	h.pressAny(artem, "dir:done", q.Text)
-	q = h.tap(artem, h.fake.Last(artem.UserID), "back:universities")
-	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nКуда думаешь поступать?") {
-		t.Fatalf("выбрано вручную — назад к направлениям: %q", q.Text)
+	q = h.tap(artem, q, "back:direction")
+	if !strings.HasPrefix(q.Text, "Шаг 4 из 5\n\nКуда хочешь поступать?") {
+		t.Fatalf("назад к вузам: %q", q.Text)
 	}
 }

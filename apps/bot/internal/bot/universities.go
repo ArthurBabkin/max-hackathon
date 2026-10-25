@@ -11,8 +11,9 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/shared/maxapi"
 )
 
-// offerLimit — сколько вузов бот предлагает кнопками за раз (F9).
-const offerLimit = 6
+// offerLimit — сколько вузов бот предлагает кнопками за раз (F9): как и
+// направлений, пять.
+const offerLimit = dirLimit
 
 // universityAliases — как вузы называют в разговоре (SPEC 8.2). Ключи —
 // в виде refdata.Normalize.
@@ -55,14 +56,23 @@ func uniButton(u store.University) string {
 	return uniLabel(u) + " · " + *u.City
 }
 
-// offer — вузы для кнопок шага «Вузы»: сначала те, где есть выбранные
-// направления (с «Показать ещё» — несколько страниц), плюс уже отмеченные.
+// offer — вузы для кнопок шага «Вузы» в порядке rankUniversities (с
+// «Показать ещё» — несколько страниц), плюс уже отмеченные.
 func offer(t *turn, tx *store.Store, d *store.Dialog) error {
-	shown := (d.Draft.OfferPage + 1) * offerLimit
-	unis, err := tx.SuggestUniversities(t.ctx, d.Draft.DirectionIDs, nil, shown+1, 0)
+	all, err := tx.FindUniversities(t.ctx, "")
 	if err != nil {
 		return err
 	}
+	dirs, err := tx.Directions(t.ctx)
+	if err != nil {
+		return err
+	}
+	uniDirs, err := tx.UniversityDirectionIDs(t.ctx)
+	if err != nil {
+		return err
+	}
+	unis := rankUniversities(all, uniDirs, dirs, d.Draft.SubjectCodes)
+	shown := (d.Draft.OfferPage + 1) * offerLimit
 	d.Draft.OfferMore = len(unis) > shown
 	d.Draft.Offered = nil
 	for _, u := range unis[:min(len(unis), shown)] {
@@ -82,6 +92,11 @@ func toUniversities(t *turn, tx *store.Store, d *store.Dialog) error {
 	return offer(t, tx, d)
 }
 
+// toDirections — к шагу направлений с первой страницей.
+func toDirections(d *store.Dialog) {
+	d.Step, d.Draft.DirPage, d.Draft.AllDirections = stepDirection, 0, false
+}
+
 // draftPlaces — места «Где учиться» диалогов, начатых до #127 (у диалогов
 // v1 — Target). Анкета их больше не спрашивает: пусто — «не важно».
 func draftPlaces(dr store.Draft) []store.Place {
@@ -96,27 +111,13 @@ func draftPlaces(dr store.Draft) []store.Place {
 	return nil
 }
 
-// directionNames — названия направлений по id через запятую, со строчной.
-func directionNames(dirs []store.Direction, ids []string) string {
-	var names []string
-	for _, id := range ids {
-		if i := slices.IndexFunc(dirs, func(x store.Direction) bool { return x.ID == id }); i >= 0 {
-			names = append(names, lowerFirst(dirs[i].Name))
-		}
-	}
-	return strings.Join(names, ", ")
-}
-
 // universitiesPrompt — подборка вузов с «✓» (V1). Выбирать не
-// обязательно: без вузов подбор покажет льготы во всех вузах с
-// направлением, отметить их можно позже в мини-приложении.
+// обязательно: без вузов направления — из всех вузов, а подбор покажет
+// льготы во всех вузах с направлением; отметить их можно позже в
+// мини-приложении.
 func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
 	cb := maxapi.CallbackButton
 	unis, err := b.store.FindUniversities(t.ctx, "")
-	if err != nil {
-		return maxapi.NewMessage{}, err
-	}
-	dirs, err := b.store.Directions(t.ctx)
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
@@ -127,10 +128,7 @@ func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi
 		}
 	}
 	kb := grid(buttons, 2)
-	text := v.T("bot.vuz.askAny", nil)
-	if len(d.Draft.DirectionIDs) > 0 {
-		text = v.T("bot.vuz.ask", voice.Vars{"directions": directionNames(dirs, d.Draft.DirectionIDs)})
-	}
+	text := v.T("bot.vuz.ask", nil)
 	if len(buttons) == 0 {
 		text = v.T("bot.vuz.none", nil)
 	}
@@ -141,8 +139,8 @@ func (b *Bot) universitiesPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi
 	return maxapi.WithKeyboard(text, kb), nil
 }
 
-// finishLabel — последняя кнопка анкеты: «Готово», если вузы отмечены,
-// иначе «Выберу позже».
+// finishLabel — последняя кнопка шага вузов: «Готово», если вузы
+// отмечены, иначе «Выберу позже».
 func finishLabel(v voice.Voice, d store.Dialog) string {
 	if len(d.Draft.UniversityIDs) > 0 {
 		return v.T("bot.btn.done", nil)
@@ -179,13 +177,14 @@ func (b *Bot) universityCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 			return offer(t, tx, d)
 		}))
 	case "done":
-		// «Готово» или «Выберу позже» — конец анкеты: траектория создаётся сразу.
+		// «Готово» или «Выберу позже» — дальше направления.
 		label := v.T("bot.btn.done", nil)
 		if d, err := b.store.Dialog(t.ctx, t.userID); err == nil {
 			label = finishLabel(v, d)
 		}
-		return b.transition(t, cb, question, label, onStep(func(tx *store.Store, d *store.Dialog) error {
-			return b.createTrajectory(t, tx, d)
+		return b.transition(t, cb, question, label, onStep(func(_ *store.Store, d *store.Dialog) error {
+			toDirections(d)
+			return nil
 		}))
 	case "places", "add", "alldir", "similar", "other", "city":
 		// Кнопки шага вузов прежних версий: «Изменить места», ближайшие и

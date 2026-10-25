@@ -27,18 +27,20 @@ const (
 	stepNameInput = "name_input"
 	stepGrade     = "grade"
 	stepSubjects  = "subjects"
-	stepDirection = "direction"
-	// stepInterest, stepWork, stepSuggest — «Не знаю — помоги выбрать»:
-	// В1, В2 и предложенные направления (SPEC 5).
-	stepInterest = "interest"
-	stepWork     = "work"
-	stepSuggest  = "suggest"
-	// stepUniversities — последний вопрос: «Готово» или «Выберу позже»
-	// создаёт траекторию.
+	// stepUniversities — вузы, после предметов (#129). Выбирать не
+	// обязательно: «Выберу позже».
 	stepUniversities = "universities"
 	// stepUniSearch — шаг поиска вуза из v1: поиск теперь прямо на шаге
 	// вузов, старые диалоги ведут себя так же.
-	stepUniSearch     = "university_search"
+	stepUniSearch = "university_search"
+	// stepDirection — последний вопрос: «Готово» или «Решу позже» создаёт
+	// траекторию.
+	stepDirection = "direction"
+	// stepInterest, stepWork, stepSuggest — «Не знаю — помоги выбрать»:
+	// В1, В2 и предложенные направления (SPEC 5).
+	stepInterest      = "interest"
+	stepWork          = "work"
+	stepSuggest       = "suggest"
 	stepJoinConfirm   = "join_confirm"
 	stepJoinDirection = "join_direction"
 	stepDone          = "done"
@@ -86,12 +88,12 @@ func grid(buttons []maxapi.Button, n int) maxapi.Keyboard {
 
 // stepNumbers — номер шага онбординга в счётчике «Шаг N из M». Имя —
 // часть шага роли («кто вы и как зовут»), поэтому у всех пять шагов.
-// «Помоги выбрать» (interest, work, suggest) — часть шага направления, как
-// и поиск вуза — часть шага вузов.
+// Поиск вуза — часть шага вузов, «Помоги выбрать» (interest, work,
+// suggest) — часть шага направления.
 var stepNumbers = map[string]int{
 	stepRole: 1, stepNameInput: 1, stepGrade: 2, stepSubjects: 3,
-	stepDirection: 4, stepInterest: 4, stepWork: 4, stepSuggest: 4,
-	stepUniversities: 5, stepUniSearch: 5,
+	stepUniversities: 4, stepUniSearch: 4,
+	stepDirection: 5, stepInterest: 5, stepWork: 5, stepSuggest: 5,
 }
 
 // stepsTotal — сколько шагов в счётчике.
@@ -216,64 +218,35 @@ func (b *Bot) consentCallback(t *turn, cb *maxapi.Callback) error {
 	return b.start(t, payload)
 }
 
-// matchingDirections — направления, чьи ключевые предметы пересекаются с
-// предметами ученика: сначала те, где совпало больше. Порядок внутри
-// равных — как в справочнике.
-func matchingDirections(dirs []store.Direction, subjects []string) []store.Direction {
-	overlap := func(d store.Direction) int {
-		n := 0
-		for _, c := range d.SubjectCodes {
-			if slices.Contains(subjects, c) {
-				n++
-			}
-		}
-		return n
-	}
-	var out []store.Direction
-	for _, d := range dirs {
-		if overlap(d) > 0 {
-			out = append(out, d)
-		}
-	}
-	slices.SortStableFunc(out, func(a, b store.Direction) int { return overlap(b) - overlap(a) })
-	return out
-}
-
-// directionPrompt — направления с «✓» (F8): сначала подходящие под предметы
-// (на шаге suggest — предложенные по интересам), по кнопке — все.
-// Выбранное из полного списка остаётся на виду.
+// directionPrompt — направления с «✓» (F8) по пять, дальше «Показать ещё»
+// (#129); порядок и вопрос — directionChoice. Отмеченное остаётся на виду.
 func (b *Bot) directionPrompt(t *turn, v voice.Voice, d store.Dialog) (maxapi.NewMessage, error) {
 	cb := maxapi.CallbackButton
 	dirs, err := b.store.Directions(t.ctx)
 	if err != nil {
 		return maxapi.NewMessage{}, err
 	}
-	var shown []store.Direction
-	text := "bot.direction.ask"
-	if d.Step == stepSuggest {
-		for _, id := range d.Draft.Suggested {
-			if i := slices.IndexFunc(dirs, func(x store.Direction) bool { return x.ID == id }); i >= 0 {
-				shown = append(shown, dirs[i])
-			}
-		}
-		text = "bot.suggest.ask"
-	} else {
-		shown = matchingDirections(dirs, d.Draft.SubjectCodes)
+	uniDirs, err := b.store.UniversityDirectionIDs(t.ctx)
+	if err != nil {
+		return maxapi.NewMessage{}, err
 	}
-	if len(shown) == 0 || d.Draft.AllDirections && d.Step != stepSuggest {
-		text = "bot.direction.askAll"
-	}
-	for _, dir := range dirs {
-		picked := slices.Contains(d.Draft.DirectionIDs, dir.ID)
-		if (d.Draft.AllDirections || len(shown) == 0 || picked) && !slices.ContainsFunc(shown, func(x store.Direction) bool { return x.ID == dir.ID }) {
-			shown = append(shown, dir)
+	pool, text := directionChoice(d, dirs, uniDirs)
+	open := (d.Draft.DirPage + 1) * dirLimit
+	shown := slices.Clone(pool[:min(len(pool), open)])
+	for _, id := range d.Draft.DirectionIDs {
+		if i := slices.IndexFunc(dirs, func(x store.Direction) bool { return x.ID == id }); i >= 0 &&
+			!slices.ContainsFunc(shown, func(x store.Direction) bool { return x.ID == id }) {
+			shown = append(shown, dirs[i])
 		}
 	}
 	var kb maxapi.Keyboard
 	for _, dir := range shown {
 		kb = append(kb, maxapi.Row(cb(check(slices.Contains(d.Draft.DirectionIDs, dir.ID), dir.Name), "dir:t:"+dir.ID)))
 	}
-	if len(shown) < len(dirs) {
+	switch {
+	case len(pool) > open:
+		kb = append(kb, maxapi.Row(cb(v.T("bot.direction.more", nil), "dir:more")))
+	case len(pool) < len(dirs):
 		kb = append(kb, maxapi.Row(cb(v.T("bot.direction.all", nil), "dir:all")))
 	}
 	switch d.Step {
@@ -330,8 +303,7 @@ func nameOK(name string) bool {
 
 // backStep — куда ведёт «← Назад» с текущего шага; "" — назад некуда
 // (первый вопрос, шаги приглашённого). Предыдущий шаг выводится из
-// черновика: имя спрашивают не всех, после «Помоги выбрать» вузы идут за
-// предложенными направлениями.
+// черновика: имя спрашивают не всех.
 func backStep(t *turn, d store.Dialog) string {
 	switch d.Step {
 	case stepNameInput:
@@ -343,8 +315,10 @@ func backStep(t *turn, d store.Dialog) string {
 		return stepRole
 	case stepSubjects:
 		return stepGrade
-	case stepDirection:
+	case stepUniversities, stepUniSearch:
 		return stepSubjects
+	case stepDirection:
+		return stepUniversities
 	case stepInterest:
 		if d.Draft.Joined {
 			return ""
@@ -354,11 +328,6 @@ func backStep(t *turn, d store.Dialog) string {
 		return stepInterest
 	case stepSuggest:
 		return stepWork
-	case stepUniversities, stepUniSearch:
-		if len(d.Draft.Suggested) > 0 {
-			return stepSuggest
-		}
-		return stepDirection
 	}
 	return ""
 }
@@ -475,7 +444,7 @@ func (b *Bot) transition(t *turn, cb *maxapi.Callback, question *maxapi.Message,
 }
 
 // transitionSay — transition, после которого до следующего вопроса бот
-// что-то говорит: «Хорошо. Когда закончим, дам ссылку-приглашение…».
+// что-то говорит: «Хорошо. Сейчас дам ссылку-приглашение…».
 func (b *Bot) transitionSay(t *turn, cb *maxapi.Callback, question *maxapi.Message, label string,
 	apply func(tx *store.Store, d *store.Dialog) error, say func(d store.Dialog) error) error {
 	before, err := b.store.Dialog(t.ctx, t.userID)
@@ -653,15 +622,14 @@ func (b *Bot) onboardingCallback(t *turn, cb *maxapi.Callback, question *maxapi.
 		})
 	case "subj":
 		if arg(0) == "done" {
-			return true, b.transition(t, cb, question, v.T("bot.btn.done", nil), func(_ *store.Store, d *store.Dialog) error {
+			return true, b.transition(t, cb, question, v.T("bot.btn.done", nil), func(tx *store.Store, d *store.Dialog) error {
 				if err := expect(d, stepSubjects); err != nil {
 					return err
 				}
 				if len(d.Draft.SubjectCodes) == 0 {
 					return errNotNow{"bot.subjects.need"}
 				}
-				d.Step, d.Draft.AllDirections = stepDirection, false
-				return nil
+				return toUniversities(t, tx, d)
 			})
 		}
 		code := arg(1)
@@ -733,12 +701,22 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 			d.Draft.DirectionIDs = toggle(d.Draft.DirectionIDs, id)
 			return nil
 		})
+	case "more":
+		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
+			if err := expect(d, stepDirection, stepJoinDirection, stepSuggest); err != nil {
+				return err
+			}
+			d.Draft.DirPage++
+			return nil
+		})
 	case "all":
+		// Остальные направления — в конец списка, следующей страницей.
 		return b.transition(t, cb, question, "", func(_ *store.Store, d *store.Dialog) error {
 			if err := expect(d, stepDirection, stepJoinDirection, stepSuggest); err != nil {
 				return err
 			}
 			d.Draft.AllDirections = true
+			d.Draft.DirPage++
 			return nil
 		})
 	case "help":
@@ -756,7 +734,7 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 				return store.ErrStale
 			}
 			d.Draft.DirectionIDs, d.Draft.Suggested, d.Draft.GoalByKid = nil, nil, true
-			return toUniversities(t, tx, d)
+			return b.createTrajectory(t, tx, d)
 		}, func(d store.Dialog) error { return b.say(t, dialogVoice(t, d).T("bot.direction.kidLater", nil)) })
 	case "done", "later":
 		label := v.T("bot.btn.done", nil)
@@ -812,7 +790,7 @@ func (b *Bot) directionCallback(t *turn, cb *maxapi.Callback, question *maxapi.M
 				chose = d.Draft.DirectionIDs
 				d.Step = stepDone
 			default:
-				return toUniversities(t, tx, d)
+				return b.createTrajectory(t, tx, d)
 			}
 			return nil
 		}, func(d store.Dialog) error {
@@ -886,13 +864,13 @@ func (b *Bot) workCallback(t *turn, cb *maxapi.Callback, question *maxapi.Messag
 		d.Draft.Work = code
 		d.Draft.Suggested = suggestDirections(d.Draft.Interests, code, d.Draft.SubjectCodes, dirs)
 		d.Draft.DirectionIDs = slices.Clone(d.Draft.Suggested)
-		d.Draft.AllDirections = false
+		d.Draft.AllDirections, d.Draft.DirPage = false, 0
 		d.Step = stepSuggest
 		return nil
 	})
 }
 
-// createTrajectory — последний шаг: траектория создаётся один раз, в той
+// createTrajectory — конец анкеты: траектория создаётся один раз, в той
 // же транзакции, что закрывает диалог (F2, F38). Регион, опыт и места
 // анкета не спрашивает: регион пустой — московское время, опыта нет,
 // учиться где угодно; меняется это в профиле мини-приложения. У диалогов,
