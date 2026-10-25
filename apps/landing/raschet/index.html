@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Как мы посчитали время на поиск олимпиад — Траектория</title>
+<meta name="description" content="Сколько времени уходит на поиск олимпиад с льготой в своих вузах вручную и с «Траекторией»: расчёт по правилам приёма четырёх вузов">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#6B2BFF">
+<link rel="canonical" href="https://traektoriaedu.ru/raschet/">
+<link rel="icon" type="image/png" href="../assets/logo/traektoriya-app-icon.png">
+<link rel="stylesheet" href="../tokens/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font: var(--text-body-weight) var(--text-body-size) / var(--text-body-line) var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: var(--color-link); text-underline-offset: 2px; }
+  a:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 4px; }
+  .top, main, .foot { max-width: 760px; margin-inline: auto; padding-inline: 20px; }
+  .top { padding-block: 24px; }
+  .top img { display: block; height: 32px; width: auto; }
+  main {
+    padding-block: 40px 48px;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+  h1 {
+    margin: 0 0 8px;
+    font: var(--text-display-weight) 32px / 38px var(--font-display);
+    letter-spacing: var(--text-display-tracking);
+  }
+  h2 {
+    margin: 36px 0 12px;
+    font: var(--text-title-weight) 20px / 26px var(--font-sans);
+  }
+  p, ul { margin: 0 0 12px; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  .date { color: var(--color-ink-muted); font-size: var(--text-body-sm-size); }
+  .lead { font-size: var(--text-body-lg-size); line-height: var(--text-body-lg-line); }
+  code {
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: var(--color-surface-tint);
+    font-size: 0.95em;
+  }
+  .foot {
+    padding-block: 24px 40px;
+    color: var(--color-ink-muted);
+    font-size: var(--text-body-sm-size);
+  }
+  @media (max-width: 767px) {
+    main { border-radius: 0; border-inline: 0; padding-block: 28px 36px; }
+    h1 { font-size: 26px; line-height: 32px; }
+  }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: var(--text-body-sm-size); }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--color-line); text-align: left; vertical-align: top; }
+  th { color: var(--color-ink-muted); font-weight: 600; }
+  .sum { padding: 16px 20px; border-radius: var(--radius-md, 16px); background: var(--color-surface-tint); }
+  .sum p:last-child { margin: 0; }
+  @media (max-width: 767px) { table { font-size: 14px; } th, td { padding: 6px; } }
+</style>
+</head>
+<body>
+<header class="top">
+<a href="../" aria-label="Траектория — на главную"><img src="../assets/logo/traektoriya-logo.svg" alt="Траектория" width="154" height="32"></a>
+</header>
+
+<main>
+<h1>Сколько времени уходит на поиск олимпиад</h1>
+<p class="date">Расчёт от 25 октября 2026 года</p>
+
+<p class="lead">В презентации мы пишем: найти олимпиады с&nbsp;льготой в&nbsp;своих вузах и&nbsp;их сроки вручную — около 5&nbsp;часов, с&nbsp;«Траекторией» — 5&nbsp;минут. Здесь — как мы это посчитали.</p>
+
+<div class="sum">
+<p><b>Сейчас:</b> 4–7 часов на первый разбор, а за сезон с повторным разбором и&nbsp;проверкой сайтов — 11–15 часов.</p>
+<p><b>С «Траекторией»:</b> около 5 минут, дальше напоминания приходят сами.</p>
+</div>
+
+<h2>Сценарий</h2>
+<p>Ученик 10 класса сдаёт математику и&nbsp;информатику и&nbsp;хочет на прикладную математику. Выбрал четыре вуза: ВШЭ (Москва), МФТИ и&nbsp;КФУ — «Прикладная математика и&nbsp;информатика», Иннополис — «Анализ данных и&nbsp;искусственный интеллект». Объёмы ниже посчитаны по документам этих вузов на приём 2026 года, которые собраны в&nbsp;нашей базе. Минуты на каждый шаг — наша оценка.</p>
+
+<h2>1. Найти нужные документы — 40–60 минут</h2>
+<p>Льготы за олимпиады лежат в&nbsp;приложениях к&nbsp;правилам приёма, у&nbsp;каждого вуза по-своему.</p>
+<table>
+<tr><th>Вуз</th><th>Где льготы</th><th>Объём</th></tr>
+<tr><td>ВШЭ</td><td>4 документа по кампусам и&nbsp;отдельный по ВсОШ</td><td>139 + 19 страниц для Москвы</td></tr>
+<tr><td>МФТИ</td><td>страница на сайте приёмной комиссии</td><td>одна большая таблица</td></tr>
+<tr><td>КФУ</td><td>приложение 3 к&nbsp;правилам приёма</td><td>125 страниц</td></tr>
+<tr><td>Иннополис</td><td>отдельный PDF</td><td>63 страницы</td></tr>
+</table>
+<p>Всего 346 страниц PDF и&nbsp;таблица МФТИ. Допущение: 10–15 минут на вуз, чтобы найти документ текущего года и&nbsp;понять, какой из&nbsp;них твой.</p>
+
+<h2>2. Выписать льготы для своей программы — 1,5–2,5 часа</h2>
+<p>По четырём программам в&nbsp;документах 891 строка условий, 631 из&nbsp;них — по математике и&nbsp;информатике. Без дублей остаётся 235 пар «вуз — олимпиада». По каждой нужно понять четыре вещи, и&nbsp;в&nbsp;разных вузах ответы разные:</p>
+<ul>
+<li><b>статус</b> — победитель или призёр;</li>
+<li><b>льгота</b> — без вступительных испытаний или 100 баллов;</li>
+<li><b>порог ЕГЭ</b> — в&nbsp;ВШЭ на этой программе 85 или 90 баллов, в&nbsp;МФТИ, КФУ и&nbsp;Иннополисе в&nbsp;основном 75;</li>
+<li><b>классы</b>, за которые засчитывают диплом, — в&nbsp;ВШЭ и&nbsp;МФТИ в&nbsp;основном только 11 класс, в&nbsp;КФУ 10–11, в&nbsp;Иннополисе с&nbsp;9-го.</li>
+</ul>
+<p>Допущение: 20–40 секунд на пару — прочитать строку, сверить условия, записать. Строка таблицы — 15–25 слов, а&nbsp;нехудожественный текст по-русски читают со скоростью около 150 слов в&nbsp;минуту (Brysbaert, 2019): одно чтение строки — 6–10 секунд.</p>
+
+<h2>3. Свести в&nbsp;одну таблицу и&nbsp;выбрать олимпиады — 30–60 минут</h2>
+<p>235 пар — это 35 разных олимпиад. 19 из&nbsp;них в&nbsp;документах разных вузов названы по-разному, их приходится сопоставлять вручную. Потом выбрать 5–8, которые дают больше всего в&nbsp;твоих вузах.</p>
+
+<h2>4. Найти сроки выбранных олимпиад — 1–1,5 часа</h2>
+<p>У каждой олимпиады свой сайт и&nbsp;своё положение. В&nbsp;среднем у&nbsp;профиля 2 этапа и&nbsp;4 даты. Допущение: 10–15 минут на олимпиаду, для 6 олимпиад — 60–90 минут.</p>
+
+<h2>5. Внести даты в&nbsp;календарь — 25–50 минут</h2>
+<p>6 олимпиад по 4 даты — 24 даты. Допущение: 1–2 минуты на дату.</p>
+
+<p><b>Итого на старте:</b> 40–60 + 80–155 + 30–60 + 60–90 + 25–50 = 235–415 минут, то есть 4–7 часов.</p>
+
+<h2>И потом весь сезон</h2>
+<ul>
+<li><b>Сроки растянуты.</b> События по этим олимпиадам идут с&nbsp;августа по март, больше всего — в&nbsp;октябре–ноябре и&nbsp;в&nbsp;феврале.</li>
+<li><b>Регистрация рано.</b> 25 из&nbsp;37 регистраций закрываются до 1 ноября.</li>
+<li><b>Правила вуза выходят позже регистрации.</b> Правила приёма вузы размещают не позднее 20 января года приёма, а&nbsp;регистрация на олимпиады закрывается в&nbsp;сентябре–ноябре. Олимпиады выбирают по прошлогодним правилам, и&nbsp;когда выйдут новые, шаг 2 нужно повторить — ещё 1,5–2,5 часа.</li>
+<li><b>Сайты нужно перепроверять.</b> Допущение: раз в&nbsp;неделю по 2 минуты на сайт. Для 6 олимпиад с&nbsp;августа по март — около 6 часов.</li>
+</ul>
+<p>За сезон набирается 11–15 часов.</p>
+
+<h2>С «Траекторией»</h2>
+<table>
+<tr><th>Шаг</th><th>Время</th></tr>
+<tr><td>Анкета: 5 вопросов кнопками — роль, класс, предметы, вузы, направления</td><td>1–2 минуты</td></tr>
+<tr><td>Подбор: олимпиады с&nbsp;льготой в&nbsp;каждом выбранном вузе, порогом ЕГЭ и&nbsp;классами</td><td>сразу</td></tr>
+<tr><td>Добавить 6 олимпиад в&nbsp;трекер</td><td>около минуты</td></tr>
+<tr><td>Выгрузить сроки в&nbsp;свой календарь</td><td>около минуты</td></tr>
+<tr><td>Напоминания за 30, 7, 3 и&nbsp;1 день, сообщения об&nbsp;изменении сроков и&nbsp;льгот</td><td>0 минут</td></tr>
+</table>
+
+<h2>Где расчёт может ошибаться</h2>
+<ul>
+<li><b>Минуты на шаг — оценка.</b> Мы не засекали время у&nbsp;школьников, а&nbsp;опросов, где названы часы на поиск олимпиад и&nbsp;льгот, не нашли. Объёмы — страницы, строки, пары, даты — посчитаны по документам вузов точно.</li>
+<li><b>Сценарий один.</b> С&nbsp;двумя вузами времени уйдёт примерно вдвое меньше, с&nbsp;физикой или химией цифры другие. Порядок — часы против минут — сохраняется.</li>
+<li><b>Правила меняются каждый год.</b> Поэтому разбор приходится повторять, а&nbsp;сегодняшние правила для восьмиклассника — только ориентир.</li>
+</ul>
+
+<h2>Источники</h2>
+<ul>
+<li>Правила приёма и&nbsp;перечни олимпиад ВШЭ, МФТИ, КФУ и&nbsp;Иннополиса на 2026 год — с&nbsp;сайтов приёмных комиссий.</li>
+<li>Рособрнадзор, <a href="https://obrnadzor.gov.ru/wp-content/uploads/2025/02/razyasneniya-poryadka-priema-na-obuchenie-po-obr.programmam-vysshego-obrazovaniya-utverzhdennogo-prikazom-minobrnauki-rf-ot-27.11.24-%E2%84%96-821.pdf">разъяснения порядка приёма</a> (приказ Минобрнауки №&nbsp;821): правила приёма размещают не позднее 20 января.</li>
+<li>Приказ Минобрнауки №&nbsp;821, п. 64: вуз сам выбирает олимпиады, классы и&nbsp;порог ЕГЭ не ниже 75.</li>
+<li>Brysbaert M. <a href="https://gwern.net/doc/psychology/linguistics/2019-brysbaert.pdf">How many words do we read per minute?</a> Journal of Memory and Language, 2019.</li>
+<li>ВШЭ, <a href="https://www.hse.ru/news/edu/1201515107.html">регистрация на «Высшую пробу» 2026/27</a>: на большинство профилей — до 21 сентября.</li>
+</ul>
+</main>
+
+<footer class="foot">
+<p><a href="../">На&nbsp;главную</a> · <a href="https://max.ru/t356_hakaton_max_bot">Открыть бота</a></p>
+<p>Проект команды «Сигма» для студенческого хакатона MAX, трек «Образовательные решения».</p>
+</footer>
+</body>
+</html>

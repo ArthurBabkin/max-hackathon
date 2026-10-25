@@ -272,7 +272,9 @@ test('в папке нет файлов, на которые никто не с�
   const used = new Set(refs())
   const walk = (d) => readdirSync(join(here, d)).flatMap((f) => (statSync(join(here, d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]))
   const own = new Set(['index.html', 'landing.test.mjs', 'README.md'])
-  for (const f of walk('.').filter((f) => !own.has(f))) assert.ok(used.has(f), `${f} нигде не используется`)
+  // Ссылки на них снаружи лендинга: картинку приветствия шлёт бот, на расчёт ведёт презентация.
+  const external = new Set(['assets/bot/welcome.png', 'raschet/index.html'])
+  for (const f of walk('.').filter((f) => !own.has(f) && !external.has(f))) assert.ok(used.has(f), `${f} нигде не используется`)
 })
 
 test('у картинок есть alt и размеры, ниже первого экрана — ленивая загрузка', () => {
