@@ -1902,7 +1902,7 @@ export interface components {
             subject_code: string;
             subject_name: string;
             level: components["schemas"]["Level"];
-            /** @description Профиль ученика — выделяется в интерфейсе. */
+            /** @description Профиль, карточка которого открыта, — выделяется в интерфейсе. */
             is_mine: boolean;
         };
         /** @description Что получит победитель или призёр в вузе. */
@@ -2023,7 +2023,7 @@ export interface components {
             official_url: string | null;
             /** @description Что это за олимпиада — пара предложений по официальному сайту. Пусто — блок не показывается. */
             description: string | null;
-            /** @description Все профили этой олимпиады, профиль ученика помечен `is_mine` (F17). */
+            /** @description Все профили этой олимпиады, открытый помечен `is_mine` (F17); остальные открываются по `olympiad_profile_id`. */
             profiles: components["schemas"]["ProfileLevel"][];
             profiles_source: components["schemas"]["Source"] | null;
             /**

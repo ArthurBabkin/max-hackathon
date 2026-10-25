@@ -35,29 +35,41 @@ function Stages({ detail }: { detail: OlympiadDetail }) {
 const LEVELS_PREVIEW = 6
 
 /**
- * Уровни по профилям (F17). Длинный список свёрнут до шести плашек; мой
- * профиль — первым, чтобы он был виден и в свёрнутом.
+ * Уровни по профилям (F17). Плашка — переключатель: у профилей одной
+ * олимпиады свои сроки и льготы, нажатие открывает карточку профиля на месте
+ * этой (#135). Порядок не меняется при переключении, иначе плашки прыгают;
+ * длинный список свёрнут до шести, открытый профиль виден и в свёрнутом.
  */
-function Levels({ profiles }: { profiles: OlympiadDetail['profiles'] }) {
+function Levels({ profiles, onSelect }: { profiles: OlympiadDetail['profiles']; onSelect: (id: string) => void }) {
   const t = useVoice()
   const [expanded, setExpanded] = useState(false)
-  const ordered = [...profiles.filter((p) => p.is_mine), ...profiles.filter((p) => !p.is_mine)]
   // Две-три лишние плашки прятать незачем.
-  const long = ordered.length > LEVELS_PREVIEW + 2
-  const shown = long && !expanded ? ordered.slice(0, LEVELS_PREVIEW) : ordered
+  const long = profiles.length > LEVELS_PREVIEW + 2
+  const preview = profiles.slice(0, LEVELS_PREVIEW)
+  const current = profiles.find((p) => p.is_mine)
+  if (current && !preview.includes(current)) preview.splice(LEVELS_PREVIEW - 1, 1, current)
+  const shown = long && !expanded ? preview : profiles
   return (
     <>
       <div className="levels">
         {shown.map((profile) => (
-          <span key={profile.olympiad_profile_id} className={`level-item${profile.is_mine ? ' level-item-mine' : ''}`}>
+          <button
+            key={profile.olympiad_profile_id}
+            type="button"
+            className={`level-item${profile.is_mine ? ' level-item-mine' : ''}`}
+            aria-current={profile.is_mine ? 'true' : undefined}
+            onClick={() => {
+              if (!profile.is_mine) onSelect(profile.olympiad_profile_id)
+            }}
+          >
             {profile.subject_name}: {profile.level ?? '—'}
-          </span>
+          </button>
         ))}
       </div>
       {long ? (
         <ListToggle
           expanded={expanded}
-          label={t('olympiad.allProfiles', { count: ordered.length })}
+          label={t('olympiad.allProfiles', { count: profiles.length })}
           onToggle={() => setExpanded(!expanded)}
         />
       ) : null}
@@ -129,7 +141,10 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
 
   const detail = query.data
   const pending = detail.proposal_status === 'pending'
-  const busy = add.isPending || propose.isPending
+  // Пока грузится выбранный профиль, на экране ещё прежний — добавлять рано.
+  const busy = add.isPending || propose.isPending || query.isPlaceholderData
+  // У олимпиады несколько профилей — в шапке видно, какой открыт.
+  const severalProfiles = detail.profiles.length > 1
 
   const mainButton = () => {
     if (detail.in_tracker) {
@@ -195,6 +210,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
           />
           <div className="sheet-title">
             <h2>{detail.name}</h2>
+            {severalProfiles ? <p className="sheet-title-profile">{detail.subject_name}</p> : null}
             <p>{detail.organizer}</p>
           </div>
         </>
@@ -247,8 +263,8 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
             {t('olympiad.levelsTitle')}
             <SourceTag kind="fact" />
           </h3>
-          <Levels profiles={detail.profiles} />
-          <p className="fine">{t('olympiad.levelsHint', { subject: detail.subject_name.toLowerCase() })}</p>
+          <Levels profiles={detail.profiles} onSelect={(profileId) => sheets.replace({ kind: 'oly', id: profileId })} />
+          {severalProfiles ? <p className="fine">{t('olympiad.levelsHint')}</p> : null}
           {detail.profiles_source ? (
             <SourceLine title={detail.profiles_source.title} url={detail.profiles_source.url} />
           ) : null}
