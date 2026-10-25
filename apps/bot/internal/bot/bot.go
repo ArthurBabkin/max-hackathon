@@ -205,6 +205,9 @@ func (b *Bot) start(t *turn, payload string) error {
 		if err != nil {
 			return err
 		}
+		if err := b.intro(t); err != nil {
+			return err
+		}
 		return b.ask(t, d)
 	}
 	if invite {

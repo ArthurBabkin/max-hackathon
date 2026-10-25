@@ -44,14 +44,16 @@ type Keyboard [][]Button
 // Row — ряд из кнопок; удобство для литералов.
 func Row(b ...Button) []Button { return b }
 
-// OutAttachment — исходящее вложение. Боту нужна только клавиатура.
+// OutAttachment — исходящее вложение: клавиатура или картинка по ссылке.
 type OutAttachment struct {
-	Type    string          `json:"type"`
-	Payload keyboardPayload `json:"payload"`
+	Type    string            `json:"type"`
+	Payload attachmentPayload `json:"payload"`
 }
 
-type keyboardPayload struct {
-	Buttons Keyboard `json:"buttons"`
+// attachmentPayload — у клавиатуры кнопки, у картинки адрес.
+type attachmentPayload struct {
+	Buttons Keyboard `json:"buttons,omitempty"`
+	URL     string   `json:"url,omitempty"`
 }
 
 // NewMessage — тело POST /messages, PUT /messages и ответа на нажатие.
@@ -87,8 +89,15 @@ func Truncate(s string, n int) string {
 func WithKeyboard(text string, kb Keyboard) NewMessage {
 	m := Text(text)
 	if len(kb) > 0 {
-		m.Attachments = []OutAttachment{{Type: "inline_keyboard", Payload: keyboardPayload{Buttons: kb}}}
+		m.Attachments = []OutAttachment{{Type: "inline_keyboard", Payload: attachmentPayload{Buttons: kb}}}
 	}
+	return m
+}
+
+// WithImage — картинка по ссылке над текстом сообщения. MAX скачивает её
+// сам, поэтому ссылка должна открываться без авторизации.
+func WithImage(m NewMessage, url string) NewMessage {
+	m.Attachments = append([]OutAttachment{{Type: "image", Payload: attachmentPayload{URL: url}}}, m.Attachments...)
 	return m
 }
 

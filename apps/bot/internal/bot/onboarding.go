@@ -2,6 +2,7 @@ package bot
 
 import (
 	"errors"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -172,6 +173,24 @@ func (b *Bot) question(t *turn, d store.Dialog) (maxapi.NewMessage, error) {
 
 // privacyURL — политика конфиденциальности на лендинге (apps/landing).
 const privacyURL = "https://traektoriaedu.ru/privacy.html"
+
+// welcomeImageURL — картинка приветствия на лендинге (apps/landing/assets/bot).
+const welcomeImageURL = "https://traektoriaedu.ru/assets/bot/welcome.png"
+
+// intro — первое сообщение новичку, до согласия (#131): картинка о сервисе и
+// пара фраз о нём. Согласие уходит следом, без нажатий. MAX не скачал
+// картинку — то же сообщение без неё: без приветствия анкета не начнётся.
+func (b *Bot) intro(t *turn) error {
+	msg := maxapi.Text(kidVoice(t).T("bot.intro", nil))
+	msg.Format = "markdown"
+	_, err := b.send(t, maxapi.WithImage(msg, welcomeImageURL))
+	if err == nil || t.ctx.Err() != nil {
+		return err
+	}
+	slog.Warn("приветствие без картинки", "err", err)
+	_, err = b.send(t, msg)
+	return err
+}
 
 // consentPrompt — вопрос о согласии: ссылка на политику и «Принимаю».
 // Пришёл по приглашению — о том, что увидят участники траектории. После
