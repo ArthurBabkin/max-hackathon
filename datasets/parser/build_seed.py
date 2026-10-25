@@ -86,7 +86,6 @@ SUBJECT_PREP = {
 # попадёт в подбор. Сопоставление — по смыслу профиля.
 MISSING_SUBJECT = {
     "p669-5-yadernye-tehnologii": "phys",
-    "p669-49-estestvennye-nauki": "phys",
     "p669-37-astronomiya": "astro",
     "p669-50-vysokie-tehnologii": "phys",
     "p669-55-kompyuternoe-modelirovanie-i-grafika": "inf",
@@ -411,9 +410,10 @@ def fnv32(s: str) -> int:
     return h
 
 
-def ts(d: date | str, end: bool = False) -> str:
+def ts(d: date | str, end: bool = False, clock: str | None = None) -> str:
+    """clock — час организатора по Москве («15:00»); без него — граница дня."""
     d = d if isinstance(d, str) else d.isoformat()
-    return f"{d} {'23:59:59' if end else '00:00:00'}{TZ}"
+    return f"{d} {clock + ':00' if clock else '23:59:59' if end else '00:00:00'}{TZ}"
 
 
 # Для регистрации и отборочного окна важен последний день, для очных этапов —
@@ -427,10 +427,10 @@ DEFAULT_TITLE = {
 }
 
 
-def stage(pid, kind, n, start, end, online, demo, src=None, title=None):
+def stage(pid, kind, n, start, end, online, demo, src=None, title=None, start_time=None, end_time=None):
     # Бывает, что организатор называет только крайний день («не позднее
     # 31 марта»): начала нет, и срок — этот день.
-    starts, ends = (ts(start) if start else None), ts(end or start, end=True)
+    starts, ends = (ts(start, clock=start_time) if start else None), ts(end or start, end=True, clock=end_time)
     return {
         "id": f"{pid}:{kind}:{n}", "olympiad_profile_id": pid, "kind": kind,
         "title": title or DEFAULT_TITLE[kind], "starts_at": starts, "ends_at": ends,
@@ -465,7 +465,7 @@ def published_stages(seed: Seed, p: dict) -> list[dict]:
         counter[kind] += 1
         online = e["format"] == "online" or (kind == "registration" and e["format"] is None)
         out.append(stage(p["id"], kind, counter[kind], moved(e["start_date"]), moved(e["end_date"]),
-                         online, demo, src, e["stage_name"]))
+                         online, demo, src, e["stage_name"], e.get("start_time"), e.get("end_time")))
     if c["etapy_status"] == "partial_2026_27" and not counter["final"]:
         # Как у сгенерированных демо-дат: финал через месяц после отбора, три дня.
         final = date.fromisoformat(max(e["end_date"] for e in c["etapy"])) + timedelta(days=30)

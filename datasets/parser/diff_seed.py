@@ -293,7 +293,9 @@ def render_stages(old: list[str], new: list[str], note: str) -> str:
         if pd.removed:
             print(f"! в новом сиде нет строк {t}: " + ", ".join(pd.removed), file=sys.stderr)
         parents[t] = (po, pn, pd, diff(pn.rows, po.rows))
-    refs = _source_refs({**d.upsert, **parents["olympiad_profiles"][2].upsert})
+    # Источник сроков переносится, и когда этапы не менялись: сверили заново —
+    # дата сверки в карточке новая.
+    refs = _source_refs({**n.rows, **parents["olympiad_profiles"][2].upsert})
     src = {k: v for k, v in sn.rows.items() if k in refs and so.rows.get(k) != v}
     new_sources = [k for k in src if k not in so.rows]
     head = (f"{note.rstrip()}\n--\n"

@@ -1,0 +1,112 @@
+package db_test
+
+import (
+	"context"
+	"slices"
+	"testing"
+
+	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
+)
+
+// Сроки семи олимпиад, сверенные 26.10.2026 (0029), на базе, где они как на
+// проде до миграции: после неё этапы с часами организатора, классы и даты
+// сверки — ровно как в сиде; событие «изменились сроки» — по профилям, где
+// сроки правда сдвинулись; повторный прогон событий не рождает.
+func TestMigration_VerifiedStageDates(t *testing.T) {
+	pool := dbtest.Open(t)
+	ctx := context.Background()
+	raw := readMigration(t, "0029_verified_stage_dates.sql")
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	const olympiads = `('p669-19', 'p669-22', 'p669-26', 'p669-31', 'p669-34', 'p669-49', 'p669-83')`
+	const rows = `SELECT x FROM (
+		SELECT p::text AS x FROM olympiad_profiles p WHERE olympiad_id IN ` + olympiads + `
+		UNION ALL SELECT s::text FROM stages s JOIN olympiad_profiles p ON p.id = s.olympiad_profile_id
+			WHERE p.olympiad_id IN ` + olympiads + `
+		UNION ALL SELECT src::text FROM sources src WHERE src.id IN (
+			SELECT s.source_id FROM stages s JOIN olympiad_profiles p ON p.id = s.olympiad_profile_id
+			WHERE p.olympiad_id IN ` + olympiads + `)) r`
+	const stage = `SELECT concat_ws(' ', to_char(starts_at AT TIME ZONE 'Europe/Moscow', 'YYYY-MM-DD HH24:MI'),
+		to_char(ends_at AT TIME ZONE 'Europe/Moscow', 'YYYY-MM-DD HH24:MI')) FROM stages WHERE id = $1`
+	at := func(id string) string {
+		t.Helper()
+		var s string
+		if err := tx.QueryRow(ctx, stage, id).Scan(&s); err != nil {
+			t.Fatalf("этап %s: %v", id, err)
+		}
+		return s
+	}
+
+	// Как на проде до миграции.
+	mustExec(t, tx.Exec, dbtest.DownSection(raw))
+	if got := at("p669-22-iskusstvennyy-intellekt:qualifying:2"); got != "2027-01-16 00:00 2027-01-17 23:59" {
+		t.Fatalf("Down: 2-й тур ИИ %s", got)
+	}
+	if n := queryInt(t, tx, `SELECT count(*) FROM stages WHERE olympiad_profile_id = 'p669-49-estestvennye-nauki'
+		OR id IN ('p669-22-informatika:registration:2', 'p669-22-matematika:registration:2')`); n != 0 {
+		t.Fatalf("Down оставил %d новых этапов", n)
+	}
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	for id, want := range map[string]string{
+		// ИИ и ИБ были перепутаны; второй приём заявок — с часами организатора.
+		"p669-22-iskusstvennyy-intellekt:qualifying:2":     "2027-01-23 00:00 2027-01-24 23:59",
+		"p669-22-informacionnaya-bezopasnost:qualifying:2": "2027-01-17 00:00 2027-01-17 23:59",
+		"p669-22-robototehnika:registration:1":             "2026-11-10 15:00",
+		"p669-22-informatika:registration:2":               "2026-10-19 10:00 2026-11-18 12:00",
+		"p669-22-matematika:registration:2":                "2026-10-26 10:00 2026-11-23 15:00",
+		// 23:59 по Екатеринбургу, 17:00 по Красноярску.
+		"p669-26-fizika:qualifying:1":               "2026-09-01 00:00 2027-01-19 21:59",
+		"p669-83-himiya:qualifying:1":               "2026-10-01 00:00 2027-01-12 13:00",
+		"p669-34-informatika:qualifying:1":          "2026-10-26 10:00 2026-11-23 23:59",
+		"p669-49-estestvennye-nauki:registration:2": "2027-01-15 00:00 2027-02-05 10:00",
+		"p669-49-estestvennye-nauki:final:1":        "2027-02-13 00:00 2027-02-13 23:59",
+	} {
+		if got := at(id); got != want {
+			t.Errorf("этап %s после 0029: %s, ожидали %s", id, got, want)
+		}
+	}
+	if got := queryStrings(t, tx, `SELECT concat_ws(' ', id, grades_from, grades_to) FROM olympiad_profiles
+		WHERE id IN ('p669-31-matematika', 'p669-34-informatika', 'p669-49-estestvennye-nauki',
+			'p669-49-himiya', 'p669-49-informatika')`); !slices.Equal(got, []string{
+		"p669-31-matematika 9 11", "p669-34-informatika 10 11", "p669-49-estestvennye-nauki 9 11",
+		"p669-49-himiya 9 11", "p669-49-informatika 9 11",
+	}) {
+		t.Fatalf("классы после 0029: %v", got)
+	}
+	// Интернет-олимпиаду по физике сверили, сроки те же — новая только дата сверки.
+	if n := queryInt(t, tx, `SELECT count(*) FROM sources WHERE id IN (
+		SELECT source_id FROM stages WHERE olympiad_profile_id LIKE ANY (ARRAY['p669-19-%', 'p669-31-%']))
+		AND verified_at = '2026-10-26'`); n != 3 {
+		t.Fatalf("дата сверки обновилась у %d источников Интернет-олимпиады и Верченко из 3", n)
+	}
+	if got := queryStrings(t, tx, `SELECT DISTINCT entity_id FROM content_changes`); !slices.Equal(got, []string{
+		"p669-22-informacionnaya-bezopasnost", "p669-22-informatika", "p669-22-iskusstvennyy-intellekt",
+		"p669-22-matematika", "p669-22-robototehnika",
+		"p669-26-fizika", "p669-26-himiya", "p669-26-informatika", "p669-26-matematika", "p669-26-obschestvoznanie",
+		"p669-34-fizika", "p669-34-himiya", "p669-34-informatika",
+		"p669-49-estestvennye-nauki", "p669-49-himiya", "p669-49-informatika",
+		"p669-83-fizika", "p669-83-himiya", "p669-83-informatika", "p669-83-matematika",
+	}) {
+		t.Fatalf("события 0029: %v", got)
+	}
+
+	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
+	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, `SELECT count(*) FROM content_changes`); n != 0 {
+		t.Fatalf("повторный прогон 0029 породил %d событий", n)
+	}
+
+	// Профили, этапы и их источники после миграции — ровно сид 0003.
+	got := queryStrings(t, tx, rows)
+	mustExec(t, tx.Exec, dbtest.UpSection(readMigration(t, "0003_seed_content.sql")))
+	if want := queryStrings(t, tx, rows); !slices.Equal(got, want) {
+		t.Fatalf("после 0029 не как в сиде:\nлишняя:   %v\nнедостаёт: %v",
+			first(diffSorted(got, want)), first(diffSorted(want, got)))
+	}
+}

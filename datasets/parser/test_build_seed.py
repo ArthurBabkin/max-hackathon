@@ -227,6 +227,18 @@ class StagesTest(unittest.TestCase):
         self.assertIsNone(final["starts_at"])
         self.assertEqual(final["deadline_at"], final["ends_at"])
 
+    def test_organizer_hours_replace_day_bounds(self):
+        # «Приём заявок с 10:00 19 октября до 12:00 18 ноября (МСК)».
+        reg = bs.stage("p", "registration", 2, "2026-10-19", "2026-11-18", True, False, "src",
+                       start_time="10:00", end_time="12:00")
+        self.assertEqual(reg["starts_at"], "2026-10-19 10:00:00+03")
+        self.assertEqual(reg["deadline_at"], "2026-11-18 12:00:00+03")
+        only_end = bs.stage("p", "registration", 1, None, "2026-11-10", True, False, "src", end_time="15:00")
+        self.assertEqual(only_end["ends_at"], "2026-11-10 15:00:00+03")
+        no_hours = bs.stage("p", "qualifying", 1, "2026-10-26", "2026-11-23", True, False, "src")
+        self.assertEqual((no_hours["starts_at"], no_hours["ends_at"]),
+                         ("2026-10-26 00:00:00+03", "2026-11-23 23:59:59+03"))
+
     def test_partial_calendar_gets_demo_final_a_month_after_last_stage(self):
         seed = bs.Seed()
         seed.olympiads["p669-11"] = {"name": "Сеченовская олимпиада"}
@@ -325,7 +337,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(set(offered), set(everything))
 
     def test_every_profile_is_seeded_including_missing_in_c(self):
-        self.assertEqual(len(self.seed.profiles), 182 + 10)
+        self.assertEqual(len(self.seed.profiles), 183 + 9)
         self.assertIn("p669-5-yadernye-tehnologii", self.seed.profiles)
 
     def test_subject_codes_are_the_frontend_ones(self):
@@ -346,9 +358,10 @@ class BuildTest(unittest.TestCase):
         self.assertTrue(all(by_profile[p] == 4 for p in vsosh))
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
-        # +1 к 23.09 — Московская олимпиада по информатике (26.09), +3 — РГГУ и «Звезда» (28.09).
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 116)
-        self.assertEqual(self.seed.stats["stages_profiles_none"], 8)
+        # +1 к 23.09 — Московская олимпиада по информатике (26.09), +3 — РГГУ и «Звезда» (28.09),
+        # +1 — «Гранит науки», естественные науки (26.10).
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 117)
+        self.assertEqual(self.seed.stats["stages_profiles_none"], 7)
 
     def test_stage_ids_unique_and_windows_ordered(self):
         ids = [s["id"] for s in self.seed.stages]

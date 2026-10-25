@@ -267,6 +267,16 @@ class StagesTest(unittest.TestCase):
         self.assertIn("('p', 'op', 'soc', 'x', 'икс', 'II', '2026/27', 8, 11, 'src-a')", down)
         self.assertIn("ON CONFLICT (id) DO UPDATE SET\n  official_url = EXCLUDED.official_url;", up)
 
+    def test_reverified_source_of_unchanged_stages_follows_seed(self):
+        # Сроки сверили заново и они не изменились: этап тот же, а дата
+        # сверки в источнике — новая, и в карточке должна быть она.
+        old_seed = OLD.replace("-- +goose Down", STAGES_OLD + "\n-- +goose Down")
+        new_seed = NEW.replace("('src-a', 'rules', 'А', 'https://a', '2026-09-21'::date)",
+                               "('src-a', 'rules', 'А', 'https://a', '2026-10-26'::date)") + STAGES_OLD
+        up, _ = ds.render_stages(old=[old_seed], new=[new_seed], note="-- Сроки.").split("-- +goose Down")
+        self.assertIn("('src-a', 'rules', 'А', 'https://a', '2026-10-26'::date)", up)
+        self.assertNotIn("INSERT INTO stages", up)
+
     def test_benefit_migration_skips_sources_of_stages_only(self):
         new_seed = NEW.replace("  ('src-c',", SRC_D + "  ('src-c',")
         old_seed = OLD.replace("-- +goose Down", STAGES_OLD + "\n-- +goose Down")
