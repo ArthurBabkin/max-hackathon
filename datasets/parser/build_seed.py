@@ -88,7 +88,6 @@ MISSING_SUBJECT = {
     "p669-5-yadernye-tehnologii": "phys",
     "p669-37-astronomiya": "astro",
     "p669-50-vysokie-tehnologii": "phys",
-    "p669-55-kompyuternoe-modelirovanie-i-grafika": "inf",
     "vsosh-astronomiya": "astro",
     "p669-59-medicina": "bio",
     "p669-37-robototehnika": "inf",

@@ -343,7 +343,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(set(offered), set(everything))
 
     def test_every_profile_is_seeded_including_missing_in_c(self):
-        self.assertEqual(len(self.seed.profiles), 183 + 9)
+        self.assertEqual(len(self.seed.profiles), 184 + 8)
         self.assertIn("p669-5-yadernye-tehnologii", self.seed.profiles)
 
     def test_subject_codes_are_the_frontend_ones(self):
@@ -365,9 +365,9 @@ class BuildTest(unittest.TestCase):
         for s in self.seed.stages:
             self.assertTrue(s["is_demo"] or s["source_id"], s["id"])
         # +1 к 23.09 — Московская олимпиада по информатике (26.09), +3 — РГГУ и «Звезда» (28.09),
-        # +1 — «Гранит науки», естественные науки (26.10).
-        self.assertEqual(self.seed.stats["stages_profiles_published"], 117)
-        self.assertEqual(self.seed.stats["stages_profiles_none"], 7)
+        # +2 — «Гранит науки», естественные науки, и «Шаг в будущее», компьютерное моделирование (26.10).
+        self.assertEqual(self.seed.stats["stages_profiles_published"], 118)
+        self.assertEqual(self.seed.stats["stages_profiles_none"], 6)
 
     def test_stage_ids_unique_and_windows_ordered(self):
         ids = [s["id"] for s in self.seed.stages]
@@ -452,10 +452,12 @@ class BuildTest(unittest.TestCase):
         self.assertIsNone(reg["starts_at"])
         self.assertEqual(reg["deadline_at"], "2026-11-30 23:59:59+03")
         self.assertFalse(by_id["p669-1-finansovaya-gramotnost:final:1"]["is_demo"])
-        # Сеченовская: финал ещё не объявлен — он демо, остальное факт.
-        bio = [(s["kind"], s["is_demo"]) for s in self.seed.stages
+        # Сеченовская: финал — в один день с 1 февраля по 1 апреля, день не
+        # назван (26.10): этап без дат, но факт, а не демо.
+        bio = [(s["kind"], s["is_demo"], s["deadline_at"]) for s in self.seed.stages
                if s["olympiad_profile_id"] == "p669-11-biologiya"]
-        self.assertEqual(bio, [("registration", False), ("qualifying", False), ("final", True)])
+        self.assertEqual(bio, [("registration", False, "2026-10-29 23:59:00+03"),
+                               ("qualifying", False, "2026-11-30 23:59:00+03"), ("final", False, None)])
 
     def test_demo_benefits_have_no_source(self):
         sourced = [b for b in self.seed.benefits if b["source_id"]]

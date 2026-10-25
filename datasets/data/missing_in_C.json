@@ -66,25 +66,6 @@
       ]
     },
     {
-      "olympiad_id": "p669-55-kompyuternoe-modelirovanie-i-grafika",
-      "perechen_number_669": 55,
-      "name": "Олимпиада школьников «Шаг в будущее»",
-      "profile": "компьютерное моделирование и графика",
-      "level": "III",
-      "profile_slug": "kompyuternoe-modelirovanie-i-grafika",
-      "zapisey_v_B": 126,
-      "profile_groups_v_B": [
-        "ИТ",
-        "Физика",
-        "Экономика"
-      ],
-      "vuzy": [
-        "hse",
-        "itmo",
-        "kfu"
-      ]
-    },
-    {
       "olympiad_id": "vsosh-astronomiya",
       "perechen_number_669": null,
       "name": "Всероссийская олимпиада школьников, астрономия",

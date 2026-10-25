@@ -232,9 +232,9 @@ func TestSchedule_AnnouncedStageWithoutDay(t *testing.T) {
 	c := clock{now: *day(12, 1), loc: time.UTC}
 	got := c.schedule([]stages.Stage{
 		{Kind: "qualifying", Title: "Отборочный этап", StartsAt: day(10, 15), EndsAt: day(11, 25), DeadlineAt: day(11, 25)},
-		{Kind: "final", Title: "Заключительный этап — дата пока не объявлена"},
+		{Kind: "final", Title: "Заключительный этап"},
 	})
-	if want := "Отборочный этап 15.10.2026–25.11.2026 (прошёл) → Заключительный этап — дата пока не объявлена дата не указана"; got != want {
+	if want := "Отборочный этап 15.10.2026–25.11.2026 (прошёл) → Заключительный этап дата не указана"; got != want {
 		t.Fatalf("расписание:\n%q\nждали\n%q", got, want)
 	}
 }

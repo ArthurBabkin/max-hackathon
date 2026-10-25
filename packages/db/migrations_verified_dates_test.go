@@ -8,7 +8,7 @@ import (
 	"github.com/ArthurBabkin/max-hackathon/packages/db/dbtest"
 )
 
-// Сроки восьми олимпиад, сверенные 26.10.2026 (0029), на базе, где они как на
+// Сроки двенадцати олимпиад, сверенные 26.10.2026 (0029), на базе, где они как на
 // проде до миграции: после неё этапы с часами организатора, классы и даты
 // сверки — ровно как в сиде; событие «изменились сроки» — по профилям, где
 // сроки правда сдвинулись; повторный прогон событий не рождает.
@@ -22,7 +22,8 @@ func TestMigration_VerifiedStageDates(t *testing.T) {
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
-	const olympiads = `('p669-19', 'p669-22', 'p669-26', 'p669-31', 'p669-34', 'p669-49', 'p669-54', 'p669-83')`
+	const olympiads = `('p669-11', 'p669-12', 'p669-19', 'p669-22', 'p669-26', 'p669-31', 'p669-34', 'p669-49',
+		'p669-54', 'p669-55', 'p669-69', 'p669-83')`
 	const rows = `SELECT x FROM (
 		SELECT p::text AS x FROM olympiad_profiles p WHERE olympiad_id IN ` + olympiads + `
 		UNION ALL SELECT s::text FROM stages s JOIN olympiad_profiles p ON p.id = s.olympiad_profile_id
@@ -58,6 +59,10 @@ func TestMigration_VerifiedStageDates(t *testing.T) {
 	mustExec(t, tx.Exec, `DELETE FROM content_changes`)
 
 	mustExec(t, tx.Exec, dbtest.UpSection(raw))
+	if n := queryInt(t, tx, `SELECT count(*) FROM stages s JOIN olympiad_profiles p ON p.id = s.olympiad_profile_id
+		WHERE p.olympiad_id IN `+olympiads+` AND s.is_demo`); n != 0 {
+		t.Fatalf("после 0029 у сверенных олимпиад %d демо-этапов", n)
+	}
 	for id, want := range map[string]string{
 		// ИИ и ИБ были перепутаны; второй приём заявок — с часами организатора.
 		"p669-22-iskusstvennyy-intellekt:qualifying:2":     "2027-01-23 00:00 2027-01-24 23:59",
@@ -77,8 +82,13 @@ func TestMigration_VerifiedStageDates(t *testing.T) {
 		"p669-54-matematika:qualifying:1": "2026-10-11 10:00 2026-10-11 15:00",
 		"p669-54-matematika:final:1":      "2027-02-14 00:00 2027-02-14 23:59",
 		"p669-54-himiya:qualifying:1":     "2026-12-15 00:00 2027-01-10 23:59",
-		// Финал объявлен, день — нет.
-		"p669-54-inzhenernoe-delo:final:1": "",
+		// Финал объявлен, день — нет: демо-даты уходят.
+		"p669-54-inzhenernoe-delo:final:1":                          "",
+		"p669-11-himiya:final:1":                                    "",
+		"p669-69-inzhenernoe-delo:final:1":                          "",
+		"p669-12-pravo:qualifying:1":                                "2026-12-01 09:00 2027-01-01 20:59",
+		"p669-69-inzhenernoe-delo:registration:1":                   "2026-10-10 00:00 2027-01-15 23:59",
+		"p669-55-kompyuternoe-modelirovanie-i-grafika:qualifying:2": "2026-11-16 00:00 2026-11-22 23:59",
 	} {
 		if got := at(id); got != want {
 			t.Errorf("этап %s после 0029: %s, ожидали %s", id, got, want)
@@ -101,6 +111,7 @@ func TestMigration_VerifiedStageDates(t *testing.T) {
 		t.Fatalf("дата сверки обновилась у %d источников Интернет-олимпиады и Верченко из 3", n)
 	}
 	if got := queryStrings(t, tx, `SELECT DISTINCT entity_id FROM content_changes`); !slices.Equal(got, []string{
+		"p669-11-biologiya", "p669-11-himiya", "p669-12-obschestvoznanie", "p669-12-pravo",
 		"p669-22-informacionnaya-bezopasnost", "p669-22-informatika", "p669-22-iskusstvennyy-intellekt",
 		"p669-22-matematika", "p669-22-robototehnika",
 		"p669-26-fizika", "p669-26-himiya", "p669-26-informatika", "p669-26-matematika", "p669-26-obschestvoznanie",
@@ -108,6 +119,9 @@ func TestMigration_VerifiedStageDates(t *testing.T) {
 		"p669-49-estestvennye-nauki", "p669-49-himiya", "p669-49-informatika",
 		"p669-54-biologiya", "p669-54-fizika", "p669-54-himiya", "p669-54-informatika-i-programmirovanie",
 		"p669-54-inzhenernoe-delo", "p669-54-matematika", "p669-54-nauchno-tehnicheskiy",
+		"p669-55-fizika", "p669-55-himiya", "p669-55-informatika", "p669-55-inzhenernoe-delo",
+		"p669-55-kompyuternoe-modelirovanie-i-grafika", "p669-55-matematika",
+		"p669-69-informacionnye-i-kommunikacionnye-tehnologii", "p669-69-inzhenernoe-delo",
 		"p669-83-fizika", "p669-83-himiya", "p669-83-informatika", "p669-83-matematika",
 	}) {
 		t.Fatalf("события 0029: %v", got)

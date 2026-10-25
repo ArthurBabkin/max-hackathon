@@ -2,7 +2,7 @@ import type { TrackerItem, TrackerStage } from '@contract'
 import { expect, it } from 'vitest'
 import { text } from '@/voice/texts'
 import type { Translate } from '@/voice/useVoice'
-import { deadlineLabel } from './stages'
+import { deadlineLabel, stageDate, stageSubtitle } from './stages'
 
 const t: Translate = (key, vars) => text(key, 'kid', vars)
 
@@ -69,4 +69,14 @@ it('этап не нашёлся — его название из пункта, 
 
 it('срока нет — подписи нет', () => {
   expect(deadlineLabel(lomonosov(null), t)).toBeNull()
+})
+
+// Финал объявлен без дня («в марте»): дат нет, подпись — словами, а не пустая строка.
+it('этап без дат — «Дата будет добавлена позже»', () => {
+  const fin = stage('fin', 'final', null, 'Заключительный этап')
+  expect(stageSubtitle(fin, t)).toBe('Дата будет добавлена позже')
+  expect(stageDate(fin, t)).toBe('дата позже')
+  // Подпись сервера важнее; этап с датами без подписи — пустой, как был.
+  expect(stageSubtitle({ ...fin, subtitle: '13 февраля' }, t)).toBe('13 февраля')
+  expect(stageSubtitle({ ...fin, starts_at: '2027-02-13T00:00:00Z' }, t)).toBe('')
 })
