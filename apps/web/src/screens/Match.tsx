@@ -53,10 +53,12 @@ export function MatchScreen() {
   const openOlympiad = (id: string) => sheets.open({ kind: 'oly', id })
 
   const trajectory = home?.trajectory ?? session?.trajectory
+  // Направления в анкете можно не выбирать — тогда подбор по предметам.
+  const noGoal = trajectory?.directions.length === 0
 
   const header = (
     <header className="match-head">
-      <h1 className="match-title">{t('match.title')}</h1>
+      <h1 className="match-title">{t(noGoal ? 'match.titleNoGoal' : 'match.title')}</h1>
       {trajectory ? (
         <p className="match-subtitle">
           {t(trajectory.region_name ? 'match.subtitle' : 'match.subtitleNoRegion', {
@@ -213,9 +215,9 @@ export function MatchScreen() {
         <span className="tag tag-recommendation">{t('match.recommendationTag')}</span>
         {note}
       </p>
-      {/* Без вузов льготы считаются по всем вузам с направлением (SPEC 2.3). */}
+      {/* Без вузов льготы считаются по всем вузам с направлением, без цели — по всем вузам (SPEC 2.3). */}
       {home?.universities_count === 0 ? (
-        <p className="info-line info-line-plain">{t('match.noUniversities')}</p>
+        <p className="info-line info-line-plain">{t(noGoal ? 'match.noUniversitiesNoGoal' : 'match.noUniversities')}</p>
       ) : null}
       {hidden}
 

@@ -60,6 +60,43 @@ it('с вузами строки нет', async () => {
   expect(screen.queryByText(NO_UNIVERSITIES)).toBeNull()
 })
 
+// Направления в анкете можно не выбирать: тогда подбор — по предметам, а
+// льготы без вузов — по всем вузам, а не «с направлением».
+function renderNoGoal(universities: number, role: 'kid' | 'parent' = 'kid') {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+  const h = home()
+  renderApp(<MatchScreen />, {
+    route: '/match',
+    session: makeSession({ role }),
+    seed: (c) => {
+      c.setQueryData(keys.home, { ...h, trajectory: { ...h.trajectory, directions: [] }, universities_count: universities })
+      c.setQueryData(keys.recommendations('all'), recs({ items: [olympiadCard('hse:inf')!] }))
+    },
+  })
+}
+
+it('без цели заголовок — подбор по предметам', async () => {
+  renderNoGoal(3)
+  expect(await screen.findByRole('heading', { name: 'Подобрано по твоим предметам' })).toBeInTheDocument()
+  expect(screen.getByText(/^Цель пока не выбрана, 9 класс/)).toBeInTheDocument()
+})
+
+it('без цели родителю — по предметам ребёнка', async () => {
+  renderNoGoal(3, 'parent')
+  expect(await screen.findByRole('heading', { name: /^Подобрано по предметам / })).toBeInTheDocument()
+})
+
+it('без цели и вузов — льготы по всем вузам', async () => {
+  renderNoGoal(0)
+  expect(await screen.findByText('Вузы не выбраны — льготы показаны по всем вузам')).toBeInTheDocument()
+  expect(screen.queryByText(NO_UNIVERSITIES)).toBeNull()
+})
+
+it('с целью заголовок — под цель', async () => {
+  renderMatch(3)
+  expect(await screen.findByRole('heading', { name: 'Подобрано под твою цель' })).toBeInTheDocument()
+})
+
 it('в подзаголовке класс и регион', async () => {
   renderMatch(3)
   expect(await screen.findByText(/, 9 класс, Республика Татарстан$/)).toBeInTheDocument()

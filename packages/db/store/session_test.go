@@ -216,30 +216,6 @@ func TestSuggestUniversities(t *testing.T) {
 	}
 }
 
-// Направления, по которым есть вузы в выбранных местах (SPEC 8.3, V3).
-func TestDirectionsIn(t *testing.T) {
-	s := New(dbtest.Open(t))
-	ctx := context.Background()
-	tatarstan, err := s.DirectionsIn(ctx, []Place{{RegionCode: "16"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Contains(tatarstan, "napr-31-05-01") || !slices.Contains(tatarstan, "napr-09-03-04") ||
-		slices.Contains(tatarstan, "napr-19-03-01") {
-		t.Fatalf("направления Татарстана: %v", tatarstan)
-	}
-	spb, _ := s.DirectionsIn(ctx, []Place{{RegionCode: "78"}})
-	if !slices.Contains(spb, "napr-19-03-01") || !slices.Contains(spb, "napr-03-03-02") {
-		t.Fatalf("направления Петербурга: %v", spb)
-	}
-	// Подсказка бота — только из основных направлений клавиатуры.
-	anywhere, _ := s.DirectionsIn(ctx, nil)
-	popular, _ := s.Directions(ctx)
-	if len(anywhere) > len(popular) {
-		t.Fatalf("подсказка шире клавиатуры: %d из %d", len(anywhere), len(popular))
-	}
-}
-
 // Согласие с политикой конфиденциальности (152-ФЗ): бот спрашивает его до
 // анкеты и до входа по приглашению. Отзыв — /delete создателем или выход из
 // траектории: вернувшегося бот спросит снова.

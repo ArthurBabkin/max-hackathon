@@ -31,93 +31,51 @@ func (s *Store) PurgeSeenUpdates(ctx context.Context, before time.Time) (int64, 
 type Draft struct {
 	Name         string   `json:"name,omitempty"`
 	Grade        int      `json:"grade,omitempty"`
-	RegionCode   string   `json:"region_code,omitempty"`
 	SubjectCodes []string `json:"subject_codes,omitempty"`
 	// DirectionIDs — выбранные направления в порядке выбора (F8).
 	DirectionIDs []string `json:"direction_ids,omitempty"`
 	// AllDirections — открыт полный список направлений, а не только
 	// подходящие под предметы.
-	AllDirections bool `json:"all_directions,omitempty"`
-	// Target — где ученик хочет учиться: код субъекта или TargetAny.
-	Target        string   `json:"target,omitempty"`
+	AllDirections bool     `json:"all_directions,omitempty"`
 	UniversityIDs []string `json:"university_ids,omitempty"`
-	// District — открытый федеральный округ в списке регионов: на шаге
-	// региона или «Где хочешь учиться?».
-	District int `json:"district,omitempty"`
-	// Offered — вузы на кнопках шага вузов: предложенные по городу и
-	// направлениям и найденные поиском «Другой вуз».
+	// Offered — вузы на кнопках шага вузов: предложенные по направлениям и
+	// найденные поиском.
 	Offered []string `json:"offered,omitempty"`
 
 	// Онбординг v2 (docs/onboarding-v2/SPEC.md, 1.4).
 
-	// HomeCity — город ученика, если известен из поиска или геолокации.
-	HomeCity string `json:"home_city,omitempty"`
-	// RegionAny — на шаге региона нажали «Не важно»: регион пустой не
-	// потому, что вопрос ещё впереди.
-	RegionAny bool `json:"region_any,omitempty"`
-	// PlaceOptions — варианты на кнопках шагов region и target.
-	PlaceOptions []PlaceOption `json:"place_options,omitempty"`
-	// Letter — открытая буква алфавита на шаге region; "*" — открыт список букв.
-	Letter string `json:"letter,omitempty"`
 	// Interests — коды В1 «что нравится», до двух.
 	Interests []string `json:"interests,omitempty"`
 	// Work — код В2 «какая работа ближе».
 	Work string `json:"work,omitempty"`
 	// Suggested — направления, которые бот предложил по интересам.
-	Suggested  []string `json:"suggested,omitempty"`
-	Experience string   `json:"experience,omitempty"`
-	// Places — выбранные места «Где учиться»; PlacesAny — «Не важно».
-	Places    []Place `json:"places,omitempty"`
-	PlacesAny bool    `json:"places_any,omitempty"`
+	Suggested []string `json:"suggested,omitempty"`
 	// GoalByKid — родитель выбрал «Пусть ребёнок ответит».
 	GoalByKid bool `json:"goal_by_kid,omitempty"`
 	// OfferPage — сколько раз нажали «Показать ещё» на шаге вузов.
 	OfferPage int `json:"offer_page,omitempty"`
-	// Found — места, найденные текстом на шаге target, когда совпадений
-	// несколько: кнопки выбора под отдельным сообщением.
-	Found []PlaceOption `json:"found,omitempty"`
-	// VuzAnywhere — «Все вузы с этим направлением»: подборка вузов без
-	// фильтра по местам.
-	VuzAnywhere bool `json:"vuz_anywhere,omitempty"`
 	// OfferMore — у подборки вузов есть следующая страница.
 	OfferMore bool `json:"offer_more,omitempty"`
-	// Nearby — ближайшие вузы с направлением, когда в выбранных местах
-	// его нет (кнопки «+ вуз»).
-	Nearby []string `json:"nearby,omitempty"`
-	// Similar — похожие направления, которые есть в выбранных местах.
-	Similar []string `json:"similar,omitempty"`
 	// Joined — приглашённый ученик отвечает на вопросы об интересах за
 	// родителя (goal_by_kid): траектория уже есть, «Готово» правит её.
 	Joined bool `json:"joined,omitempty"`
-	// EditMenu — на карточке профиля открыто меню «Что поменять?».
-	EditMenu bool `json:"edit_menu,omitempty"`
-	// EditStage — номер шага (как в счётчике «Шаг N из 9»), который правят
-	// из карточки профиля: когда диалог уходит дальше него, бот возвращает
-	// к профилю. 0 — не правят.
-	EditStage int `json:"edit_stage,omitempty"`
+
+	// Ответы на вопросы, убранные из анкеты в #127: у диалогов, начатых
+	// раньше, они попадают в траекторию. RegionCode и HomeCity — регион и
+	// город ученика; Places — места «Где учиться», PlacesAny — «Не важно»; у
+	// диалогов v1 вместо мест Target — код субъекта или TargetAny.
+	RegionCode string  `json:"region_code,omitempty"`
+	HomeCity   string  `json:"home_city,omitempty"`
+	Experience string  `json:"experience,omitempty"`
+	Places     []Place `json:"places,omitempty"`
+	PlacesAny  bool    `json:"places_any,omitempty"`
+	Target     string  `json:"target,omitempty"`
 }
 
 // Place — место «Где учиться»: регион целиком (City пусто) или город в нём.
 type Place struct {
 	RegionCode string `json:"region_code"`
 	City       string `json:"city,omitempty"`
-}
-
-// PlaceOption — вариант места на кнопке: найденный поиском или
-// предложенный ботом.
-type PlaceOption struct {
-	Kind       string `json:"kind"` // region | city
-	RegionCode string `json:"region_code"`
-	City       string `json:"city,omitempty"`
-	Label      string `json:"label"`
-}
-
-// Place — место, которое означает вариант.
-func (o PlaceOption) Place() Place {
-	if o.Kind == "city" {
-		return Place{RegionCode: o.RegionCode, City: o.City}
-	}
-	return Place{RegionCode: o.RegionCode}
 }
 
 // TargetAny — «не важно, где учиться».

@@ -370,26 +370,6 @@ func placeFilter(places []Place) (regions, cities []string) {
 	return regions, cities
 }
 
-// DirectionsIn — id основных направлений, по которым есть программы в вузах
-// мест places, в порядке справочника: подсказка к клавиатуре бота.
-func (s *Store) DirectionsIn(ctx context.Context, places []Place) ([]string, error) {
-	regions, cities := placeFilter(places)
-	rows, err := s.db.Query(ctx, `
-		SELECT d.id FROM directions d
-		WHERE d.onboarding AND EXISTS (SELECT 1 FROM universities u
-		              WHERE d.name = ANY(u.directions)
-		                AND (cardinality($1::text[]) + cardinality($2::text[]) = 0
-		                     OR u.region_code = ANY($1::text[]) OR u.city = ANY($2::text[])))
-		ORDER BY d.name`, regions, cities)
-	if err != nil {
-		return nil, wrap(err)
-	}
-	return collect(rows, func(r rowScanner) (string, error) {
-		var id string
-		return id, r.Scan(&id)
-	})
-}
-
 func nonNil(s []string) []string {
 	if s == nil {
 		return []string{}
