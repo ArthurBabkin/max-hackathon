@@ -417,6 +417,8 @@ const (
 	changesLines = 8
 	// changesCards — сколько олимпиад получают свои кнопки.
 	changesCards = 3
+	// changesDetails — сколько изменений одной олимпиады пересказать.
+	changesDetails = 2
 )
 
 // changed — что изменилось по одному профилю олимпиады.
@@ -426,6 +428,8 @@ type changed struct {
 	unis     []string
 	rulesURL string
 	rulesFor string
+	// details — что именно изменилось, словами (0030), без повторов.
+	details []string
 }
 
 // Changes — сводка изменений контента по траектории для одного
@@ -436,6 +440,9 @@ func (n *Notifier) Changes(items []store.ChangeItem, r store.Recipient, t store.
 	v := Voice(r, t)
 	var profiles []*changed
 	byID := map[string]*changed{}
+	// Объявление вуза касается многих олимпиад сразу — его пересказываем
+	// один раз под списком, а не под каждой.
+	var news []string
 	for _, it := range items {
 		c, ok := byID[it.ProfileID]
 		if !ok {
@@ -443,14 +450,30 @@ func (n *Notifier) Changes(items []store.ChangeItem, r store.Recipient, t store.
 			byID[it.ProfileID] = c
 			profiles = append(profiles, c)
 		}
+		uni := ""
+		if it.Kind == "benefits" && it.UniversityID != nil && it.UniversityShort != nil {
+			uni = UniversityLabel(*it.UniversityID, *it.UniversityShort)
+		}
+		for _, raw := range it.Details {
+			d := Describe(v, raw, uni)
+			switch {
+			case d == "":
+			case isAnnouncement(raw):
+				if !slices.Contains(news, d) {
+					news = append(news, d)
+				}
+			case !slices.Contains(c.details, d):
+				c.details = append(c.details, d)
+			}
+		}
 		switch it.Kind {
 		case "stages":
 			c.stages = true
 		case "benefits":
-			if it.UniversityID == nil || it.UniversityShort == nil {
+			if uni == "" {
 				continue
 			}
-			c.unis = append(c.unis, UniversityLabel(*it.UniversityID, *it.UniversityShort))
+			c.unis = append(c.unis, uni)
 			if c.rulesURL == "" && it.RulesURL != nil && strings.HasPrefix(*it.RulesURL, "https://") {
 				c.rulesURL, c.rulesFor = *it.RulesURL, UniversityLabel(*it.UniversityID, *it.UniversityShort)
 			}
@@ -464,6 +487,16 @@ func (n *Notifier) Changes(items []store.ChangeItem, r store.Recipient, t store.
 			break
 		}
 		lines = append(lines, "• "+c.title()+" — "+c.what(v))
+		for j, d := range c.details {
+			if j == changesDetails {
+				lines = append(lines, "  "+v.T("notify.changes.moreDetails", voice.Vars{"count": len(c.details) - changesDetails}))
+				break
+			}
+			lines = append(lines, "  "+d)
+		}
+	}
+	for _, n := range news {
+		lines = append(lines, "", n)
 	}
 	text := v.T("notify.changes", voice.Vars{"names": strings.Join(lines, "\n")})
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/match"
+	"github.com/ArthurBabkin/max-hackathon/packages/core/notify"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/stages"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
@@ -144,6 +146,71 @@ type olympiadDetail struct {
 	Why                 string         `json:"why"`
 	BenefitUniversities []benefitRow   `json:"benefit_universities"`
 	BenefitColumns      []string       `json:"benefit_columns"`
+	// Сезон сроков, год правил приёма у льгот и год поступления ученика
+	// (#140): это три разных года, и карточка называет каждый.
+	Season        string          `json:"season"`
+	RulesYear     *int            `json:"rules_year"`
+	AdmissionYear *int            `json:"admission_year"`
+	Updates       []contentUpdate `json:"updates"`
+}
+
+// contentUpdate — изменение сроков или льготы словами (#141).
+type contentUpdate struct {
+	Date string `json:"date"`
+	Text string `json:"text"`
+}
+
+const (
+	// updatesWindow — за какой срок карточка показывает изменения: столько же
+	// живут разосланные события (purgeTTL уведомлений).
+	updatesWindow = 30 * 24 * time.Hour
+	updatesShown  = 3
+)
+
+// seasonOf — учебный сезон олимпиад: с сентября по август.
+func seasonOf(now time.Time) (string, int) {
+	now = now.In(moscow)
+	start := now.Year()
+	if now.Month() < time.September {
+		start--
+	}
+	return fmt.Sprintf("%d/%02d", start, (start+1)%100), start + 1
+}
+
+// admissionYear — когда ученик поступает: после 11 класса. Дипломы
+// этого сезона учитываются при приёме в год окончания сезона и позже.
+func admissionYear(grade, seasonEnd int) *int {
+	if grade < 1 || grade > 11 {
+		return nil
+	}
+	y := seasonEnd + 11 - grade
+	return &y
+}
+
+// updatesOf — недавние изменения профиля словами, без повторов.
+func (s *Server) updatesOf(ctx context.Context, v voice.Voice, profileID string, now time.Time) ([]contentUpdate, error) {
+	changes, err := s.store.RecentProfileChanges(ctx, profileID, now.Add(-updatesWindow), 20)
+	if err != nil {
+		return nil, err
+	}
+	out := []contentUpdate{}
+	seen := map[string]bool{}
+	for _, c := range changes {
+		uni := ""
+		if c.UniversityID != nil && c.UniversityShort != nil {
+			uni = notify.UniversityLabel(*c.UniversityID, *c.UniversityShort)
+		}
+		text := notify.Describe(v, c.Detail, uni)
+		if text == "" || seen[text] {
+			continue
+		}
+		seen[text] = true
+		out = append(out, contentUpdate{Date: c.CreatedAt.In(moscow).Format(time.DateOnly), Text: text})
+		if len(out) == updatesShown {
+			break
+		}
+	}
+	return out, nil
 }
 
 var levelOrder = map[string]int{"I": 0, "II": 1, "III": 2}
@@ -204,6 +271,18 @@ func (s *Server) olympiad(w http.ResponseWriter, r *http.Request) error {
 	}
 	for _, x := range st {
 		out.StagesAreDemo = out.StagesAreDemo || x.IsDemo
+	}
+	var seasonEnd int
+	out.Season, seasonEnd = seasonOf(cs.Now)
+	out.AdmissionYear = admissionYear(t.Grade, seasonEnd)
+	for _, b := range mine {
+		if out.RulesYear == nil || b.AdmissionYear > *out.RulesYear {
+			y := b.AdmissionYear
+			out.RulesYear = &y
+		}
+	}
+	if out.Updates, err = s.updatesOf(ctx, cs.voice, p.ID, cs.Now); err != nil {
+		return err
 	}
 	// «Где ещё даёт льготу» — без вузов ученика: они уже в блоке льгот (F23).
 	own := map[string]bool{}

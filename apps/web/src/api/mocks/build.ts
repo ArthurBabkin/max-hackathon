@@ -339,6 +339,15 @@ export function olympiadDetail(profileId: string): OlympiadDetail | null {
     benefit_universities: UNIVERSITIES.filter((u) => u.benefits[o.id] && !state.universities.includes(u.id)).map((u) =>
       benefitRow(u, o.id),
     ),
+    // Сезон, правила и год поступления — три разных года (#140).
+    season: '2026/27',
+    rules_year: benefits.some((row) => row.winner || row.prizer) ? 2026 : null,
+    admission_year: 2027 + 11 - state.grade,
+    // Демо «что изменилось» (#141) — у одной олимпиады, чтобы блок было видно.
+    updates:
+      o.id === 'inno'
+        ? [{ date: '2026-10-26', text: 'Второй отборочный этап: 23–24 января (было 16–17 января)' }]
+        : [],
   }
 }
 
