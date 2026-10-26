@@ -127,6 +127,22 @@ VSOSH_OWN_DIRECTIONS = {
 DOUBT_NOTE = ("Уточните в приёмной комиссии — по правилам приёма здесь 100 баллов, "
               "хотя ВсОШ по профильному предмету обычно даёт БВИ")
 
+# МФТИ объявил правила приёма 2027 (новость МФТИ 25.09.2026, #91): БВИ дают
+# только семь олимпиад РСОШ, учёт ВсОШ прежний, порог ЕГЭ по профильному
+# предмету — единые 85 баллов, и для подтверждения льготы. Полных правил ещё
+# нет, поэтому льготы — по правилам 2026, а перемена — оговоркой «С приёма
+# 2027 …», которую карточка показывает условием, а помощник — как есть.
+MIPT_2027_BVI = {
+    "p669-14",  # Всесибирская
+    "p669-37",  # Московская олимпиада школьников
+    "p669-43",  # Курчатов
+    "p669-50",  # «Ломоносов»
+    "p669-54",  # «Физтех»
+    "p669-70",  # «Росатом»
+    "p669-81",  # Турнир городов
+}
+MIPT_2027_EGE = 85
+
 # ВсОШ не подтверждают ЕГЭ, и предмета в записи нет: 100 баллов засчитают по
 # предмету самой олимпиады, если он есть в ЕГЭ. Астрономии, экологии и
 # экономики в ЕГЭ нет — что им сопоставил вуз, в записях не сказано.
@@ -678,6 +694,20 @@ def aggregate_key(records: list[dict], doubtful: bool = False) -> dict:
     }
 
 
+def next_rules_notes(profile: dict, vuz: str, benefit: str, ege_min: int | None) -> list[str]:
+    """Оговорки о правилах приёма следующего года, объявленных до публикации
+    самих правил (MIPT_2027_BVI)."""
+    if vuz != "mipt":
+        return []
+    notes = []
+    oid = profile["olympiad_id"]
+    if oid.startswith("p669-") and oid not in MIPT_2027_BVI and benefit in ("bvi", "bvi_winners"):
+        notes.append("С приёма 2027 года БВИ дают только семь олимпиад РСОШ, эта в их число не входит")
+    if ege_min is None or ege_min < MIPT_2027_EGE:
+        notes.append(f"С приёма 2027 года порог ЕГЭ по профильному предмету — {MIPT_2027_EGE} баллов")
+    return notes
+
+
 def benefit_keys(B: list[dict], profiles: dict, statuses=("offered",)):
     """Сгруппировать записи B по ключу (профиль, вуз, год)."""
     keys: dict[tuple, list[dict]] = defaultdict(list)
@@ -718,7 +748,10 @@ def build_benefits(seed: Seed, B: list[dict], short: dict[str, str]):
             "id": f"{pid}__{vuz}__{year}__{agg['benefit']}",
             "olympiad_profile_id": pid, "university_id": vuz, "admission_year": year,
             "benefit": agg["benefit"], "extra_points": None, "ege_min": agg["ege_min"],
-            "diploma_grades": agg["diploma_grades"], "note": agg["note"], "source_id": src,
+            "diploma_grades": agg["diploma_grades"],
+            "note": ". ".join(n for n in [agg["note"], *next_rules_notes(seed.profiles[pid], vuz, agg["benefit"],
+                                                                           agg["ege_min"])] if n) or None,
+            "source_id": src,
         })
     seed.stats["benefit_keys"] = len(keys)
 
@@ -1076,6 +1109,7 @@ def build_direction_benefits(ud: UniversityDirections, seed: Seed, vuz: str, cod
         notes = [vnote, agg["note"]]
         if vnote and "100 баллов" in vnote and agg["subject100"] not in (agg["note"] or ""):
             notes.append(agg["subject100"])
+        notes += next_rules_notes(seed.profiles[pid], vuz, agg["benefit"], agg["ege_min"])
         ud.benefits.append({
             "olympiad_profile_id": pid, "university_id": vuz, "direction_id": direction_id(code),
             "admission_year": year, "benefit": agg["benefit"], "ege_min": agg["ege_min"],

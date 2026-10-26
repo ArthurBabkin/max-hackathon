@@ -191,6 +191,37 @@ class AggregateKeyTest(unittest.TestCase):
         self.assertEqual(a["src_url"], "https://b")
 
 
+class NextRulesTest(unittest.TestCase):
+    """МФТИ с приёма 2027 (#91): БВИ — только семь олимпиад РСОШ, ВсОШ как
+    прежде, порог ЕГЭ — 85."""
+
+    def notes(self, oid, vuz="mipt", benefit="bvi", ege_min=75):
+        return bs.next_rules_notes({"olympiad_id": oid}, vuz, benefit, ege_min)
+
+    def test_rsosh_outside_seven_loses_bvi(self):
+        got = self.notes("p669-8")
+        self.assertEqual(len(got), 2)
+        self.assertTrue(got[0].startswith("С приёма 2027 года БВИ дают только семь олимпиад РСОШ"))
+        self.assertTrue(got[1].endswith("— 85 баллов"))
+
+    def test_seven_and_vsosh_keep_bvi(self):
+        for oid in ("p669-54", "p669-81", "vsosh-fizika"):
+            self.assertEqual(self.notes(oid, ege_min=85), [], oid)
+            self.assertEqual(len(self.notes(oid, ege_min=80)), 1, oid)
+
+    def test_only_bvi_is_announced(self):
+        self.assertEqual(self.notes("p669-8", benefit="score100", ege_min=None),
+                         ["С приёма 2027 года порог ЕГЭ по профильному предмету — 85 баллов"])
+
+    def test_other_universities_untouched(self):
+        self.assertEqual(self.notes("p669-8", vuz="msu"), [])
+
+    def test_sentences_survive_split(self):
+        # Карточка делит примечание на предложения по точке: в оговорке её нет.
+        for n in self.notes("p669-8"):
+            self.assertNotIn(".", n)
+
+
 class LevelFilterTest(unittest.TestCase):
     def test_profile_must_be_at_least_as_strong_as_required(self):
         self.assertTrue(bs.level_ok("I", "II", False))

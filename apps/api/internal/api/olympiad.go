@@ -551,19 +551,23 @@ func egeSubject(rows []store.BenefitRow) string {
 type winnerNote struct{ text, nicks string }
 
 // Предложения примечания сида о 100 баллах. Предмет (score100Prefix) —
-// в подписи льготы (benefitLabel), а просьбы уточнить — условием как есть.
+// в подписи льготы (benefitLabel), а просьбы уточнить и объявленные правила
+// следующего приёма — условием как есть.
 const (
 	score100Prefix  = "100 баллов засчитают по предмету"
 	score100Unknown = "Предмет, по которому засчитают 100 баллов"
 	doubtPrefix     = "Уточните в приёмной комиссии"
+	nextRulesPrefix = "С приёма "
 )
 
 func toCheck(s string) bool {
-	return strings.HasPrefix(s, doubtPrefix) || strings.HasPrefix(s, score100Unknown)
+	return strings.HasPrefix(s, doubtPrefix) || strings.HasPrefix(s, score100Unknown) ||
+		strings.HasPrefix(s, nextRulesPrefix)
 }
 
-// noteConditions — просьбы уточнить в приёмной комиссии: сомнительную
-// льготу или неизвестный предмет для 100 баллов.
+// noteConditions — просьбы уточнить в приёмной комиссии (сомнительную
+// льготу или неизвестный предмет для 100 баллов) и что вуз уже объявил о
+// правилах следующего приёма.
 func noteConditions(note *string) []string {
 	var out []string
 	for _, s := range pick.NoteSentences(note) {
