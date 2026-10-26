@@ -34,7 +34,7 @@ type Bot struct {
 
 func New(st *store.Store, max maxapi.Sender, cfg Config) *Bot {
 	return &Bot{store: st, max: max, cfg: cfg, now: time.Now,
-		notify: &notify.Notifier{Store: st, Max: max, BotName: cfg.BotName, BotID: cfg.BotID, ReminderHour: cfg.ReminderHour}}
+		notify: notify.New(st, max, cfg.BotName, cfg.BotID, cfg.ReminderHour)}
 }
 
 // turn — одно обновление от одного пользователя.

@@ -48,7 +48,7 @@ type Worker struct {
 // обслуживается, но ничего не отправляется.
 func New(st *store.Store, max maxapi.Sender, bot config.Bot, hour int) *Worker {
 	return &Worker{store: st, max: max, hour: hour, now: time.Now,
-		notify: &notify.Notifier{Store: st, Max: max, BotName: bot.Name, BotID: bot.ID, ReminderHour: hour}}
+		notify: notify.New(st, max, bot.Name, bot.ID, hour)}
 }
 
 // Result возвращается триггеру; попадает в логи выполнения.

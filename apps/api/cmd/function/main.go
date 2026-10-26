@@ -8,7 +8,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/ArthurBabkin/max-hackathon/apps/api/internal/api"
 	"github.com/ArthurBabkin/max-hackathon/packages/db"
@@ -34,14 +33,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("база: %v", err)
 	}
-	router = api.New(api.Deps{
-		Store:       store.New(pool),
-		Config:      cfg,
-		CORSOrigins: strings.Split(config.Get("CORS_ALLOWED_ORIGINS", ""), ","),
-		Max:         api.Sender(cfg),
-		LLM:         api.Model(),
-		Classifier:  api.Classifier(),
-	})
+	router = api.New(api.DepsFor(cfg, store.New(pool)))
 }
 
 func Handler(rw http.ResponseWriter, req *http.Request) {

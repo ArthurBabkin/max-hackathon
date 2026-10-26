@@ -58,7 +58,7 @@ type Worker struct {
 // уйдут первым запуском с токеном.
 func New(st *store.Store, max maxapi.Sender, bot config.Bot) *Worker {
 	return &Worker{store: st, max: max, now: time.Now,
-		notify: &notify.Notifier{Store: st, Max: max, BotName: bot.Name, BotID: bot.ID}}
+		notify: notify.New(st, max, bot.Name, bot.ID, 0)}
 }
 
 // Result возвращается триггеру; попадает в логи выполнения.
