@@ -2018,7 +2018,33 @@ export interface components {
              */
             state: "past" | "current" | "future";
         };
+        /** @description Изменение сроков или льготы словами — «Заключительный этап: 14 февраля (было 13 февраля)». */
+        ContentUpdate: {
+            /** Format: date */
+            date: string;
+            text: string;
+        };
         OlympiadDetail: components["schemas"]["OlympiadCard"] & {
+            /**
+             * @description Учебный сезон сроков этапов — «2026/27» (#140).
+             * @example 2026/27
+             */
+            season: string;
+            /**
+             * @description По правилам приёма какого года показаны льготы в вузах ученика. Нет льгот — null (#140).
+             * @example 2026
+             */
+            rules_year: number | null;
+            /**
+             * @description Год, когда ученик поступает, — из класса в профиле. Класс неизвестен — null (#140).
+             * @example 2029
+             */
+            admission_year: number | null;
+            /**
+             * @description Что изменилось в сроках и льготах этого профиля за последние 30 дней, новые первыми,
+             *     не больше трёх (#141). Пусто — блок не показывается.
+             */
+            updates: components["schemas"]["ContentUpdate"][];
             /** Format: uri */
             official_url: string | null;
             /** @description Что это за олимпиада — пара предложений по официальному сайту. Пусто — блок не показывается. */

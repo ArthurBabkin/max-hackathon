@@ -1539,6 +1539,14 @@ components:
           enum: [past, current, future]
           description: "Для таймлайна: пройденные серым, ближайший выделен (F21)."
 
+    ContentUpdate:
+      type: object
+      description: "Изменение сроков или льготы словами — «Заключительный этап: 14 февраля (было 13 февраля)»."
+      required: [date, text]
+      properties:
+        date: { type: string, format: date }
+        text: { type: string }
+
     OlympiadDetail:
       allOf:
         - $ref: "#/components/schemas/OlympiadCard"
@@ -1557,8 +1565,30 @@ components:
               why,
               benefit_universities,
               benefit_columns,
+              season,
+              rules_year,
+              admission_year,
+              updates,
             ]
           properties:
+            season:
+              type: string
+              description: Учебный сезон сроков этапов — «2026/27» (#140).
+              example: "2026/27"
+            rules_year:
+              type: [integer, "null"]
+              description: По правилам приёма какого года показаны льготы в вузах ученика. Нет льгот — null (#140).
+              example: 2026
+            admission_year:
+              type: [integer, "null"]
+              description: Год, когда ученик поступает, — из класса в профиле. Класс неизвестен — null (#140).
+              example: 2029
+            updates:
+              type: array
+              description: |
+                Что изменилось в сроках и льготах этого профиля за последние 30 дней, новые первыми,
+                не больше трёх (#141). Пусто — блок не показывается.
+              items: { $ref: "#/components/schemas/ContentUpdate" }
             official_url: { type: [string, "null"], format: uri }
             description:
               type: [string, "null"]

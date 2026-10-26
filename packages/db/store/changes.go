@@ -23,6 +23,9 @@ type ChangeItem struct {
 	// несколько правок одного профиля подряд дают одну строку в сообщении.
 	// По ним идёт захват доставки, поэтому пункт обязан их помнить.
 	ChangeIDs []string
+	// Details — content_changes.detail тех же строк, по порядку: было и
+	// стало (0030). У событий старше 0030 — null.
+	Details [][]byte
 }
 
 // PendingContentChanges — неразосланные изменения контента и кого они
@@ -59,12 +62,13 @@ func (s *Store) PendingContentChanges(ctx context.Context, limit int) (ids []str
 		// от (entity, entity_id), поэтому дедупликация UNION ниже не меняется.
 		rows, err = tx.db.Query(ctx, `
 			WITH pending AS (
-			  SELECT entity, entity_id, array_agg(id::text) AS change_ids
+			  SELECT entity, entity_id, array_agg(id::text ORDER BY created_at, id) AS change_ids,
+			         array_agg(detail ORDER BY created_at, id) AS details
 			  FROM content_changes WHERE id = ANY($1::uuid[])
 			  GROUP BY entity, entity_id
 			), affected AS (
 			  SELECT ti.trajectory_id, p.entity_id AS profile_id, NULL::text AS university_id, 'stages' AS kind,
-			         p.change_ids
+			         p.change_ids, p.details
 			  FROM pending p JOIN tracker_items ti ON ti.olympiad_profile_id = p.entity_id
 			  WHERE p.entity = 'olympiad_profile'
 			    -- Участие закончилось итогом — новые даты этой семье не нужны.
@@ -72,7 +76,7 @@ func (s *Store) PendingContentChanges(ctx context.Context, limit int) (ids []str
 			                    AND r.result IN ('failed', 'winner', 'prizer', 'participant'))
 			  UNION
 			  SELECT t.id, split_part(p.entity_id, '@', 1), split_part(p.entity_id, '@', 2), 'benefits',
-			         p.change_ids
+			         p.change_ids, p.details
 			  FROM pending p
 			  JOIN olympiad_profiles op ON op.id = split_part(p.entity_id, '@', 1)
 			  JOIN trajectories t ON t.deleted_at IS NULL
@@ -85,7 +89,7 @@ func (s *Store) PendingContentChanges(ctx context.Context, limit int) (ids []str
 			                    WHERE ts.trajectory_id = t.id AND ts.subject_code = op.subject_code)))
 			)
 			SELECT a.trajectory_id::text, a.profile_id, op.profile_name, o.id, o.name, o.official_url, a.kind,
-			       u.id, u.short_name, u.rules_url, a.change_ids
+			       u.id, u.short_name, u.rules_url, a.change_ids, a.details
 			FROM affected a
 			JOIN trajectories t ON t.id = a.trajectory_id AND t.deleted_at IS NULL
 			JOIN olympiad_profiles op ON op.id = a.profile_id
@@ -98,7 +102,7 @@ func (s *Store) PendingContentChanges(ctx context.Context, limit int) (ids []str
 		items, err = collect(rows, func(r rowScanner) (ChangeItem, error) {
 			var c ChangeItem
 			return c, r.Scan(&c.TrajectoryID, &c.ProfileID, &c.ProfileName, &c.OlympiadID, &c.OlympiadName,
-				&c.OfficialURL, &c.Kind, &c.UniversityID, &c.UniversityShort, &c.RulesURL, &c.ChangeIDs)
+				&c.OfficialURL, &c.Kind, &c.UniversityID, &c.UniversityShort, &c.RulesURL, &c.ChangeIDs, &c.Details)
 		})
 		return err
 	})
@@ -239,4 +243,36 @@ func (s *Store) PurgeContentChanges(ctx context.Context, before time.Time) (int6
 		return 0, wrap(err)
 	}
 	return tag.RowsAffected(), nil
+}
+
+// ProfileChange — недавнее изменение профиля олимпиады для карточки:
+// сроки этапов или льгота в вузе.
+type ProfileChange struct {
+	CreatedAt time.Time
+	// Для льгот — вуз; у сроков пусто.
+	UniversityID    *string
+	UniversityShort *string
+	Detail          []byte
+}
+
+// RecentProfileChanges — изменения профиля с since, новые первыми: только
+// те, где известно, что было и что стало (0030), — пересказать «что-то
+// поменялось» карточке нечего.
+func (s *Store) RecentProfileChanges(ctx context.Context, profileID string, since time.Time, limit int) ([]ProfileChange, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT c.created_at, u.id, u.short_name, c.detail
+		FROM content_changes c
+		LEFT JOIN universities u ON c.entity = 'benefit' AND u.id = split_part(c.entity_id, '@', 2)
+		WHERE c.detail IS NOT NULL AND c.created_at >= $2
+		  AND ((c.entity = 'olympiad_profile' AND c.entity_id = $1)
+		    OR (c.entity = 'benefit' AND c.entity_id LIKE $1 || '@%'))
+		ORDER BY c.created_at DESC, c.id
+		LIMIT $3`, profileID, since, limit)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	return collect(rows, func(r rowScanner) (ProfileChange, error) {
+		var c ProfileChange
+		return c, r.Scan(&c.CreatedAt, &c.UniversityID, &c.UniversityShort, &c.Detail)
+	})
 }

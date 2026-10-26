@@ -3686,6 +3686,30 @@
   color: var(--tx);
 }
 
+/* Что изменилось в сроках и льготах (#141). */
+.update-note ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.update-note li + li {
+  margin-top: 3px;
+}
+
+.update-date {
+  color: var(--tx);
+  font-weight: 600;
+}
+
+/* Сезон сроков рядом с заголовком блока (#140). */
+.block-head-season {
+  margin-left: 6px;
+  color: var(--mu);
+  font-size: var(--t-small);
+  font-weight: 500;
+}
+
 .row-closed {
   display: block;
   margin-top: 1px;

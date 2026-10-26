@@ -2930,5 +2930,85 @@
   "family.linkRevokeConfirm": {
     "kid": "Точно отозвать?",
     "parent": "Точно отозвать?"
+  },
+  "change.dateLater": {
+    "kid": "дата будет объявлена позже",
+    "parent": "дата будет объявлена позже"
+  },
+  "change.stageMoved": {
+    "kid": "{title}: {now} (было {was})",
+    "parent": "{title}: {now} (было {was})"
+  },
+  "change.stageTime": {
+    "kid": "{title}: {now}, уточнено время",
+    "parent": "{title}: {now}, уточнено время"
+  },
+  "change.stageAdded": {
+    "kid": "новый этап «{title}»: {now}",
+    "parent": "новый этап «{title}»: {now}"
+  },
+  "change.stageRemoved": {
+    "kid": "этапа «{title}» больше нет",
+    "parent": "этапа «{title}» больше нет"
+  },
+  "change.grant.bvi": {
+    "kid": "БВИ",
+    "parent": "БВИ"
+  },
+  "change.grant.score100": {
+    "kid": "100 баллов",
+    "parent": "100 баллов"
+  },
+  "change.grant.bvi_winners": {
+    "kid": "БВИ победителям",
+    "parent": "БВИ победителям"
+  },
+  "change.grant.extra_points": {
+    "kid": "доп. баллы",
+    "parent": "доп. баллы"
+  },
+  "change.benefitKind": {
+    "kid": "{uni}: {was} → {now}",
+    "parent": "{uni}: {was} → {now}"
+  },
+  "change.benefitEge": {
+    "kid": "{uni}: порог ЕГЭ {was} → {now}",
+    "parent": "{uni}: порог ЕГЭ {was} → {now}"
+  },
+  "change.benefitEgeNew": {
+    "kid": "{uni}: порог ЕГЭ {now}",
+    "parent": "{uni}: порог ЕГЭ {now}"
+  },
+  "change.benefitGrades": {
+    "kid": "{uni}: диплом засчитывают за {now} класс",
+    "parent": "{uni}: диплом засчитывают за {now} класс"
+  },
+  "change.benefitAdded": {
+    "kid": "{uni}: теперь {now}",
+    "parent": "{uni}: теперь {now}"
+  },
+  "change.benefitRemoved": {
+    "kid": "{uni}: льготы больше нет",
+    "parent": "{uni}: льготы больше нет"
+  },
+  "notify.changes.moreDetails": {
+    "kid": "…и ещё изменений: {count}",
+    "parent": "…и ещё изменений: {count}"
+  },
+  "olympiad.season": {
+    "kid": "сезон {season}",
+    "parent": "сезон {season}"
+  },
+  "olympiad.rulesYear": {
+    "kid": "Льготы — по правилам приёма вузов {rules} года.",
+    "parent": "Льготы — по правилам приёма вузов {rules} года."
+  },
+  "olympiad.rulesYearAdmission": {
+    "kid": "Льготы — по правилам приёма вузов {rules} года. Ты поступаешь в {year} году: правила на этот год вузы публикуют до 1 ноября предыдущего года, льготы могут измениться.",
+    "parent": "Льготы — по правилам приёма вузов {rules} года. {student} поступает в {year} году: правила на этот год вузы публикуют до 1 ноября предыдущего года, льготы могут измениться."
+  },
+  "olympiad.updatesTitle": {
+    "kid": "Изменения за последний месяц",
+    "parent": "Изменения за последний месяц"
   }
 }

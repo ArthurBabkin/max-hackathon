@@ -263,3 +263,43 @@ it('у олимпиады с одним профилем шапка и подс�
   expect(within(title).queryByText('Информатика')).not.toBeInTheDocument()
   expect(screen.queryByText(/Нажми на профиль/)).not.toBeInTheDocument()
 })
+
+// #140: сезон сроков, год правил приёма у льгот и год поступления — разные.
+it('называет сезон сроков, год правил приёма и год поступления', () => {
+  renderSheet({ kind: 'perechen', season: '2026/27', rules_year: 2026, admission_year: 2029 })
+  expect(screen.getByRole('heading', { name: /Этапы и даты.*сезон 2026\/27/ })).toBeInTheDocument()
+  const block = screen.getByRole('heading', { name: /Льгота и условия в твоих вузах/ }).closest('section')!
+  expect(
+    within(block).getByText(
+      'Льготы — по правилам приёма вузов 2026 года. Ты поступаешь в 2029 году: правила на этот год вузы публикуют до 1 ноября предыдущего года, льготы могут измениться.',
+    ),
+  ).toBeInTheDocument()
+})
+
+it('без льгот — без года правил; поступает в год правил — без прогноза', () => {
+  renderSheet({ rules_year: null, admission_year: 2029 })
+  expect(screen.queryByText(/по правилам приёма/)).not.toBeInTheDocument()
+})
+
+it('год поступления совпадает с годом правил — только год правил', () => {
+  renderSheet({ rules_year: 2027, admission_year: 2027 })
+  expect(screen.getByText('Льготы — по правилам приёма вузов 2027 года.')).toBeInTheDocument()
+})
+
+// #141: что изменилось — с датой, блок только когда есть изменения.
+it('показывает изменения сроков и льгот с датой', () => {
+  renderSheet({
+    updates: [
+      { date: '2026-10-26', text: 'Заключительный этап: 14 февраля (было 13 февраля)' },
+      { date: '2026-10-20', text: 'МФТИ: порог ЕГЭ 75 → 85' },
+    ],
+  })
+  const note = screen.getByText('Изменения за последний месяц').closest<HTMLElement>('[role="note"]')!
+  expect(within(note).getByText(/Заключительный этап: 14 февраля \(было 13 февраля\)/)).toBeInTheDocument()
+  expect(within(note).getByText(/МФТИ: порог ЕГЭ 75 → 85/)).toBeInTheDocument()
+})
+
+it('без изменений блока нет', () => {
+  renderSheet({ updates: [] })
+  expect(screen.queryByText('Изменения за последний месяц')).not.toBeInTheDocument()
+})

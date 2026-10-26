@@ -266,3 +266,62 @@ func TestResultAsk_ButtonsByStage(t *testing.T) {
 		t.Fatal("неизвестный код")
 	}
 }
+
+// Что именно изменилось (#141): сроки — «было/стало» под олимпиадой,
+// льгота — с вузом, объявление вуза — один раз под списком.
+func TestChanges_Details(t *testing.T) {
+	n := &Notifier{BotName: "test_bot", BotID: 42}
+	ptr := func(s string) *string { return &s }
+	items := []store.ChangeItem{
+		{ProfileID: "p669-54-matematika", ProfileName: ptr("математика"), OlympiadName: "Олимпиада школьников «Физтех»",
+			Kind: "stages", Details: [][]byte{
+				[]byte(`{"title":"Заключительный этап","kind":"final","old":{"starts_at":"2027-02-13T00:00:00+03:00","ends_at":"2027-02-13T23:59:59+03:00"},"new":{"starts_at":"2027-02-14T00:00:00+03:00","ends_at":"2027-02-14T23:59:59+03:00"}}`),
+				[]byte(`{"title":"Регистрация на 2-й тур","kind":"registration","new":{"ends_at":"2026-10-31T08:00:00+03:00","deadline_at":"2026-10-31T08:00:00+03:00"}}`),
+				[]byte(`{"title":"Финал","kind":"final","old":{"starts_at":"2027-03-01T00:00:00+03:00"},"new":{}}`),
+				nil,
+			}},
+		{ProfileID: "p669-8-informatika", ProfileName: ptr("информатика"), OlympiadName: "Всероссийская олимпиада школьников «Высшая проба»",
+			Kind: "benefits", UniversityID: ptr("mipt"), UniversityShort: ptr("МФТИ"), Details: [][]byte{
+				[]byte(`{"old":{"benefit":"bvi","ege_min":75},"new":{"benefit":"score100","ege_min":85}}`),
+				[]byte(`{"text":"МФТИ: с приёма 2027 БВИ — только по 7 олимпиадам РСОШ."}`),
+			}},
+		{ProfileID: "p669-50-fizika", ProfileName: ptr("физика"), OlympiadName: "Олимпиада школьников «Ломоносов»",
+			Kind: "benefits", UniversityID: ptr("mipt"), UniversityShort: ptr("МФТИ"), Details: [][]byte{
+				[]byte(`{"text":"МФТИ: с приёма 2027 БВИ — только по 7 олимпиадам РСОШ."}`),
+			}},
+	}
+	m := n.Changes(items, store.Recipient{Role: "kid", Name: "Артём"}, store.Trajectory{StudentName: "Артём"})
+	for _, want := range []string{
+		"• «Физтех», математика — сроки этапов\n  Заключительный этап: 14 февраля (было 13 февраля)\n  новый этап «Регистрация на 2-й тур»: до 31 октября\n  …и ещё изменений: 1\n",
+		"• «Высшая проба», информатика — льготы (МФТИ)\n  МФТИ: БВИ → 100 баллов; МФТИ: порог ЕГЭ 75 → 85\n",
+		"• «Ломоносов», физика — льготы (МФТИ)\n\nМФТИ: с приёма 2027 БВИ — только по 7 олимпиадам РСОШ.\n",
+	} {
+		if !strings.Contains(m.Text, want) {
+			t.Fatalf("нет %q в\n%s", want, m.Text)
+		}
+	}
+	if strings.Count(m.Text, "только по 7 олимпиадам") != 1 {
+		t.Fatalf("объявление — один раз:\n%s", m.Text)
+	}
+}
+
+func TestDescribe_Stage(t *testing.T) {
+	v := Voice(store.Recipient{Role: "kid"}, store.Trajectory{})
+	for raw, want := range map[string]string{
+		`{"title":"Финал","kind":"final","old":{"starts_at":"2027-02-13T00:00:00+03:00","ends_at":"2027-02-13T23:59:59+03:00"},"new":{}}`:                                                                                               "Финал: дата будет объявлена позже (было 13 февраля)",
+		`{"title":"Регистрация","kind":"registration","old":{"ends_at":"2026-11-10T23:59:59+03:00","deadline_at":"2026-11-10T23:59:59+03:00"},"new":{"ends_at":"2026-11-10T15:00:00+03:00","deadline_at":"2026-11-10T15:00:00+03:00"}}`: "Регистрация: до 10 ноября, уточнено время",
+		`{"title":"Тур","kind":"qualifying","old":{"starts_at":"2026-10-04T10:00:00+03:00"}}`:                                                                                                                                           "этапа «Тур» больше нет",
+		`{"old":{"benefit":"bvi"}}`: "",
+		`not json`:                  "",
+	} {
+		if got := Describe(v, []byte(raw), ""); got != want {
+			t.Errorf("%s: %q, ждали %q", raw, got, want)
+		}
+	}
+	if got := Describe(v, []byte(`{"old":{"diploma_grades":[11]},"new":{"diploma_grades":[10,11]}}`), "ВШЭ"); got != "ВШЭ: диплом засчитывают за 10–11 класс" {
+		t.Errorf("классы: %q", got)
+	}
+	if got := Describe(v, []byte(`{"new":{"benefit":"bvi_winners"}}`), "ИТМО"); got != "ИТМО: теперь БВИ победителям" {
+		t.Errorf("новая льгота: %q", got)
+	}
+}

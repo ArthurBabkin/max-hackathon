@@ -764,9 +764,11 @@ func (a *Assistant) askedText(ctx context.Context, b base, asked, named []string
 						}
 					}
 					// Порог и предмет ЕГЭ — направления: у вуза целиком они
-					// бывают другими, и без них модель берёт вузовские.
+					// бывают другими, и без них модель берёт вузовские. Правила
+					// следующего приёма («С приёма 2027 …») меняют и то и другое.
 					for _, s := range pick.NoteSentences(r.Note) {
-						if strings.HasPrefix(s, "Порог ЕГЭ") || strings.HasPrefix(s, "Подтвердить ЕГЭ") {
+						if strings.HasPrefix(s, "Порог ЕГЭ") || strings.HasPrefix(s, "Подтвердить ЕГЭ") ||
+							strings.HasPrefix(s, "С приёма ") {
 							line += "; " + strings.ToLower(s[:len("П")]) + s[len("П"):]
 						}
 					}

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ArthurBabkin/max-hackathon/packages/core/pick"
 	"github.com/ArthurBabkin/max-hackathon/packages/core/voice"
@@ -200,8 +201,9 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	b := e.do("GET", "/api/v1/olympiads/p669-8-informatika", e.login(900000001, "Артём"), nil).body
 
 	// Призёр и порог — в столбцах таблицы, в условиях строки остаётся только
-	// то, для чего столбца нет: класс диплома. Предмет для 100 баллов — в
-	// подписи: у МГУ его засчитают и по математике.
+	// то, для чего столбца нет: класс диплома и объявленные правила приёма 2027
+	// у МФТИ (#91). Предмет для 100 баллов — в подписи: у МГУ его засчитают и
+	// по математике.
 	var got []string
 	for _, row := range list(t, b["benefits"]) {
 		got = append(got, fmt.Sprintf("%s: %s / %s / %v–%v / %s", row["university_nick"], grant(row["winner"]),
@@ -209,7 +211,8 @@ func TestOlympiad_ConditionsByUniversity(t *testing.T) {
 	}
 	want := []string{
 		"МГУ: bvi БВИ / score100 100 баллов по информатике или математике / 75–<nil> / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
-		"МФТИ: bvi БВИ / score100 100 баллов по информатике / 75–80 / Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
+		"МФТИ: bvi БВИ / score100 100 баллов по информатике / 75–80 / С приёма 2027 года БВИ дают только семь олимпиад РСОШ, эта в их число не входит | " +
+			"С приёма 2027 года порог ЕГЭ по профильному предмету — 85 баллов | Засчитывает только диплом 11 класса — диплом за 9 класс не подойдёт",
 		"КФУ: score100 100 баллов по информатике / score100 100 баллов по информатике / 75–<nil> / Засчитывает только диплом 10–11 класса — диплом за 9 класс не подойдёт",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
@@ -274,6 +277,8 @@ func TestOlympiad_ConditionsFromAllUniversities(t *testing.T) {
 		"ЕГЭ по предмету «Информатика» не ниже 75",
 		"На некоторых программах порог выше, проверь правила вуза",
 		"МГУ, МФТИ: победителю — БВИ, призёру — 100 баллов",
+		"МФТИ: с приёма 2027 года БВИ дают только семь олимпиад РСОШ, эта в их число не входит",
+		"МФТИ: с приёма 2027 года порог ЕГЭ по профильному предмету — 85 баллов",
 		"БВИ можно использовать только в одном вузе",
 	}
 	if fmt.Sprint(conds) != fmt.Sprint(want) {
@@ -494,5 +499,73 @@ func TestOlympiad_RegistrationClosed(t *testing.T) {
 	hse := list(t, e.do("GET", "/api/v1/olympiads?q="+url.QueryEscape("Высшая проба"), token, nil).body["items"])
 	if len(hse) == 0 || hse[0]["registration_closed"] != false {
 		t.Fatalf("открытая регистрация: %v", hse)
+	}
+}
+
+// Сезон, год правил приёма и год поступления — три разных года (#140):
+// карточка называет каждый. Артём в 9 классе сезона 2026/27 поступает в 2029.
+func TestOlympiad_SeasonAndYears(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	r := e.do("GET", "/api/v1/olympiads/p669-8-informatika", token, nil)
+	if r.code != 200 {
+		t.Fatalf("карточка: %d", r.code)
+	}
+	if r.body["season"] != "2026/27" || r.body["admission_year"] != float64(2029) || r.body["rules_year"] != float64(2026) {
+		t.Fatalf("сезон %v, поступает %v, правила %v", r.body["season"], r.body["admission_year"], r.body["rules_year"])
+	}
+	if got := list(t, r.body["updates"]); len(got) != 0 {
+		t.Fatalf("изменений не было, а в карточке: %v", got)
+	}
+}
+
+func TestSeasonOf(t *testing.T) {
+	at := func(m time.Month) time.Time { return time.Date(2027, m, 1, 12, 0, 0, 0, moscow) }
+	for m, want := range map[time.Month]string{time.August: "2026/27", time.September: "2027/28", time.January: "2026/27"} {
+		if got, _ := seasonOf(at(m)); got != want {
+			t.Errorf("%s: %s, ждали %s", m, got, want)
+		}
+	}
+	if y := admissionYear(11, 2027); y == nil || *y != 2027 {
+		t.Errorf("11 класс поступает в год окончания сезона: %v", y)
+	}
+	if admissionYear(0, 2027) != nil {
+		t.Error("класс неизвестен — года нет")
+	}
+}
+
+// Сроки сдвинулись (#141): карточка пересказывает, что было и что стало;
+// событие без подробностей (старше 0030) и чужой профиль — не показывает.
+func TestOlympiad_Updates(t *testing.T) {
+	e := newEnv(t)
+	e.kidCreator()
+	token := e.login(900000001, "Артём")
+	ctx := context.Background()
+	var id string
+	if err := e.pool.QueryRow(ctx, `SELECT id FROM stages WHERE olympiad_profile_id = 'p669-8-informatika' AND kind = 'final'
+		ORDER BY id LIMIT 1`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		`UPDATE stages SET starts_at = '2027-03-01 00:00:00+03', ends_at = '2027-03-01 23:59:59+03', deadline_at = NULL WHERE id = $1`,
+		`UPDATE stages SET starts_at = '2027-03-02 00:00:00+03', ends_at = '2027-03-02 23:59:59+03' WHERE id = $1`,
+	} {
+		if _, err := e.pool.Exec(ctx, q, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.pool.Exec(ctx, `INSERT INTO content_changes (entity, entity_id, summary) VALUES ('olympiad_profile', 'p669-8-informatika', 'stages')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.pool.Exec(ctx, `UPDATE content_changes SET created_at = $1::timestamptz - (SELECT max(created_at) FROM content_changes) + created_at`, e.now.Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	got := list(t, e.do("GET", "/api/v1/olympiads/p669-8-informatika", token, nil).body["updates"])
+	if len(got) != 2 || !strings.HasSuffix(got[0]["text"].(string), ": 2 марта (было 1 марта)") || got[0]["date"] == "" {
+		t.Fatalf("изменения: %v", got)
+	}
+	if other := list(t, e.do("GET", "/api/v1/olympiads/p669-8-matematika", token, nil).body["updates"]); len(other) != 0 {
+		t.Fatalf("у другого профиля: %v", other)
 	}
 }

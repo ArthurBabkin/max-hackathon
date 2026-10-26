@@ -115,6 +115,40 @@ function BenefitSources({ rows }: { rows: OlympiadDetail['benefits'] }) {
   )
 }
 
+/**
+ * Какого года правила приёма у льгот и когда ученик поступает (#140): льгота
+ * показана по правилам этого года, а поступать — по правилам своего.
+ */
+function RulesYear({ rulesYear, admissionYear }: { rulesYear: number | null; admissionYear: number | null }) {
+  const t = useVoice()
+  if (rulesYear === null) return null
+  if (admissionYear === null || admissionYear <= rulesYear) {
+    return <p className="fine">{t('olympiad.rulesYear', { rules: rulesYear })}</p>
+  }
+  return <p className="fine">{t('olympiad.rulesYearAdmission', { rules: rulesYear, year: admissionYear })}</p>
+}
+
+/** Что изменилось в сроках и льготах за месяц (#141): было и стало, с датой. */
+function Updates({ updates }: { updates: OlympiadDetail['updates'] }) {
+  const t = useVoice()
+  if (updates.length === 0) return null
+  return (
+    <div className="closed-note update-note" role="note">
+      <Icon name="refresh" size={15} />
+      <div>
+        <b>{t('olympiad.updatesTitle')}</b>
+        <ul>
+          {updates.map((u) => (
+            <li key={u.date + u.text}>
+              <span className="update-date">{formatShortDate(u.date)}</span> {u.text}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
 export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }) {
   const t = useVoice()
   const { data: session } = useSession()
@@ -225,6 +259,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
         {detail.format ? <span className="pill pill-ok">{detail.format}</span> : null}
         <Pill deadlineAt={detail.deadline_at} doneLabel={t('pill.done')} />
       </div>
+      <Updates updates={detail.updates} />
       {detail.registration_closed ? (
         <div className="closed-note" role="note">
           <Icon name="clock" size={15} />
@@ -253,7 +288,10 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
       {detail.kind === 'vsosh' ? (
         <section className="block">
           <h3 className="block-head">
-            {t('olympiad.vsoshStagesTitle')}
+            <span>
+              {t('olympiad.vsoshStagesTitle')}
+              <span className="block-head-season">{t('olympiad.season', { season: detail.season })}</span>
+            </span>
             <SourceTag kind={detail.stages_are_demo ? 'demo' : 'fact'} />
           </h3>
           <Stages detail={detail} />
@@ -283,7 +321,10 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
       {detail.kind !== 'vsosh' ? (
         <section className="block">
           <h3 className="block-head">
-            {t('olympiad.stagesTitle')}
+            <span>
+              {t('olympiad.stagesTitle')}
+              <span className="block-head-season">{t('olympiad.season', { season: detail.season })}</span>
+            </span>
             <SourceTag kind={detail.stages_are_demo ? 'demo' : 'fact'} />
           </h3>
           <Stages detail={detail} />
@@ -319,6 +360,7 @@ export function OlympiadSheet({ id, sheets }: { id: string; sheets: SheetStack }
           </div>
         ) : null}
         <BenefitSources rows={detail.benefits} />
+        <RulesYear rulesYear={detail.rules_year} admissionYear={detail.admission_year} />
       </section>
 
       {/* Почему подходит — F20. */}
