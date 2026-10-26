@@ -2895,6 +2895,14 @@
     "kid": "до {date}",
     "parent": "до {date}"
   },
+  "tracker.stageDateLater": {
+    "kid": "Дата будет добавлена позже",
+    "parent": "Дата будет добавлена позже"
+  },
+  "tracker.stageDateLaterShort": {
+    "kid": "дата позже",
+    "parent": "дата позже"
+  },
   "tracker.stageFallback": {
     "kid": "Этап",
     "parent": "Этап"

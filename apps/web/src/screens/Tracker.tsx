@@ -17,7 +17,7 @@ import {
 import { getWebApp } from '@/bridge'
 import { formatDay, nearestDeadlineMonth } from '@/lib/deadline'
 import { groupTracker, sortByDeadline } from '@/lib/derive'
-import { deadlineLabel, shortLabels, stageDate } from '@/lib/stages'
+import { deadlineLabel, shortLabels, stageDate, stageSubtitle } from '@/lib/stages'
 import { Icon } from '@/ui/Icon'
 import { CardSkeletons, Hint, Pill, StateBlock, Tile } from '@/ui/primitives'
 import { useSheetStack } from '@/ui/sheets'
@@ -170,7 +170,7 @@ function StageList({ item, onMark, disabled }: { item: TrackerItem; onMark: Mark
           // показывают, даже если дат нет и сервер отметку бы принял.
           const open = s.state !== 'locked' && s.state !== 'future'
           const notYet = s.results.length > 0 && !s.result && s.state !== 'locked' && (!open || s.results_allowed.length === 0)
-          const subtitle = [s.subtitle, notYet ? t('tracker.resultLater') : null].filter(Boolean).join(' · ')
+          const subtitle = [stageSubtitle(s, t), notYet ? t('tracker.resultLater') : null].filter(Boolean).join(' · ')
           return (
             <li key={s.id} className={`stage-mark stage-mark-${tone}`}>
               <span className="stage-mark-dot" aria-hidden />

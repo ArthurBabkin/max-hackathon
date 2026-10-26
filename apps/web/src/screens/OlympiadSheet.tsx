@@ -6,6 +6,7 @@ import type { OlympiadDetail, Source } from '@contract'
 import { useAddToTracker, useOlympiad, usePropose, useSession } from '@/api/queries'
 import { formatShortDate } from '@/lib/deadline'
 import { levelLabel } from '@/lib/level'
+import { stageSubtitle } from '@/lib/stages'
 import { getWebApp } from '@/bridge'
 import { trackerAction } from '@/lib/permissions'
 import { BenefitRow } from '@/ui/BenefitRow'
@@ -19,12 +20,13 @@ import { ErrorState } from '@/ui/ErrorState'
 
 /** Таймлайн этапов: пройденные серым, ближайший выделен (F21). */
 function Stages({ detail }: { detail: OlympiadDetail }) {
+  const t = useVoice()
   return (
     <ol className="timeline">
       {detail.stages.map((stage) => (
         <li key={stage.id} className={`stage stage-${stage.state}`}>
           <b>{stage.title}</b>
-          <span>{stage.subtitle}</span>
+          <span>{stageSubtitle(stage, t)}</span>
         </li>
       ))}
     </ol>

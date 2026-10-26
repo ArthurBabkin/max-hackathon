@@ -27,10 +27,25 @@ export function shortLabels(stages: TrackerStage[], t: Translate): string[] {
   })
 }
 
+/** Этап объявлен, но день — нет («финал в марте»): дат у него нет вовсе. */
+function undated(s: { starts_at?: string | null; ends_at?: string | null; deadline_at: string | null }): boolean {
+  return !s.starts_at && !s.ends_at && !s.deadline_at
+}
+
+/** Подпись под этапом: срок от сервера, у этапа без дня — «Дата будет добавлена позже». */
+export function stageSubtitle(
+  s: { subtitle: string | null; starts_at?: string | null; ends_at?: string | null; deadline_at: string | null },
+  t: Translate,
+): string {
+  if (s.subtitle) return s.subtitle
+  return undated(s) ? t('tracker.stageDateLater') : ''
+}
+
 /** Когда этап: срок регистрации или день начала, иначе подпись словами. */
 export function stageDate(s: TrackerStage, t: Translate): string {
   if (s.deadline_at) return t('tracker.stageUntil', { date: formatDay(s.deadline_at) ?? '' })
   if (s.starts_at) return formatDay(s.starts_at) ?? ''
+  if (!s.subtitle && undated(s)) return t('tracker.stageDateLaterShort')
   return s.subtitle ?? ''
 }
 

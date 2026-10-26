@@ -364,6 +364,10 @@ func (c clock) schedule(st []stages.Stage) string {
 			// если уже начался. Не начался — говорим прямо: по одним датам
 			// модель пишет «регистрация открыта», а «ещё не идёт» читает как
 			// «ещё идёт».
+			if from == nil && to == nil {
+				// Этап объявлен без дня — идёт ли он, неизвестно.
+				break
+			}
 			if s.StartsAt == nil || !s.StartsAt.After(c.now) {
 				tags = append(tags, "идёт сейчас")
 			} else {

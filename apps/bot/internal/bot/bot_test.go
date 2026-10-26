@@ -279,8 +279,9 @@ func TestKidOnboarding_CreatesTrajectoryAndShowsResult(t *testing.T) {
 		t.Fatalf("перед итогом — вопрос о направлениях: %q", s)
 	}
 	result := h.fake.Last(artem.UserID)
-	// Опыта нет — стартовая для первых олимпиад, она же ближайшая.
-	if !strings.HasPrefix(result.Text, "Под твою цель подходят 5 олимпиад и ВсОШ.\n\nДля старта советую эту — она же ближайшая:\nФизтех · Информатика\nIII уровень") ||
+	// Опыта нет — стартовая для первых олимпиад; ближайшая — другая.
+	if !strings.HasPrefix(result.Text, "Под твою цель подходят 5 олимпиад и ВсОШ.\n\nДля старта советую эту:\nВысшая проба · Информатика\nIII уровень") ||
+		!strings.Contains(result.Text, "\n\nБлижайшая олимпиада:\nОлимпиада Юношеской математической школы · Математика\n") ||
 		!strings.HasSuffix(result.Text, "\n\nВ мини-приложении — льготы в твоих вузах, источники и трекер сроков.") {
 		t.Fatalf("итог: %q", result.Text)
 	}
@@ -309,7 +310,7 @@ func TestResult_NearestAfterStart(t *testing.T) {
 	h.press(artem, "dir:done")
 	blocks := strings.Split(h.lastText(artem), "\n\n")
 	if len(blocks) != 4 || !strings.HasPrefix(blocks[1], "Для старта советую эту:\nInnopolis Open · Информатика\n") ||
-		blocks[2] != "Ближайшая олимпиада:\nФизтех · Математика\nII уровень · до 7 сентября, 6 дней · онлайн" {
+		blocks[2] != "Ближайшая олимпиада:\nОлимпиада Юношеской математической школы · Математика\nII уровень · до 13 сентября, 12 дней · онлайн" {
 		t.Fatalf("итог: %q", blocks)
 	}
 }
@@ -320,8 +321,8 @@ func TestResult_StartIsNearest(t *testing.T) {
 	h.toDirections("inf")
 	h.press(artem, "dir:later")
 	blocks := strings.Split(h.lastText(artem), "\n\n")
-	if len(blocks) != 3 || !strings.HasPrefix(blocks[1], "Для старта советую эту — она же ближайшая:\nФизтех · Информатика\n") ||
-		!strings.Contains(blocks[1], "до 7 сентября, 6 дней") {
+	if len(blocks) != 3 || !strings.HasPrefix(blocks[1], "Для старта советую эту — она же ближайшая:\nВысшая проба · Информатика\n") ||
+		!strings.Contains(blocks[1], "до 22 сентября, 21 день") {
 		t.Fatalf("итог: %q", blocks)
 	}
 }

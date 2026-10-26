@@ -225,6 +225,20 @@ func TestSchedule_NearestStageNotStarted(t *testing.T) {
 	}
 }
 
+// Финал объявлен без дня («в марте»): отбор прошёл, финал — ближайший, но
+// «идёт сейчас» о нём сказать нельзя.
+func TestSchedule_AnnouncedStageWithoutDay(t *testing.T) {
+	day := func(m time.Month, d int) *time.Time { x := time.Date(2026, m, d, 9, 0, 0, 0, time.UTC); return &x }
+	c := clock{now: *day(12, 1), loc: time.UTC}
+	got := c.schedule([]stages.Stage{
+		{Kind: "qualifying", Title: "Отборочный этап", StartsAt: day(10, 15), EndsAt: day(11, 25), DeadlineAt: day(11, 25)},
+		{Kind: "final", Title: "Заключительный этап"},
+	})
+	if want := "Отборочный этап 15.10.2026–25.11.2026 (прошёл) → Заключительный этап дата не указана"; got != want {
+		t.Fatalf("расписание:\n%q\nждали\n%q", got, want)
+	}
+}
+
 // «В моих вузах» без предмета — условия по предметам ученика: пересказать
 // все профили олимпиады в шести вузах модель не может без ошибок. Вузы
 // ученика — на его направления, сводки по вузу целиком для них нет.

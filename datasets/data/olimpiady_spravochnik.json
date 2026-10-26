@@ -2402,23 +2402,34 @@
           "stage_name": "Регистрация на Олимпиаду и первый (отборочный) этап",
           "type": "registration",
           "start_date": "2026-10-01",
+          "start_time": "00:01",
           "end_date": "2026-10-29",
+          "end_time": "23:59",
           "format": "online"
         },
         {
           "stage_name": "Первый (отборочный) этап",
           "type": "qualifying",
           "start_date": "2026-11-10",
+          "start_time": "00:01",
           "end_date": "2026-11-30",
+          "end_time": "23:59",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап (в один день с 1 февраля по 1 апреля 2027)",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://www.sechenov.ru/univers/structure/institute/institut-profilnogo-obucheniya-impuls/otdel-organizatsii-i-provedeniya-olimpiad-konferen/vserossiyskaya-sechenovskaya-olimpiada-shkolnikov/",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Заключительный этап — в один день с 1 февраля по 1 апреля 2027 (Регламент, п. 4.2); день ещё не назван, запись закроется за трое суток до него.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -2449,23 +2460,34 @@
           "stage_name": "Регистрация на Олимпиаду и первый (отборочный) этап",
           "type": "registration",
           "start_date": "2026-10-01",
+          "start_time": "00:01",
           "end_date": "2026-10-29",
+          "end_time": "23:59",
           "format": "online"
         },
         {
           "stage_name": "Первый (отборочный) этап",
           "type": "qualifying",
           "start_date": "2026-11-10",
+          "start_time": "00:01",
           "end_date": "2026-11-30",
+          "end_time": "23:59",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап (в один день с 1 февраля по 1 апреля 2027)",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://www.sechenov.ru/univers/structure/institute/institut-profilnogo-obucheniya-impuls/otdel-organizatsii-i-provedeniya-olimpiad-konferen/vserossiyskaya-sechenovskaya-olimpiada-shkolnikov/",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Заключительный этап — в один день с 1 февраля по 1 апреля 2027 (Регламент, п. 4.2); день ещё не назван, запись закроется за трое суток до него.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -2496,23 +2518,34 @@
           "stage_name": "Регистрация (электронная регистрация для участия в Олимпиаде)",
           "type": "registration",
           "start_date": "2026-12-01",
+          "start_time": "09:00",
           "end_date": "2027-01-01",
+          "end_time": "20:59",
           "format": "online"
         },
         {
           "stage_name": "Отборочный (заочный) этап",
           "type": "qualifying",
           "start_date": "2026-12-01",
+          "start_time": "09:00",
           "end_date": "2027-01-01",
+          "end_time": "20:59",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный (очный) этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.tsput.ru/prof/18361/",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа пока не объявлена.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -2543,23 +2576,34 @@
           "stage_name": "Регистрация (электронная регистрация для участия в Олимпиаде)",
           "type": "registration",
           "start_date": "2026-12-01",
+          "start_time": "09:00",
           "end_date": "2027-01-01",
+          "end_time": "20:59",
           "format": "online"
         },
         {
           "stage_name": "Отборочный (заочный) этап",
           "type": "qualifying",
           "start_date": "2026-12-01",
+          "start_time": "09:00",
           "end_date": "2027-01-01",
+          "end_time": "20:59",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный (очный) этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.tsput.ru/prof/18362/",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа пока не объявлена.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3110,7 +3154,7 @@
       "etapy_source_url": "https://distolymp2.spbu.ru/",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3148,6 +3192,7 @@
           "type": "registration",
           "start_date": null,
           "end_date": "2026-10-14",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3155,6 +3200,15 @@
           "type": "qualifying",
           "start_date": "2026-10-17",
           "end_date": "2026-10-18",
+          "format": "online"
+        },
+        {
+          "stage_name": "Приём заявок на 2-й отборочный тур",
+          "type": "registration",
+          "start_date": "2026-10-19",
+          "start_time": "10:00",
+          "end_date": "2026-11-18",
+          "end_time": "12:00",
           "format": "online"
         },
         {
@@ -3177,7 +3231,7 @@
       "etapy_source_url": "https://dovuz.innopolis.university/innopolis-open/informatics",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3215,6 +3269,7 @@
           "type": "registration",
           "start_date": null,
           "end_date": "2026-11-10",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3244,7 +3299,7 @@
       "etapy_source_url": "https://dovuz.innopolis.university/innopolis-open/robo",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3282,6 +3337,7 @@
           "type": "registration",
           "start_date": null,
           "end_date": "2026-11-01",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3294,8 +3350,8 @@
         {
           "stage_name": "Второй отборочный профильный этап",
           "type": "qualifying",
-          "start_date": "2027-01-16",
-          "end_date": "2027-01-17",
+          "start_date": "2027-01-23",
+          "end_date": "2027-01-24",
           "format": "online"
         },
         {
@@ -3311,7 +3367,7 @@
       "etapy_source_url": "https://dovuz.innopolis.university/innopolis-open/ai",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3349,6 +3405,7 @@
           "type": "registration",
           "start_date": null,
           "end_date": "2026-11-11",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3361,8 +3418,8 @@
         {
           "stage_name": "Второй отборочный этап (2-й тур)",
           "type": "qualifying",
-          "start_date": "2027-01-24",
-          "end_date": "2027-01-24",
+          "start_date": "2027-01-17",
+          "end_date": "2027-01-17",
           "format": "online"
         },
         {
@@ -3378,7 +3435,7 @@
       "etapy_source_url": "https://dovuz.innopolis.university/innopolis-open/cyberbez",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3418,6 +3475,7 @@
           "type": "registration",
           "start_date": null,
           "end_date": "2026-10-20",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3425,6 +3483,15 @@
           "type": "qualifying",
           "start_date": "2026-10-24",
           "end_date": "2026-10-25",
+          "format": "online"
+        },
+        {
+          "stage_name": "Приём заявок на 2-й отборочный тур",
+          "type": "registration",
+          "start_date": "2026-10-26",
+          "start_time": "10:00",
+          "end_date": "2026-11-23",
+          "end_time": "15:00",
           "format": "online"
         },
         {
@@ -3447,7 +3514,7 @@
       "etapy_source_url": "https://dovuz.innopolis.university/innopolis-open/math",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -3531,6 +3598,7 @@
           "type": "qualifying",
           "start_date": "2026-09-01",
           "end_date": "2027-01-19",
+          "end_time": "21:59",
           "format": "online"
         },
         {
@@ -3549,7 +3617,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-26-matematika",
@@ -3584,6 +3653,7 @@
           "type": "qualifying",
           "start_date": "2026-09-01",
           "end_date": "2027-01-19",
+          "end_time": "21:59",
           "format": "online"
         },
         {
@@ -3602,7 +3672,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-26-fizika",
@@ -3635,6 +3706,7 @@
           "type": "qualifying",
           "start_date": "2026-09-01",
           "end_date": "2027-01-19",
+          "end_time": "21:59",
           "format": "online"
         },
         {
@@ -3653,7 +3725,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-26-himiya",
@@ -3686,6 +3759,7 @@
           "type": "qualifying",
           "start_date": "2026-09-01",
           "end_date": "2027-01-19",
+          "end_time": "21:59",
           "format": "online"
         },
         {
@@ -3704,7 +3778,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-26-obschestvoznanie",
@@ -3737,6 +3812,7 @@
           "type": "qualifying",
           "start_date": "2026-09-01",
           "end_date": "2027-01-19",
+          "end_time": "21:59",
           "format": "online"
         },
         {
@@ -3755,7 +3831,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-29-matematika",
@@ -3984,7 +4061,7 @@
       "etapy_source_url": "https://v-olymp.ru/olymp/information_security",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -4010,7 +4087,11 @@
       "official_site": "https://v-olymp.ru/",
       "description": "Межрегиональная олимпиада школьников имени И.Я. Верченко — профиль «математика» (предмет: Математика). Организатор — Академия ФСБ России. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 31 с уровнем II.",
       "description_origin": "composed_from_perechen",
-      "grades_eligible": null,
+      "grades_eligible": [
+        9,
+        10,
+        11
+      ],
       "cost": null,
       "etapy": [
         {
@@ -4033,7 +4114,7 @@
       "etapy_source_url": "https://v-olymp.ru/olymp/cryptography",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -4136,8 +4217,6 @@
       "description": "Межрегиональные предметные олимпиады Казанского (Приволжского) федерального университета — профиль «информатика» (предмет: Информатика). Организатор — Казанский (Приволжский) федеральный университет. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 34 с уровнем III.",
       "description_origin": "composed_from_perechen",
       "grades_eligible": [
-        8,
-        9,
         10,
         11
       ],
@@ -4147,6 +4226,7 @@
           "stage_name": "Отборочный этап",
           "type": "qualifying",
           "start_date": "2026-10-26",
+          "start_time": "10:00",
           "end_date": "2026-11-23",
           "format": "online"
         },
@@ -4166,7 +4246,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-34-fizika",
@@ -4198,6 +4279,7 @@
           "stage_name": "Отборочный этап",
           "type": "qualifying",
           "start_date": "2026-10-26",
+          "start_time": "10:00",
           "end_date": "2026-11-23",
           "format": "online"
         },
@@ -4217,7 +4299,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-34-himiya",
@@ -4249,6 +4332,7 @@
           "stage_name": "Отборочный этап",
           "type": "qualifying",
           "start_date": "2026-10-26",
+          "start_time": "10:00",
           "end_date": "2026-11-23",
           "format": "online"
         },
@@ -4268,7 +4352,8 @@
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-35-himiya",
@@ -5148,7 +5233,11 @@
       "official_site": "https://ogn.spmi.ru",
       "description": "Олимпиада школьников «Гранит науки» — профиль «информатика» (предмет: Информатика). Организатор — Санкт-Петербургский горный университет. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 49 с уровнем II.",
       "description_origin": "composed_from_perechen",
-      "grades_eligible": null,
+      "grades_eligible": [
+        9,
+        10,
+        11
+      ],
       "cost": null,
       "etapy": [
         {
@@ -5170,6 +5259,7 @@
           "type": "registration",
           "start_date": "2027-01-15",
           "end_date": "2027-01-29",
+          "end_time": "10:00",
           "format": "online"
         },
         {
@@ -5185,7 +5275,7 @@
       "etapy_source_url": "https://ogn.spmi.ru/sites/default/files/manager/2027/KalendPlan_2026-2027.pdf",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -5209,7 +5299,11 @@
       "official_site": "https://ogn.spmi.ru",
       "description": "Олимпиада школьников «Гранит науки» — профиль «химия» (предмет: Химия). Организатор — Санкт-Петербургский горный университет. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 49 с уровнем III.",
       "description_origin": "composed_from_perechen",
-      "grades_eligible": null,
+      "grades_eligible": [
+        9,
+        10,
+        11
+      ],
       "cost": null,
       "etapy": [
         {
@@ -5231,6 +5325,7 @@
           "type": "registration",
           "start_date": "2027-01-15",
           "end_date": "2027-02-12",
+          "end_time": "10:00",
           "format": "online"
         },
         {
@@ -5246,7 +5341,73 @@
       "etapy_source_url": "https://ogn.spmi.ru/sites/default/files/manager/2027/KalendPlan_2026-2027.pdf",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": false
+    },
+    {
+      "olympiad_id": "p669-49-estestvennye-nauki",
+      "name": "Олимпиада школьников «Гранит науки»",
+      "profile": "естественные науки",
+      "profile_group": "Физика",
+      "profile_groups": [
+        "Физика"
+      ],
+      "subject": "Физика",
+      "profile_slug": "estestvennye-nauki",
+      "profile_slug_in_catalog": true,
+      "organizer": "Санкт-Петербургский горный университет",
+      "level": "III",
+      "perechen_number_669": 49,
+      "perechen_edition": "2025/26",
+      "official_site": "https://ogn.spmi.ru",
+      "description": "Олимпиада школьников «Гранит науки» — профиль «естественные науки» (предмет: Физика). Организатор — Санкт-Петербургский горный университет. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 49 с уровнем III.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        9,
+        10,
+        11
+      ],
+      "cost": null,
+      "etapy": [
+        {
+          "stage_name": "Регистрация на отборочный тур по всем профилям",
+          "type": "registration",
+          "start_date": "2026-10-05",
+          "end_date": "2027-01-13",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный тур",
+          "type": "qualifying",
+          "start_date": "2026-10-05",
+          "end_date": "2027-01-13",
+          "format": "online"
+        },
+        {
+          "stage_name": "Регистрация на заключительный тур олимпиады (профиль Естественные науки)",
+          "type": "registration",
+          "start_date": "2027-01-15",
+          "end_date": "2027-02-05",
+          "end_time": "10:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Заключительный тур (профиль Естественные науки)",
+          "type": "final",
+          "start_date": "2027-02-13",
+          "end_date": "2027-02-13",
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "published_2026_27",
+      "etapy_source_url": "https://ogn.spmi.ru/sites/default/files/manager/2027/KalendPlan_2026-2027.pdf",
+      "etapy_source_page": null,
+      "etapy_note": null,
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -5744,6 +5905,8 @@
       "description": "Олимпиада школьников «Физтех» — профиль «информатика и программирование» (предмет: Информатика). Организатор — МФТИ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 54 с уровнем III.",
       "description_origin": "composed_from_perechen",
       "grades_eligible": [
+        7,
+        8,
         9,
         10,
         11
@@ -5751,36 +5914,37 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
-          "type": "registration",
-          "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
-        },
-        {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Первый отборочный этап",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2026-09-28",
+          "end_date": "2026-11-05",
           "format": "online"
         },
         {
-          "stage_name": "Заключительный этап",
+          "stage_name": "Второй отборочный этап",
+          "type": "qualifying",
+          "start_date": "2026-11-20",
+          "end_date": "2027-01-25",
+          "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап (март 2027)",
           "type": "final",
-          "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "start_date": null,
+          "end_date": null,
           "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
       "etapy_status": "published_2026_27",
-      "etapy_source_url": "https://olymp-online.mipt.ru",
+      "etapy_source_url": "https://uc1.1c.ru/olymp-mipt/uchastnikam/",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": "Заключительный этап — в марте 2027, день пока не объявлен.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-matematika",
@@ -5810,23 +5974,61 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
+          "stage_name": "Регистрация и подтверждение профиля на 1-й тур",
           "type": "registration",
           "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
+          "start_time": "10:00",
+          "end_date": "2026-10-10",
+          "end_time": "10:00",
+          "format": "online"
         },
         {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Онлайн-этап, 1-й тур",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2026-10-11",
+          "start_time": "10:00",
+          "end_date": "2026-10-11",
+          "end_time": "15:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Регистрация на 2-й тур",
+          "type": "registration",
+          "start_date": null,
+          "end_date": "2026-10-31",
+          "end_time": "08:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Онлайн-этап, 2-й тур",
+          "type": "qualifying",
+          "start_date": "2026-11-01",
+          "start_time": "08:00",
+          "end_date": "2026-11-01",
+          "end_time": "13:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Регистрация на 3-й тур (только 11 класс)",
+          "type": "registration",
+          "start_date": null,
+          "end_date": "2026-11-06",
+          "end_time": "10:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Онлайн-этап, 3-й тур (только 11 класс)",
+          "type": "qualifying",
+          "start_date": "2026-11-07",
+          "start_time": "10:00",
+          "end_date": "2026-11-07",
+          "end_time": "15:00",
           "format": "online"
         },
         {
           "stage_name": "Заключительный этап",
           "type": "final",
-          "start_date": "2027-02-13",
+          "start_date": "2027-02-14",
           "end_date": "2027-02-14",
           "format": "offline"
         }
@@ -5835,11 +6037,12 @@
       "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp-online.mipt.ru",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": "Онлайн-этап — три тура; третий только для 11 класса. Призёр любого тура проходит на заключительный этап и к следующим турам не допускается. Подтвердить профиль нужно не позже чем за сутки до тура.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-nauchno-tehnicheskiy",
@@ -5869,36 +6072,32 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
-          "type": "registration",
-          "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
-        },
-        {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Отборочный этап: онлайн-тестирование и научная работа",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2026-10-10",
+          "start_time": "10:00",
+          "end_date": "2026-12-30",
+          "end_time": "23:55",
           "format": "online"
         },
         {
-          "stage_name": "Заключительный этап",
+          "stage_name": "Заключительный этап в Долгопрудном",
           "type": "final",
-          "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "start_date": "2027-03-27",
+          "end_date": "2027-04-04",
           "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
       "etapy_status": "published_2026_27",
-      "etapy_source_url": "https://olymp-online.mipt.ru",
+      "etapy_source_url": "https://start.mipt.ru/view/olymp",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": null,
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-fizika",
@@ -5926,24 +6125,62 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
+          "stage_name": "Регистрация и подтверждение профиля на 1-й тур",
           "type": "registration",
           "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
+          "start_time": "10:00",
+          "end_date": "2026-10-03",
+          "end_time": "10:00",
+          "format": "online"
         },
         {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Онлайн-этап, 1-й тур",
           "type": "qualifying",
           "start_date": "2026-10-04",
-          "end_date": null,
+          "start_time": "10:00",
+          "end_date": "2026-10-04",
+          "end_time": "15:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Регистрация на 2-й тур",
+          "type": "registration",
+          "start_date": null,
+          "end_date": "2026-10-24",
+          "end_time": "08:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Онлайн-этап, 2-й тур",
+          "type": "qualifying",
+          "start_date": "2026-10-25",
+          "start_time": "08:00",
+          "end_date": "2026-10-25",
+          "end_time": "13:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Регистрация на 3-й тур (только 11 класс)",
+          "type": "registration",
+          "start_date": null,
+          "end_date": "2026-11-07",
+          "end_time": "10:00",
+          "format": "online"
+        },
+        {
+          "stage_name": "Онлайн-этап, 3-й тур (только 11 класс)",
+          "type": "qualifying",
+          "start_date": "2026-11-08",
+          "start_time": "10:00",
+          "end_date": "2026-11-08",
+          "end_time": "15:00",
           "format": "online"
         },
         {
           "stage_name": "Заключительный этап",
           "type": "final",
           "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "end_date": "2027-02-13",
           "format": "offline"
         }
       ],
@@ -5951,11 +6188,12 @@
       "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp-online.mipt.ru",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": "Онлайн-этап — три тура; третий только для 11 класса. Призёр любого тура проходит на заключительный этап и к следующим турам не допускается. Подтвердить профиль нужно не позже чем за сутки до тура.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-inzhenernoe-delo",
@@ -5976,6 +6214,7 @@
       "description": "Олимпиада школьников «Физтех» — профиль «инженерное дело» (предмет: Физика). Организатор — МФТИ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 54 с уровнем II.",
       "description_origin": "composed_from_perechen",
       "grades_eligible": [
+        8,
         9,
         10,
         11
@@ -5983,36 +6222,37 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
-          "type": "registration",
-          "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
+          "stage_name": "Первый отборочный этап",
+          "type": "qualifying",
+          "start_date": "2026-10-15",
+          "end_date": "2026-11-25",
+          "format": "online"
         },
         {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Второй отборочный этап",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2026-12-05",
+          "end_date": "2027-01-15",
           "format": "online"
         },
         {
           "stage_name": "Заключительный этап",
           "type": "final",
-          "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "start_date": null,
+          "end_date": null,
           "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
       "etapy_status": "published_2026_27",
-      "etapy_source_url": "https://olymp-online.mipt.ru",
+      "etapy_source_url": "https://olymp.mipt-rse.ru/",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": "Дата заключительного этапа пока не объявлена.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-biologiya",
@@ -6040,36 +6280,37 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
-          "type": "registration",
-          "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
+          "stage_name": "Отборочный этап, попытка 1",
+          "type": "qualifying",
+          "start_date": "2026-12-20",
+          "end_date": "2026-12-20",
+          "format": "online"
         },
         {
-          "stage_name": "Отборочный этап",
+          "stage_name": "Отборочный этап, попытка 2",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2027-01-09",
+          "end_date": "2027-01-09",
           "format": "online"
         },
         {
           "stage_name": "Заключительный этап",
           "type": "final",
-          "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "start_date": "2027-02-22",
+          "end_date": "2027-02-22",
           "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
       "etapy_status": "published_2026_27",
-      "etapy_source_url": "https://olymp-online.mipt.ru",
+      "etapy_source_url": "https://bio-olymp.mipt.ru/",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": "Зарегистрироваться можно в любой момент до конца отборочного этапа. Призёру первой попытки вторая не нужна.",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-54-himiya",
@@ -6090,6 +6331,8 @@
       "description": "Олимпиада школьников «Физтех» — профиль «химия» (предмет: Химия). Организатор — МФТИ. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 54 с уровнем III.",
       "description_origin": "composed_from_perechen",
       "grades_eligible": [
+        7,
+        8,
         9,
         10,
         11
@@ -6097,36 +6340,30 @@
       "cost": null,
       "etapy": [
         {
-          "stage_name": "Регистрация",
-          "type": "registration",
-          "start_date": "2026-09-07",
-          "end_date": null,
-          "format": null
-        },
-        {
           "stage_name": "Отборочный этап",
           "type": "qualifying",
-          "start_date": "2026-10-04",
-          "end_date": null,
+          "start_date": "2026-12-15",
+          "end_date": "2027-01-10",
           "format": "online"
         },
         {
           "stage_name": "Заключительный этап",
           "type": "final",
-          "start_date": "2027-02-13",
-          "end_date": "2027-02-14",
+          "start_date": "2027-02-21",
+          "end_date": "2027-02-21",
           "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
       "etapy_status": "published_2026_27",
-      "etapy_source_url": "https://olymp-online.mipt.ru",
+      "etapy_source_url": "https://chem-olymp.mipt.ru/",
       "etapy_source_page": null,
-      "etapy_note": "Расписание предварительное: организатор предупреждает, что даты могут измениться. Даты туров отборочного этапа различаются по предметам и классам.",
+      "etapy_note": null,
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
-      "is_demo": false
+      "is_demo": false,
+      "etapy_checked_at": "2026-10-26"
     },
     {
       "olympiad_id": "p669-55-informatika",
@@ -6167,14 +6404,94 @@
           "start_date": "2026-12-05",
           "end_date": "2026-12-07",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.bmstu.ru/ru/programming-olymp",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
+      "source_url": "https://rsr-olymp.ru/",
+      "source_page": null,
+      "source_date": "2026-09-21",
+      "is_demo": false
+    },
+    {
+      "olympiad_id": "p669-55-kompyuternoe-modelirovanie-i-grafika",
+      "name": "Олимпиада школьников «Шаг в будущее»",
+      "profile": "компьютерное моделирование и графика",
+      "profile_group": "ИТ",
+      "profile_groups": [
+        "ИТ"
+      ],
+      "subject": "Информатика",
+      "profile_slug": "kompyuternoe-modelirovanie-i-grafika",
+      "profile_slug_in_catalog": true,
+      "organizer": "МГТУ им. Н.Э. Баумана",
+      "level": "III",
+      "perechen_number_669": 55,
+      "perechen_edition": "2025/26",
+      "official_site": "https://olymp.bmstu.ru",
+      "description": "Олимпиада школьников «Шаг в будущее» — профиль «компьютерное моделирование и графика» (предмет: Информатика). Организатор — МГТУ им. Н.Э. Баумана. В перечне олимпиад школьников на 2025/26 уч. г. значится под № 55 с уровнем III.",
+      "description_origin": "composed_from_perechen",
+      "grades_eligible": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "cost": null,
+      "etapy": [
+        {
+          "stage_name": "Выбор площадки для тура по математике (в личном кабинете)",
+          "type": "registration",
+          "start_date": null,
+          "end_date": "2026-11-08",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный этап, 2 тур: черчение и компьютерное моделирование, 1 волна",
+          "type": "qualifying",
+          "start_date": "2026-10-23",
+          "end_date": "2026-10-25",
+          "format": "online"
+        },
+        {
+          "stage_name": "Отборочный этап, 1 тур: математика (очно на площадке, одна волна)",
+          "type": "qualifying",
+          "start_date": "2026-11-16",
+          "end_date": "2026-11-22",
+          "format": "offline"
+        },
+        {
+          "stage_name": "Отборочный этап, 2 тур: черчение и компьютерное моделирование, 2 волна",
+          "type": "qualifying",
+          "start_date": "2026-12-05",
+          "end_date": "2026-12-07",
+          "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап (математика и инженерная графика, компьютерное моделирование)",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
+        }
+      ],
+      "etapy_season": "2026/27",
+      "etapy_status": "published_2026_27",
+      "etapy_source_url": "https://olymp.bmstu.ru/ru/graphics-olymp",
+      "etapy_source_page": null,
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -6226,14 +6543,21 @@
           "start_date": null,
           "end_date": "2027-01-10",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.bmstu.ru/ru/programming-olymp",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -6280,14 +6604,21 @@
           "start_date": "2026-11-16",
           "end_date": "2026-11-22",
           "format": "offline"
+        },
+        {
+          "stage_name": "Заключительный этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.bmstu.ru/ru/mathematics-olymp",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -6332,14 +6663,21 @@
           "start_date": "2026-12-05",
           "end_date": "2026-12-07",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.bmstu.ru/ru/physics-olymp",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -6384,14 +6722,21 @@
           "start_date": "2026-11-29",
           "end_date": "2026-11-29",
           "format": "online"
+        },
+        {
+          "stage_name": "Заключительный этап",
+          "type": "final",
+          "start_date": null,
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
+      "etapy_status": "published_2026_27",
       "etapy_source_url": "https://olymp.bmstu.ru/ru/khimiya",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Дата заключительного этапа будет объявлена после отборочного этапа.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -7469,6 +7814,13 @@
       "cost": null,
       "etapy": [
         {
+          "stage_name": "Регистрация на первый (отборочный) этап",
+          "type": "registration",
+          "start_date": "2026-10-10",
+          "end_date": "2027-01-15",
+          "format": "online"
+        },
+        {
           "stage_name": "Отборочный этап",
           "type": "qualifying",
           "start_date": "2026-11-01",
@@ -7476,19 +7828,19 @@
           "format": "online"
         },
         {
-          "stage_name": "Регистрация на первый (отборочный) этап",
-          "type": "registration",
+          "stage_name": "Заключительный этап (с 30 января по 30 марта 2027)",
+          "type": "final",
           "start_date": null,
-          "end_date": "2027-01-15",
-          "format": "online"
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
-      "etapy_source_url": "https://olympiad.gazprom.ru/#/schedule",
+      "etapy_status": "published_2026_27",
+      "etapy_source_url": "https://olympiad.gazprom.ru/assets/files/regulations/2026-2027/reglament_2026_27.pdf",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Заключительный этап — очно с 30 января по 30 марта 2027 (Регламент, п. 2.5); день по профилю ещё не назван.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -7516,6 +7868,13 @@
       "cost": null,
       "etapy": [
         {
+          "stage_name": "Регистрация на первый (отборочный) этап",
+          "type": "registration",
+          "start_date": "2026-10-10",
+          "end_date": "2027-01-15",
+          "format": "online"
+        },
+        {
           "stage_name": "Отборочный этап",
           "type": "qualifying",
           "start_date": "2026-11-01",
@@ -7523,19 +7882,19 @@
           "format": "online"
         },
         {
-          "stage_name": "Регистрация на первый (отборочный) этап",
-          "type": "registration",
+          "stage_name": "Заключительный этап (с 30 января по 30 марта 2027)",
+          "type": "final",
           "start_date": null,
-          "end_date": "2027-01-15",
-          "format": "online"
+          "end_date": null,
+          "format": "offline"
         }
       ],
       "etapy_season": "2026/27",
-      "etapy_status": "partial_2026_27",
-      "etapy_source_url": "https://olympiad.gazprom.ru/#/schedule",
+      "etapy_status": "published_2026_27",
+      "etapy_source_url": "https://olympiad.gazprom.ru/assets/files/regulations/2026-2027/reglament_2026_27.pdf",
       "etapy_source_page": null,
-      "etapy_note": "Финал сезона 2026/27 пока не объявлен: в приложении он демо.",
-      "etapy_checked_at": "2026-09-23",
+      "etapy_note": "Заключительный этап — очно с 30 января по 30 марта 2027 (Регламент, п. 2.5); день по профилю ещё не назван.",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -8252,6 +8611,7 @@
           "type": "qualifying",
           "start_date": "2026-10-01",
           "end_date": "2027-01-12",
+          "end_time": "13:00",
           "format": "online"
         },
         {
@@ -8267,7 +8627,7 @@
       "etapy_source_url": "https://dovuz.sfu.ru/abiturientu-sfu/olimpiady/belchonok/2026-2027-uchebnyy-god/",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -8301,6 +8661,7 @@
           "type": "qualifying",
           "start_date": "2026-10-01",
           "end_date": "2027-01-12",
+          "end_time": "13:00",
           "format": "online"
         },
         {
@@ -8316,7 +8677,7 @@
       "etapy_source_url": "https://dovuz.sfu.ru/abiturientu-sfu/olimpiady/belchonok/2026-2027-uchebnyy-god/",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -8348,6 +8709,7 @@
           "type": "qualifying",
           "start_date": "2026-10-01",
           "end_date": "2027-01-12",
+          "end_time": "13:00",
           "format": "online"
         },
         {
@@ -8363,7 +8725,7 @@
       "etapy_source_url": "https://dovuz.sfu.ru/abiturientu-sfu/olimpiady/belchonok/2026-2027-uchebnyy-god/",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
@@ -8395,6 +8757,7 @@
           "type": "qualifying",
           "start_date": "2026-10-01",
           "end_date": "2027-01-12",
+          "end_time": "13:00",
           "format": "online"
         },
         {
@@ -8410,7 +8773,7 @@
       "etapy_source_url": "https://dovuz.sfu.ru/abiturientu-sfu/olimpiady/belchonok/2026-2027-uchebnyy-god/",
       "etapy_source_page": null,
       "etapy_note": null,
-      "etapy_checked_at": "2026-09-23",
+      "etapy_checked_at": "2026-10-26",
       "source_url": "https://rsr-olymp.ru/",
       "source_page": null,
       "source_date": "2026-09-21",
